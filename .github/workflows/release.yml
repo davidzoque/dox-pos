@@ -1,0 +1,47 @@
+name: Build release ZIP
+
+# Al pushear una etiqueta v* se crea la release con dos zips: el de GitHub (con el actualizador, el que
+# sirve Plugin Update Checker a los sitios) y el de WordPress.org (sin vendor ni Update URI).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar que la versión del plugin coincide con la etiqueta
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PLUGIN_VERSION=$(grep -oP '^ \* Version:\s+\K[0-9.]+' dox-pos.php)
+          echo "Etiqueta: $TAG_VERSION / Plugin: $PLUGIN_VERSION"
+          if [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "::error::La versión de la cabecera ($PLUGIN_VERSION) no coincide con la etiqueta ($TAG_VERSION)."
+            exit 1
+          fi
+
+      - name: Construir los zips
+        run: |
+          mkdir -p build/dox-pos
+          rsync -a --exclude='.git*' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' ./ build/dox-pos/
+          cd build
+          zip -rq dox-pos.zip dox-pos
+          rm -rf dox-pos/vendor/plugin-update-checker
+          sed -i '/^ \* Update URI:/d' dox-pos/dox-pos.php
+          zip -rq dox-pos-wordpress-org.zip dox-pos
+
+      - name: Crear la release y adjuntar los zips
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/dox-pos.zip
+            build/dox-pos-wordpress-org.zip
+          generate_release_notes: true

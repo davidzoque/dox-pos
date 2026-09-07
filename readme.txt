@@ -4,7 +4,7 @@ Tags: woocommerce, pos, inventario, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.19.0
+Stable tag: 0.20.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,6 +20,9 @@ Añade la página /caja con su propio login. Desde ahí se buscan los productos 
 Sube la carpeta `dox-pos` a `/wp-content/plugins/` y activa el plugin. Entra a `/caja` con un usuario administrador, gerente de tienda o con el rol "Caja". Para otra marca, ve a WooCommerce > Dox POS.
 
 == Changelog ==
+
+= 0.20.0 =
+* Las actualizaciones llegan desde GitHub mientras el plugin no esté en WordPress.org: cada versión etiquetada arma su zip y WordPress avisa de la actualización como siempre (Plugin Update Checker sobre las releases de github.com/davidzoque/dox-pos). La compilación para WordPress.org se arma sin esa pieza.
 
 = 0.19.0 =
 * El plugin se parte en dos: Dox POS (este, la caja entera) y Dox POS Pro (el asistente: Hoy, revisión, chat, pronóstico, resumen diario, uso y datos de demostración). El gratuito funciona completo sin el Pro, y el Pro se cuelga de él por ganchos, sin copiar nada. Quien tenía la 0.18.0 instala el Pro y lo activa: todo sigue donde estaba, con sus tablas, su clave y su historial.
