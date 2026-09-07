@@ -38,6 +38,19 @@ Todo se cambia en WooCommerce > Dox POS, una página con cinco pestañas y una v
 - **Los apartados**: horas, la plantilla del mensaje de WhatsApp (`{nombre}`, `{productos}`, `{total}`, `{horas}`, `{link}`, `{tienda}`) y cómo pagar por fuera del link.
 - **Los envíos**: las transportadoras que se sugieren. Costos, país, departamentos y moneda salen de WooCommerce (y las ciudades de Colciudades, si está).
 
+## Actualizaciones desde GitHub
+
+Mientras no esté en WordPress.org, `dox-pos.php` carga `vendor/plugin-update-checker` apuntando al
+repositorio público `davidzoque/dox-pos` (rama `main`, con `enableReleaseAssets()`), y la cabecera
+`Update URI` evita que WordPress busque el slug en WordPress.org. Para sacar versión: subir la versión en
+la cabecera y en `DOX_POS_VERSION`, commit, y una etiqueta `vX.Y.Z` (`git tag vX.Y.Z && git push --tags`, o
+desde GitHub Desktop: History > clic derecho en el commit > Create tag > Push). El workflow
+`.github/workflows/release.yml` comprueba que la etiqueta y la versión coincidan, arma `dox-pos.zip` (el que
+sirve el actualizador) y `dox-pos-wordpress-org.zip` (sin `vendor/` ni `Update URI`, el que se envía a
+WordPress.org), y publica la release. Los sitios lo ven en Plugins en menos de 12 horas (o al pulsar
+"Comprobar de nuevo" en Actualizaciones). El Pro no se actualiza por GitHub (el repositorio es privado y
+haría falta un token dentro del plugin): irá por el servidor de licencias; mientras, `subir.sh`.
+
 ## Subir a un servidor
 
 `./subir.sh milasros` empaqueta la carpeta, la deja en `wp-content/plugins/dox-pos` de esa cuenta y reinicia sus procesos PHP para que no quede código viejo en OPcache. La activación se hace una vez desde Plugins.

@@ -24,6 +24,9 @@ Sube la carpeta `dox-pos` a `/wp-content/plugins/` y activa el plugin. Entra a `
 = 0.20.0 =
 * Las actualizaciones llegan desde GitHub mientras el plugin no esté en WordPress.org: cada versión etiquetada arma su zip y WordPress avisa de la actualización como siempre (Plugin Update Checker sobre las releases de github.com/davidzoque/dox-pos). La compilación para WordPress.org se arma sin esa pieza.
 
+= 0.20.0 =
+* Mientras el plugin no esté en WordPress.org, se actualiza solo desde las releases de GitHub (Plugin Update Checker): cada etiqueta v* arma dos zips, el de GitHub con el actualizador y el de WordPress.org sin él. En Plugins aparece "hay una actualización" como con cualquier otro.
+
 = 0.19.0 =
 * El plugin se parte en dos: Dox POS (este, la caja entera) y Dox POS Pro (el asistente: Hoy, revisión, chat, pronóstico, resumen diario, uso y datos de demostración). El gratuito funciona completo sin el Pro, y el Pro se cuelga de él por ganchos, sin copiar nada. Quien tenía la 0.18.0 instala el Pro y lo activa: todo sigue donde estaba, con sus tablas, su clave y su historial.
 * Arreglado de paso un fallo escondido: el borrador del formulario de producto no se guardaba desde la 0.11.1, porque el chat tenía otra función con el mismo nombre que la pisaba. Cada uno va ahora en su archivo y no se estorban.
