@@ -4,7 +4,7 @@ Tags: woocommerce, pos, inventario, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.18.0
+Stable tag: 0.19.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,6 +20,10 @@ Añade la página /caja con su propio login. Desde ahí se buscan los productos 
 Sube la carpeta `dox-pos` a `/wp-content/plugins/` y activa el plugin. Entra a `/caja` con un usuario administrador, gerente de tienda o con el rol "Caja". Para otra marca, ve a WooCommerce > Dox POS.
 
 == Changelog ==
+
+= 0.19.0 =
+* El plugin se parte en dos: Dox POS (este, la caja entera) y Dox POS Pro (el asistente: Hoy, revisión, chat, pronóstico, resumen diario, uso y datos de demostración). El gratuito funciona completo sin el Pro, y el Pro se cuelga de él por ganchos, sin copiar nada. Quien tenía la 0.18.0 instala el Pro y lo activa: todo sigue donde estaba, con sus tablas, su clave y su historial.
+* Arreglado de paso un fallo escondido: el borrador del formulario de producto no se guardaba desde la 0.11.1, porque el chat tenía otra función con el mismo nombre que la pisaba. Cada uno va ahora en su archivo y no se estorban.
 
 = 0.18.0 =
 * Pestaña Uso en el Asistente: lo que ha costado la API, sin salir de la caja. Arriba, el gasto del mes con cuántas llamadas, el de hoy, el promedio por llamada y en cuánto cerraría el mes al ritmo actual; después el tope del mes con su barra; un gráfico día a día de los últimos 30 días; en qué se va (consejos, chat, resumen diario, descripciones y pruebas) con sus llamadas y su costo; y las últimas veinte llamadas con quién las pidió, cuántos tokens, cuánto tardaron y cuánto costaron. Todo sale del registro del plugin, que guarda 90 días, y se ve en dólares, que es como cobra OpenAI.

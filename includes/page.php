@@ -68,9 +68,7 @@ function dox_pos_render() {
 		}
 	}
 
-	if ( function_exists( 'dox_pos_ai_catchup' ) ) {
-		dox_pos_ai_catchup(); // Si el resumen diario no salió a su hora, se pide ahora.
-	}
+	do_action( 'dox_pos_caja_open' ); // Los añadidos hacen lo suyo al abrir (el Pro pide el resumen atrasado).
 	include DOX_POS_PATH . 'templates/caja.php';
 	exit;
 }
@@ -157,6 +155,7 @@ function dox_pos_head() {
 	<link rel="stylesheet" href="<?php echo esc_url( DOX_POS_URL . 'assets/css/caja.css?ver=' . DOX_POS_VERSION ); ?>">
 	<style><?php echo dox_pos_theme_css(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Solo colores validados y nombres de fuente. ?></style>
 	<?php
+	do_action( 'dox_pos_head' ); // Hojas de estilo de los añadidos.
 }
 
 /**
@@ -171,7 +170,7 @@ function dox_pos_js_config() {
 	foreach ( dox_pos_payment_methods() as $key => $m ) {
 		$payments[] = array( 'key' => $key, 'title' => $m['title'] );
 	}
-	return array(
+	$cfg = array(
 		'rest'            => esc_url_raw( rest_url( 'dox-pos/v1/' ) ),
 		'nonce'           => wp_create_nonce( 'wp_rest' ),
 		'user'            => $user->display_name ? $user->display_name : $user->user_login,
@@ -196,12 +195,10 @@ function dox_pos_js_config() {
 		'hold_hours'      => dox_pos_hold_hours(),
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
-		'assistant'       => current_user_can( 'manage_woocommerce' ),     // ¿Ve la pestaña "Asistente"?
-		'ai_ready'        => dox_pos_ai_enabled(),                         // ¿Hay clave de OpenAI? Sin ella, solo números y reglas.
-		'demo'            => function_exists( 'dox_pos_demo_active' ) && dox_pos_demo_active(), // ¿Hay pedidos de demostración? Sale el aviso.
 		'url'             => dox_pos_url(),
 		'today'           => wp_date( 'Y-m-d' ),                          // El día de la tienda, para los periodos.
 		'max_upload'      => (int) wp_max_upload_size(),
 		'version'         => DOX_POS_VERSION,
 	);
+	return apply_filters( 'dox_pos_cfg', $cfg ); // Los añadidos meten lo suyo (el Pro: assistant, ai_ready, demo).
 }

@@ -527,7 +527,6 @@ function dox_pos_register_settings() {
 	register_setting( 'dox_pos', 'dox_pos_ship_message', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_ship_message', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_payment_note', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_note', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_products', array( 'type' => 'array', 'sanitize_callback' => 'dox_pos_sanitize_products', 'default' => array() ) );
-	register_setting( 'dox_pos', 'dox_pos_ai', array( 'type' => 'array', 'sanitize_callback' => 'dox_pos_sanitize_ai', 'default' => array() ) );
 }
 
 /**
@@ -917,9 +916,6 @@ function dox_pos_admin_assets( $hook ) {
 				'checking'  => __( 'Comprobando…', 'dox-pos' ),
 				'carrierName' => __( 'Transportadora', 'dox-pos' ),
 				'carrierUrl' => __( 'Enlace de rastreo', 'dox-pos' ),
-				'demoWorking' => __( 'Un momento: se están creando los pedidos de ejemplo…', 'dox-pos' ),
-				'demoRemoving' => __( 'Quitando los pedidos de ejemplo…', 'dox-pos' ),
-				'demoConfirm' => __( '¿Quitar los datos de demostración? Se borran los pedidos de ejemplo; las existencias no cambian.', 'dox-pos' ),
 				'slugOk'    => __( 'Disponible.', 'dox-pos' ),
 				'slugSame'  => __( 'Es la ruta actual.', 'dox-pos' ),
 				'fontOk'    => __( 'Google Fonts la tiene.', 'dox-pos' ),
@@ -931,6 +927,7 @@ function dox_pos_admin_assets( $hook ) {
 			),
 		)
 	);
+	do_action( 'dox_pos_settings_assets' ); // Los añadidos encolan lo suyo (el Pro, su JS del asistente).
 }
 
 /**
@@ -960,20 +957,17 @@ function dox_pos_settings_page() {
 	$praw     = (array) get_option( 'dox_pos_products', array() ); // Lo guardado tal cual: vacío = automático.
 	$attrs    = dox_pos_attribute_taxonomies();
 	$heic     = class_exists( 'Imagick' ) && in_array( 'HEIC', (array) Imagick::queryFormats( 'HEIC' ), true );
-	$ai       = dox_pos_ai_settings();
-	$ai_hint  = dox_pos_ai_key_hint();
-	$ai_use   = dox_pos_ai_month_usage();
-	$ai_price = dox_pos_ai_prices( $ai['model'] );
-	$ai_next  = dox_pos_ai_next_summary();
-	$ai_to    = implode( ', ', dox_pos_ai_recipients() );
-	$tabs     = array(
-		'marca'     => array( __( 'Marca', 'dox-pos' ), 'palette' ),
-		'pantalla'  => array( __( 'Pantalla', 'dox-pos' ), 'screen' ),
-		'ventas'    => array( __( 'Ventas', 'dox-pos' ), 'bag' ),
-		'apartados' => array( __( 'Apartados', 'dox-pos' ), 'clock' ),
-		'envios'    => array( __( 'Envíos', 'dox-pos' ), 'truck' ),
-		'productos' => array( __( 'Productos', 'dox-pos' ), 'tag' ),
-		'asistente' => array( __( 'Asistente', 'dox-pos' ), 'sparkle' ),
+	// Cada pestaña: título, icono y qué vista previa enseña. Los añadidos (el Pro) meten las suyas por el filtro.
+	$tabs     = apply_filters(
+		'dox_pos_settings_tabs',
+		array(
+			'marca'     => array( __( 'Marca', 'dox-pos' ), 'palette', 'caja' ),
+			'pantalla'  => array( __( 'Pantalla', 'dox-pos' ), 'screen', 'caja' ),
+			'ventas'    => array( __( 'Ventas', 'dox-pos' ), 'bag', 'caja' ),
+			'apartados' => array( __( 'Apartados', 'dox-pos' ), 'clock', 'whatsapp' ),
+			'envios'    => array( __( 'Envíos', 'dox-pos' ), 'truck', 'envio' ),
+			'productos' => array( __( 'Productos', 'dox-pos' ), 'tag', 'producto' ),
+		)
 	);
 	$skufmt   = array(
 		'codes' => array( __( 'Como la tienda: padre + talla + color', 'dox-pos' ), __( 'Dos dígitos por talla y dos por color, aprendidos de los productos que ya existen (VE83 + 01 + 13 = VE830113). Sin color, un 0.', 'dox-pos' ) ),
@@ -1011,7 +1005,7 @@ function dox_pos_settings_page() {
 			</div>
 			<nav class="dp-tabbar" role="tablist" aria-label="<?php esc_attr_e( 'Secciones de los ajustes', 'dox-pos' ); ?>">
 				<?php foreach ( $tabs as $id => $t ) : ?>
-				<button type="button" role="tab" class="dp-tab-btn" id="dp-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" aria-selected="false" aria-controls="dp-panel-<?php echo esc_attr( $id ); ?>" tabindex="-1"><?php echo dox_pos_icon( $t[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php echo esc_html( $t[0] ); ?></span></button>
+				<button type="button" role="tab" class="dp-tab-btn" id="dp-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" data-view="<?php echo esc_attr( $t[2] ?? 'caja' ); ?>" aria-selected="false" aria-controls="dp-panel-<?php echo esc_attr( $id ); ?>" tabindex="-1"><?php echo dox_pos_icon( $t[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php echo esc_html( $t[0] ); ?></span></button>
 				<?php endforeach; ?>
 				<i class="dp-ind" aria-hidden="true"></i>
 			</nav>
@@ -1384,149 +1378,7 @@ function dox_pos_settings_page() {
 					</div>
 				</section>
 
-				<!-- ===================== Asistente ===================== -->
-				<section class="dp-panel" id="dp-panel-asistente" data-panel="asistente" role="tabpanel" aria-labelledby="dp-tab-asistente" hidden>
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'La clave de OpenAI', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'El asistente de la caja usa la API de OpenAI para redactar el resumen diario, los consejos y las descripciones de producto, y para responder en el chat. Sin clave sigue enseñando los pendientes, la revisión y los consejos por reglas. La clave se guarda solo en este servidor: nunca sale al navegador.', 'dox-pos' ); ?></p>
-						</div>
-						<div class="dp-field">
-							<label class="dp-label" for="dp-ai-key"><?php esc_html_e( 'Clave (API key)', 'dox-pos' ); ?></label>
-							<input type="password" id="dp-ai-key" name="dox_pos_ai[key]" value="" class="dp-input" placeholder="sk-…" autocomplete="new-password" spellcheck="false">
-							<p class="dp-status <?php echo $ai_hint ? 'ok' : 'wait'; ?>" id="dp-ai-key-status"><?php echo $ai_hint ? esc_html( sprintf( /* translators: %s: últimas letras */ __( 'Hay una clave guardada que termina en %s. Pega otra solo para cambiarla.', 'dox-pos' ), $ai_hint ) ) : esc_html__( 'Sin clave todavía: el chat y la redacción están apagados.', 'dox-pos' ); ?></p>
-							<p class="dp-hint"><?php echo wp_kses( __( 'Se crea en <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com › API keys</a>, con una cuenta que tenga crédito cargado. Empieza por "sk-".', 'dox-pos' ), $kses_a ); ?></p>
-						</div>
-						<?php if ( $ai_hint ) : ?>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_ai[forget]" value="1"><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Quitar la clave guardada al guardar los cambios', 'dox-pos' ); ?></span></label>
-						<?php endif; ?>
-						<div class="dp-callout">
-							<?php echo dox_pos_icon( 'sparkle' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-							<div>
-								<b><?php esc_html_e( 'Probar la conexión', 'dox-pos' ); ?></b>
-								<span><?php esc_html_e( 'Manda una llamada mínima con la clave guardada y dice cuánto tardó y cuánto costó. Guarda primero si acabas de pegarla.', 'dox-pos' ); ?></span>
-								<p class="dp-status" id="dp-ai-test-status" aria-live="polite"></p>
-								<button type="button" class="dp-btn dp-btn-soft dp-ai-test" id="dp-ai-test" <?php disabled( ! $ai_hint ); ?>><?php esc_html_e( 'Probar ahora', 'dox-pos' ); ?></button>
-							</div>
-						</div>
-					</div>
-
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Modelo y tope de gasto', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'De fábrica, GPT-5.6 Luna: el más barato de OpenAI que llama funciones y lee fotos. El tope frena las llamadas cuando el gasto del mes llega a esa cifra; el uso normal de una tienda queda muy por debajo.', 'dox-pos' ); ?></p>
-						</div>
-						<div class="dp-grid-2">
-							<div class="dp-field">
-								<label class="dp-label" for="dp-ai-model"><?php esc_html_e( 'Modelo', 'dox-pos' ); ?></label>
-								<input type="text" id="dp-ai-model" name="dox_pos_ai[model]" value="<?php echo esc_attr( $ai['model'] ); ?>" class="dp-input" list="dp-ai-models" autocomplete="off" spellcheck="false" autocapitalize="off">
-								<datalist id="dp-ai-models">
-									<?php foreach ( array( 'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-6-astra', 'gpt-5-mini' ) as $mdl ) : ?>
-									<option value="<?php echo esc_attr( $mdl ); ?>"></option>
-									<?php endforeach; ?>
-								</datalist>
-								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php esc_html_e( 'El nombre tal como sale en la lista de modelos de OpenAI. Vacío: gpt-5.6-luna.', 'dox-pos' ); ?></p>
-							</div>
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-cap"><?php esc_html_e( 'Tope al mes', 'dox-pos' ); ?></label>
-								<div class="dp-unitfield">
-									<input type="number" min="0.5" max="1000" step="0.5" id="dp-ai-cap" name="dox_pos_ai[cap]" value="<?php echo esc_attr( $ai['cap'] ); ?>" class="dp-input" inputmode="decimal">
-									<span class="dp-unit">USD</span>
-								</div>
-								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php esc_html_e( 'Al llegar, el asistente deja de llamar a OpenAI hasta el mes siguiente y lo dice en pantalla.', 'dox-pos' ); ?></p>
-							</div>
-						</div>
-						<dl class="dp-facts">
-							<div><dt><?php echo dox_pos_icon( 'coins' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Este mes', 'dox-pos' ); ?></dt><dd><?php echo esc_html( number_format_i18n( $ai_use['cost'], 2 ) . ' USD' ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: llamadas, 2: fallidas */ _n( '%1$d llamada', '%1$d llamadas', $ai_use['calls'], 'dox-pos' ), $ai_use['calls'] ) . ( $ai_use['failed'] ? ' · ' . sprintf( /* translators: %d: fallidas */ __( '%d con error', 'dox-pos' ), $ai_use['failed'] ) : '' ) ); ?></i></dd></div>
-							<div><dt><?php echo dox_pos_icon( 'tag' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Precio del modelo', 'dox-pos' ); ?></dt><dd><?php echo esc_html( number_format_i18n( $ai_price['in'], 2 ) . ' / ' . number_format_i18n( $ai_price['out'], 2 ) . ' USD' ); ?> <i><?php echo $ai_price['known'] ? esc_html__( 'por millón de tokens de entrada y de salida (lista de OpenAI)', 'dox-pos' ) : esc_html__( 'estimado: ese modelo no está en la lista conocida', 'dox-pos' ); ?></i></dd></div>
-						</dl>
-					</div>
-
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Resumen diario', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Cada mañana, un correo con cómo fue ayer, lo pendiente de hoy (pedidos atrasados, pagos por confirmar, apartados que vencen), lo que se agota de lo que se vende y un consejo. El mismo resumen queda en la pestaña Asistente de la caja.', 'dox-pos' ); ?></p>
-						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_ai[summary_on]" value="1" <?php checked( $ai['summary_on'] ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Enviar el resumen cada día', 'dox-pos' ); ?></span></label>
-						<div class="dp-grid-2 dp-mt">
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-hour"><?php esc_html_e( 'A las', 'dox-pos' ); ?></label>
-								<select id="dp-ai-hour" name="dox_pos_ai[summary_hour]" class="dp-input">
-									<?php for ( $hh = 0; $hh < 24; $hh++ ) : ?>
-									<option value="<?php echo (int) $hh; ?>" <?php selected( $ai['summary_hour'], $hh ); ?>><?php echo esc_html( $hh . ':00' ); ?></option>
-									<?php endfor; ?>
-								</select>
-								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: zona horaria */ __( 'Hora de la tienda (%s).', 'dox-pos' ), wp_timezone_string() ) ); ?></p>
-							</div>
-							<div class="dp-field">
-								<label class="dp-label" for="dp-ai-to"><?php esc_html_e( 'A quién', 'dox-pos' ); ?></label>
-								<input type="text" id="dp-ai-to" name="dox_pos_ai[summary_to]" value="<?php echo esc_attr( $ai['summary_to'] ); ?>" class="dp-input" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" autocomplete="off" inputmode="email">
-								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php esc_html_e( 'Correos separados por coma. Vacío: el del administrador del sitio.', 'dox-pos' ); ?></p>
-							</div>
-						</div>
-						<div class="dp-callout">
-							<?php echo dox_pos_icon( 'mail' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-							<div>
-								<b><?php echo $ai['summary_on'] && $ai_next ? esc_html( sprintf( /* translators: %s: cuándo */ __( 'El próximo sale %s', 'dox-pos' ), $ai_next ) ) : esc_html__( 'El resumen está apagado', 'dox-pos' ); ?></b>
-								<span><?php echo esc_html( sprintf( /* translators: %s: correos */ __( 'A %s, por el correo del sitio. Si el servidor no pudo mandarlo a su hora, sale en cuanto alguien abre la caja.', 'dox-pos' ), $ai_to ) ); ?></span>
-							</div>
-						</div>
-					</div>
-
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Cuándo avisa', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Los umbrales de los pendientes de hoy. Los apartados avisan solos cuando vencen o faltan menos de seis horas.', 'dox-pos' ); ?></p>
-						</div>
-						<div class="dp-grid-2">
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-ship"><?php esc_html_e( 'Por enviar desde hace', 'dox-pos' ); ?></label>
-								<div class="dp-unitfield"><input type="number" min="1" max="60" step="1" id="dp-ai-ship" name="dox_pos_ai[ship_days]" value="<?php echo esc_attr( $ai['ship_days'] ); ?>" class="dp-input" inputmode="numeric"><span class="dp-unit"><?php esc_html_e( 'días', 'dox-pos' ); ?></span></div>
-								<p class="dp-hint"><?php esc_html_e( 'Un pedido pagado (o contraentrega) que sigue sin marcarse enviado.', 'dox-pos' ); ?></p>
-							</div>
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-deliver"><?php esc_html_e( 'Enviado sin entregar hace', 'dox-pos' ); ?></label>
-								<div class="dp-unitfield"><input type="number" min="1" max="90" step="1" id="dp-ai-deliver" name="dox_pos_ai[deliver_days]" value="<?php echo esc_attr( $ai['deliver_days'] ); ?>" class="dp-input" inputmode="numeric"><span class="dp-unit"><?php esc_html_e( 'días', 'dox-pos' ); ?></span></div>
-								<p class="dp-hint"><?php esc_html_e( 'En contraentrega es plata por cobrar: avisa como urgente.', 'dox-pos' ); ?></p>
-							</div>
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-pay"><?php esc_html_e( 'Pago de la web sin confirmar', 'dox-pos' ); ?></label>
-								<div class="dp-unitfield"><input type="number" min="1" max="720" step="1" id="dp-ai-pay" name="dox_pos_ai[pay_hours]" value="<?php echo esc_attr( $ai['pay_hours'] ); ?>" class="dp-input" inputmode="numeric"><span class="dp-unit"><?php esc_html_e( 'horas', 'dox-pos' ); ?></span></div>
-								<p class="dp-hint"><?php esc_html_e( 'Compras sin pagar o con el pago "en proceso" más tiempo que esto.', 'dox-pos' ); ?></p>
-							</div>
-							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-ai-low"><?php esc_html_e( 'Se agota cuando quedan', 'dox-pos' ); ?></label>
-								<div class="dp-unitfield"><input type="number" min="0" max="100" step="1" id="dp-ai-low" name="dox_pos_ai[low_stock]" value="<?php echo esc_attr( $ai['low_stock'] ); ?>" class="dp-input" inputmode="numeric"><span class="dp-unit"><?php esc_html_e( 'o menos', 'dox-pos' ); ?></span></div>
-								<p class="dp-hint"><?php esc_html_e( 'Solo de lo que se vendió en los últimos 30 días.', 'dox-pos' ); ?></p>
-							</div>
-						</div>
-					</div>
-
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Datos de demostración', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Para enseñar la caja y el asistente con la tienda en marcha: cuatro semanas de ventas de ejemplo por todos los canales y formas de pago, con envíos, contraentregas y descuentos, y una docena de pedidos abiertos con algo por hacer (uno de cada cosa que el asistente sabe detectar: apartado vencido, envío atrasado, contraentrega por cobrar, compra de la web sin pagar, pedido repetido…). Se hacen con los productos reales y no tocan las existencias. Mientras estén, la caja enseña un aviso; se quitan de golpe con el botón.', 'dox-pos' ); ?></p>
-						</div>
-						<div class="dp-callout">
-							<div>
-								<p class="dp-line dp-text" id="dp-demo-state"><?php echo esc_html( dox_pos_demo_status_text() ); ?></p>
-								<p class="dp-status" id="dp-demo-status" aria-live="polite"></p>
-								<button type="button" class="dp-btn dp-btn-primary dp-mt" id="dp-demo-on" <?php echo dox_pos_demo_active() ? 'hidden' : ''; ?>><?php esc_html_e( 'Crear datos de demostración', 'dox-pos' ); ?></button>
-								<button type="button" class="dp-btn dp-btn-ghost dp-mt" id="dp-demo-off" <?php echo dox_pos_demo_active() ? '' : 'hidden'; ?>><?php esc_html_e( 'Quitar los datos de demostración', 'dox-pos' ); ?></button>
-							</div>
-						</div>
-					</div>
-
-					<div class="dp-card">
-						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Quién lo usa y qué puede hacer', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'La pestaña Asistente de la caja (Hoy, Revisión, Chat y Actividad) la ven los administradores y los gerentes de tienda. Todo número sale de la tienda; el modelo solo redacta. Ningún cambio se aplica sin un botón de confirmación, cada uno queda apuntado con quién lo confirmó, y se deshace durante 24 horas.', 'dox-pos' ); ?></p>
-						</div>
-					</div>
-				</section>
+				<?php do_action( 'dox_pos_settings_panels' ); // Las pestañas de los añadidos (el Pro pone Asistente). ?>
 			</form>
 
 			<aside class="dp-side" aria-label="<?php esc_attr_e( 'Vista previa', 'dox-pos' ); ?>">
@@ -1596,23 +1448,7 @@ function dox_pos_settings_page() {
 						</div>
 					</div>
 
-					<div class="dp-mock" data-view="asistente" hidden>
-						<div class="dp-bar">
-							<span class="dp-cajita" style="border-left:0;padding-left:0"><?php echo esc_html( dox_pos_screen_name() ); ?></span>
-							<span class="dp-tabs"><span class="dp-tab"><?php esc_html_e( 'Pedidos', 'dox-pos' ); ?></span><span class="dp-tab on"><?php esc_html_e( 'Asistente', 'dox-pos' ); ?></span></span>
-						</div>
-						<div class="dp-body-prev">
-							<div class="dp-card-prev">
-								<p class="dp-lbl"><?php esc_html_e( 'Resumen de las', 'dox-pos' ); ?> <b id="dp-preview-hour"><?php echo esc_html( $ai['summary_hour'] . ':00' ); ?></b></p>
-								<p class="dp-line dp-text"><?php esc_html_e( 'Ayer se vendieron $358.000 en 2 ventas, por WhatsApp. Hoy: un pedido por enviar que se está atrasando y un apartado que vence esta tarde.', 'dox-pos' ); ?></p>
-								<p class="dp-lbl"><?php esc_html_e( 'Pendientes de hoy', 'dox-pos' ); ?></p>
-								<p class="dp-line"><span class="dp-tag-prev"><?php esc_html_e( 'Urgente', 'dox-pos' ); ?></span><span><?php esc_html_e( '#1240 por enviar', 'dox-pos' ); ?><i><?php esc_html_e( 'hace', 'dox-pos' ); ?> <b id="dp-preview-ship"><?php echo esc_html( $ai['ship_days'] ); ?></b> <?php esc_html_e( 'días', 'dox-pos' ); ?></i></span></p>
-								<p class="dp-line"><span class="dp-tag-prev"><?php esc_html_e( 'Hoy', 'dox-pos' ); ?></span><span><?php esc_html_e( 'Apartado #1244', 'dox-pos' ); ?><i><?php esc_html_e( 'vence en 4 h', 'dox-pos' ); ?></i></span></p>
-								<p class="dp-lbl"><?php esc_html_e( 'Se agota', 'dox-pos' ); ?></p>
-								<p class="dp-line"><span class="dp-thumb">VE</span><span><?php esc_html_e( 'Vestido Ella · M', 'dox-pos' ); ?><i><?php esc_html_e( 'vendió 6, quedan', 'dox-pos' ); ?> <b id="dp-preview-low"><?php echo esc_html( $ai['low_stock'] ); ?></b></i></span></p>
-							</div>
-						</div>
-					</div>
+					<?php do_action( 'dox_pos_settings_mocks' ); // Las vistas previas de los añadidos. ?>
 				</div>
 				<p class="dp-side-note"><?php esc_html_e( 'Lo que cambies se ve aquí al momento. En la caja, al guardar.', 'dox-pos' ); ?></p>
 			</aside>

@@ -845,3 +845,11 @@ function dox_pos_order_detail( $id ) {
 		)
 	);
 }
+
+// Un pedido de demostración (los crea Dox POS Pro) nunca toca el inventario: ni al pagarse, ni al anularse.
+// Va aquí, y no en el Pro, para que siga valiendo aunque el Pro se desactive con pedidos de ejemplo vivos.
+add_filter( 'woocommerce_can_reduce_order_stock', 'dox_pos_demo_no_stock', 5, 2 );
+add_filter( 'woocommerce_can_restore_order_stock', 'dox_pos_demo_no_stock', 5, 2 );
+function dox_pos_demo_no_stock( $can, $order ) {
+	return $order instanceof WC_Order && $order->get_meta( '_dox_pos_demo' ) ? false : $can;
+}

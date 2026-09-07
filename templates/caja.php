@@ -36,15 +36,11 @@ $cfg   = dox_pos_js_config();
 			<button type="button" data-t="producto" aria-pressed="false"><?php esc_html_e( 'Productos', 'dox-pos' ); ?></button>
 			<?php endif; ?>
 			<button type="button" data-t="historial" aria-pressed="false"><?php echo esc_html( $cfg['history_full'] ? __( 'Historial', 'dox-pos' ) : __( 'Mi día', 'dox-pos' ) ); ?></button>
-			<?php if ( $cfg['assistant'] ) : ?>
-			<button type="button" data-t="asistente" aria-pressed="false"><?php esc_html_e( 'Asistente', 'dox-pos' ); ?> <span id="nasis"></span></button>
-			<?php endif; ?>
+			<?php do_action( 'dox_pos_tabs', $cfg ); // Pestañas de los añadidos (el Pro pone Asistente). ?>
 		</nav>
 		<span class="user"><?php echo esc_html( $cfg['user'] ); ?> · <a href="<?php echo esc_url( $cfg['logout'] ); ?>"><?php esc_html_e( 'Salir', 'dox-pos' ); ?></a></span>
 	</header>
-	<?php if ( ! empty( $cfg['demo'] ) ) : ?>
-	<div class="demo-bar" id="demo-bar" role="status"><span><?php esc_html_e( 'Datos de demostración: los pedidos y las ventas de ejemplo no son reales. Las existencias, sí.', 'dox-pos' ); ?></span><?php if ( $cfg['assistant'] ) : ?><button type="button" class="undo" id="demo-off"><?php esc_html_e( 'Quitarlos', 'dox-pos' ); ?></button><?php endif; ?></div>
-	<?php endif; ?>
+	<?php do_action( 'dox_pos_after_header', $cfg ); // Avisos bajo la cabecera (el Pro pone el de datos de demostración). ?>
 	<div class="cola" id="cola" hidden></div>
 
 	<div class="body">
@@ -273,45 +269,14 @@ $cfg   = dox_pos_js_config();
 			</div></div>
 		</section>
 
-		<?php if ( $cfg['assistant'] ) : ?>
-		<!-- ================= ASISTENTE: hoy, revisión, chat y actividad ================= -->
-		<section class="tab" id="t-asistente" hidden>
-			<div class="histbar">
-				<div class="seg" id="a-vista">
-					<button type="button" data-v="hoy" aria-pressed="true"><?php esc_html_e( 'Hoy', 'dox-pos' ); ?></button>
-					<button type="button" data-v="revision" aria-pressed="false"><?php esc_html_e( 'Revisión', 'dox-pos' ); ?></button>
-					<button type="button" data-v="chat" aria-pressed="false"><?php esc_html_e( 'Chat', 'dox-pos' ); ?></button>
-					<button type="button" data-v="actividad" aria-pressed="false"><?php esc_html_e( 'Actividad', 'dox-pos' ); ?></button>
-					<button type="button" data-v="uso" aria-pressed="false"><?php esc_html_e( 'Uso', 'dox-pos' ); ?></button>
-				</div>
-			</div>
-			<div class="scroll" id="a-scroll"><div class="histwrap">
-				<div id="a-hoy"></div>
-				<div id="a-revision" hidden></div>
-				<div id="a-actividad" hidden></div>
-				<div id="a-uso" hidden></div>
-			</div></div>
-			<div class="chat" id="a-chat" hidden>
-				<div class="scroll msgs" id="a-msgs"><div class="histwrap" id="a-msgs-in"></div></div>
-				<div class="foot chatfoot"><div class="histwrap">
-					<div class="chips sugg" id="a-sugg"></div>
-					<div class="adj" id="a-adj" hidden></div>
-					<div class="composer">
-						<button type="button" class="clip" id="a-clip" aria-label="<?php esc_attr_e( 'Adjuntar fotos', 'dox-pos' ); ?>" title="<?php esc_attr_e( 'Adjuntar fotos', 'dox-pos' ); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-						<input type="file" id="a-file" accept="image/*,.heic,.heif" multiple hidden>
-						<textarea id="a-in" rows="1" placeholder="<?php esc_attr_e( 'Pregunta o pide un cambio…', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Mensaje para el asistente', 'dox-pos' ); ?>" autocomplete="off"></textarea>
-						<button type="button" class="send" id="a-send" aria-label="<?php esc_attr_e( 'Enviar', 'dox-pos' ); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button>
-					</div>
-					<p class="hint chathint"><span id="a-chathint"></span><button type="button" class="undo" id="a-new"><?php esc_html_e( 'Nueva conversación', 'dox-pos' ); ?></button></p>
-				</div></div>
-			</div>
-		</section>
-		<?php endif; ?>
+		<?php do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente. ?>
 	</div>
 	<div class="toasts" id="toasts" aria-live="polite"></div>
 	<div class="modal" id="modal" hidden><div class="card" id="modal-card" role="dialog" aria-modal="true"></div></div>
 </div>
 <script>window.DOX_POS = <?php echo wp_json_encode( $cfg ); ?>;</script>
 <script src="<?php echo esc_url( DOX_POS_URL . 'assets/js/caja.js?ver=' . DOX_POS_VERSION ); ?>"></script>
+<?php do_action( 'dox_pos_scripts', $cfg ); // Los scripts de los añadidos, antes de arrancar. ?>
+<script>window.DoxPOS && window.DoxPOS.arrancar();</script>
 </body>
 </html>

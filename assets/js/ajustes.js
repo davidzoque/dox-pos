@@ -27,7 +27,9 @@
 	const tabs = $$(".dp-tab-btn");
 	const panels = $$(".dp-panel");
 	const ind = $(".dp-ind");
-	const views = { marca: "caja", pantalla: "caja", ventas: "caja", apartados: "whatsapp", envios: "envio", productos: "producto", asistente: "asistente" };
+	// Qué vista previa enseña cada pestaña: lo dice el botón (data-view), así los añadidos traen la suya.
+	const views = {};
+	tabs.forEach((b) => { views[b.dataset.tab] = b.dataset.view || "caja"; });
 	let current = "";
 	function indicador() {
 		const b = tabs.find((t) => t.dataset.tab === current);
@@ -452,66 +454,8 @@
 		if (sku) sku.textContent = fmt === "slugs" ? "VE83-6-12-meses-rosa" : (fmt === "none" ? "VE83" : "VE830213");
 	}
 
-	// ---------- asistente: la hora del resumen y los umbrales en la vista previa, y la prueba de conexión ----------
-	function pintarAsistente() {
-		const hour = $("#dp-ai-hour"), ship = $("#dp-ai-ship"), low = $("#dp-ai-low");
-		if (!hour) return;
-		const ph = $("#dp-preview-hour"), ps = $("#dp-preview-ship"), pl = $("#dp-preview-low");
-		if (ph) ph.textContent = hour.value + ":00";
-		if (ps && ship) ps.textContent = ship.value || "2";
-		if (pl && low) pl.textContent = low.value || "2";
-	}
-	const aiTest = $("#dp-ai-test");
-	if (aiTest) {
-		aiTest.addEventListener("click", async () => {
-			const st = $("#dp-ai-test-status");
-			st.className = "dp-status wait";
-			st.textContent = i18n.checking || "…";
-			aiTest.disabled = true;
-			try {
-				const r = await fetch(cfg.rest + "assistant/test", { method: "POST", credentials: "same-origin", headers: { "X-WP-Nonce": cfg.nonce, "Content-Type": "application/json", Accept: "application/json" }, body: "{}" });
-				let j = null;
-				try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
-				if (!r.ok) throw new Error(j && j.message ? j.message : "Error " + r.status);
-				st.className = "dp-status ok";
-				st.textContent = j.message;
-			} catch (e) {
-				st.className = "dp-status bad";
-				st.textContent = e.message;
-			}
-			aiTest.disabled = false;
-		});
-	}
-
-	// ---------- datos de demostración: crear y quitar ----------
-	const demoOn = $("#dp-demo-on"), demoOff = $("#dp-demo-off"), demoSt = $("#dp-demo-status"), demoState = $("#dp-demo-state");
-	async function demo(path, btn, waitText) {
-		demoOn.disabled = true; demoOff.disabled = true;
-		demoSt.className = "dp-status wait";
-		demoSt.textContent = waitText;
-		try {
-			const r = await fetch(cfg.rest + path, { method: "POST", credentials: "same-origin", headers: { "X-WP-Nonce": cfg.nonce, "Content-Type": "application/json", Accept: "application/json" }, body: "{}" });
-			let j = null;
-			try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
-			if (!r.ok) throw new Error(j && j.message ? j.message : "Error " + r.status);
-			demoSt.className = "dp-status ok";
-			demoSt.textContent = j.message;
-			demoState.textContent = j.status;
-			demoOn.hidden = !!j.active;
-			demoOff.hidden = !j.active;
-		} catch (e) {
-			demoSt.className = "dp-status bad";
-			demoSt.textContent = e.message;
-		}
-		demoOn.disabled = false; demoOff.disabled = false;
-	}
-	if (demoOn && demoOff) {
-		demoOn.addEventListener("click", () => demo("demo/on", demoOn, i18n.demoWorking || "…"));
-		demoOff.addEventListener("click", () => { if (window.confirm(i18n.demoConfirm || "?")) demo("demo/off", demoOff, i18n.demoRemoving || "…"); });
-	}
-
 	// ---------- todo se repinta con cualquier cambio ----------
-	function repintar() { pintarColores(); pintarTextos(); pintarCanales(); pintarPagos(); pintarTransportadoras(); pintarMensaje(); pintarProductos(); pintarAsistente(); }
+	function repintar() { pintarColores(); pintarTextos(); pintarCanales(); pintarPagos(); pintarTransportadoras(); pintarMensaje(); pintarProductos(); document.dispatchEvent(new CustomEvent("dox-pos-repintar")); }
 	form.addEventListener("input", () => { repintar(); sucio(); });
 	form.addEventListener("change", () => { repintar(); sucio(); });
 	repintar();
@@ -559,11 +503,17 @@
 		toasts.appendChild(t);
 		if (type === "success") setTimeout(quitar, 5000);
 	}
-	const campos = { font_ui: ["marca", "#dp-font-ui"], font_serif: ["marca", "#dp-font-serif"], slug: ["pantalla", "#dp-slug"], channels: ["ventas", "#dp-canales"], payments: ["ventas", "#dp-pagos"], quality: ["productos", "#dp-quality"], max_px: ["productos", "#dp-maxpx"], ai_key: ["asistente", "#dp-ai-key"], ai_model: ["asistente", "#dp-ai-model"], ai_cap: ["asistente", "#dp-ai-cap"], ai_to: ["asistente", "#dp-ai-to"] };
+	const campos = { font_ui: ["marca", "#dp-font-ui"], font_serif: ["marca", "#dp-font-serif"], slug: ["pantalla", "#dp-slug"], channels: ["ventas", "#dp-canales"], payments: ["ventas", "#dp-pagos"], quality: ["productos", "#dp-quality"], max_px: ["productos", "#dp-maxpx"] };
 	(cfg.notices || []).forEach((nt) => {
 		toast(nt.message, nt.type === "success" ? "success" : "error");
-		const c = campos[nt.code];
-		if (!c) return;
+		// Los campos de los añadidos no están en la lista: se buscan por su id (#dp-ai-key para ai_key) y su pestaña.
+		let c = campos[nt.code];
+		if (!c) {
+			const guess = $("#dp-" + String(nt.code).replace(/_/g, "-"));
+			const panel = guess && guess.closest(".dp-panel");
+			if (!panel) return;
+			c = [panel.dataset.panel, "#dp-" + String(nt.code).replace(/_/g, "-")];
+		}
 		abrir(c[0], false);
 		const el = $(c[1]);
 		const field = el && el.closest(".dp-field");

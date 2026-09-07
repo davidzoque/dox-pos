@@ -542,7 +542,7 @@
 		try {
 			const r = await post("orders/" + p.id + "/" + act, extra || {});
 			await Promise.all([cargarPedidos(), refrescarStock()]);
-			if (hayAsistente() && st.tab === "asistente" && as.vista === "hoy") cargarHoy(); // Los pendientes cambian con la acción.
+			emit("pedido", { id: p.id, act: act }); // Los añadidos se enteran (el asistente repinta sus pendientes).
 			const s = r && ((r.order && r.order.ship) || r.ship); // La ruta devuelve {order}; el asistente, el pedido directo.
 			if (act === "shipped" && s) {
 				// Qué pasó con el aviso a la clienta, y el WhatsApp con la guía a un toque.
@@ -1816,644 +1816,56 @@
 		if (nx) nx.onclick = () => { hi.page++; cargarHistorial(); $("#t-historial .scroll").scrollTop = 0; };
 	}
 
-	// ---------- asistente: hoy (pendientes y consejos), revisión, chat y actividad ----------
-	// Solo lo ven administradores y gerentes. Todo número sale de la tienda; con la clave de
-	// OpenAI el asistente además redacta el resumen y los consejos y responde en el chat.
-	// Ningún cambio se aplica sin el botón: el chat devuelve propuestas y aquí se confirman.
-	const as = { vista: "hoy", hist: [], mensajes: 0, busy: false, checks: null, desc: {}, abrir: "", items: [], fotos: [], subiendo: false }; // items: lo que se ve en el chat, para guardarlo; fotos: las adjuntas sin mandar
-	const hayAsistente = () => !!$("#t-asistente");
-	function abrirAsistente(vista) {
-		if (!hayAsistente()) return;
-		if (vista) as.vista = vista;
-		document.querySelectorAll("#a-vista button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.v === as.vista));
-		["hoy", "revision", "actividad", "uso"].forEach((k) => { $("#a-" + k).hidden = k !== as.vista; });
-		$("#a-scroll").hidden = as.vista === "chat";
-		$("#a-chat").hidden = as.vista !== "chat";
-		fijarHash();
-		if (as.vista === "hoy") cargarHoy();
-		else if (as.vista === "revision") cargarRevision();
-		else if (as.vista === "actividad") cargarActividad();
-		else if (as.vista === "uso") cargarUso();
-		else { pintarSugerencias(); bajarChat(); setTimeout(() => { const i = $("#a-in"); if (i) i.focus(); }, 60); }
-	}
-	async function cargarInsignia() {
-		if (!hayAsistente()) return;
-		try {
-			const d = await api("assistant/badge");
-			$("#nasis").textContent = d.urgent ? "· " + d.urgent : "";
-		} catch (e) { /* sin insignia */ }
-	}
-	const sevTag = (s) => '<span class="tag ' + (s === "alta" ? "b" : s === "media" ? "a" : "e") + '">' + (s === "alta" ? "Urgente" : s === "media" ? "Hoy" : "Aviso") + "</span>";
-	// Un texto del modelo con lo mínimo de formato: negrita, listas con guion y párrafos.
-	// Con el mapa de enlaces, además deja tocables los pedidos y los productos que nombra.
-	function md(t, links) {
-		const lines = esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split("\n");
-		let h = "", lista = false;
-		lines.forEach((l) => {
-			const m = l.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
-			if (m) { if (!lista) { h += "<ul>"; lista = true; } h += "<li>" + m[1] + "</li>"; return; }
-			if (lista) { h += "</ul>"; lista = false; }
-			if (l.trim() !== "") h += "<p>" + l + "</p>";
-		});
-		if (lista) h += "</ul>";
-		return enlazar(h, links);
-	}
-	// Deja tocables los números de pedido (#1234) y los nombres de producto de un texto ya
-	// escapado: el mapa viene del servidor, así que solo se enlaza lo que existe de verdad.
-	const escRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	function enlazar(html, links) {
-		if (!links) return html;
-		const ord = links.orders || {}, pro = cfg.products ? links.products || {} : {};
-		const nombres = Object.keys(pro).sort((a, b) => b.length - a.length).map((x) => escRe(esc(x)));
-		let re;
-		try { re = new RegExp("#(\\d{2,10})(?!\\d)" + (nombres.length ? "|(^|[^\\p{L}\\p{N}])(" + nombres.join("|") + ")(?![\\p{L}\\p{N}])" : ""), "giu"); }
-		catch (e) { return html; }
-		return html.replace(re, (m, num, pre, nom) => {
-			if (num) { const id = ord[num]; return id ? '<a href="#pedidos/' + id + '" data-ver="' + id + '">#' + num + "</a>" : m; }
-			const id = pro[Object.keys(pro).find((k) => esc(k).toLowerCase() === (nom || "").toLowerCase())];
-			return id ? (pre || "") + '<a href="#producto/' + id + '" data-prod="' + id + '">' + nom + "</a>" : m;
-		});
-	}
-	// A dónde lleva un consejo: "revision", "revision:clave", "pedidos", "producto:id" o "chat".
-	function irA(go) {
-		const [donde, que] = String(go || "").split(":");
-		if (donde === "pedidos") { const t = document.querySelector('#tabs button[data-t="pedidos"]'); if (t) t.click(); return; }
-		if (donde === "producto" && que) { editarDesdeLista(+que); return; }
-		if (donde === "revision") { as.abrir = que || ""; abrirAsistente("revision"); return; }
-		if (donde === "chat") abrirAsistente("chat");
-	}
-	// El nombre de un producto, tocable si esta persona puede abrir su ficha en la caja.
-	const nombreProducto = (nombre, id) => (cfg.products && +id ? '<a href="#producto/' + +id + '" data-prod="' + +id + '">' + esc(nombre) + "</a>" : esc(nombre));
-	const miniHTML = (it) => '<span class="thumb sm">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>";
-
-	// ----- hoy -----
-	async function cargarHoy(fresh) {
-		const box = $("#a-hoy");
-		if (!box.dataset.listo) box.innerHTML = '<p class="empty">Mirando la tienda…</p>';
-		box.style.opacity = ".55";
-		try {
-			const d = await api("assistant/today" + (fresh ? "?fresh=1" : ""));
-			box.dataset.listo = "1";
-			pintarHoy(d);
-			$("#nasis").textContent = d.counts && d.counts.alta ? "· " + d.counts.alta : "";
-		} catch (e) {
-			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? "Sin señal: el asistente lee de la tienda." : e.message) + "</p>";
-		}
-		box.style.opacity = "";
-	}
-	function pintarHoy(d) {
-		const y = d.yesterday, w = d.week, m = d.money, ss = d.settings || {};
-		let h = '<p class="hsub">' + esc(d.date_label) + "</p>";
-		if (d.summary) h += '<div class="aicard"><b>Resumen de las ' + esc(d.summary.at) + '</b><span class="sub"> · ' + (d.summary.sent ? "enviado por correo" : "sin enviar por correo") + (d.summary.ai ? "" : " · escrito por reglas") + "</span>" + md(d.summary.text, d.links) + "</div>";
-		const dif = w.prev > 0 ? Math.round((w.sold - w.prev) / w.prev * 100) : null;
-		h += '<div class="kpis">' + kpi(dinero(y.sold), "Vendido ayer" + (y.orders ? " · " + y.orders + (y.orders === 1 ? " venta" : " ventas") : "")) +
-			kpi(dinero(w.sold), "Esta semana" + (dif === null ? "" : " · " + (dif >= 0 ? "+" : "") + dif + " %")) +
-			kpi(dinero(m.cod), "Por cobrar al entregar" + (m.cod_n ? " (" + m.cod_n + ")" : "")) +
-			kpi(dinero(m.holds), "Apartado sin pagar" + (m.holds_n ? " (" + m.holds_n + ")" : "")) + "</div>";
-		h += '<div class="grp"><h4>Pendientes <span class="cnt">' + (d.pending.length || "ninguno") + "</span></h4>";
-		if (!d.pending.length) h += '<p class="empty">Nada se quedó atrás: no hay pedidos por enviar tarde, pagos por confirmar ni apartados vencidos.</p>';
-		else h += '<ul class="pend">' + d.pending.map((it, i) => '<li class="' + it.sev + '"><div class="pt">' + sevTag(it.sev) + "<b>" + esc(it.title) + "</b><span>" + enlazar(esc(it.detail), d.links) + '</span></div><div class="pa" data-i="' + i + '"></div></li>').join("") + "</ul>";
-		h += "</div>";
-		h += '<div class="grp"><h4>Se agota lo que se vende</h4>' + (d.stock.length
-			? '<ul class="bl">' + d.stock.map((s) => "<li><span>" + nombreProducto(s.name, s.product_id || s.id) + "</span><span>vendió " + s.units + " en 30 días · quedan <b>" + s.stock + "</b></span></li>").join("") + "</ul>"
-			: '<p class="empty">Nada por agotarse entre lo vendido en los últimos 30 días' + (ss.low_stock !== undefined ? " (avisa con " + ss.low_stock + " o menos)" : "") + ".</p>") + "</div>";
-		// El pronóstico solo sale cuando hay historia (14 días y 15 ventas): antes no se enseña nada.
-		if (d.forecast) {
-			const fc = d.forecast, mo = fc.month || null;
-			h += '<div class="grp"><h4>Pronóstico <span class="cnt">con el ritmo de ' + fc.days + ' días</span></h4>';
-			if (mo) h += '<p class="fcm">' + esc(mo.name.charAt(0).toUpperCase() + mo.name.slice(1)) + " va en " + dinero(mo.mtd) + " al día " + mo.day + " y cerraría en <b>" + dinero(mo.projection) + "</b>" + (mo.last > 0 ? " (" + esc(mo.last_name) + ": " + dinero(mo.last) + ")" : "") + ". Es una proyección, no una promesa.</p>";
-			h += fc.soon.length
-				? '<ul class="bl">' + fc.soon.map((s) => "<li><span>" + nombreProducto(s.name, s.id) + "</span><span>quedan " + s.stock + " · dura <b>" + (s.days < 1 ? "menos de un día" : s.days + " días") + "</b>" + (s.date ? " (hasta el " + esc(s.date) + ")" : "") + (s.reorder ? " · reponer " + s.reorder : "") + "</span></li>").join("") + "</ul>"
-				: '<p class="empty">Nada se agota en las próximas tres semanas al ritmo actual.</p>';
-			h += "</div>";
-		}
-		const adv = d.advice || { items: [] };
-		h += '<div class="grp"><h4>Consejos <span class="cnt">' + (adv.ai ? "redactados por el asistente" : "por reglas") + ' · <button type="button" class="undo" id="a-refresh">Actualizar</button></span></h4>';
-		h += adv.items.length ? '<div class="advs">' + adv.items.map((a) => '<div class="adv"><b>' + esc(a.title) + "</b><p>" + enlazar(esc(a.text), d.links) + "</p>" + (a.go ? '<button type="button" class="mini" data-go="' + esc(a.go) + '">Ver</button>' : "") + "</div>").join("") + "</div>" : '<p class="empty">Todavía no hay consejos.</p>';
-		h += "</div>";
-		let pie = "";
-		if (!d.ai_ready) pie += "Sin la clave de OpenAI el asistente enseña los números y los consejos por reglas; con la clave, redacta el resumen y responde en el chat. Se pone en WooCommerce > Dox POS > Asistente. ";
-		pie += ss.on ? "El resumen diario sale " + (ss.next ? esc(ss.next) : "a las " + ss.hour + ":00") + " por correo a " + esc((ss.to || []).join(", ")) + "." : "El resumen diario está apagado (WooCommerce > Dox POS > Asistente).";
-		pie += ' <button type="button" class="undo" id="a-sendnow">Enviar el resumen ahora</button>';
-		h += '<p class="hint">' + pie + "</p>";
-		const box = $("#a-hoy");
-		box.innerHTML = h;
-		box.querySelectorAll(".pa").forEach((el) => {
-			const it = d.pending[+el.dataset.i];
-			const p = it.order;
-			const btn = (txt, sec, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "mini" + (sec ? " sec" : ""); b.textContent = txt; b.onclick = fn; el.appendChild(b); };
-			it.actions.forEach((a) => {
-				if (a === "shipped") btn("Marcar enviado", false, () => modalEnvio(p));
-				else if (a === "delivered") btn("Marcar entregado", false, () => accion(p, "delivered"));
-				else if (a === "paid") btn("Ya pagó", false, () => confirmar("¿Confirmar el pago del pedido #" + p.number + "?", () => accion(p, "paid")));
-				else if (a === "release") btn("Liberar", true, () => confirmar("¿Liberar el apartado #" + p.number + "? El producto vuelve al inventario.", () => accion(p, "release")));
-				else if (a === "cancel") btn("Anular", true, () => confirmar("¿Anular el pedido #" + p.number + "?", () => accion(p, "cancel")));
-				else if (a === "whatsapp" && (p.whatsapp || it.wa)) { const w = document.createElement("a"); w.className = "mini sec"; w.href = p.whatsapp || it.wa; w.target = "_blank"; w.rel = "noopener"; w.textContent = "WhatsApp"; el.appendChild(w); }
-			});
-			btn("Ver", true, () => verPedido(p.id));
-		});
-		box.querySelectorAll("[data-go]").forEach((b) => { b.onclick = () => irA(b.dataset.go); });
-		$("#a-refresh").onclick = () => cargarHoy(true);
-		$("#a-sendnow").onclick = enviarResumen;
-	}
-	async function enviarResumen() {
-		const b = $("#a-sendnow");
-		if (b) { b.disabled = true; b.textContent = "Enviando…"; }
-		try {
-			const d = await post("assistant/summary", {});
-			toast(d.sent ? "Resumen enviado a " + d.to.join(", ") + "." : "El resumen se armó, pero el correo no salió. Queda en esta pantalla.");
-			cargarHoy();
-		} catch (e) {
-			if (e.message !== "sesion") toast(e.message);
-			if (b) { b.disabled = false; b.textContent = "Enviar el resumen ahora"; }
-		}
-	}
-
-	// ----- revisión -----
-	async function cargarRevision() {
-		const box = $("#a-revision");
-		if (!box.dataset.listo) box.innerHTML = '<p class="empty">Revisando los productos…</p>';
-		box.style.opacity = ".55";
-		try {
-			const d = await api("assistant/checks");
-			as.checks = d;
-			box.dataset.listo = "1";
-			pintarRevision(d);
-			if (as.abrir) {
-				const c = box.querySelector('.chk[data-key="' + as.abrir + '"]');
-				as.abrir = "";
-				if (c) { const v = c.querySelector("[data-ver]"); if (v) v.click(); c.scrollIntoView({ block: "start", behavior: "smooth" }); }
-			}
-		} catch (e) {
-			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.message) + "</p>";
-		}
-		box.style.opacity = "";
-	}
-	function pintarRevision(d) {
-		const total = d.checks.reduce((n, c) => n + (c.count ? 1 : 0), 0);
-		let h = '<p class="hsub">Revisión de la tienda</p><p class="hint">' + d.products + " productos publicados y " + d.hidden + " ocultos. " + (total ? total + (total === 1 ? " chequeo con algo que mirar." : " chequeos con algo que mirar.") : "Todo en orden.") + "</p>";
-		d.checks.forEach((c) => {
-			const fixBtn = c.fix && c.count ? '<button type="button" class="mini" data-fix="' + esc(c.fix.action) + '">' + esc(c.fix.label) + "</button>" : "";
-			h += '<div class="chk" data-key="' + esc(c.key) + '"><div class="chkh"><span class="n ' + (c.count ? c.sev : "ok") + '">' + c.count + "</span><div><b>" + esc(c.label) + "</b><span>" + esc(c.what) + (c.value ? " · " + dinero(c.value) + " en existencias" : "") + '</span></div><div class="chka">' + (c.count ? '<button type="button" class="mini sec" data-ver>Ver</button>' : "") + fixBtn + '</div></div><div class="chkb" hidden></div></div>';
-		});
-		const box = $("#a-revision");
-		// Las descripciones redactadas y aún sin guardar sobreviven a un repintado (volver a tocar Revisión).
-		const panels = {};
-		box.querySelectorAll(".chk").forEach((el) => { const p = el.querySelector(".dsc"); if (p) panels[el.dataset.key] = p; });
-		box.innerHTML = h;
-		box.querySelectorAll(".chk").forEach((el) => {
-			const c = d.checks.find((x) => x.key === el.dataset.key);
-			const body = el.querySelector(".chkb");
-			const ver = el.querySelector("[data-ver]");
-			if (ver) ver.onclick = () => { body.hidden = !body.hidden; ver.textContent = body.hidden ? "Ver" : "Ocultar"; if (!body.hidden && !body.dataset.listo) { body.dataset.listo = "1"; pintarItems(body, c); } };
-			const fix = el.querySelector("[data-fix]");
-			if (fix) fix.onclick = () => arreglar(c, body, ver);
-			if (panels[el.dataset.key]) { body.prepend(panels[el.dataset.key]); body.hidden = false; if (ver) ver.textContent = "Ocultar"; }
-		});
-	}
-	function pintarItems(body, c) {
-		let h = '<ul class="chkl">' + c.items.map((it) => "<li>" + miniHTML(it) + '<span class="nm">' + esc(it.name) + "<i>" + esc(it.sku || "sin código") + (it.stock !== null && it.stock !== undefined ? " · " + it.stock + (it.stock === 1 ? " unidad" : " unidades") : "") + (it.extra ? " · " + esc(it.extra) : "") + "</i></span>" + (cfg.products ? '<button type="button" class="mini" data-edit="' + it.id + '">Editar</button>' : "") + '<a class="mini sec" href="' + esc(it.url) + '" target="_blank" rel="noopener">Ver</a></li>').join("") + "</ul>";
-		if (c.count > c.items.length) h += '<p class="hint">Se muestran ' + c.items.length + " de " + c.count + ".</p>";
-		const list = document.createElement("div");
-		list.innerHTML = h;
-		body.appendChild(list);
-		list.querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => editarDesdeLista(+b.dataset.edit); });
-	}
-	async function arreglar(c, body, ver) {
-		const a = c.fix.action;
-		if (a === "describir") {
-			if (!cfg.ai_ready) {
-				modal('<h3>Falta la clave de OpenAI</h3><p class="mp">Para redactar las descripciones con la foto hace falta la clave de OpenAI: se pone en WooCommerce > Dox POS > Asistente. Las demás revisiones funcionan sin ella.</p><div class="mbtn"><button type="button" class="go" id="m-no">Entendido</button></div>');
-				$("#m-no").onclick = cerrarModal;
-				return;
-			}
-			iniciarDescripciones(c, body, ver);
-			return;
-		}
-		const n = c.count;
-		const textos = {
-			publicar: "¿Publicar en la tienda " + (n === 1 ? "el producto oculto que tiene existencias" : "los " + n + " productos ocultos que tienen existencias") + "? Se puede deshacer durante 24 horas.",
-			ocultar: "¿Ocultar de la tienda " + (n === 1 ? "el producto agotado" : "los " + n + " productos agotados") + "? Vuelven a verse con Deshacer (24 horas) o desde Editar uno.",
-			a_cero: "¿Poner en 0 las existencias negativas de " + (n === 1 ? "ese producto" : "esos " + n + " productos") + "?",
-			quitar_oferta: "¿Quitar la oferta mal puesta de " + (n === 1 ? "ese producto" : "esos " + n + " productos") + "? Se quedan con su precio normal.",
-		};
-		const ok = await preguntar(textos[a] || "¿Aplicar el arreglo a " + n + " productos?", "Sí, aplicar", "No");
-		if (!ok) return;
-		try {
-			const d = await post("assistant/fix", { action: a, ids: c.ids });
-			modalHecho(d);
-			delete $("#a-revision").dataset.listo;
-			cargarRevision();
-		} catch (e) {
-			if (e.message !== "sesion") toast(e.message);
-		}
-	}
-	function modalHecho(d) {
-		modal('<h3>Hecho</h3><p class="mp">' + esc(d.message) + (d.undo ? " Se puede deshacer durante 24 horas, aquí o en Actividad." : "") + '</p><div class="mbtn"><button type="button" class="go" id="m-ok">Listo</button>' + (d.undo ? '<button type="button" class="go alt" id="m-undo">Deshacer</button>' : "") + "</div>");
-		$("#m-ok").onclick = cerrarModal;
-		const u = $("#m-undo");
-		if (u) u.onclick = async () => {
-			u.disabled = true;
-			try {
-				const r = await post("assistant/undo", { action: d.action });
-				cerrarModal();
-				toast(r.message);
-				delete $("#a-revision").dataset.listo;
-				cargarRevision();
-			} catch (e) { toast(e.message); u.disabled = false; }
-		};
-	}
-	// Las descripciones: de diez en diez, cada una se revisa y se guarda (o se salta).
-	async function iniciarDescripciones(c, body, ver) {
-		body.hidden = false;
-		if (ver) ver.textContent = "Ocultar";
-		let panel = body.querySelector(".dsc");
-		if (!panel) { panel = document.createElement("div"); panel.className = "dsc"; body.prepend(panel); }
-		const hechos = as.desc[c.key] = as.desc[c.key] || { ids: [] };
-		const pendientes = c.ids.filter((id) => !hechos.ids.includes(id)).slice(0, 10);
-		if (!pendientes.length) { toast("No quedan productos por redactar en esta lista."); return; }
-		panel.innerHTML = '<p class="hint">Redactando <b id="dsc-n">0</b> de ' + pendientes.length + "… Cada una tarda unos segundos; revísalas y guarda las que te gusten.</p>" +
-			'<div class="prog"><i id="dsc-bar"></i></div><div id="dsc-list"></div>' +
-			'<div class="db" id="dsc-foot" hidden><button type="button" class="mini go-mini" id="dsc-all">Guardar todas</button><button type="button" class="mini sec" id="dsc-more">Redactar 10 más</button></div>';
-		let n = 0;
-		for (const id of pendientes) {
-			try {
-				const d = await post("assistant/describe", { id: id });
-				hechos.ids.push(id);
-				añadirDescripcion(panel.querySelector("#dsc-list"), d, c);
-			} catch (e) {
-				if (e.message === "sesion") return;
-				hechos.ids.push(id);
-				const it = document.createElement("p");
-				it.className = "hint";
-				it.textContent = "Producto " + id + ": " + e.message;
-				panel.querySelector("#dsc-list").appendChild(it);
-				if (/clave|tope|OpenAI/i.test(e.message)) break;
-			}
-			n++;
-			$("#dsc-n").textContent = n;
-			$("#dsc-bar").style.width = Math.round(n / pendientes.length * 100) + "%";
-		}
-		panel.querySelector("#dsc-foot").hidden = false;
-		$("#dsc-all").onclick = () => guardarDescripciones(panel, c, null);
-		$("#dsc-more").onclick = () => iniciarDescripciones(c, body, ver);
-	}
-	function añadirDescripcion(list, d, c) {
-		const el = document.createElement("div");
-		el.className = "dsc-it";
-		el.dataset.id = d.id;
-		el.innerHTML = miniHTML(d) + "<div><b>" + esc(d.name) + '</b> <span class="sub">' + esc(d.sku || "") + '</span><textarea aria-label="Descripción">' + esc(d.description) + '</textarea><input aria-label="Versión corta" value="' + esc(d.short) + '" placeholder="Versión corta (opcional)"><div class="db"><button type="button" class="mini go-mini" data-save>Guardar</button><button type="button" class="mini sec" data-skip>Saltar</button></div></div>';
-		list.appendChild(el);
-		el.querySelector("[data-save]").onclick = () => guardarDescripciones(list.parentNode, c, el);
-		el.querySelector("[data-skip]").onclick = () => el.remove();
-	}
-	async function guardarDescripciones(panel, c, solo) {
-		const els = solo ? [solo] : Array.from(panel.querySelectorAll(".dsc-it:not(.saved)"));
-		const texts = els.map((el) => ({ id: +el.dataset.id, description: el.querySelector("textarea").value.trim(), short: el.querySelector("input").value.trim() })).filter((t) => t.description);
-		if (!texts.length) { toast("No hay descripciones que guardar."); return; }
-		els.forEach((el) => el.querySelectorAll("button").forEach((b) => { b.disabled = true; }));
-		try {
-			const d = await post("assistant/fix", { action: "descripciones", texts: texts });
-			els.forEach((el) => { el.classList.add("saved"); el.querySelector(".db").innerHTML = '<span class="ok">Guardada</span>'; });
-			toast(d.message);
-			const ch = as.checks && as.checks.checks.find((x) => x.key === c.key);
-			if (ch) {
-				ch.count = Math.max(0, ch.count - d.done);
-				ch.ids = ch.ids.filter((id) => !texts.some((t) => t.id === id));
-				const n = document.querySelector('.chk[data-key="' + c.key + '"] .n');
-				if (n) { n.textContent = ch.count; n.className = "n " + (ch.count ? ch.sev : "ok"); }
-			}
-		} catch (e) {
-			if (e.message !== "sesion") toast(e.message);
-			els.forEach((el) => el.querySelectorAll("button").forEach((b) => { b.disabled = false; }));
-		}
-	}
-
-	// ----- chat -----
-	const SUGERENCIAS = ["¿Cómo fue ayer?", "¿Qué tengo pendiente hoy?", "¿Qué se está agotando?", "¿Qué se vendió más este mes?", "¿Cómo va el negocio?", "Busca vestido"];
-	function pintarSugerencias() {
-		const box = $("#a-sugg");
-		box.innerHTML = "";
-		if (!as.mensajes) SUGERENCIAS.forEach((s) => box.appendChild(chip(s, false, () => enviarChat(s))));
-		$("#a-chathint").textContent = cfg.ai_ready
-			? "Pregunta por ventas, pedidos, existencias o consejos, o pide un cambio: siempre te lo enseña antes de aplicarlo."
-			: "Para chatear hace falta la clave de OpenAI (WooCommerce > Dox POS > Asistente). Hoy y Revisión funcionan sin ella.";
-	}
-	function bajarChat() { const s = $("#a-msgs"); s.scrollTop = s.scrollHeight; }
-	const fotoHTML = (f) => '<span class="thumb"><img src="' + esc(f.url) + '" alt="" loading="lazy"></span>';
-	function añadirMsg(rol, texto, restaurado, fotos) {
-		const el = document.createElement("div");
-		el.className = "msg " + rol;
-		if (rol === "ai") el.innerHTML = md(texto);
-		else if (fotos && fotos.length) el.innerHTML = '<div class="mfotos">' + fotos.map(fotoHTML).join("") + "</div>" + (texto ? "<span>" + esc(texto) + "</span>" : "");
-		else el.textContent = texto;
-		$("#a-msgs-in").appendChild(el);
-		if (!restaurado && rol !== "sys") as.items.push(fotos && fotos.length ? { t: "msg", rol, texto, fotos } : { t: "msg", rol, texto });
-		bajarChat();
-		return el;
-	}
-	// La tarjeta de un cambio propuesto: lo de ahora, lo que quedaría, y los botones. Su estado (pendiente,
-	// aplicado, deshecho o cancelado) va con la conversación, así que una recarga la devuelve como estaba.
-	function añadirTarjeta(p, estado) {
-		if (!estado) { estado = { t: "prop", p, estado: "pendiente", action: 0, undo: false, pid: 0 }; as.items.push(estado); }
-		const crear = p.kind === "create";
-		const el = document.createElement("div");
-		el.className = "prop";
-		el.innerHTML = "<b>" + esc(p.title) + "</b>" + (p.sub ? '<span class="sub">' + esc(p.sub) + "</span>" : "") +
-			(p.photos && p.photos.length ? '<div class="pfotos">' + p.photos.map(fotoHTML).join("") + "</div>" : "") +
-			(crear
-				? '<table class="revt one"><tbody>' + p.rows.map((r) => "<tr><th>" + esc(r.label) + '</th><td class="new">' + esc(r.after) + "</td></tr>").join("") + "</tbody></table>"
-				: '<table class="revt"><thead><tr><th></th><th>Ahora</th><th>Quedaría</th></tr></thead><tbody>' + p.rows.map((r) => "<tr><th>" + esc(r.label) + "</th><td>" + esc(r.before) + '</td><td class="new">' + esc(r.after) + "</td></tr>").join("") + "</tbody></table>") +
-			(p.warn ? '<p class="warn">' + esc(p.warn) + "</p>" : "") +
-			'<div class="pbtn"></div>';
-		$("#a-msgs-in").appendChild(el);
-		const pb = el.querySelector(".pbtn");
-		const aplicar = async () => {
-			pb.querySelectorAll("button").forEach((b) => { b.disabled = true; });
-			try {
-				const d = await post("assistant/apply", { proposal: p.id });
-				estado.estado = "aplicado";
-				estado.action = d.action || 0;
-				estado.undo = !!d.undo;
-				estado.pid = d.product ? +d.product.id : 0;
-				estado.wa = d.order && d.order.ship && d.order.ship.whatsapp ? d.order.ship.whatsapp : ""; // Un envío: el WhatsApp con la guía.
-				pintar();
-				guardarChat();
-				toast(d.message);
-				if (p.kind === "order") cargarPedidos();
-				refrescarStock();
-			} catch (e) {
-				if (e.message !== "sesion") { toast(e.message); pb.querySelectorAll("button").forEach((b) => { b.disabled = false; }); }
-			}
-		};
-		const pintar = () => {
-			el.classList.toggle("off", estado.estado === "cancelado");
-			if (estado.estado === "pendiente") {
-				pb.innerHTML = '<button type="button" class="mini go-mini" data-ok>' + (crear ? "Crear" : "Aplicar") + '</button><button type="button" class="mini sec" data-no>Cancelar</button>';
-				pb.querySelector("[data-ok]").onclick = aplicar;
-				pb.querySelector("[data-no]").onclick = () => { estado.estado = "cancelado"; pintar(); guardarChat(); };
-			} else if (estado.estado === "aplicado") {
-				pb.innerHTML = '<span class="ok">' + (crear ? "Creado" : "Aplicado") + "</span>" + (estado.undo ? ' <button type="button" class="undo" data-undo>Deshacer</button>' : "") + (crear && estado.pid && hayProducto() ? ' <button type="button" class="mini sec" data-edit>Editar</button>' : "") + (estado.wa ? ' <a class="mini sec" href="' + esc(estado.wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : "");
-				const ed = pb.querySelector("[data-edit]");
-				if (ed) ed.onclick = () => editarDesdeLista(estado.pid);
-				const u = pb.querySelector("[data-undo]");
-				if (u) u.onclick = async () => {
-					u.disabled = true;
-					try { const r = await post("assistant/undo", { action: estado.action }); estado.estado = "deshecho"; pintar(); guardarChat(); toast(r.message); }
-					catch (e) { toast(e.message); u.disabled = false; }
-				};
-			} else {
-				pb.innerHTML = '<span class="sub">' + (estado.estado === "deshecho" ? "Deshecho" : "Cancelado") + "</span>";
-			}
-		};
-		pintar();
-		bajarChat();
-	}
-	// La conversación se guarda en el navegador (sessionStorage: esta pestaña, hasta cerrarla) para que una
-	// recarga no la pierda: los mensajes, las tarjetas con su estado, y el borrador de lo que se estaba escribiendo.
-	const CHAT_KEY = "dox_pos_chat:" + (cfg.user || "");
-	function guardarChat() {
-		try {
-			if (!as.items.length) sessionStorage.removeItem(CHAT_KEY);
-			else sessionStorage.setItem(CHAT_KEY, JSON.stringify({ t: Date.now(), hist: as.hist, mensajes: as.mensajes, items: as.items }));
-		} catch (e) { /* sin sitio o sin permiso: la conversación vive solo en pantalla */ }
-	}
-	function guardarBorrador() {
-		try {
-			const v = $("#a-in").value;
-			if (v) sessionStorage.setItem(CHAT_KEY + ":borrador", v); else sessionStorage.removeItem(CHAT_KEY + ":borrador");
-		} catch (e) { /* nada */ }
-	}
-	function restaurarChat() {
-		let d = null;
-		try { d = JSON.parse(sessionStorage.getItem(CHAT_KEY) || "null"); } catch (e) { d = null; }
-		// Una conversación de más de siete días no vuelve: se empieza limpia.
-		if (d && d.t && Date.now() - d.t > 7 * 864e5) {
-			try { sessionStorage.removeItem(CHAT_KEY); sessionStorage.removeItem(CHAT_KEY + ":borrador"); } catch (e) { /* nada */ }
-			return;
-		}
-		if (d && Array.isArray(d.items) && d.items.length) {
-			as.hist = Array.isArray(d.hist) ? d.hist : [];
-			as.mensajes = +d.mensajes || 0;
-			d.items.forEach((it) => {
-				if (it.t === "msg" && (it.rol === "me" || it.rol === "ai")) { as.items.push(it); añadirMsg(it.rol, String(it.texto || ""), true, Array.isArray(it.fotos) ? it.fotos : null); }
-				else if (it.t === "prop" && it.p && Array.isArray(it.p.rows)) { as.items.push(it); añadirTarjeta(it.p, it); }
-			});
-		}
-		try { const b = sessionStorage.getItem(CHAT_KEY + ":borrador"); if (b) { $("#a-in").value = b; crecer(); } } catch (e) { /* nada */ }
-	}
-	// ----- fotos adjuntas en el chat: se suben al momento (a WebP, como en Productos) y van con el mensaje -----
-	function pintarAdjuntos() {
-		const box = $("#a-adj");
-		box.hidden = !as.fotos.length;
-		box.innerHTML = as.fotos.map((f, i) => '<span class="adjf' + (f.estado === "error" ? " bad" : f.estado === "ok" ? "" : " busy") + '" title="' + esc(f.error || "") + '">' + (f.url && !f.heic ? '<img src="' + esc(f.url) + '" alt="">' : "<i>" + esc(f.ext) + "</i>") + '<button type="button" class="x" data-i="' + i + '" aria-label="Quitar foto">×</button></span>').join("");
-		box.querySelectorAll(".x").forEach((b) => { b.onclick = () => quitarFotoChat(as.fotos[+b.dataset.i]); });
-		$("#a-in").placeholder = as.fotos.length ? "Dime qué es: nombre, categoría, precio y tallas con unidades…" : "Pregunta o pide un cambio…";
-	}
-	function agregarFotosChat(files) {
-		Array.from(files || []).forEach((file) => {
-			if (cfg.max_upload && file.size > cfg.max_upload) { toast(file.name + " pesa más de lo que admite el servidor."); return; }
-			if (as.fotos.length >= 6) { toast("Máximo seis fotos por mensaje."); return; }
-			const ext = (file.name.split(".").pop() || "").toUpperCase();
-			const f = { file, ext: ext.length <= 4 ? ext : "FOTO", heic: /heic|heif/i.test(file.type + " " + ext), estado: "cola", url: "", local: "", id: 0, error: "" };
-			try { f.url = URL.createObjectURL(file); f.local = f.url; } catch (e) { /* sin vista previa */ }
-			as.fotos.push(f);
-		});
-		pintarAdjuntos();
-		procesarFotosChat();
-	}
-	async function procesarFotosChat() {
-		if (as.subiendo) return;
-		const f = as.fotos.find((x) => x.estado === "cola");
-		if (!f) return;
-		as.subiendo = true;
-		f.estado = "subiendo";
-		pintarAdjuntos();
-		try {
-			const fd = new FormData();
-			fd.append("file", f.file, f.file.name || "foto");
-			const d = await api("products/image", { method: "POST", body: fd });
-			if (as.fotos.includes(f)) {
-				f.id = d.id; f.estado = "ok"; f.heic = false;
-				if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } f.local = ""; }
-				f.url = d.url;
-			} else {
-				api("products/image/" + d.id, { method: "DELETE" }).catch(() => {});
-			}
-		} catch (e) {
-			f.estado = "error";
-			f.error = e.red ? "Sin señal" : (e.message === "sesion" ? "Sesión caducada" : e.message);
-			if (e.message !== "sesion") toast("No se pudo subir la foto: " + f.error);
-		}
-		as.subiendo = false;
-		pintarAdjuntos();
-		procesarFotosChat();
-	}
-	function quitarFotoChat(f) {
-		as.fotos = as.fotos.filter((x) => x !== f);
-		if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } }
-		if (f.id) api("products/image/" + f.id, { method: "DELETE" }).catch(() => {});
-		pintarAdjuntos();
-	}
-	async function enviarChat(texto) {
-		const input = $("#a-in");
-		texto = (texto || input.value).trim();
-		const fotos = as.fotos.slice();
-		if (as.busy || (!texto && !fotos.length)) return;
-		if (fotos.some((f) => f.estado === "error")) { toast("Una foto no se pudo subir: quítala o vuelve a intentarlo."); return; }
-		if (fotos.some((f) => f.estado !== "ok")) { toast("Espera a que terminen de subir las fotos."); return; }
-		input.value = "";
-		crecer();
-		guardarBorrador();
-		as.mensajes++;
-		as.fotos = [];
-		pintarAdjuntos();
-		añadirMsg("me", texto, false, fotos.map((f) => ({ id: f.id, url: f.url })));
-		pintarSugerencias();
-		if (!cfg.ai_ready) { añadirMsg("sys", "Para chatear hace falta la clave de OpenAI en WooCommerce > Dox POS > Asistente. Mientras tanto, Hoy y Revisión funcionan con los números de la tienda."); return; }
-		as.busy = true;
-		$("#a-send").disabled = true;
-		const typing = document.createElement("div");
-		typing.className = "msg ai typing";
-		typing.innerHTML = "<i></i><i></i><i></i>";
-		$("#a-msgs-in").appendChild(typing);
-		bajarChat();
-		try {
-			const d = await post("assistant/chat", { message: texto, history: as.hist, images: fotos.map((f) => f.id) });
-			typing.remove();
-			añadirMsg("ai", d.text);
-			(d.proposals || []).forEach((p) => añadirTarjeta(p));
-			as.hist = d.history || [];
-			guardarChat();
-		} catch (e) {
-			typing.remove();
-			if (e.message !== "sesion") añadirMsg("sys", e.red ? "Sin señal: el asistente necesita conexión." : e.message);
-		}
-		as.busy = false;
-		$("#a-send").disabled = false;
-		input.focus();
-	}
-	function crecer() { const t = $("#a-in"); t.style.height = "auto"; t.style.height = Math.min(140, t.scrollHeight) + "px"; }
-	function nuevaConversacion() { as.hist = []; as.mensajes = 0; as.items = []; guardarChat(); as.fotos.slice().forEach(quitarFotoChat); $("#a-msgs-in").innerHTML = ""; pintarSugerencias(); $("#a-in").focus(); }
-
-	// ----- actividad -----
-	async function cargarActividad() {
-		const box = $("#a-actividad");
-		box.style.opacity = ".55";
-		try {
-			const d = await api("assistant/actions");
-			let h = '<p class="hsub">Lo que hizo el asistente</p>';
-			h += '<p class="hint">Este mes: ' + d.usage.calls + (d.usage.calls === 1 ? " llamada" : " llamadas") + " a OpenAI, " + Number(d.usage.cost).toFixed(2).replace(".", ",") + " USD de " + String(d.cap).replace(".", ",") + " de tope · modelo " + esc(d.model) + (d.ai_ready ? "" : " · sin clave") + ".</p>";
-			if (!d.items.length) h += '<p class="empty">Todavía no ha cambiado nada. Aquí quedará cada cambio que confirmes, con quién lo hizo, y el botón para deshacerlo durante 24 horas.</p>';
-			else h += '<ul class="actl">' + d.items.map((a) => '<li' + (a.undone ? ' class="off"' : "") + '><span class="nm">' + esc(a.label) + "<i>" + esc(a.date) + " · " + esc(a.user) + " · " + (a.source === "chat" ? "chat" : "revisión") + (a.undone ? " · deshecho" + (a.undone_by ? " por " + esc(a.undone_by) : "") : "") + "</i></span>" + (a.can_undo ? '<button type="button" class="mini" data-undo="' + a.id + '">Deshacer</button>' : "") + "</li>").join("") + "</ul>";
-			box.innerHTML = h;
-			box.querySelectorAll("[data-undo]").forEach((b) => {
-				b.onclick = () => confirmar("¿Deshacer esta acción? Lo que alguien haya cambiado después se respeta.", async () => {
-					try { const r = await post("assistant/undo", { action: +b.dataset.undo }); toast(r.message); cargarActividad(); }
-					catch (e) { toast(e.message); }
-				});
-			});
-		} catch (e) {
-			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.message) + "</p>";
-		}
-		box.style.opacity = "";
-	}
-
-	// ----- uso: lo que ha costado la API -----
-	// Sale del registro de llamadas (90 días). Todo en dólares, que es como cobra OpenAI.
-	const miles = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand);
-	const usd = (n) => {
-		const v = Math.abs(Number(n) || 0);
-		const d = v === 0 ? 2 : v < 0.01 ? 4 : v < 1 ? 3 : 2;
-		return Number(n || 0).toFixed(d).replace(".", ",") + " USD";
-	};
-	async function cargarUso() {
-		const box = $("#a-uso");
-		if (!box.dataset.listo) box.innerHTML = '<p class="empty">Mirando el gasto…</p>';
-		box.style.opacity = ".55";
-		try {
-			const d = await api("assistant/usage");
-			box.dataset.listo = "1";
-			pintarUso(d);
-		} catch (e) {
-			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? "Sin señal: el gasto sale de la tienda." : e.message) + "</p>";
-		}
-		box.style.opacity = "";
-	}
-	function pintarUso(d) {
-		const m = d.month, pct = d.cap > 0 ? Math.min(100, Math.round(m.cost / d.cap * 100)) : 0;
-		let h = '<p class="hsub">Lo que ha costado el asistente</p>';
-		h += '<div class="kpis">' + kpi(usd(m.cost), m.name + " · " + m.calls + (m.calls === 1 ? " llamada" : " llamadas")) +
-			kpi(usd(d.today.cost), "Hoy" + (d.today.calls ? " · " + d.today.calls + (d.today.calls === 1 ? " llamada" : " llamadas") : "")) +
-			kpi(usd(m.calls ? m.cost / m.calls : 0), "Por llamada") +
-			kpi(usd(m.projection), "El mes cerraría en") + "</div>";
-		// El tope del mes: la barra se pone en rojo cuando se acerca.
-		h += '<div class="grp"><h4>Tope del mes <span class="cnt">' + usd(d.cap) + "</span></h4>" +
-			'<div class="usotope"><span style="width:' + pct + '%"' + (pct >= 80 ? ' class="alto"' : "") + "></span></div>" +
-			'<p class="hint">Llevas ' + usd(m.cost) + " de " + usd(d.cap) + " (" + pct + " %). Al llegar al tope el asistente deja de llamar a OpenAI hasta el mes siguiente; se cambia en WooCommerce &gt; Dox POS &gt; Asistente.</p></div>";
-		// Día a día.
-		const top = Math.max.apply(null, d.daily.map((x) => x.cost).concat([0.0001]));
-		h += '<div class="grp"><h4>Día a día <span class="cnt">últimos ' + d.daily.length + " días</span></h4>";
-		h += '<div class="usog">' + d.daily.map((x, i) => {
-			const alt = Math.round(x.cost / top * 100);
-			const hoy = i === d.daily.length - 1;
-			return '<div class="usob' + (hoy ? " hoy" : "") + '" title="' + esc(x.label) + " · " + usd(x.cost) + " · " + x.calls + (x.calls === 1 ? " llamada" : " llamadas") + '"><b style="height:' + Math.max(x.cost > 0 ? 3 : 0, alt) + '%"></b><i>' + (hoy || x.day === 1 || x.day % 5 === 0 ? x.day : "") + "</i></div>";
-		}).join("") + "</div>";
-		h += '<p class="hint">El día más caro de estos ' + d.daily.length + " días fueron " + usd(top) + ".</p></div>";
-		// En qué se va.
-		h += '<div class="grp"><h4>En qué se va <span class="cnt">' + esc(m.name) + "</span></h4>";
-		h += d.kinds.length
-			? '<ul class="bl uso">' + d.kinds.map((k) => "<li><span>" + esc(k.label) + (k.failed ? ' <i class="tag b">' + k.failed + " con error</i>" : "") + (k.cost > 0 ? '<em style="width:' + Math.max(2, Math.round(k.cost / Math.max(0.000001, m.cost) * 100)) + '%"></em>' : "") + "</span><span>" + k.calls + (k.calls === 1 ? " llamada" : " llamadas") + " · <b>" + usd(k.cost) + "</b></span></li>").join("") + "</ul>"
-			: '<p class="empty">Este mes todavía no se ha llamado a OpenAI.</p>';
-		h += "</div>";
-		// Las últimas llamadas.
-		h += '<div class="grp"><h4>Últimas llamadas</h4>';
-		h += d.recent.length
-			? '<ul class="bl">' + d.recent.map((r) => "<li><span>" + esc(r.label) + (r.ok ? "" : ' <i class="tag b">error</i>') + '<i class="sub2">' + esc(r.at) + " · " + esc(r.who) + " · " + miles(r.tokens) + " tokens · " + String(r.secs).replace(".", ",") + " s" + (r.ok ? "" : " · " + esc(r.note)) + "</i></span><span>" + usd(r.cost) + "</span></li>").join("") + "</ul>"
-			: '<p class="empty">Todavía no hay llamadas.</p>';
-		h += "</div>";
-		let pie = "Desde el " + esc(d.all.since || "primer día") + " van " + d.all.calls + (d.all.calls === 1 ? " llamada" : " llamadas") + " y " + usd(d.all.cost) + ". ";
-		pie += "Modelo " + esc(d.model) + ": " + String(d.price.in).replace(".", ",") + " USD por millón de tokens de entrada y " + String(d.price.out).replace(".", ",") + " de salida" + (d.price.known ? "" : " (estimado: ese modelo no está en la lista)") + ". ";
-		pie += "El registro guarda " + d.keep + " días; lo más viejo se borra solo. Los números que ves en Hoy, el pronóstico y la revisión no cuestan nada: solo se paga cuando el asistente redacta o responde.";
-		h += '<p class="hint">' + pie + "</p>";
-		$("#a-uso").innerHTML = h;
-	}
-
 	// ---------- pestañas y arranque ----------
-	// La dirección lleva dónde se está (#asistente/chat, #historial/caja; Vender va sin nada) para que una
-	// recarga vuelva al mismo sitio. replaceState: no se ensucia el historial del navegador con cada toque.
-	function fijarHash() {
-		let h = st.tab === "vender" ? "" : st.tab;
-		if (st.tab === "asistente" && as.vista !== "hoy") h += "/" + as.vista;
-		if (st.tab === "historial" && hi.vista !== "ventas") h += "/" + hi.vista;
-		const want = h ? "#" + h : "";
-		if (location.hash !== want) history.replaceState(null, "", location.pathname + location.search + want);
-	}
-	// Abre lo que diga la dirección: la pestaña y la vista (#asistente/chat, #historial/mov) y, si viene,
-	// el pedido (#pedidos/123), la ficha de un producto (#producto/123), un chequeo de la revisión
-	// (#asistente/revision/sin_foto) o las ventas de un día (#historial/ventas/2026-09-05). Así los
-	// enlaces del correo del resumen llegan a donde apuntan, se abra la caja de cero o ya estuviera abierta.
-	function abrirDesdeHash() {
-		const [tabH, vistaH, extraH] = location.hash.replace(/^#/, "").split("/");
-		if (!["entrada", "pedidos", "producto", "historial", "asistente"].includes(tabH)) return;
-		const t = document.querySelector('#tabs button[data-t="' + tabH + '"]');
-		if (!t) return;
-		const idH = /^\d+$/.test(vistaH || "") ? +vistaH : 0;
-		if (tabH === "asistente" && ["hoy", "revision", "chat", "actividad", "uso"].includes(vistaH)) {
-			as.vista = vistaH;
-			if (vistaH === "revision" && /^[a-z_0-9]+$/.test(extraH || "")) as.abrir = extraH;
-		}
-		if (tabH === "historial") {
-			if (["ventas", "caja", "mov"].includes(vistaH)) { hi.vista = vistaH; document.querySelectorAll("#h-vista button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.v === vistaH)); }
-			const per = /^\d{4}-\d{2}-\d{2}$/.test(extraH || "") ? "fechas" : (["hoy", "semana", "mes"].includes(extraH) ? extraH : "");
+	// Cada pestaña se registra con lo que hace al abrirse, lo que añade al # y cómo lee lo que venga en el #.
+	// Las del núcleo van aquí; los añadidos (el Pro) registran las suyas con DoxPOS.pestaña().
+	const pestañas = {};
+	function pestaña(def) { pestañas[def.id] = def; }
+	// Avisos entre módulos: "arranque" (todo listo), "pedido" (hubo una acción sobre un pedido) y "pestaña" (cambió).
+	const oyentes = {};
+	function on(ev, fn) { (oyentes[ev] = oyentes[ev] || []).push(fn); }
+	function emit(ev, d) { (oyentes[ev] || []).forEach((fn) => { try { fn(d); } catch (e) { console.error(e); } }); }
+	pestaña({ id: "entrada", abrir: cargarEntradas });
+	pestaña({ id: "pedidos", abrir: cargarPedidos });
+	pestaña({ id: "producto", abrir: abrirProducto });
+	pestaña({
+		id: "historial",
+		abrir: cargarHistorial,
+		hash: () => (hi.vista !== "ventas" ? hi.vista : ""),
+		// #historial/mov, #historial/ventas/2026-09-05 (las ventas de un día) o #historial/ventas/semana.
+		desdeHash(vista, extra) {
+			if (["ventas", "caja", "mov"].includes(vista)) { hi.vista = vista; document.querySelectorAll("#h-vista button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.v === vista)); }
+			const per = /^\d{4}-\d{2}-\d{2}$/.test(extra || "") ? "fechas" : (["hoy", "semana", "mes"].includes(extra) ? extra : "");
 			if (per) {
 				hi.periodo = per;
-				if (per === "fechas") { hi.desde = extraH; hi.hasta = extraH; ["#h-desde", "#h-hasta"].forEach((sel) => { const el = $(sel); if (el) el.value = extraH; }); }
+				if (per === "fechas") { hi.desde = extra; hi.hasta = extra; ["#h-desde", "#h-hasta"].forEach((sel) => { const el = $(sel); if (el) el.value = extra; }); }
 				document.querySelectorAll("#h-periodo button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.p === per));
 				const fx = $("#h-fechas");
 				if (fx) fx.hidden = per !== "fechas";
 			}
-		}
+		},
+	});
+	// La dirección lleva dónde se está (#asistente/chat, #historial/caja; Vender va sin nada) para que una
+	// recarga vuelva al mismo sitio. replaceState: no se ensucia el historial del navegador con cada toque.
+	function fijarHash() {
+		let h = st.tab === "vender" ? "" : st.tab;
+		const def = pestañas[st.tab];
+		const sub = h && def && def.hash ? def.hash() : "";
+		if (sub) h += "/" + sub;
+		const want = h ? "#" + h : "";
+		if (location.hash !== want) history.replaceState(null, "", location.pathname + location.search + want);
+	}
+	// Abre lo que diga la dirección: la pestaña y su vista, y, si viene, el pedido (#pedidos/123) o la ficha
+	// de un producto (#producto/123). Así los enlaces del correo del resumen llegan a donde apuntan, se
+	// abra la caja de cero o ya estuviera abierta.
+	function abrirDesdeHash() {
+		const [tabH, vistaH, extraH] = location.hash.replace(/^#/, "").split("/");
+		if (!tabH || tabH === "vender") return;
+		const t = document.querySelector('#tabs button[data-t="' + tabH + '"]');
+		if (!t) return;
+		const idH = /^\d+$/.test(vistaH || "") ? +vistaH : 0;
+		const def = pestañas[tabH];
+		if (def && def.desdeHash) def.desdeHash(vistaH || "", extraH || "");
 		setTimeout(() => {
 			t.click();
 			if (tabH === "pedidos" && idH) verPedido(idH);
@@ -2465,13 +1877,11 @@
 			b.onclick = () => {
 				st.tab = b.dataset.t;
 				document.querySelectorAll("#tabs button").forEach((x) => x.setAttribute("aria-pressed", x === b));
-				["vender", "entrada", "pedidos", "producto", "historial", "asistente"].forEach((k) => { const el = $("#t-" + k); if (el) el.hidden = k !== st.tab; });
+				document.querySelectorAll("section.tab").forEach((el) => { el.hidden = el.id !== "t-" + st.tab; });
 				fijarHash();
-				if (st.tab === "pedidos") cargarPedidos();
-				if (st.tab === "entrada") cargarEntradas();
-				if (st.tab === "producto") abrirProducto();
-				if (st.tab === "historial") cargarHistorial();
-				if (st.tab === "asistente") abrirAsistente();
+				const def = pestañas[st.tab];
+				if (def && def.abrir) def.abrir();
+				emit("pestaña", st.tab);
 			};
 		});
 		if (hayProducto()) {
@@ -2525,26 +1935,7 @@
 			let hqTimer = null;
 			$("#h-q").addEventListener("input", () => { clearTimeout(hqTimer); hqTimer = setTimeout(() => { hi.q = $("#h-q").value.trim(); hi.page = 1; cargarHistorial(); }, 300); });
 		}
-		if (hayAsistente()) {
-			document.querySelectorAll("#a-vista button").forEach((b) => { b.onclick = () => abrirAsistente(b.dataset.v); });
-			$("#a-send").onclick = () => enviarChat();
-			$("#a-in").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarChat(); } });
-			$("#a-in").addEventListener("input", () => { crecer(); guardarBorrador(); });
-			$("#a-new").onclick = nuevaConversacion;
-			$("#a-clip").onclick = () => $("#a-file").click();
-			$("#a-file").addEventListener("change", () => { agregarFotosChat($("#a-file").files); $("#a-file").value = ""; });
-			// Pegar una foto (Ctrl+V en el escritorio) también la adjunta.
-			$("#a-in").addEventListener("paste", (e) => { const fs = Array.from((e.clipboardData && e.clipboardData.files) || []).filter((f) => /^image\//.test(f.type)); if (fs.length) { e.preventDefault(); agregarFotosChat(fs); } });
-			cargarInsignia();
-			restaurarChat();
-		}
-		// El aviso de datos de demostración: quitarlos borra los pedidos de ejemplo y recarga.
-		const demoOff = $("#demo-off");
-		if (demoOff) demoOff.onclick = () => confirmar("¿Quitar los datos de demostración? Se borran los pedidos de ejemplo; las existencias no cambian.", async () => {
-			demoOff.disabled = true;
-			try { const d = await post("demo/off", {}); toast(d.message); setTimeout(() => location.reload(), 900); }
-			catch (e) { demoOff.disabled = false; if (e.message !== "sesion") toast(e.message); }
-		});
+		emit("arranque"); // Los añadidos enganchan lo suyo (el Pro: el chat, la insignia, el aviso de demostración).
 		abrirDesdeHash();
 		// Y si cambia el # con la caja ya abierta (el enlace del correo cae en esta misma pestaña, o
 		// se toca "atrás"), se abre lo que pida sin recargar.
@@ -2590,7 +1981,14 @@
 		vaciarCola();
 		$("#q").focus();
 	}
-	// El script va al final del body, así que todo lo que toca ya existe: se arranca directo. Esperar a
-	// DOMContentLoaded es una trampa con optimizadores que retrasan el JS (el evento ya pasó, o fingen readyState).
-	init();
+	// Lo que los añadidos pueden usar (el Pro se cuelga de aquí). El script va al final del body y la plantilla
+	// llama a DoxPOS.arrancar() después de cargar los añadidos, así que todo lo que toca ya existe y las pestañas
+	// de los añadidos ya están registradas. Esperar a DOMContentLoaded es una trampa con optimizadores que
+	// retrasan el JS (el evento ya pasó, o fingen readyState).
+	window.DoxPOS = {
+		cfg, M, $, esc, num, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
+		api, post, modal, cerrarModal, confirmar, preguntar, toast,
+		verPedido, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
+		pestaña, on, emit, pestañaActual: () => st.tab, arrancar: init,
+	};
 })();
