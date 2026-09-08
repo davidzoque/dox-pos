@@ -3,7 +3,7 @@
  * Plugin Name:       Dox POS
  * Plugin URI:        https://github.com/davidzoque/dox-pos
  * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
- * Version:           0.24.2
+ * Version:           0.24.3
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,19 +22,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.24.2' );
+define( 'DOX_POS_VERSION', '0.24.3' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
 define( 'DOX_POS_SLUG', 'caja' );        // La ruta de fábrica: dominio.com/caja (se cambia en los ajustes)
 define( 'DOX_POS_CAP', 'dox_pos_use' ); // El permiso que abre la puerta.
 
-// La copia que se reparte desde el repositorio se actualiza sola desde sus releases. Ese código vive
-// aparte en includes/updater.php, y el zip de WordPress.org va sin él: allí las actualizaciones las
-// sirve el directorio.
+// dox-pos-repo-only:inicio
+// La copia que se reparte desde el repositorio se actualiza sola desde sus releases. El zip del
+// directorio de WordPress.org va sin este bloque y sin includes/updater.php, porque allí las
+// actualizaciones las sirve el propio directorio y los actualizadores no se permiten.
 if ( file_exists( DOX_POS_PATH . 'includes/updater.php' ) ) {
 	require_once DOX_POS_PATH . 'includes/updater.php';
 }
+// dox-pos-repo-only:fin
 
 /**
  * Las traducciones del plugin. El código va en inglés (es lo que espera WordPress.org) y los

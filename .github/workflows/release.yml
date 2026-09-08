@@ -36,6 +36,7 @@ jobs:
           zip -rq dox-pos.zip dox-pos
           rm -rf dox-pos/vendor dox-pos/includes/updater.php
           sed -i '/^ \* Update URI:/d' dox-pos/dox-pos.php
+          sed -i '/dox-pos-repo-only:inicio/,/dox-pos-repo-only:fin/d' dox-pos/dox-pos.php
           zip -rq dox-pos-wordpress-org.zip dox-pos
 
       - name: Crear la release y adjuntar los zips
