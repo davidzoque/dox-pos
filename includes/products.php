@@ -447,19 +447,19 @@ function dox_pos_sku_code_no_size() {
  * El código de una variación según el formato del ajuste.
  *
  * @param string       $format codes, slugs o none.
- * @param string       $parent El código del padre.
+ * @param string       $base   El código del padre.
  * @param WP_Term|null $size   La talla.
  * @param WP_Term|null $color  El color.
  * @return string
  */
-function dox_pos_variation_sku( $format, $parent, $size, $color ) {
-	if ( 'none' === $format || '' === $parent ) {
+function dox_pos_variation_sku( $format, $base, $size, $color ) {
+	if ( 'none' === $format || '' === $base ) {
 		return '';
 	}
 	if ( 'slugs' === $format ) {
-		return implode( '-', array_filter( array( $parent, $size ? $size->slug : '', $color ? $color->slug : '' ) ) );
+		return implode( '-', array_filter( array( $base, $size ? $size->slug : '', $color ? $color->slug : '' ) ) );
 	}
-	return $parent . ( $size ? dox_pos_sku_code( 'size', $size->slug ) : dox_pos_sku_code_no_size() ) . ( $color ? dox_pos_sku_code( 'color', $color->slug ) : '0' );
+	return $base . ( $size ? dox_pos_sku_code( 'size', $size->slug ) : dox_pos_sku_code_no_size() ) . ( $color ? dox_pos_sku_code( 'color', $color->slug ) : '0' );
 }
 
 /**

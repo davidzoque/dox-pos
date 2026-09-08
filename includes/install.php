@@ -34,9 +34,47 @@ function dox_pos_install() {
 	dox_pos_install_tables();
 	dox_pos_add_rewrite();
 	dox_pos_schedule_cleanup();
+	dox_pos_migrate_tokens();
 	flush_rewrite_rules();
 	update_option( 'dox_pos_version', DOX_POS_VERSION );
 	do_action( 'dox_pos_installed' ); // Los añadidos crean lo suyo (el Pro, sus tablas y su tarea).
+}
+
+/**
+ * Los comodines de los mensajes pasaron de español a inglés en la 0.24.0 ({nombre} es {name}).
+ * Lo que la tienda ya tenía escrito se traduce una sola vez: los dos mensajes de WhatsApp y el
+ * enlace de rastreo de cada transportadora. Una instalación nueva no tiene nada que cambiar.
+ */
+function dox_pos_migrate_tokens() {
+	if ( get_option( 'dox_pos_tokens_en' ) ) {
+		return;
+	}
+	update_option( 'dox_pos_tokens_en', 1, false );
+	$map = array(
+		'{nombre}'         => '{name}',
+		'{productos}'      => '{items}',
+		'{horas}'          => '{hours}',
+		'{pedido}'         => '{order}',
+		'{tienda}'         => '{store}',
+		'{transportadora}' => '{carrier}',
+		'{guia}'           => '{tracking}',
+	);
+	foreach ( array( 'dox_pos_hold_message', 'dox_pos_ship_message' ) as $key ) {
+		$text = (string) get_option( $key, '' );
+		if ( '' !== $text ) {
+			update_option( $key, strtr( $text, $map ) );
+		}
+	}
+	$sales = get_option( 'dox_pos_sales' );
+	if ( ! is_array( $sales ) || empty( $sales['carriers'] ) || ! is_array( $sales['carriers'] ) ) {
+		return;
+	}
+	foreach ( $sales['carriers'] as $i => $carrier ) {
+		if ( isset( $carrier['url'] ) ) {
+			$sales['carriers'][ $i ]['url'] = strtr( (string) $carrier['url'], $map );
+		}
+	}
+	update_option( 'dox_pos_sales', $sales );
 }
 
 /**

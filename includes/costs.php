@@ -265,7 +265,7 @@ function dox_pos_costs_after_entry( $lines ) {
 // Cada línea de producto que entra en un pedido (desde la caja, la web o wp-admin) se lleva el costo
 // por unidad de ese momento. Una línea que ya lo traía no se toca.
 add_action( 'woocommerce_new_order_item', 'dox_pos_cost_snapshot', 10, 3 );
-function dox_pos_cost_snapshot( $item_id, $item, $order_id ) {
+function dox_pos_cost_snapshot( $item_id, $item, $order_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- La firma la manda el hook.
 	if ( ! $item instanceof WC_Order_Item_Product || ! dox_pos_costs_on() ) {
 		return;
 	}
@@ -398,7 +398,7 @@ function dox_pos_xlsx_read( $path, $max = 20000 ) {
 			$wx->registerXPathNamespace( 'm', $ns );
 			$first = $wx->xpath( '//m:sheets/m:sheet' );
 			$rid   = $first ? (string) $first[0]->attributes( $rns )->id : '';
-			foreach ( $rx->Relationship as $r ) {
+			foreach ( $rx->Relationship as $r ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Los nombres los pone el XML de Excel.
 				if ( $rid && (string) $r['Id'] === $rid ) {
 					$t     = ltrim( (string) $r['Target'], '/' );
 					$sheet = 0 === strpos( $t, 'xl/' ) ? $t : 'xl/' . $t;
@@ -425,11 +425,11 @@ function dox_pos_xlsx_read( $path, $max = 20000 ) {
 	$dx = simplexml_load_string( $xml );
 	libxml_clear_errors();
 	libxml_use_internal_errors( $prev_errors );
-	if ( ! $dx || ! isset( $dx->sheetData ) ) {
+	if ( ! $dx || ! isset( $dx->sheetData ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Los nombres los pone el XML de Excel.
 		return new WP_Error( 'dox_pos_no_excel', __( 'The Excel sheet could not be read.', 'dox-pos' ) );
 	}
 	$rows = array();
-	foreach ( $dx->sheetData->row as $row ) {
+	foreach ( $dx->sheetData->row as $row ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Los nombres los pone el XML de Excel.
 		if ( count( $rows ) >= $max ) {
 			break;
 		}

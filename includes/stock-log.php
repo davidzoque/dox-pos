@@ -64,11 +64,11 @@ function dox_pos_stock_context_end( $prev = null ) {
  */
 function dox_pos_stock_log_set_ref( $ids, $ref_id ) {
 	global $wpdb;
-	$ids = array_filter( array_map( 'intval', (array) $ids ) );
+	$ids = array_values( array_filter( array_map( 'intval', (array) $ids ) ) );
 	if ( ! $ids || ! (int) $ref_id ) {
 		return;
 	}
-	$wpdb->query( $wpdb->prepare( 'UPDATE ' . dox_pos_stock_log_table() . ' SET ref_id = %d WHERE id IN (' . implode( ',', $ids ) . ')', (int) $ref_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Los ids son enteros.
+	$wpdb->query( $wpdb->prepare( 'UPDATE %i SET ref_id = %d WHERE id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', dox_pos_stock_log_table(), (int) $ref_id, ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- El sniff no cuenta los argumentos desempaquetados.
 }
 
 /* =====================================================================
@@ -184,7 +184,8 @@ function dox_pos_stock_changed( $product ) {
 			// un producto que no llevaba existencias y empieza a llevarlas: queda con "antes" en blanco.
 			$post = get_post( $id );
 			$born = $post ? (int) get_post_time( 'U', true, $post ) : 0;
-			if ( $born && $born >= (int) ( $_SERVER['REQUEST_TIME'] ?? time() ) - 60 ) {
+			$ahora = isset( $_SERVER['REQUEST_TIME'] ) ? absint( wp_unslash( $_SERVER['REQUEST_TIME'] ) ) : time();
+			if ( $born && $born >= $ahora - 60 ) {
 				$before   = 0;
 				$creating = true;
 			} elseif ( ! $known ) {
@@ -263,7 +264,7 @@ function dox_pos_stock_guess_context( $creating ) {
 			return array( 'reason' => 'import', 'ref_id' => 0, 'note' => $note );
 		}
 		if ( 'woocommerce_refund_line_items' === $action ) {
-			return array( 'reason' => 'refund', 'ref_id' => (int) ( $_REQUEST['order_id'] ?? 0 ), 'note' => '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return array( 'reason' => 'refund', 'ref_id' => isset( $_REQUEST['order_id'] ) ? absint( wp_unslash( $_REQUEST['order_id'] ) ) : 0, 'note' => '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		}
 	}
 	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {

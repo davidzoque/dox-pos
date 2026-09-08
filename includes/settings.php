@@ -23,11 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function dox_pos_default_colors() {
 	return array(
-		'bg'      => '#FEF8F4', // Fondo.
-		'bar'     => '#F4C1C0', // Barra superior.
-		'primary' => '#731C2A', // Botones y pestaña activa.
-		'soft'    => '#F4C1C0', // Etiquetas, burbuja de WhatsApp y fotos que faltan.
-		'ink'     => '#38352F', // Texto.
+		'bg'      => '#FFF9F4', // Fondo.
+		'bar'     => '#26221F', // Barra superior.
+		'primary' => '#FF8D27', // Botones y pestaña activa.
+		'soft'    => '#FFE8CC', // Etiquetas, burbuja de WhatsApp y fotos que faltan.
+		'ink'     => '#26221F', // Texto.
 	);
 }
 
@@ -61,7 +61,7 @@ function dox_pos_builtin_payments() {
 }
 
 function dox_pos_default_hold_message() {
-	return __( "Hola {nombre}, te aparté {productos} por {total}. Te lo guardo {horas} horas.\nPara confirmarlo puedes pagar aquí:\n{link}", 'dox-pos' );
+	return __( "Hi {name}, I am holding {items} for you for {total}. I will keep it for {hours} hours.\nTo confirm it you can pay here:\n{link}", 'dox-pos' );
 }
 
 /* =====================================================================
@@ -257,7 +257,7 @@ function dox_pos_carrier_key( $name ) {
  */
 function dox_pos_carrier_presets() {
 	return array(
-		'coordinadora'    => array( 'name' => 'Coordinadora', 'url' => 'https://rastreo.coordinadora.com/?guia={guia}' ),
+		'coordinadora'    => array( 'name' => 'Coordinadora', 'url' => 'https://rastreo.coordinadora.com/?guia={tracking}' ),
 		'servientrega'    => array( 'name' => 'Servientrega', 'url' => 'https://www.servientrega.com/wps/portal/rastreo-envio' ),
 		'interrapidisimo' => array( 'name' => 'Interrapidísimo', 'url' => 'https://interrapidisimo.com/' ),
 		'tcc'             => array( 'name' => 'TCC', 'url' => 'https://www.tcc.com.co/rastrear-envio/' ),
@@ -269,7 +269,7 @@ function dox_pos_carrier_presets() {
 
 /**
  * El enlace de rastreo de un envío: la plantilla de la transportadora (la de la tienda, o la
- * conocida) con la guía puesta donde va {guia}. Una plantilla sin {guia} es la página de
+ * conocida) con la guía puesta donde va {tracking}. Una plantilla sin {tracking} es la página de
  * rastreo tal cual. Vacío si no hay transportadora con enlace.
  */
 function dox_pos_tracking_url( $carrier, $guide ) {
@@ -291,8 +291,8 @@ function dox_pos_tracking_url( $carrier, $guide ) {
 		return '';
 	}
 	$guide = trim( (string) $guide );
-	if ( false !== strpos( $url, '{guia}' ) ) {
-		return '' === $guide ? '' : str_replace( '{guia}', rawurlencode( $guide ), $url );
+	if ( false !== strpos( $url, '{tracking}' ) ) {
+		return '' === $guide ? '' : str_replace( '{tracking}', rawurlencode( $guide ), $url );
 	}
 	return $url;
 }
@@ -306,7 +306,7 @@ function dox_pos_ship_email_on() {
 }
 
 function dox_pos_default_ship_message() {
-	return __( "Hola {nombre}, tu pedido #{pedido} de {tienda} ya salió con {transportadora}.\nGuía: {guia}\nPuedes seguirlo aquí: {link}", 'dox-pos' );
+	return __( "Hi {name}, your order #{order} from {store} is on its way with {carrier}.\nTracking number: {tracking}\nYou can follow it here: {link}", 'dox-pos' );
 }
 
 /**
@@ -436,7 +436,7 @@ function dox_pos_theme_css() {
 		'--ui'    => ( $on ? '"' . $f['ui'] . '",' : '' ) . '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
 		'--serif' => ( $on ? '"' . $f['serif'] . '",' : '' ) . 'Georgia,serif',
 	);
-	if ( $c !== dox_pos_default_colors() ) {
+	if ( dox_pos_default_colors() !== $c ) {
 		$dark_bar   = dox_pos_is_dark( $c['bar'] );
 		$dark_prim  = dox_pos_is_dark( $c['primary'] );
 		$dark_soft  = dox_pos_is_dark( $c['soft'] );
@@ -620,7 +620,7 @@ function dox_pos_slug_problem( $slug ) {
 	if ( ! $taken ) {
 		$perma = (array) get_option( 'woocommerce_permalinks', array() );
 		foreach ( array( 'product_base', 'category_base', 'tag_base' ) as $k ) {
-			if ( $slug === trim( (string) ( $perma[ $k ] ?? '' ), '/' ) ) {
+			if ( trim( (string) ( $perma[ $k ] ?? '' ), '/' ) === $slug ) {
 				$taken = true;
 			}
 		}
@@ -702,7 +702,7 @@ function dox_pos_sanitize_sales( $in ) {
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
 
-	// Transportadoras: nombre y enlace de rastreo. El {guia} se protege, que esc_url se lo comería.
+	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
 	$carriers = is_array( $in['carriers'] ?? null ) ? $in['carriers'] : preg_split( '/\r\n|\r|\n/', (string) ( $in['carriers'] ?? '' ) );
 	$seen     = array();
 	foreach ( (array) $carriers as $c ) {
@@ -717,7 +717,7 @@ function dox_pos_sanitize_sales( $in ) {
 			if ( ! preg_match( '#^https?://#i', $url ) ) {
 				$url = 'https://' . $url;
 			}
-			$url = str_replace( '__GUIA__', '{guia}', esc_url_raw( str_replace( array( '{guia}', '%7Bguia%7D' ), '__GUIA__', $url ) ) );
+			$url = str_replace( '__GUIA__', '{tracking}', esc_url_raw( str_replace( array( '{tracking}', '%7Btracking%7D' ), '__GUIA__', $url ) ) );
 			if ( ! preg_match( '#^https://#i', $url ) ) {
 				/* translators: %s: transportadora */
 				add_settings_error( 'dox_pos', 'carrier_url', sprintf( __( 'The %s link is not valid: it has to start with https://', 'dox-pos' ), $name ) );
@@ -872,7 +872,7 @@ function dox_pos_svg_tags() {
 	);
 }
 
-function dox_pos_icon( $name, $class = '' ) {
+function dox_pos_icon( $name, $css = '' ) {
 	$paths = array(
 		'palette'  => '<circle cx="13.5" cy="6.5" r=".9"/><circle cx="17.5" cy="10.5" r=".9"/><circle cx="8.5" cy="7.5" r=".9"/><circle cx="6.5" cy="12.5" r=".9"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-4.9-4.5-8.6-10-8.6z"/>',
 		'screen'   => '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
@@ -902,7 +902,7 @@ function dox_pos_icon( $name, $class = '' ) {
 	if ( ! isset( $paths[ $name ] ) ) {
 		return '';
 	}
-	return '<svg class="dp-i' . ( $class ? ' ' . esc_attr( $class ) : '' ) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $paths[ $name ] . '</svg>';
+	return '<svg class="dp-i' . ( $css ? ' ' . esc_attr( $css ) : '' ) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $paths[ $name ] . '</svg>';
 }
 
 add_action( 'admin_enqueue_scripts', 'dox_pos_admin_assets' );
@@ -967,6 +967,7 @@ function dox_pos_admin_assets( $hook ) {
 				'saving'    => __( 'Saving…', 'dox-pos' ),
 				'unsaved'   => __( 'There are unsaved changes.', 'dox-pos' ),
 				'close'     => __( 'Close', 'dox-pos' ),
+				/* translators: %s: nombre de la etiqueta que se quita */
 				'removeTag' => __( 'Remove %s', 'dox-pos' ),
 			),
 		)
@@ -1186,7 +1187,7 @@ function dox_pos_settings_page() {
 							<?php endforeach; ?>
 						</ul>
 						<?php if ( $access['total'] > count( $access['users'] ) ) : ?>
-						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: usuarios */ _n( 'See the remaining user', 'See all %d users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
+						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: usuarios */ _n( 'See the %d remaining user', 'See the %d remaining users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
 						<?php endif; ?>
 					</div>
 				</section>
@@ -1264,12 +1265,12 @@ function dox_pos_settings_page() {
 						<div class="dp-field">
 							<label class="dp-label" for="dox_pos_hold_message"><?php esc_html_e( 'Text', 'dox-pos' ); ?></label>
 							<div class="dp-chips" id="dp-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
-								<?php foreach ( array( 'nombre', 'productos', 'total', 'horas', 'link', 'tienda' ) as $p ) : ?>
+								<?php foreach ( array( 'name', 'items', 'total', 'hours', 'link', 'store' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
 								<?php endforeach; ?>
 							</div>
 							<textarea id="dox_pos_hold_message" name="dox_pos_hold_message" rows="5" class="dp-input dp-textarea"><?php echo esc_textarea( dox_pos_hold_message_template() ); ?></textarea>
-							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> is the order\'s payment link and <code>{tienda}</code> is the brand name.', 'dox-pos' ), $kses_a ); ?></p>
+							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> is the order\'s payment link and <code>{store}</code> is the brand name.', 'dox-pos' ), $kses_a ); ?></p>
 						</div>
 						<div class="dp-field">
 							<label class="dp-label" for="dox_pos_payment_note"><?php esc_html_e( 'How to pay outside the link', 'dox-pos' ); ?></label>
@@ -1284,13 +1285,13 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Carriers', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {guia} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {tracking} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-rows dp-carriers" id="dp-carriers">
 							<?php foreach ( $carriers as $i => $c ) : ?>
 							<div class="dp-carrier dp-row">
 								<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $c['name'] ); ?>" placeholder="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>">
-								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {guia}" aria-label="<?php esc_attr_e( 'Tracking link', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
+								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {tracking}" aria-label="<?php esc_attr_e( 'Tracking link', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
 								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Remove %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
@@ -1304,7 +1305,7 @@ function dox_pos_settings_page() {
 							</select>
 							<button type="button" class="dp-btn dp-btn-ghost" id="dp-carrier-add"><?php esc_html_e( 'Another carrier', 'dox-pos' ); ?></button>
 						</div>
-						<p class="dp-hint"><?php esc_html_e( 'Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {guia}.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {tracking}.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
@@ -1316,7 +1317,7 @@ function dox_pos_settings_page() {
 						<div class="dp-field dp-mt">
 							<label class="dp-label" for="dox_pos_ship_message"><?php esc_html_e( 'Shipping WhatsApp message', 'dox-pos' ); ?></label>
 							<div class="dp-chips" id="dp-ship-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
-								<?php foreach ( array( 'nombre', 'pedido', 'transportadora', 'guia', 'link', 'productos', 'tienda' ) as $p ) : ?>
+								<?php foreach ( array( 'name', 'order', 'carrier', 'tracking', 'link', 'items', 'store' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
 								<?php endforeach; ?>
 							</div>

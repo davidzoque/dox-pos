@@ -369,12 +369,12 @@
 		const s = cfg.sample || {};
 		const t = mensaje.value.trim() || defaults.message || "";
 		let out = t
-			.replace(/\{nombre\}/g, s.name || "")
-			.replace(/\{productos\}/g, s.products || "")
+			.replace(/\{name\}/g, s.name || "")
+			.replace(/\{items\}/g, s.products || "")
 			.replace(/\{total\}/g, s.total || "")
-			.replace(/\{horas\}/g, String(parseInt(horas.value, 10) > 0 ? parseInt(horas.value, 10) : defaults.hours || 48))
+			.replace(/\{hours\}/g, String(parseInt(horas.value, 10) > 0 ? parseInt(horas.value, 10) : defaults.hours || 48))
 			.replace(/\{link\}/g, s.link || "")
-			.replace(/\{tienda\}/g, $("#dp-name").value.trim() || cfg.siteName || "");
+			.replace(/\{store\}/g, $("#dp-name").value.trim() || cfg.siteName || "");
 		out = out.replace(/[ \t]+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ");
 		const extra = nota.value.trim();
 		if (extra) out += "\n" + extra;
@@ -413,7 +413,7 @@
 		const row = document.createElement("div");
 		row.className = "dp-carrier dp-row is-new";
 		row.innerHTML = '<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][' + key + '][name]" placeholder="' + (i18n.carrierName || "Transportadora") + '" aria-label="' + (i18n.carrierName || "Transportadora") + '">' +
-			'<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][' + key + '][url]" placeholder="https://… {guia}" aria-label="' + (i18n.carrierUrl || "Enlace de rastreo") + '" inputmode="url" autocomplete="off">' +
+			'<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][' + key + '][url]" placeholder="https://… {tracking}" aria-label="' + (i18n.carrierUrl || "Enlace de rastreo") + '" inputmode="url" autocomplete="off">' +
 			'<button type="button" class="dp-carrier-x" aria-label="' + (i18n.remove || "Quitar") + '">' + icon("x") + "</button>";
 		row.querySelector("[data-k='name']").value = name || "";
 		row.querySelector("[data-k='url']").value = url || "";

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.23.0
+Stable tag: 0.24.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.24.0 =
+* New factory colors: a warm white, a dark bar and an orange button. They are only the starting point; the five colors keep being yours to change in WooCommerce > Dox POS > Brand, and a shop that already saved its own colors does not change.
+* The placeholders in the WhatsApp messages are now in English: {name}, {items}, {hours}, {order}, {store}, {carrier} and {tracking}. Messages and tracking links you had already written are translated on their own when the plugin updates.
+* Under the hood: table names go through $wpdb->prepare, and the code passes the WordPress coding standard with no findings.
 
 = 0.23.0 =
 * The texts inside the register itself (the JavaScript) are now translated too, through the WordPress script translation system. The plugin is fully in English, with the Spanish translation included; nothing changes on a Spanish site.

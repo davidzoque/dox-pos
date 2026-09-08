@@ -308,9 +308,9 @@ function dox_pos_history_stock( $a ) {
 	$table = dox_pos_stock_log_table();
 	$page  = max( 1, (int) ( $a['page'] ?? 1 ) );
 	$per   = max( 1, min( 5000, (int) ( $a['per'] ?? 50 ) ) );
-	$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$w}", ...$args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Las condiciones llevan sus marcadores.
-	$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$w} ORDER BY id DESC LIMIT %d OFFSET %d", ...array_merge( $args, array( $per, ( $page - 1 ) * $per ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-	$sum   = $wpdb->get_results( $wpdb->prepare( "SELECT reason, COUNT(*) n, SUM( CASE WHEN delta > 0 THEN delta ELSE 0 END ) entradas, SUM( CASE WHEN delta < 0 THEN -delta ELSE 0 END ) salidas FROM {$table} WHERE {$w} GROUP BY reason ORDER BY n DESC", ...$args ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$w}", $table, ...$args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Las condiciones son fijas y llevan sus marcadores; el sniff no cuenta los argumentos desempaquetados.
+	$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE {$w} ORDER BY id DESC LIMIT %d OFFSET %d", $table, ...array_merge( $args, array( $per, ( $page - 1 ) * $per ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Las condiciones son fijas y llevan sus marcadores; el sniff no cuenta los argumentos desempaquetados.
+	$sum   = $wpdb->get_results( $wpdb->prepare( "SELECT reason, COUNT(*) n, SUM( CASE WHEN delta > 0 THEN delta ELSE 0 END ) entradas, SUM( CASE WHEN delta < 0 THEN -delta ELSE 0 END ) salidas FROM %i WHERE {$w} GROUP BY reason ORDER BY n DESC", $table, ...$args ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Las condiciones son fijas y llevan sus marcadores; el sniff no cuenta los argumentos desempaquetados.
 	$in    = 0;
 	$out   = 0;
 	$by    = array();

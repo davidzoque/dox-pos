@@ -26,7 +26,7 @@ function dox_pos_create_entry( $data ) {
 	// Si la misma entrada ya llegó (la cola sin señal reintenta), se devuelve la que existe.
 	$ref = sanitize_text_field( $data['ref'] ?? '' );
 	if ( $ref ) {
-		$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . dox_pos_entries_table() . ' WHERE ref = %s', $ref ) );
+		$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE ref = %s', dox_pos_entries_table(), $ref ) );
 		if ( $dup ) {
 			return dox_pos_get_entry( (int) $dup );
 		}
@@ -45,7 +45,9 @@ function dox_pos_create_entry( $data ) {
 					__( 'Invoice %1$s was already recorded on %2$s%3$s%4$s, %5$s.', 'dox-pos' ),
 					$prev['invoice'],
 					$prev['date'],
+					/* translators: %s: proveedor */
 					$prev['supplier'] ? sprintf( __( ', from %s', 'dox-pos' ), $prev['supplier'] ) : '',
+					/* translators: %s: quién la registró */
 					$prev['user'] ? sprintf( __( ', by %s', 'dox-pos' ), $prev['user'] ) : '',
 					/* translators: %d: unidades */
 					sprintf( _n( 'with %d unit', 'with %d units', $prev['units'], 'dox-pos' ), $prev['units'] )
@@ -131,7 +133,7 @@ function dox_pos_create_entry( $data ) {
  */
 function dox_pos_cancel_entry( $id ) {
 	global $wpdb;
-	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . dox_pos_entries_table() . ' WHERE id = %d', $id ), ARRAY_A );
+	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', dox_pos_entries_table(), $id ), ARRAY_A );
 	if ( ! $row ) {
 		return new WP_Error( 'dox_pos_no_existe', __( 'That stock entry does not exist.', 'dox-pos' ) );
 	}
@@ -152,7 +154,7 @@ function dox_pos_cancel_entry( $id ) {
 
 function dox_pos_get_entry( $id ) {
 	global $wpdb;
-	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . dox_pos_entries_table() . ' WHERE id = %d', $id ), ARRAY_A );
+	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', dox_pos_entries_table(), $id ), ARRAY_A );
 	return $row ? dox_pos_format_entry( $row ) : null;
 }
 
@@ -165,7 +167,7 @@ function dox_pos_get_entry( $id ) {
  */
 function dox_pos_entry_by_invoice( $invoice ) {
 	global $wpdb;
-	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . dox_pos_entries_table() . " WHERE status = 'ok' AND LOWER( invoice ) = LOWER( %s ) ORDER BY id DESC LIMIT 1", trim( (string) $invoice ) ), ARRAY_A );
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status = 'ok' AND LOWER( invoice ) = LOWER( %s ) ORDER BY id DESC LIMIT 1", dox_pos_entries_table(), trim( (string) $invoice ) ), ARRAY_A );
 	return $row ? dox_pos_format_entry( $row ) : null;
 }
 
@@ -177,7 +179,7 @@ function dox_pos_entry_by_invoice( $invoice ) {
  */
 function dox_pos_list_entries( $limit = 40 ) {
 	global $wpdb;
-	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . dox_pos_entries_table() . ' ORDER BY id DESC LIMIT %d', $limit ), ARRAY_A );
+	$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id DESC LIMIT %d', dox_pos_entries_table(), $limit ), ARRAY_A );
 	return array_map( 'dox_pos_format_entry', $rows ?: array() );
 }
 

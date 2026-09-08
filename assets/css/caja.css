@@ -1,13 +1,13 @@
 /* Dox POS: la caja.
    Los cinco colores base (--paper, --bar, --primary, --soft, --ink) y las dos fuentes los pone el
    ajuste (WooCommerce > Dox POS) en un <style> después de este archivo. Aquí van los valores de
-   fábrica, que son los del sitio de Rosella, y los tonos que se derivan de esos cinco. */
+   fábrica, los de la marca Dox, y los tonos que se derivan de esos cinco. */
 :root{
-  --paper:#FEF8F4; --bar:#F4C1C0; --primary:#731C2A; --soft:#F4C1C0; --ink:#38352F;
-  --primary-ink:#FFFFFF; --bar-ink:#731C2A; --soft-ink:#38352F; --soft-accent:#731C2A;
-  --tab-on:#731C2A; --tab-on-ink:#FFFFFF;
-  --surface:#FFFFFF; --sunk:#FBF9F1; --line:#E7DCD4; --faint:#AC9D9F; --muted:#4C4C4C;
-  --ok:#2E7D32; --ok-soft:#E6F1E6; --warn:#38352F; --warn-soft:#F3E5DA; --scrim:rgba(56,53,47,.45);
+  --paper:#FFF9F4; --bar:#26221F; --primary:#FF8D27; --soft:#FFE8CC; --ink:#26221F;
+  --primary-ink:#26221F; --bar-ink:#FFFFFF; --soft-ink:#26221F; --soft-accent:#FF8D27;
+  --tab-on:#FFFFFF; --tab-on-ink:#26221F;
+  --surface:#FFFFFF; --sunk:#F8F3EE; --line:#E5DFDA; --faint:#928E8A; --muted:#403C39;
+  --ok:#2E7D32; --ok-soft:#E6F1E6; --warn:#26221F; --warn-soft:#EEE8E3; --scrim:rgba(38,34,31,.45);
   --ui:"Poppins",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --serif:"Libre Baskerville",Georgia,serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;

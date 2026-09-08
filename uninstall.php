@@ -11,10 +11,10 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-foreach ( array( 'administrator', 'shop_manager' ) as $name ) {
-	$role = get_role( $name );
-	if ( $role ) {
-		$role->remove_cap( 'dox_pos_use' );
+foreach ( array( 'administrator', 'shop_manager' ) as $role_name ) {
+	$role_obj = get_role( $role_name );
+	if ( $role_obj ) {
+		$role_obj->remove_cap( 'dox_pos_use' );
 	}
 }
 remove_role( 'caja' );

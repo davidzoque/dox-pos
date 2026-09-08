@@ -37,7 +37,7 @@ function dox_pos_render() {
 		wp_die( esc_html__( 'The register needs WooCommerce to be active.', 'dox-pos' ) );
 	}
 
-	// Salir: /caja/?salir=1&_wpnonce=...
+	// Salir de la caja: el enlace lleva salir=1 y su nonce.
 	if ( isset( $_GET['salir'] ) ) {
 		if ( wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), 'dox_pos_logout' ) ) {
 			wp_logout();

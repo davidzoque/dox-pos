@@ -450,7 +450,7 @@ function dox_pos_inventory_xlsx( $d ) {
 					$cells .= dox_pos_xlsx_cell( $ref, $nc ? sprintf( _n( '%d color', '%d colors', $nc, 'dox-pos' ), $nc ) : '', 8 );
 					break;
 				case 'price':
-					$cells .= dox_pos_xlsx_cell( $ref, 1 === count( $prices ) ? (float) array_key_first( $prices ) : null, 9 );
+					$cells .= dox_pos_xlsx_cell( $ref, 1 === count( $prices ) ? (float) array_key_first( $prices ) : null, 9 ); // phpcs:ignore WordPress.PHP.YodaConditions.NotYoda -- La comparacion ya va en Yoda.
 					break;
 				case 'cost':
 					$cells .= dox_pos_xlsx_cell( $ref, $bcost, 9 );
@@ -744,7 +744,7 @@ function dox_pos_xlsx_cell( $ref, $value, $style = 0, $formula = '' ) {
  */
 function dox_pos_xlsx_num( $v ) {
 	$v = (float) $v;
-	if ( $v === floor( $v ) && abs( $v ) < 1e15 ) {
+	if ( floor( $v ) === $v && abs( $v ) < 1e15 ) {
 		return (string) (int) $v;
 	}
 	return rtrim( rtrim( sprintf( '%.4F', $v ), '0' ), '.' );
