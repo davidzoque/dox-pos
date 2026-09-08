@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.24.0
+Stable tag: 0.24.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.24.1 =
+* The plugin page and the author page are now two different addresses, as WordPress.org requires.
 
 = 0.24.0 =
 * New factory colors: a warm white, a dark bar and an orange button. They are only the starting point; the five colors keep being yours to change in WooCommerce > Dox POS > Brand, and a shop that already saved its own colors does not change.
