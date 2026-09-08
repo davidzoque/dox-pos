@@ -949,6 +949,7 @@ function dox_pos_admin_assets( $hook ) {
 			),
 			'notices'  => dox_pos_settings_notices(),
 			'i18n'     => array(
+				'carriers' => array( __( 'DHL', 'dox-pos' ), __( 'UPS', 'dox-pos' ), __( 'FedEx', 'dox-pos' ) ),
 				'pickLogo'  => __( 'Register logo', 'dox-pos' ),
 				'use'       => __( 'Use this image', 'dox-pos' ),
 				'channel'   => __( 'Channel name', 'dox-pos' ),

@@ -158,7 +158,8 @@ function dox_pos_enqueue_caja( $cfg = null ) {
 	if ( null === $cfg ) {
 		return;
 	}
-	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array(), $ver, true );
+	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n' ), $ver, true );
+	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', DOX_POS_PATH . 'languages' ); // Los textos del JS salen de languages/dox-pos-<idioma>-<md5>.json.
 	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
 }
 

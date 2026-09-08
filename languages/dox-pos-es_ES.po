@@ -1360,3 +1360,804 @@ msgid "%d shipping zone"
 msgid_plural "%d shipping zones"
 msgstr[0] "%d zona de envío"
 msgstr[1] "%d zonas de envío"
+
+#. Los textos del JavaScript (assets/js/caja.js).
+
+msgid "Nothing matches. Try a single word."
+msgstr "Nada con eso. Prueba con una sola palabra."
+
+msgid "Type two letters of the name, or the SKU."
+msgstr "Escribe dos letras del nombre, o el código."
+
+msgid "No signal"
+msgstr "Sin señal"
+
+msgid "Could not reach the store (%s)."
+msgstr "No se pudo hablar con la tienda (%s)."
+
+msgid "The search failed. Check the connection and try again."
+msgstr "No se pudo buscar. Revisa la conexión y vuelve a intentarlo."
+
+msgid "Search what arrived by name or SKU."
+msgstr "Busca lo que llegó por nombre o por código."
+
+msgid "out of stock"
+msgstr "agotado"
+
+msgid "no limit"
+msgstr "sin límite"
+
+msgid "%s left"
+msgstr "quedan %s"
+
+msgid "none left"
+msgstr "sin existencias"
+
+msgid "available"
+msgstr "disponible"
+
+msgid "%d in stock"
+msgstr "%d en existencia"
+
+msgid "One less"
+msgstr "Una menos"
+
+msgid "One more"
+msgstr "Una más"
+
+msgid "Tap a product on the left to add it."
+msgstr "Toca un producto de la izquierda para agregarlo."
+
+msgid "Cost of the goods"
+msgstr "Costo de la mercancía"
+
+msgid "no cost"
+msgstr "sin costo"
+
+msgid "Units coming in"
+msgstr "Unidades que entran"
+
+msgid "Subtotal"
+msgstr "Subtotal"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Choose the %s and the city to see the store’s shipping options."
+msgstr "Elige el %s y la ciudad para ver las opciones de envío de la tienda."
+
+msgid "Add products and set the city to see the shipping."
+msgstr "Agrega productos y pon la ciudad para ver el envío."
+
+msgid "A layaway needs the customer’s WhatsApp number."
+msgstr "Para apartar hace falta el WhatsApp del cliente."
+
+msgid "Putting on layaway…"
+msgstr "Apartando…"
+
+msgid "Recording…"
+msgstr "Registrando…"
+
+msgid "Sale recorded: order #%s. The stock has already gone down."
+msgstr "Venta registrada: pedido #%s. El inventario ya bajó."
+
+msgid "Paid"
+msgstr "Ya pagó"
+
+msgid "Release"
+msgstr "Liberar"
+
+msgid "Release the layaway for %s? The product goes back to stock."
+msgstr "¿Liberar el apartado de %s? El producto vuelve al inventario."
+
+msgid "this customer"
+msgstr "este cliente"
+
+msgid "Confirm the payment of order #%s? It moves to ready to ship and the stock goes down."
+msgstr "¿Confirmar el pago del pedido #%s? Pasa a por enviar y descuenta el inventario."
+
+msgid "Confirm the payment of order #%s? It moves to ready to ship."
+msgstr "¿Confirmar el pago del pedido #%s? Pasa a por enviar."
+
+msgid "Cancel order #%s?"
+msgstr "¿Anular el pedido #%s?"
+
+msgid "Cancel order #%s? The stock goes back."
+msgstr "¿Anular el pedido #%s? El inventario vuelve."
+
+msgid "Mark as delivered"
+msgstr "Marcar entregado"
+
+msgid "Loading…"
+msgstr "Cargando…"
+
+msgid "No signal: the order could not be loaded."
+msgstr "Sin señal: no se pudo cargar el pedido."
+
+msgid "Pays on delivery"
+msgstr "Paga al recibir"
+
+msgid "Paid on %s"
+msgstr "Pagado el %s"
+
+msgid "In progress"
+msgstr "En proceso"
+
+msgid "%d left"
+msgstr "quedan %d"
+
+msgid "cost %s"
+msgstr "costo %s"
+
+msgid "Hidden in the store"
+msgstr "Oculto en la tienda"
+
+msgid "It no longer exists"
+msgstr "Ya no existe"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Order #%s"
+msgstr "Pedido #%s"
+
+msgid "(from %s)"
+msgstr "(desde %s)"
+
+msgid "demo"
+msgstr "demostración"
+
+msgid "No products."
+msgstr "Sin productos."
+
+msgid "Payment and shipping"
+msgstr "Pago y envío"
+
+msgid "No name"
+msgstr "Sin nombre"
+
+msgid "Phone"
+msgstr "Teléfono"
+
+msgid "Email"
+msgstr "Correo"
+
+msgid "expires on %s"
+msgstr "vence el %s"
+
+msgid "Open in WooCommerce"
+msgstr "Abrir en WooCommerce"
+
+msgid "from %s"
+msgstr "desde %s"
+
+msgid "expires in %d h"
+msgstr "vence en %d h"
+
+msgid "This is a demo order: no emails are sent."
+msgstr "Es un pedido de demostración: no se mandan correos."
+
+msgid "An email with the tracking number and the tracking link reached %s."
+msgstr "Le llegó un correo a %s con la guía y el enlace de rastreo."
+
+msgid "The email to %s could not be sent."
+msgstr "No se pudo mandar el correo a %s."
+
+msgid "This order has no email address."
+msgstr "Este pedido no tiene correo."
+
+msgid "If you want, tell them on WhatsApp too: the message already carries the tracking number."
+msgstr "Si quieres, avísale también por WhatsApp: el mensaje ya va con la guía."
+
+msgid "Marked as shipped"
+msgstr "Marcado como enviado"
+
+msgid "Tell them on WhatsApp"
+msgstr "Avisar por WhatsApp"
+
+msgid "Done"
+msgstr "Listo"
+
+msgid "Payment confirmed. It is now ready to ship."
+msgstr "Pago confirmado. Queda por enviar."
+
+msgid "Layaway released. The product goes back to stock."
+msgstr "Apartado liberado. El producto vuelve al inventario."
+
+msgid "Marked as shipped."
+msgstr "Marcado como enviado."
+
+msgid "Delivered. The order is closed."
+msgstr "Entregado. Pedido cerrado."
+
+msgid "Order cancelled. The stock goes back."
+msgstr "Pedido anulado. El inventario vuelve."
+
+msgid "Order cancelled."
+msgstr "Pedido anulado."
+
+msgid "Is this a different entry?"
+msgstr "¿Es otra entrada distinta?"
+
+msgid "Yes, record it"
+msgstr "Sí, registrarla"
+
+msgid "No"
+msgstr "No"
+
+msgid "No stock entries recorded yet."
+msgstr "Todavía no hay entradas registradas."
+
+msgid "Void"
+msgstr "Anular"
+
+msgid "Entry voided."
+msgstr "Entrada anulada."
+
+msgid "No signal. The entry is kept on this phone and goes in on its own when the connection is back."
+msgstr "Sin señal. La entrada quedó guardada en el teléfono y entra sola cuando vuelva la conexión."
+
+msgid "No signal. The layaway is kept on this phone and goes in on its own when the connection is back."
+msgstr "Sin señal. El apartado quedó guardado en el teléfono y entra solo cuando vuelva la conexión."
+
+msgid "No signal. The sale is kept on this phone and goes in on its own when the connection is back."
+msgstr "Sin señal. La venta quedó guardada en el teléfono y entra sola cuando vuelva la conexión."
+
+msgid "Waiting to be sent."
+msgstr "Pendiente de enviar."
+
+msgid "No signal."
+msgstr "Sin señal."
+
+msgid ", sending…"
+msgstr ", enviando…"
+
+msgid "; they go in on their own when the connection is back."
+msgstr "; entran solos cuando vuelva la conexión."
+
+msgid "Send now"
+msgstr "Enviar ahora"
+
+msgid "Whatever you record is kept on this phone and goes in on its own when the connection is back."
+msgstr "Lo que registres se guarda en el teléfono y entra solo al volver la conexión."
+
+msgid "No, discard it"
+msgstr "No, descartarla"
+
+msgid "Entry discarded: %s."
+msgstr "Entrada descartada: %s."
+
+msgid "Entry saved: %s."
+msgstr "Entrada guardada: %s."
+
+msgid "Layaway recorded: order #%s. The WhatsApp button is in Orders."
+msgstr "Apartado registrado: pedido #%s. En Pedidos tienes el botón de WhatsApp."
+
+msgid "Sale recorded: order #%s."
+msgstr "Venta registrada: pedido #%s."
+
+msgid "%1$s could not be recorded: %2$s"
+msgstr "No se pudo registrar %1$s: %2$s"
+
+msgid "One moment"
+msgstr "Un momento"
+
+msgid "Yes, go on"
+msgstr "Sí, seguir"
+
+msgid "Layaway #%s"
+msgstr "Apartado #%s"
+
+msgid "The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own."
+msgstr "El producto ya quedó reservado. Se abre WhatsApp con el mensaje escrito: solo hay que darle enviar. Si no paga en %d horas, vuelve solo al inventario."
+
+msgid "Open WhatsApp"
+msgstr "Abrir WhatsApp"
+
+msgid "DHL, UPS…"
+msgstr "Interrapidísimo, Servientrega…"
+
+msgid "When you mark it as shipped, %s gets an email with the carrier, the tracking number and the tracking link."
+msgstr "Al marcar enviado le llega un correo a %s con la transportadora, la guía y el enlace de rastreo."
+
+msgid "No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you."
+msgstr "Sin correo: al marcar enviado te queda listo el WhatsApp con la guía."
+
+msgid "Ship order #%s"
+msgstr "Enviar el pedido #%s"
+
+msgid "Optional"
+msgstr "Opcional"
+
+msgid "Remove the photo"
+msgstr "Quitar la foto"
+
+msgid "Could not upload"
+msgstr "No se pudo subir"
+
+msgid "tap to try again"
+msgstr "toca para reintentar"
+
+msgid "Converting…"
+msgstr "Convirtiendo…"
+
+msgid "Queued"
+msgstr "En cola"
+
+msgid "Which color the photo is for"
+msgstr "Para qué color es la foto"
+
+msgid "All colors"
+msgstr "Todos los colores"
+
+msgid "%s is larger than the server allows."
+msgstr "%s pesa más de lo que admite el servidor."
+
+msgid "Session expired"
+msgstr "Sesión caducada"
+
+msgid "The form could not be loaded: %s"
+msgstr "No se pudo cargar el formulario: %s"
+
+msgid "Free: the next one after %s."
+msgstr "Libre: el siguiente de %s."
+
+msgid "Free."
+msgstr "Libre."
+
+msgid "hidden"
+msgstr "oculto"
+
+msgid "If it is the same one, better "
+msgstr "Si es el mismo, mejor "
+
+msgid "edit it"
+msgstr "edítalo"
+
+msgid "The price is missing."
+msgstr "Falta el precio."
+
+msgid "There is already a product called"
+msgstr "Ya existe un producto llamado"
+
+msgid "The sizes cost different amounts: from %1$s to %2$s."
+msgstr "Las tallas cuestan distinto: de %1$s a %2$s."
+
+msgid "No cost: its sales do not count towards the profit."
+msgstr "Sin costo: sus ventas no entran en la ganancia."
+
+msgid "%1$s per unit (%2$d %%)"
+msgstr "%1$s por unidad (%2$d %%)"
+
+msgid ": sold at a loss"
+msgstr ": se vende a pérdida"
+
+msgid "This product has no colors. If it needs them, they have to be created in WooCommerce."
+msgstr "Este producto no tiene colores. Si los necesita, hay que crearlos en WooCommerce."
+
+msgid "More colors (%d)…"
+msgstr "Más colores (%d)…"
+
+msgid "Another color…"
+msgstr "Otro color…"
+
+msgid "This product has no sizes. If it needs them, they have to be created in WooCommerce."
+msgstr "Este producto no tiene tallas. Si las necesita, hay que crearlas en WooCommerce."
+
+msgid "Other sizes…"
+msgstr "Otras tallas…"
+
+msgid "Choose sizes…"
+msgstr "Elegir tallas…"
+
+msgid "one size"
+msgstr "talla única"
+
+msgid "This category does not use sizes: it stays one size."
+msgstr "Esta categoría no usa tallas: queda de talla única."
+
+msgid "No sizes: one size."
+msgstr "Sin tallas: talla única."
+
+msgid "Marked by the category. If the product does not come in all of them, tap the extra ones to remove them."
+msgstr "Marcadas por la categoría. Si el producto no viene en todas, toca las que sobran para quitarlas."
+
+msgid "To change it, record the goods in Stock in or do it in WooCommerce. A new size uses that same total."
+msgstr "Para cambiarlo, registra la mercancía en Entró mercancía o hazlo en WooCommerce. Una talla nueva usa ese mismo total."
+
+msgid "Choose a category."
+msgstr "Elige una categoría."
+
+msgid "The SKU is missing."
+msgstr "Falta el código."
+
+msgid "That SKU is already taken."
+msgstr "Ese código ya está ocupado."
+
+msgid "A photo could not be uploaded: tap it to try again, or remove it."
+msgstr "Una foto no se pudo subir: tócala para reintentar, o quítala."
+
+msgid "Wait for the photos to finish uploading."
+msgstr "Espera a que terminen de subir las fotos."
+
+msgid "One-size product"
+msgstr "Producto de talla única"
+
+msgid "from %1$s to %2$s"
+msgstr "de %1$s a %2$s"
+
+msgid "leaves %1$s (%2$d %%)"
+msgstr "deja %1$s (%2$d %%)"
+
+msgid "Review and create"
+msgstr "Revisar y crear"
+
+msgid "No photo: it will show a gray box in the store."
+msgstr "Sin foto: en la tienda saldrá con un cuadro gris."
+
+msgid "No units: it will show as out of stock."
+msgstr "Sin unidades: saldrá agotado."
+
+msgid "The price is outside what is usual: in the store it goes from %1$s to %2$s. Check the zeros."
+msgstr "El precio se sale de lo habitual: en la tienda va de %1$s a %2$s. Revisa los ceros."
+
+msgid "There is already a product called %s."
+msgstr "Ya existe un producto llamado %s."
+
+msgid "The cost is higher than the price: it would sell at a loss."
+msgstr "El costo es mayor que el precio: se vendería a pérdida."
+
+msgid "The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones."
+msgstr "Las %d tallas las marcó la categoría. Si el producto no viene en todas, vuelve y quita las que sobran."
+
+msgid "Check before creating"
+msgstr "Revisa antes de crear"
+
+msgid "no SKU"
+msgstr "sin código"
+
+msgid "leaves %s per unit"
+msgstr "deja %s por unidad"
+
+msgid "No cost"
+msgstr "Sin costo"
+
+msgid "No photo"
+msgstr "Sin foto"
+
+msgid "Store"
+msgstr "Tienda"
+
+msgid "It is published now"
+msgstr "Se publica ahora"
+
+msgid "It stays hidden"
+msgstr "Queda oculto"
+
+msgid "Back to review"
+msgstr "Volver a revisar"
+
+msgid "Add a photo"
+msgstr "Agregar foto"
+
+msgid "Create without a photo"
+msgstr "Crear sin foto"
+
+msgid "Back"
+msgstr "Volver"
+
+msgid "Creating a product needs a connection."
+msgstr "Para crear un producto hace falta conexión."
+
+msgid "The product will have no photo. Save it like that?"
+msgstr "El producto quedará sin foto. ¿Guardarlo así?"
+
+msgid "Yes, save it"
+msgstr "Sí, guardar"
+
+msgid "No signal. Try again when the connection is back: the photos are already uploaded."
+msgstr "Sin señal. Vuelve a intentarlo cuando vuelva la conexión: las fotos ya están subidas."
+
+msgid "It is already in the store"
+msgstr "Ya está en la tienda"
+
+msgid "Saved hidden, not published"
+msgstr "Guardado oculto, sin publicar"
+
+msgid "Fix something"
+msgstr "Corregir algo"
+
+msgid "Create another"
+msgstr "Crear otro"
+
+msgid "Saved"
+msgstr "Guardado"
+
+msgid "published"
+msgstr "publicado"
+
+msgid "Published in the store"
+msgstr "Publicado en la tienda"
+
+msgid "Off: it stays hidden, not shown and not sold."
+msgstr "Apagado: queda oculto, ni se ve ni se vende."
+
+msgid "one with no name yet"
+msgstr "uno sin nombre todavía"
+
+msgid "You have a product half done: %s. Carry on with it?"
+msgstr "Tienes un producto a medias: %s. ¿Seguir con él?"
+
+msgid "Carry on"
+msgstr "Seguir"
+
+msgid "The photos of that draft were already deleted because of the time passed: upload them again."
+msgstr "Las fotos de ese borrador ya se borraron por el tiempo pasado: vuelve a subirlas."
+
+msgid "Start over? What you typed is erased."
+msgstr "¿Empezar de cero? Se borra lo escrito."
+
+msgid "Nothing matches. Try one word or the SKU."
+msgstr "Nada con eso. Prueba con una palabra o con el código."
+
+msgid "The store has no products."
+msgstr "La tienda no tiene productos."
+
+msgid "The SKU is only changed in WooCommerce."
+msgstr "El código solo se cambia en WooCommerce."
+
+msgid "No SKU."
+msgstr "Sin código."
+
+msgid "Editing %1$s%2$s (%3$s)"
+msgstr "Editando %1$s%2$s (%3$s)"
+
+msgid "The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them."
+msgstr "Las tallas tienen precios distintos (de %1$s a %2$s): si escribes un precio, se pone a todas."
+
+msgid "Changes are saved with the button below."
+msgstr "Los cambios se guardan con el botón de abajo."
+
+msgid "It opens in another tab"
+msgstr "Se abre en otra pestaña"
+
+msgid "It is hidden: you see it because you are signed in, the customer does not"
+msgstr "Está oculto: lo ves tú porque tienes sesión, la clienta no"
+
+msgid "Sun"
+msgstr "dom"
+
+msgid "Mon"
+msgstr "lun"
+
+msgid "Tue"
+msgstr "mar"
+
+msgid "Wed"
+msgstr "mié"
+
+msgid "Thu"
+msgstr "jue"
+
+msgid "Fri"
+msgstr "vie"
+
+msgid "Sat"
+msgstr "sáb"
+
+msgid "for today, %s"
+msgstr "de hoy, %s"
+
+msgid "for %s"
+msgstr "del %s"
+
+msgid "No signal: the history is read from the store."
+msgstr "Sin señal: el historial se lee de la tienda."
+
+msgid "pays on delivery"
+msgstr "paga al recibir"
+
+msgid "Your sales"
+msgstr "Tus ventas"
+
+msgid "Per sale"
+msgstr "Por venta"
+
+msgid "Not paid yet (%d)"
+msgstr "Sin pagar aún (%d)"
+
+msgid "The cost is set in Products, or loaded all at once from the inventory Excel in Stock in."
+msgstr "El costo se pone en Productos, o se carga de golpe desde el Excel del inventario en Entró mercancía."
+
+msgid "By channel"
+msgstr "Por canal"
+
+msgid "By payment method"
+msgstr "Por forma de pago"
+
+msgid "By salesperson"
+msgstr "Por vendedora"
+
+msgid "By day"
+msgstr "Por día"
+
+msgid "the latest %d"
+msgstr "los últimos %d"
+
+msgid "Nothing in this period."
+msgstr "Nada en este periodo."
+
+msgid "The cash"
+msgstr "La caja"
+
+msgid "To collect on delivery"
+msgstr "Por cobrar al entregar"
+
+msgid "Collected by payment method"
+msgstr "Cobrado por forma de pago"
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Stock entries"
+msgstr "Entradas"
+
+msgid "Returned"
+msgstr "Devueltos"
+
+msgid "Adjustments"
+msgstr "Ajustes"
+
+msgid "Only"
+msgstr "Solo"
+
+msgid "see them all"
+msgstr "ver todos"
+
+msgid "in"
+msgstr "entraron"
+
+msgid "out"
+msgstr "salieron"
+
+msgid "No movements in this period. Every sale, stock entry, cancellation and stock change is kept here, with its reason and who did it."
+msgstr "Sin movimientos en este periodo. Aquí queda cada venta, entrada, anulación y cambio de existencias, con su motivo y quién lo hizo."
+
+msgid "%1$s-%2$s of %3$s"
+msgstr "%1$s-%2$s de %3$s"
+
+msgid "Uploading…"
+msgstr "Subiendo…"
+
+msgid "Costs loaded"
+msgstr "Costos cargados"
+
+msgid "No signal: the file could not be uploaded."
+msgstr "Sin señal: no se pudo subir el archivo."
+
+msgid "PHOTO"
+msgstr "FOTO"
+
+msgid "Another photo"
+msgstr "Otra foto"
+
+msgid "Add photos"
+msgstr "Agregar fotos"
+
+msgid "%s in general"
+msgstr "%s en general"
+
+msgid "size"
+msgid_plural "sizes"
+msgstr[0] "talla"
+msgstr[1] "tallas"
+
+msgid "option"
+msgid_plural "options"
+msgstr[0] "opción"
+msgstr[1] "opciones"
+
+msgid "%d line with no cost"
+msgid_plural "%d lines with no cost"
+msgstr[0] "%d línea sin costo"
+msgstr[1] "%d líneas sin costo"
+
+msgid "%d unit"
+msgid_plural "%d units"
+msgstr[0] "%d unidad"
+msgstr[1] "%d unidades"
+
+msgid "no cost on %d line"
+msgid_plural "no cost on %d lines"
+msgstr[0] "sin costo en %d línea"
+msgstr[1] "sin costo en %d líneas"
+
+msgid "Entry saved. The stock went up by %d unit."
+msgid_plural "Entry saved. The stock went up by %d units."
+msgstr[0] "Entrada guardada. El inventario subió %d unidad."
+msgstr[1] "Entrada guardada. El inventario subió %d unidades."
+
+msgid "The average cost changed on %d product."
+msgid_plural "The average cost changed on %d products."
+msgstr[0] "El costo promedio cambió en %d producto."
+msgstr[1] "El costo promedio cambió en %d productos."
+
+msgid "Void this entry? %d unit is taken back."
+msgid_plural "Void this entry? %d units are taken back."
+msgstr[0] "¿Anular esta entrada? Se resta %d unidad."
+msgstr[1] "¿Anular esta entrada? Se restan %d unidades."
+
+msgid "%d record kept on this phone"
+msgid_plural "%d records kept on this phone"
+msgstr[0] "%d registro guardado en el teléfono"
+msgstr[1] "%d registros guardados en el teléfono"
+
+msgid "This product does not carry units per size but one total for all of them: %d unit."
+msgid_plural "This product does not carry units per size but one total for all of them: %d units."
+msgstr[0] "Este producto no lleva las unidades por talla, sino un total para todas: %d unidad."
+msgstr[1] "Este producto no lleva las unidades por talla, sino un total para todas: %d unidades."
+
+msgid "%d variation"
+msgid_plural "%d variations"
+msgstr[0] "%d variación"
+msgstr[1] "%d variaciones"
+
+msgid "%d photo"
+msgid_plural "%d photos"
+msgstr[0] "%d foto"
+msgstr[1] "%d fotos"
+
+msgid "%d sale"
+msgid_plural "%d sales"
+msgstr[0] "%d venta"
+msgstr[1] "%d ventas"
+
+msgid "Unit"
+msgid_plural "Units"
+msgstr[0] "Unidad"
+msgstr[1] "Unidades"
+
+msgid "%d sale does not have the cost of all its products, so it does not count towards the profit."
+msgid_plural "%d sales do not have the cost of all their products, so they do not count towards the profit."
+msgstr[0] "%d venta no tiene el costo de todos sus productos y no entra en la ganancia."
+msgstr[1] "%d ventas no tienen el costo de todos sus productos y no entran en la ganancia."
+
+msgid "%d sale without a complete cost does not count towards the profit."
+msgid_plural "%d sales without a complete cost do not count towards the profit."
+msgstr[0] "%d venta sin costo completo no entra en la ganancia."
+msgstr[1] "%d ventas sin costo completo no entran en la ganancia."
+
+msgid "%d movement"
+msgid_plural "%d movements"
+msgstr[0] "%d movimiento"
+msgstr[1] "%d movimientos"
+
+msgid "%d cost changed"
+msgid_plural "%d costs changed"
+msgstr[0] "%d costo cambiado"
+msgstr[1] "%d costos cambiados"
+
+msgid "out of %d row."
+msgid_plural "out of %d rows."
+msgstr[0] "de %d fila."
+msgstr[1] "de %d filas."
+
+msgid "%d was already the same."
+msgid_plural "%d were already the same."
+msgstr[0] "%d ya estaba igual."
+msgstr[1] "%d ya estaban igual."
+
+msgid "%d row with no cost (skipped)."
+msgid_plural "%d rows with no cost (skipped)."
+msgstr[0] "%d fila sin costo (se salta)."
+msgstr[1] "%d filas sin costo (se saltan)."
+
+msgid "%d SKU is not in the store"
+msgid_plural "%d SKUs are not in the store"
+msgstr[0] "%d código no está en la tienda"
+msgstr[1] "%d códigos no están en la tienda"
+
+msgid "%d product"
+msgid_plural "%d products"
+msgstr[0] "%d producto"
+msgstr[1] "%d productos"

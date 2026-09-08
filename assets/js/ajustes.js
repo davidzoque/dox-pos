@@ -401,7 +401,7 @@
 		if (!box || !carriersBox) return;
 		box.innerHTML = "";
 		const names = carrierNames();
-		(names.length ? names : ["Interrapidísimo", "Servientrega", "Coordinadora"]).slice(0, 5).forEach((name) => {
+		(names.length ? names : (i18n.carriers || [])).slice(0, 5).forEach((name) => {
 			const s = document.createElement("span");
 			s.textContent = name;
 			if (!names.length) s.className = "faint";

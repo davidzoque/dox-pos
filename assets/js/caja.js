@@ -2,6 +2,13 @@
 (function () {
 	"use strict";
 
+	// Los textos salen del sistema de traducción de WordPress (wp.i18n). Sin él (un optimizador que
+	// lo tire, por ejemplo), la caja sigue funcionando en inglés en vez de quedarse en blanco.
+	const i18n = (window.wp && window.wp.i18n) || {};
+	const __ = i18n.__ || ((s) => s);
+	const _n = i18n._n || ((s, p, n) => (n === 1 ? s : p));
+	const sprintf = i18n.sprintf || ((s) => s);
+
 	const cfg = window.DOX_POS || {};
 	const $ = (s) => document.querySelector(s);
 	const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -56,7 +63,7 @@
 			r = await fetch(cfg.rest + path, o);
 		} catch (e) {
 			if (e.name === "AbortError") throw e;
-			const err = new Error("Sin señal"); // fetch solo falla así cuando no hay red
+			const err = new Error(__("No signal", "dox-pos")); // fetch solo falla así cuando no hay red
 			err.red = true;
 			throw err;
 		}
@@ -67,7 +74,7 @@
 		if (!r.ok) {
 			let j = null;
 			try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
-			const err = new Error(j && j.message ? j.message : "No se pudo hablar con la tienda (" + r.status + ").");
+			const err = new Error(j && j.message ? j.message : sprintf(__("Could not reach the store (%s).", "dox-pos"), r.status));
 			if (j && j.code) err.code = j.code; // por ejemplo dox_pos_factura_repetida
 			throw err;
 		}
@@ -75,7 +82,7 @@
 	}
 	const post = (path, body) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
 	function sesionCaducada() {
-		toast("Tu sesión caducó. Vuelve a entrar.");
+		toast(__("Your session expired. Please sign in again.", "dox-pos"));
 		setTimeout(() => location.reload(), 1800);
 	}
 
@@ -96,7 +103,7 @@
 		if (p.ctrl) p.ctrl.abort();
 		if (q.length < 2) {
 			st.res[modo] = [];
-			ul.innerHTML = vacio("Escribe dos letras del nombre, o el código.");
+			ul.innerHTML = vacio(__("Type two letters of the name, or the SKU.", "dox-pos"));
 			return;
 		}
 		p.ctrl = new AbortController();
@@ -112,7 +119,7 @@
 			pintarLineas($("#lineas2"), st.entrada, "entrada");
 		} catch (e) {
 			if (e.name === "AbortError" || e.message === "sesion") return;
-			ul.innerHTML = vacio("No se pudo buscar. Revisa la conexión y vuelve a intentarlo.");
+			ul.innerHTML = vacio(__("The search failed. Check the connection and try again.", "dox-pos"));
 		}
 	}
 	const vacio = (txt) => '<li class="empty">' + esc(txt) + "</li>";
@@ -143,23 +150,23 @@
 		return v.stock === null ? v.status !== "outofstock" : libres(v) > 0;
 	}
 	function textoStock(v, modo) {
-		if (v.stock === null) return v.status === "outofstock" ? "agotado" : "sin límite";
+		if (v.stock === null) return v.status === "outofstock" ? __("out of stock", "dox-pos") : __("no limit", "dox-pos");
 		const n = modo === "venta" ? libres(v) : v.stock;
-		return n > 0 ? "quedan <b>" + n + "</b>" : "sin existencias";
+		return n > 0 ? sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>") : __("none left", "dox-pos");
 	}
 	function pintarResultados(modo) {
 		const ul = listaDe(modo);
 		ul.innerHTML = "";
 		const items = st.res[modo];
 		if (!items.length) {
-			ul.innerHTML = vacio("Nada con eso. Prueba con una sola palabra.");
+			ul.innerHTML = vacio(__("Nothing matches. Try a single word.", "dox-pos"));
 			return;
 		}
 		items.forEach((p) => {
 			const hay = p.variations.reduce((a, v) => a + (v.stock || 0), 0);
 			const sinLimite = p.variations.some((v) => v.stock === null && v.status !== "outofstock");
 			const conTalla = p.variations.some((v) => v.talla);
-			const que = p.variations.length === 1 ? (conTalla ? "talla" : "opción") : (conTalla ? "tallas" : "opciones");
+			const que = conTalla ? _n("size", "sizes", p.variations.length, "dox-pos") : _n("option", "options", p.variations.length, "dox-pos");
 			const li = document.createElement("li");
 			const b = document.createElement("button");
 			b.type = "button";
@@ -167,7 +174,7 @@
 			b.setAttribute("aria-expanded", st.abierto[modo] === p.id);
 			b.innerHTML =
 				'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i></span>" +
-				'<span class="p">' + dinero(p.price) + "<i>" + (sinLimite ? "disponible" : hay ? hay + " en existencia" : "agotado") + "</i></span>";
+				'<span class="p">' + dinero(p.price) + "<i>" + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
 			b.prepend(miniatura(p));
 			b.onclick = () => {
 				st.abierto[modo] = st.abierto[modo] === p.id ? null : p.id;
@@ -214,7 +221,7 @@
 		pintarTodo();
 	}
 	function pintarLineas(ul, arr, modo) {
-		ul.innerHTML = arr.length ? "" : '<li class="empty" style="padding:8px 2px">Toca un producto de la izquierda para agregarlo.</li>';
+		ul.innerHTML = arr.length ? "" : '<li class="empty" style="padding:8px 2px">' + esc(__("Tap a product on the left to add it.", "dox-pos")) + "</li>";
 		arr.forEach((l, i) => {
 			const d = st.vars[l.vid];
 			if (!d) return;
@@ -224,9 +231,9 @@
 			li.dataset.vid = String(l.vid);
 			li.innerHTML =
 				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + "</i></span>" +
-				'<span class="qty"><button type="button" data-d="-1" aria-label="Una menos">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="Una más">+</button></span>' +
+				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
-					? '<span class="cst"><label>Costo por unidad</label><input inputmode="numeric" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="Costo por unidad"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
+					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="numeric" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
 					: '<span class="v">' + dinero(l.n * d.v.price) + "</span>");
 			if (conCosto) {
 				const inp = li.querySelector(".cst input");
@@ -269,17 +276,17 @@
 	function pintarSum() {
 		const t = totales();
 		$("#sum").innerHTML =
-			"<div><span>Subtotal</span><span>" + dinero(t.sub) + "</span></div>" +
-			(t.desc ? "<div><span>Descuento</span><span>−" + dinero(t.desc) + "</span></div>" : "") +
-			(sinEnvio() ? "" : "<div><span>Envío</span><span>" + dinero(t.env) + "</span></div>") +
-			'<div class="tot"><span>Total</span><span>' + dinero(t.tot) + "</span></div>";
+			"<div><span>" + esc(__("Subtotal", "dox-pos")) + "</span><span>" + dinero(t.sub) + "</span></div>" +
+			(t.desc ? "<div><span>" + esc(__("Discount", "dox-pos")) + "</span><span>−" + dinero(t.desc) + "</span></div>" : "") +
+			(sinEnvio() ? "" : "<div><span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + dinero(t.env) + "</span></div>") +
+			'<div class="tot"><span>' + esc(__("Total", "dox-pos")) + "</span><span>" + dinero(t.tot) + "</span></div>";
 		$("#reg").disabled = st.ocupado || !st.lineas.length;
 		$("#apartar").disabled = st.ocupado || !st.lineas.length;
 		const uds = st.entrada.reduce((a, l) => a + l.n, 0);
 		const costo = cfg.costs ? st.entrada.reduce((a, l) => a + l.n * (l.c || 0), 0) : 0;
 		const sinCosto = cfg.costs ? st.entrada.filter((l) => !l.c).length : 0;
-		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>Costo de la mercancía</span><span>" + (costo ? dinero(costo) : "sin costo") + (sinCosto && costo ? " · " + sinCosto + (sinCosto === 1 ? " línea sin costo" : " líneas sin costo") : "") + "</span></div>" : "") +
-			'<div class="tot"><span>Unidades que entran</span><span>' + uds + "</span></div>";
+		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>" + esc(__("Cost of the goods", "dox-pos")) + "</span><span>" + (costo ? dinero(costo) : __("no cost", "dox-pos")) + (sinCosto && costo ? " · " + esc(sprintf(_n("%d line with no cost", "%d lines with no cost", sinCosto, "dox-pos"), sinCosto)) : "") + "</span></div>" : "") +
+			'<div class="tot"><span>' + esc(__("Units coming in", "dox-pos")) + "</span><span>" + uds + "</span></div>";
 		$("#reg2").disabled = st.ocupado || !st.entrada.length;
 	}
 	function pintarTodo() {
@@ -289,10 +296,10 @@
 		pintarLineas($("#lineas2"), st.entrada, "entrada");
 		st.flash = null;
 		const u = st.lineas.reduce((a, l) => a + l.n, 0);
-		$("#n-lin").textContent = u ? u + (u === 1 ? " unidad" : " unidades") : "";
+		$("#n-lin").textContent = u ? sprintf(_n("%d unit", "%d units", u, "dox-pos"), u) : "";
 		$("#npane").textContent = u ? "· " + u : "";
 		const u2 = st.entrada.reduce((a, l) => a + l.n, 0);
-		$("#n-lin2").textContent = u2 ? u2 + (u2 === 1 ? " unidad" : " unidades") : "";
+		$("#n-lin2").textContent = u2 ? sprintf(_n("%d unit", "%d units", u2, "dox-pos"), u2) : "";
 		$("#npane2").textContent = u2 ? "· " + u2 : "";
 		pintarSum();
 		programarEnvio();
@@ -329,7 +336,7 @@
 		const box = $("#f-envio");
 		box.innerHTML = "";
 		if (!st.rates.length) {
-			box.innerHTML = '<span class="hint">' + (st.lineas.length ? "Elige el " + esc((cfg.state_label || "departamento").toLowerCase()) + " y la ciudad para ver las opciones de envío de la tienda." : "Agrega productos y pon la ciudad para ver el envío.") + "</span>";
+			box.innerHTML = '<span class="hint">' + (st.lineas.length ? esc(sprintf(__("Choose the %s and the city to see the store\u2019s shipping options.", "dox-pos"), (cfg.state_label || "state").toLowerCase())) : esc(__("Add products and set the city to see the shipping.", "dox-pos"))) + "</span>";
 			return;
 		}
 		st.rates.forEach((r) => {
@@ -355,13 +362,13 @@
 	async function cerrar(hold) {
 		if (st.ocupado || !st.lineas.length) return;
 		if (hold && !$("#f-tel").value.trim()) {
-			toast("Para apartar hace falta el WhatsApp del cliente.");
+			toast(__("A layaway needs the customer\u2019s WhatsApp number.", "dox-pos"));
 			$("#f-tel").focus();
 			return;
 		}
 		st.ocupado = true;
 		pintarSum();
-		const soltar = ocupar(hold ? $("#apartar") : $("#reg"), hold ? "Apartando…" : "Registrando…");
+		const soltar = ocupar(hold ? $("#apartar") : $("#reg"), hold ? __("Putting on layaway\u2026", "dox-pos") : __("Recording\u2026", "dox-pos"));
 		const conEnvio = !sinEnvio() && (st.rate || num($("#f-env").value) > 0);
 		const payload = {
 			ref: uuid(),
@@ -372,7 +379,7 @@
 			discount: num($("#f-desc").value),
 			note: $("#f-nota").value.trim(),
 			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: $("#f-ciu").value.trim(), address: $("#f-dir").value.trim() },
-			shipping: conEnvio ? { label: st.rate ? st.rate.label : "Envío", method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
+			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
 		};
 		const tipo = hold ? "apartado" : "venta";
 		const resumen = resumenLineas(st.lineas);
@@ -385,7 +392,7 @@
 				limpiarPedido();
 				await Promise.all([refrescarStock(), cargarPedidos()]);
 				if (hold) modalWhatsApp(data);
-				else toast("Venta registrada: pedido #" + data.order.number + ". El inventario ya bajó.");
+				else toast(sprintf(__("Sale recorded: order #%s. The stock has already gone down.", "dox-pos"), data.order.number));
 			} catch (e) {
 				if (e.red) {
 					encolar(tipo, "orders", payload, resumen);
@@ -455,78 +462,78 @@
 		// Un pedido web sin pagar (o con el pago rechazado) no ha descontado inventario; uno "por confirmar", sí.
 		const sinStock = p.status === "sin_pagar" || p.status === "fallido";
 		if (p.status === "apartado") {
-			btn("Ya pagó", false, () => accion(p, "paid"));
-			btn("Liberar", true, () => confirmar("¿Liberar el apartado de " + (p.customer || "este cliente") + "? El producto vuelve al inventario.", () => accion(p, "release")));
+			btn(__("Paid", "dox-pos"), false, () => accion(p, "paid"));
+			btn(__("Release", "dox-pos"), true, () => confirmar(sprintf(__("Release the layaway for %s? The product goes back to stock.", "dox-pos"), p.customer || __("this customer", "dox-pos")), () => accion(p, "release")));
 			wa();
 		} else if (SIN_PAGAR.includes(p.status)) {
-			btn("Ya pagó", false, () => confirmar("¿Confirmar el pago del pedido #" + p.number + "? Pasa a por enviar" + (sinStock ? " y descuenta el inventario." : "."), () => accion(p, "paid")));
-			btn("Anular", true, () => confirmar("¿Anular el pedido #" + p.number + "?" + (sinStock ? "" : " El inventario vuelve."), () => accion(p, "cancel")));
+			btn(__("Paid", "dox-pos"), false, () => confirmar(sprintf(sinStock ? __("Confirm the payment of order #%s? It moves to ready to ship and the stock goes down.", "dox-pos") : __("Confirm the payment of order #%s? It moves to ready to ship.", "dox-pos"), p.number), () => accion(p, "paid")));
+			btn(__("Cancel", "dox-pos"), true, () => confirmar(sprintf(sinStock ? __("Cancel order #%s?", "dox-pos") : __("Cancel order #%s? The stock goes back.", "dox-pos"), p.number), () => accion(p, "cancel")));
 			wa();
 		} else if (p.status === "por_enviar") {
-			btn("Marcar enviado", false, () => modalEnvio(p));
-			btn("Anular", true, () => confirmar("¿Anular el pedido #" + p.number + "? El inventario vuelve.", () => accion(p, "cancel")));
+			btn(__("Mark as shipped", "dox-pos"), false, () => modalEnvio(p));
+			btn(__("Cancel", "dox-pos"), true, () => confirmar(sprintf(__("Cancel order #%s? The stock goes back.", "dox-pos"), p.number), () => accion(p, "cancel")));
 			wa();
 		} else if (p.status === "enviado") {
-			btn("Marcar entregado", false, () => accion(p, "delivered"));
+			btn(__("Mark as delivered", "dox-pos"), false, () => accion(p, "delivered"));
 			wa();
 		}
 	}
 	// ----- el detalle de un pedido: se abre tocando el número o los productos -----
 	async function verPedido(id) {
-		modal('<h3>Pedido</h3><p class="mp">Cargando…</p>', "wide");
+		modal("<h3>" + esc(__("Order", "dox-pos")) + '</h3><p class="mp">' + esc(__("Loading\u2026", "dox-pos")) + "</p>", "wide");
 		try {
 			const d = await api("orders/" + id);
 			if ($("#modal").hidden) return; // lo cerraron mientras cargaba
 			pintarDetalle(d);
 		} catch (e) {
 			if (e.message === "sesion") return;
-			modal('<h3>Pedido</h3><p class="mp">' + esc(e.red ? "Sin señal: no se pudo cargar el pedido." : e.message) + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">Cerrar</button></div>', "wide");
+			modal("<h3>" + esc(__("Order", "dox-pos")) + '</h3><p class="mp">' + esc(e.red ? __("No signal: the order could not be loaded.", "dox-pos") : e.message) + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "wide");
 			$("#m-no").onclick = cerrarModal;
 		}
 	}
 	function pintarDetalle(d) {
 		const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[d.status] || "e";
 		const web = d.origin !== "caja";
-		let pago = "Paga al recibir";
-		if (d.paid && !d.cod) pago = "Pagado" + (d.paid_at ? " el " + esc(d.paid_at) : "");
-		else if (d.status === "apartado" || d.status === "sin_pagar" || d.status === "fallido") pago = "Sin pagar";
-		else if (d.status === "por_confirmar") pago = "En proceso";
+		let pago = __("Pays on delivery", "dox-pos");
+		if (d.paid && !d.cod) pago = d.paid_at ? sprintf(__("Paid on %s", "dox-pos"), esc(d.paid_at)) : __("Paid", "dox-pos");
+		else if (d.status === "apartado" || d.status === "sin_pagar" || d.status === "fallido") pago = __("Unpaid", "dox-pos");
+		else if (d.status === "por_confirmar") pago = __("In progress", "dox-pos");
 		else if (d.status === "anulado" || d.status === "reembolsado") pago = "";
 		const items = (d.items_list || []).map((it) => "<li>" +
 			'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
 			'<div class="odi"><b>' + esc(it.name) + "</b>" +
-			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · quedan " + it.stock : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · costo " + dinero(it.unit_cost) : "") + "</span>" +
-			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">Ver en la tienda</a>' : '<span class="sub">' + (it.exists ? "Oculto en la tienda" : "Ya no existe") + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">Editar</button>' : "") + "</span>" +
+			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(sprintf(__("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
+			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
 			"</div>" +
 			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
 		const dir = [d.address, d.address2, d.city].filter(Boolean).join(", ");
-		let h = '<h3>Pedido #' + esc(d.number) + ' <span class="tag ' + cls + '">' + esc(d.label) + "</span></h3>";
-		h += '<p class="mp">' + esc(d.created) + " · " + (web ? esc(d.origin_label) + (d.source ? " (desde " + esc(d.source) + ")" : "") : esc(d.channel) + " · Caja" + (d.seller ? " · " + esc(d.seller) : "")) + (d.demo ? " · demostración" : "") + "</p>";
+		let h = "<h3>" + esc(sprintf(__("Order #%s", "dox-pos"), d.number)) + ' <span class="tag ' + cls + '">' + esc(d.label) + "</span></h3>";
+		h += '<p class="mp">' + esc(d.created) + " · " + (web ? esc(d.origin_label) + (d.source ? " " + esc(sprintf(__("(from %s)", "dox-pos"), d.source)) : "") : esc(d.channel) + " · " + esc(__("Register", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "")) + (d.demo ? " · " + esc(__("demo", "dox-pos")) : "") + "</p>";
 		h += '<div class="od">';
-		h += "<section><h4>Productos</h4>" + (items ? '<ul class="odl">' + items + "</ul>" : '<p class="sub">Sin productos.</p>');
-		h += '<table class="tot"><tbody><tr><td>Subtotal</td><td>' + dinero(d.subtotal) + "</td></tr>" +
-			(d.discount ? "<tr><td>Descuento</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
-			(d.shipping_total || d.shipping_method ? "<tr><td>Envío" + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
-			'<tr class="t"><td>Total</td><td>' + dinero(d.total) + "</td></tr>" +
+		h += "<section><h4>" + esc(__("Products", "dox-pos")) + "</h4>" + (items ? '<ul class="odl">' + items + "</ul>" : '<p class="sub">' + esc(__("No products.", "dox-pos")) + "</p>");
+		h += '<table class="tot"><tbody><tr><td>' + esc(__("Subtotal", "dox-pos")) + "</td><td>" + dinero(d.subtotal) + "</td></tr>" +
+			(d.discount ? "<tr><td>" + esc(__("Discount", "dox-pos")) + "</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
+			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
+			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
 			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse.
-			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>Ganancia</td><td>" + dinero(d.profit) + (d.margin !== null ? ' <span class="sub">' + d.margin + " %</span>" : "") + "</td></tr>" : '<tr><td>Ganancia</td><td><span class="sub">sin costo en ' + d.cost_missing + (d.cost_missing === 1 ? " línea" : " líneas") + "</span></td></tr>") : "") +
+			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + dinero(d.profit) + (d.margin !== null ? ' <span class="sub">' + d.margin + " %</span>" : "") + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
 			"</tbody></table></section>";
-		h += '<section><h4>Cliente</h4><div class="kv">';
-		h += "<span>Nombre</span><span>" + esc(d.customer || "Sin nombre") + "</span>";
-		if (d.phone) h += "<span>Teléfono</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">WhatsApp</a>' : "") + "</span>";
-		if (d.email) h += '<span>Correo</span><span><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a></span>";
-		if (dir) h += "<span>Dirección</span><span>" + esc(dir) + "</span>";
-		if (d.note) h += "<span>Nota</span><span>" + esc(d.note) + "</span>";
+		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
+		h += "<span>" + esc(__("Name", "dox-pos")) + "</span><span>" + esc(d.customer || __("No name", "dox-pos")) + "</span>";
+		if (d.phone) h += "<span>" + esc(__("Phone", "dox-pos")) + "</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">WhatsApp</a>' : "") + "</span>";
+		if (d.email) h += "<span>" + esc(__("Email", "dox-pos")) + '</span><span><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a></span>";
+		if (dir) h += "<span>" + esc(__("Address", "dox-pos")) + "</span><span>" + esc(dir) + "</span>";
+		if (d.note) h += "<span>" + esc(__("Note", "dox-pos")) + "</span><span>" + esc(d.note) + "</span>";
 		h += "</div></section>";
-		h += '<section><h4>Pago y envío</h4><div class="kv">';
-		h += "<span>Pago</span><span>" + esc(d.payment) + (pago ? " · " + pago : "") + "</span>";
-		if (d.status === "apartado" && d.hold_until) h += "<span>Apartado</span><span>vence el " + esc(d.hold_until) + "</span>";
-		if (d.tracking) h += "<span>Envío</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
-		if (d.completed_at) h += "<span>Entregado</span><span>" + esc(d.completed_at) + "</span>";
+		h += '<section><h4>' + esc(__("Payment and shipping", "dox-pos")) + '</h4><div class="kv">';
+		h += "<span>" + esc(__("Payment", "dox-pos")) + "</span><span>" + esc(d.payment) + (pago ? " · " + pago : "") + "</span>";
+		if (d.status === "apartado" && d.hold_until) h += "<span>" + esc(__("Layaway", "dox-pos")) + "</span><span>" + esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) + "</span>";
+		if (d.tracking) h += "<span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
+		if (d.completed_at) h += "<span>" + esc(__("Delivered", "dox-pos")) + "</span><span>" + esc(d.completed_at) + "</span>";
 		h += "</div></section>";
-		if (d.notes && d.notes.length) h += '<section><h4>Historial</h4><ul class="odn">' + d.notes.map((n) => '<li><span class="sub">' + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></section>";
+		if (d.notes && d.notes.length) h += "<section><h4>" + esc(__("History", "dox-pos")) + '</h4><ul class="odn">' + d.notes.map((n) => '<li><span class="sub">' + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></section>";
 		h += "</div>";
-		h += '<div class="mbtn stick odb"><div class="oda"></div>' + (d.edit_url ? '<a class="mini sec" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">Abrir en WooCommerce</a>' : "") + '<button type="button" class="go alt" id="m-no">Cerrar</button></div>';
+		h += '<div class="mbtn stick odb"><div class="oda"></div>' + (d.edit_url ? '<a class="mini sec" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + '</a>' : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>";
 		modal(h, "wide");
 		botonesPedido(d, $("#modal-card .oda"), true);
 		$("#m-no").onclick = cerrarModal;
@@ -543,24 +550,24 @@
 			if (p.status === "anulado" || p.status === "reembolsado") tr.className = "off";
 			const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[p.status] || "e";
 			const web = p.origin !== "caja";
-			let pago = "Paga al recibir";
-			if (p.paid && !p.cod) pago = "Pagado";
-			else if (p.status === "apartado" || p.status === "sin_pagar" || p.status === "fallido") pago = "Sin pagar";
-			else if (p.status === "por_confirmar") pago = "En proceso";
+			let pago = __("Pays on delivery", "dox-pos");
+			if (p.paid && !p.cod) pago = __("Paid", "dox-pos");
+			else if (p.status === "apartado" || p.status === "sin_pagar" || p.status === "fallido") pago = __("Unpaid", "dox-pos");
+			else if (p.status === "por_confirmar") pago = __("In progress", "dox-pos");
 			else if (p.status === "anulado" || p.status === "reembolsado") pago = "";
 			// El canal: en la caja, por dónde entró la venta y quién la registró; en la web, la etiqueta y de dónde llegó el cliente.
 			const canal = web
-				? '<span class="tag w">' + esc(p.origin_label) + "</span>" + (p.source ? '<br><span class="sub">desde ' + esc(p.source) + "</span>" : "")
-				: esc(p.channel) + '<br><span class="sub">Caja' + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
+				? '<span class="tag w">' + esc(p.origin_label) + "</span>" + (p.source ? '<br><span class="sub">' + esc(sprintf(__("from %s", "dox-pos"), p.source)) + "</span>" : "")
+				: esc(p.channel) + '<br><span class="sub">' + esc(__("Register", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
 			tr.innerHTML =
 				'<td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
-				'<td><span class="who">' + esc(p.customer || "Sin nombre") + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></td>" +
+				'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></td>" +
 				'<td class="items"><button type="button" class="lnk items" data-ver="' + p.id + '">' + esc(p.items) + "</button>" + (p.note ? '<br><span class="sub">' + esc(p.note) + "</span>" : "") + "</td>" +
 				"<td>" + canal + "</td>" +
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
 				'<td class="num">' + dinero(p.total) + "</td>" +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
-					(p.status === "apartado" ? '<br><span class="sub">vence en ' + p.hours_left + " h</span>" : "") +
+					(p.status === "apartado" ? '<br><span class="sub">' + esc(sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>" : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
 			const td = document.createElement("td");
 			td.className = "acts";
@@ -577,14 +584,14 @@
 			const s = r && ((r.order && r.order.ship) || r.ship); // La ruta devuelve {order}; el asistente, el pedido directo.
 			if (act === "shipped" && s) {
 				// Qué pasó con el aviso a la clienta, y el WhatsApp con la guía a un toque.
-				let t = s.demo ? "Es un pedido de demostración: no se mandan correos." : (s.email ? (s.sent ? "Le llegó un correo a " + esc(s.email) + " con la guía y el enlace de rastreo." : "No se pudo mandar el correo a " + esc(s.email) + ".") : "Este pedido no tiene correo.");
-				if (s.whatsapp) t += " Si quieres, avísale también por WhatsApp: el mensaje ya va con la guía.";
-				modal('<h3>Marcado como enviado</h3><p class="mp">' + t + '</p><div class="mbtn">' + (s.whatsapp ? '<a class="go" href="' + esc(s.whatsapp) + '" target="_blank" rel="noopener">Avisar por WhatsApp</a>' : "") + '<button type="button" class="go alt" id="m-no">Listo</button></div>');
+				let t = s.demo ? esc(__("This is a demo order: no emails are sent.", "dox-pos")) : (s.email ? esc(sprintf(s.sent ? __("An email with the tracking number and the tracking link reached %s.", "dox-pos") : __("The email to %s could not be sent.", "dox-pos"), s.email)) : esc(__("This order has no email address.", "dox-pos")));
+				if (s.whatsapp) t += " " + esc(__("If you want, tell them on WhatsApp too: the message already carries the tracking number.", "dox-pos"));
+				modal("<h3>" + esc(__("Marked as shipped", "dox-pos")) + '</h3><p class="mp">' + t + '</p><div class="mbtn">' + (s.whatsapp ? '<a class="go" href="' + esc(s.whatsapp) + '" target="_blank" rel="noopener">' + esc(__("Tell them on WhatsApp", "dox-pos")) + "</a>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 				$("#m-no").onclick = cerrarModal;
 				return;
 			}
-			const msgs = { paid: "Pago confirmado. Queda por enviar.", release: "Apartado liberado. El producto vuelve al inventario.", shipped: "Marcado como enviado.", delivered: "Entregado. Pedido cerrado.", cancel: "Pedido anulado. El inventario vuelve." };
-			toast(act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido") ? "Pedido anulado." : msgs[act]);
+			const msgs = { paid: __("Payment confirmed. It is now ready to ship.", "dox-pos"), release: __("Layaway released. The product goes back to stock.", "dox-pos"), shipped: __("Marked as shipped.", "dox-pos"), delivered: __("Delivered. The order is closed.", "dox-pos"), cancel: __("Order cancelled. The stock goes back.", "dox-pos") };
+			toast(act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido") ? __("Order cancelled.", "dox-pos") : msgs[act]);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.message);
 		}
@@ -614,7 +621,7 @@
 					limpiar();
 					await Promise.all([refrescarStock(), cargarEntradas()]);
 					const ch = (d.entry.cost_changes || []).length;
-					toast("Entrada guardada. El inventario subió " + d.entry.units + (d.entry.units === 1 ? " unidad." : " unidades.") + (ch ? " El costo promedio cambió en " + ch + (ch === 1 ? " producto." : " productos.") : ""));
+					toast(sprintf(_n("Entry saved. The stock went up by %d unit.", "Entry saved. The stock went up by %d units.", d.entry.units, "dox-pos"), d.entry.units) + (ch ? " " + sprintf(_n("The average cost changed on %d product.", "The average cost changed on %d products.", ch, "dox-pos"), ch) : ""));
 				}
 			} catch (e) {
 				if (e.red) {
@@ -637,7 +644,7 @@
 			return await post("entries", payload);
 		} catch (e) {
 			if (e.code !== "dox_pos_factura_repetida") throw e;
-			const otra = await preguntar(e.message + " ¿Es otra entrada distinta?", "Sí, registrarla", "No");
+			const otra = await preguntar(e.message + " " + __("Is this a different entry?", "dox-pos"), __("Yes, record it", "dox-pos"), __("No", "dox-pos"));
 			if (!otra) return null;
 			return post("entries", Object.assign({}, payload, { force: true }));
 		}
@@ -651,23 +658,23 @@
 	}
 	function pintarEntradas() {
 		const ul = $("#entradas");
-		ul.innerHTML = st.entradas.length ? "" : '<li class="empty" style="padding:8px 2px">Todavía no hay entradas registradas.</li>';
+		ul.innerHTML = st.entradas.length ? "" : '<li class="empty" style="padding:8px 2px">' + esc(__("No stock entries recorded yet.", "dox-pos")) + "</li>";
 		st.entradas.forEach((e) => {
 			const li = document.createElement("li");
 			li.className = "lin" + (e.status !== "ok" ? " off" : "");
 			li.innerHTML =
-				'<span class="n">' + esc(e.items) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · anulada" : "") + "</i></span>" +
+				'<span class="n">' + esc(e.items) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · " + esc(__("voided", "dox-pos")) : "") + "</i></span>" +
 				'<span class="v">+' + e.units + "</span>";
 			if (e.status === "ok") {
 				const b = document.createElement("button");
 				b.type = "button";
 				b.className = "undo";
-				b.textContent = "Anular";
-				b.onclick = () => confirmar("¿Anular esta entrada? " + (e.units === 1 ? "Se resta la unidad." : "Se restan las " + e.units + " unidades."), async () => {
+				b.textContent = __("Void", "dox-pos");
+				b.onclick = () => confirmar(sprintf(_n("Void this entry? %d unit is taken back.", "Void this entry? %d units are taken back.", e.units, "dox-pos"), e.units), async () => {
 					try {
 						await post("entries/" + e.id + "/cancel", {});
 						await Promise.all([cargarEntradas(), refrescarStock()]);
-						toast("Entrada anulada.");
+						toast(__("Entry voided.", "dox-pos"));
 					} catch (err) {
 						if (err.message !== "sesion") toast(err.message);
 					}
@@ -691,8 +698,9 @@
 		const c = leerCola();
 		c.push({ id: payload.ref, tipo: tipo, path: path, payload: payload, resumen: resumen, creado: Date.now() });
 		guardarCola(c);
-		const que = tipo === "entrada" ? "La entrada" : tipo === "apartado" ? "El apartado" : "La venta";
-		toast("Sin señal. " + que + " quedó guardada en el teléfono y entra sola cuando vuelva la conexión.");
+		toast(tipo === "entrada" ? __("No signal. The entry is kept on this phone and goes in on its own when the connection is back.", "dox-pos")
+			: tipo === "apartado" ? __("No signal. The layaway is kept on this phone and goes in on its own when the connection is back.", "dox-pos")
+			: __("No signal. The sale is kept on this phone and goes in on its own when the connection is back.", "dox-pos"));
 	}
 	function quitarDeCola(id) {
 		guardarCola(leerCola().filter((x) => x.id !== id));
@@ -703,12 +711,12 @@
 		if (!c.length && navigator.onLine) { bar.hidden = true; return; }
 		bar.hidden = false;
 		const n = c.length;
-		let txt = navigator.onLine ? "<b>Pendiente de enviar.</b> " : "<b>Sin señal.</b> ";
+		let txt = "<b>" + esc(navigator.onLine ? __("Waiting to be sent.", "dox-pos") : __("No signal.", "dox-pos")) + "</b> ";
 		if (n) {
-			txt += n + (n === 1 ? " registro guardado en el teléfono" : " registros guardados en el teléfono") + (navigator.onLine ? ", enviando…" : "; entran solos cuando vuelva la conexión.");
-			if (navigator.onLine) txt += ' <button type="button" class="mini" id="cola-reintentar">Enviar ahora</button>';
+			txt += esc(sprintf(_n("%d record kept on this phone", "%d records kept on this phone", n, "dox-pos"), n)) + esc(navigator.onLine ? __(", sending\u2026", "dox-pos") : __("; they go in on their own when the connection is back.", "dox-pos"));
+			if (navigator.onLine) txt += ' <button type="button" class="mini" id="cola-reintentar">' + esc(__("Send now", "dox-pos")) + "</button>";
 		} else {
-			txt += "Lo que registres se guarda en el teléfono y entra solo al volver la conexión.";
+			txt += esc(__("Whatever you record is kept on this phone and goes in on its own when the connection is back.", "dox-pos"));
 		}
 		bar.innerHTML = txt;
 		const b = $("#cola-reintentar");
@@ -728,9 +736,9 @@
 				} catch (e) {
 					// La factura ya estaba registrada cuando llegó la conexión: se pregunta antes de descartar.
 					if (e.code !== "dox_pos_factura_repetida") throw e;
-					if (!(await preguntar(e.message + " ¿Es otra entrada distinta?", "Sí, registrarla", "No, descartarla"))) {
+					if (!(await preguntar(e.message + " " + __("Is this a different entry?", "dox-pos"), __("Yes, record it", "dox-pos"), __("No, discard it", "dox-pos")))) {
 						quitarDeCola(item.id);
-						toast("Entrada descartada: " + item.resumen + ".");
+						toast(sprintf(__("Entry discarded: %s.", "dox-pos"), item.resumen));
 						continue;
 					}
 					item.payload.force = true;
@@ -738,13 +746,13 @@
 				}
 				quitarDeCola(item.id);
 				hechos++;
-				if (item.tipo === "entrada") toast("Entrada guardada: " + item.resumen + ".");
-				else if (item.tipo === "apartado") toast("Apartado registrado: pedido #" + d.order.number + ". En Pedidos tienes el botón de WhatsApp.");
-				else toast("Venta registrada: pedido #" + d.order.number + ".");
+				if (item.tipo === "entrada") toast(sprintf(__("Entry saved: %s.", "dox-pos"), item.resumen));
+				else if (item.tipo === "apartado") toast(sprintf(__("Layaway recorded: order #%s. The WhatsApp button is in Orders.", "dox-pos"), d.order.number));
+				else toast(sprintf(__("Sale recorded: order #%s.", "dox-pos"), d.order.number));
 			} catch (e) {
 				if (e.red || e.message === "sesion") break; // sigue sin señal: se espera
 				quitarDeCola(item.id);                        // la tienda lo rechazó (por ejemplo, ya no queda stock)
-				toast("No se pudo registrar " + item.resumen + ": " + e.message);
+				toast(sprintf(__("%1$s could not be recorded: %2$s", "dox-pos"), item.resumen, e.message));
 			}
 		}
 		st.sincronizando = false;
@@ -844,7 +852,7 @@
 	// (Escape, tocar fuera) cuenta como "no".
 	function preguntar(texto, si, no) {
 		return new Promise((resolve) => {
-			modal('<h3>Un momento</h3><p class="mp">' + esc(texto) + '</p><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(si || "Sí, seguir") + '</button><button type="button" class="go alt" id="m-no">' + esc(no || "No") + "</button></div>");
+			modal("<h3>" + esc(__("One moment", "dox-pos")) + '</h3><p class="mp">' + esc(texto) + '</p><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(si || __("Yes, go on", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(no || __("No", "dox-pos")) + "</button></div>");
 			pendiente = resolve;
 			$("#m-ok").onclick = () => cerrarModal(true);
 			$("#m-no").onclick = () => cerrarModal(false);
@@ -854,16 +862,16 @@
 		preguntar(texto).then((ok) => { if (ok) fn(); });
 	}
 	function modalWhatsApp(d) {
-		modal('<h3>Apartado #' + esc(d.order.number) + '</h3><p class="mp">El producto ya quedó reservado. Se abre WhatsApp con el mensaje escrito: solo hay que darle enviar. Si no paga en ' + (cfg.hold_hours || 48) + ' horas, vuelve solo al inventario.</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">Abrir WhatsApp</a><button type="button" class="go alt" id="m-no">Cerrar</button></div>');
+		modal("<h3>" + esc(sprintf(__("Layaway #%s", "dox-pos"), d.order.number)) + '</h3><p class="mp">' + esc(sprintf(__("The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos"), cfg.hold_hours || 48)) + '</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(__("Open WhatsApp", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 	}
 	function modalEnvio(p) {
 		const carriers = (cfg.carriers || []).map((c) => (typeof c === "string" ? c : c.name));
 		const lista = carriers.length ? '<datalist id="transportadoras">' + carriers.map((c) => '<option value="' + esc(c) + '"></option>').join("") + "</datalist>" : "";
-		const pista = carriers.length ? carriers.slice(0, 2).join(", ") + "…" : "Interrapidísimo, Servientrega…";
+		const pista = carriers.length ? carriers.slice(0, 2).join(", ") + "…" : __("DHL, UPS\u2026", "dox-pos");
 		// Qué le va a llegar a la clienta: el correo con la guía si tiene correo; si no, el WhatsApp listo.
-		const aviso = p.email && cfg.ship_email ? '<p class="mp">Al marcar enviado le llega un correo a ' + esc(p.email) + " con la transportadora, la guía y el enlace de rastreo.</p>" : (p.phone ? '<p class="mp">Sin correo: al marcar enviado te queda listo el WhatsApp con la guía.</p>' : "");
-		modal('<h3>Enviar el pedido #' + esc(p.number) + '</h3><p class="mp">' + esc(p.customer || "") + (p.city ? " · " + esc(p.city) : "") + "</p>" + aviso + '<div class="field"><label for="m-car">Transportadora</label><input id="m-car" list="transportadoras" placeholder="' + esc(pista) + '" autocomplete="off">' + lista + '</div><div class="field mt"><label for="m-gui">Número de guía</label><input id="m-gui" placeholder="Opcional"></div><div class="mbtn"><button type="button" class="go" id="m-ok">Marcar enviado</button><button type="button" class="go alt" id="m-no">Cancelar</button></div>');
+		const aviso = p.email && cfg.ship_email ? '<p class="mp">' + esc(sprintf(__("When you mark it as shipped, %s gets an email with the carrier, the tracking number and the tracking link.", "dox-pos"), p.email)) + "</p>" : (p.phone ? '<p class="mp">' + esc(__("No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you.", "dox-pos")) + "</p>" : "");
+		modal("<h3>" + esc(sprintf(__("Ship order #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(p.customer || "") + (p.city ? " · " + esc(p.city) : "") + "</p>" + aviso + '<div class="field"><label for="m-car">' + esc(__("Carrier", "dox-pos")) + '</label><input id="m-car" list="transportadoras" placeholder="' + esc(pista) + '" autocomplete="off">' + lista + '</div><div class="field mt"><label for="m-gui">' + esc(__("Tracking number", "dox-pos")) + '</label><input id="m-gui" placeholder="' + esc(__("Optional", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Mark as shipped", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
 		$("#m-ok").onclick = () => {
 			const extra = { carrier: $("#m-car").value.trim(), tracking: $("#m-gui").value.trim() };
 			cerrarModal();
@@ -917,7 +925,7 @@
 					pintarProducto();
 					ofrecerBorrador();
 				} catch (e) {
-					if (e.message !== "sesion") toast("No se pudo cargar el formulario: " + e.message);
+					if (e.message !== "sesion") toast(sprintf(__("The form could not be loaded: %s", "dox-pos"), e.message));
 				} finally {
 					pr.abriendo = null;
 				}
@@ -945,7 +953,7 @@
 			const ph = () => {
 				const s = document.createElement("span");
 				s.className = "ph";
-				s.textContent = f.ext || "FOTO";
+				s.textContent = f.ext || __("PHOTO", "dox-pos");
 				d.prepend(s);
 			};
 			if (f.url) {
@@ -964,19 +972,19 @@
 			const x = document.createElement("button");
 			x.type = "button";
 			x.className = "x";
-			x.setAttribute("aria-label", "Quitar la foto");
+			x.setAttribute("aria-label", __("Remove the photo", "dox-pos"));
 			x.textContent = "×";
 			x.onclick = (e) => { e.stopPropagation(); quitarFoto(f); };
 			d.appendChild(x);
 			if (f.estado !== "ok") {
 				const s = document.createElement("span");
 				s.className = "st" + (f.estado === "error" ? " err" : "");
-				s.textContent = f.estado === "error" ? (f.error || "No se pudo subir") + " · toca para reintentar" : (f.estado === "subiendo" ? "Convirtiendo…" : "En cola");
+				s.textContent = f.estado === "error" ? (f.error || __("Could not upload", "dox-pos")) + " · " + __("tap to try again", "dox-pos") : (f.estado === "subiendo" ? __("Converting\u2026", "dox-pos") : __("Queued", "dox-pos"));
 				d.appendChild(s);
 			} else if (pr.colores.length) {
 				const sel = document.createElement("select");
-				sel.setAttribute("aria-label", "Para qué color es la foto");
-				sel.innerHTML = '<option value="">Todos los colores</option>' + pr.colores.map((c) => '<option value="' + esc(c.key) + '"' + (f.color === c.key ? " selected" : "") + ">" + esc(c.name) + "</option>").join("");
+				sel.setAttribute("aria-label", __("Which color the photo is for", "dox-pos"));
+				sel.innerHTML = '<option value="">' + esc(__("All colors", "dox-pos")) + "</option>" + pr.colores.map((c) => '<option value="' + esc(c.key) + '"' + (f.color === c.key ? " selected" : "") + ">" + esc(c.name) + "</option>").join("");
 				sel.onclick = (e) => e.stopPropagation();
 				sel.onchange = () => { f.color = sel.value; programarBorrador(); };
 				d.appendChild(sel);
@@ -995,17 +1003,17 @@
 		const add = document.createElement("button");
 		add.type = "button";
 		add.className = "foto foto-add";
-		add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span>' + (pr.fotos.length ? "Otra foto" : "Agregar fotos") + "</span>";
+		add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span>' + (pr.fotos.length ? esc(__("Another photo", "dox-pos")) : esc(__("Add photos", "dox-pos"))) + "</span>";
 		add.onclick = () => $("#p-file").click();
 		box.appendChild(add);
 		const n = pr.fotos.length;
-		$("#p-nfotos").textContent = n ? n + (n === 1 ? " foto" : " fotos") : "";
+		$("#p-nfotos").textContent = n ? sprintf(_n("%d photo", "%d photos", n, "dox-pos"), n) : "";
 	}
 	function agregarArchivos(files) {
 		Array.from(files || []).forEach((file) => {
-			if (cfg.max_upload && file.size > cfg.max_upload) { toast(file.name + " pesa más de lo que admite el servidor."); return; }
+			if (cfg.max_upload && file.size > cfg.max_upload) { toast(sprintf(__("%s is larger than the server allows.", "dox-pos"), file.name)); return; }
 			const ext = (file.name.split(".").pop() || "").toUpperCase();
-			const f = { uid: ++uidN, file: file, ext: ext.length <= 4 ? ext : "FOTO", estado: "cola", url: "", local: "", id: 0, color: "", kb: 0, error: "" };
+			const f = { uid: ++uidN, file: file, ext: ext.length <= 4 ? ext : __("PHOTO", "dox-pos"), estado: "cola", url: "", local: "", id: 0, color: "", kb: 0, error: "" };
 			try { f.url = URL.createObjectURL(file); f.local = f.url; } catch (e) { /* sin vista previa */ }
 			pr.fotos.push(f);
 		});
@@ -1035,7 +1043,7 @@
 			}
 		} catch (e) {
 			f.estado = "error";
-			f.error = e.red ? "Sin señal" : (e.message === "sesion" ? "Sesión caducada" : e.message);
+			f.error = e.red ? __("No signal", "dox-pos") : (e.message === "sesion" ? __("Session expired", "dox-pos") : e.message);
 		}
 		pr.subiendo = false;
 		pintarFotos();
@@ -1089,9 +1097,9 @@
 			row.className = "catg open";
 			g.cats.forEach((c) => {
 				const dentro = c.path && c.path !== c.group ? c.path.replace(c.group + " › ", "") + " › " : "";
-				const label = c.id === c.group_id ? (g.cats.length > 1 ? c.name + " en general" : c.name) : dentro + c.name;
+				const label = c.id === c.group_id ? (g.cats.length > 1 ? sprintf(__("%s in general", "dox-pos"), c.name) : c.name) : dentro + c.name;
 				const ch = chip(label, pr.cats.includes(c.id), () => toggleCat(c));
-				ch.title = c.count + (c.count === 1 ? " producto" : " productos");
+				ch.title = sprintf(_n("%d product", "%d products", c.count, "dox-pos"), c.count);
 				row.appendChild(ch);
 			});
 			box.appendChild(row);
@@ -1141,7 +1149,7 @@
 		try {
 			const d = await api("products/sku?prefix=" + encodeURIComponent(prefix));
 			if (n !== skuReq || pr.manual) return;
-			if (d.sku) { $("#p-sku").value = d.sku; pr.skuOk = true; estadoSku("Libre: el siguiente de " + prefix + ".", "ok"); }
+			if (d.sku) { $("#p-sku").value = d.sku; pr.skuOk = true; estadoSku(sprintf(__("Free: the next one after %s.", "dox-pos"), prefix), "ok"); }
 		} catch (e) { /* se escribe a mano */ }
 		pintarResumenProducto();
 	}
@@ -1153,14 +1161,14 @@
 		pr.manual = v !== "";
 		pr.skuOk = undefined;
 		if (!v) { estadoSku("", ""); pintarResumenProducto(); return; }
-		estadoSku("Comprobando…", "");
+		estadoSku(__("Checking\u2026", "dox-pos"), "");
 		skuTimer = setTimeout(async () => {
 			const n = ++skuReq;
 			try {
 				const d = await api("products/sku?sku=" + encodeURIComponent(v));
 				if (n !== skuReq) return;
 				pr.skuOk = d.ok;
-				estadoSku(d.ok ? "Libre." : d.message, d.ok ? "ok" : "bad");
+				estadoSku(d.ok ? __("Free.", "dox-pos") : d.message, d.ok ? "ok" : "bad");
 			} catch (e) { estadoSku("", ""); }
 			pintarResumenProducto();
 		}, 350);
@@ -1192,11 +1200,11 @@
 			const igual = (d.items || []).find((p) => plegar(p.name) === plegar(v));
 			if (!igual) return;
 			pr.dup = { id: igual.id, sku: igual.sku || "", name: igual.name };
-			box.innerHTML = "Ya existe un producto llamado <b>" + esc(igual.name) + "</b>" + (igual.sku ? " (" + esc(igual.sku) + ")" : "") + (igual.status !== "publish" ? ", oculto" : "") + ". Si es el mismo, mejor ";
+			box.innerHTML = esc(__("There is already a product called", "dox-pos")) + " <b>" + esc(igual.name) + "</b>" + (igual.sku ? " (" + esc(igual.sku) + ")" : "") + (igual.status !== "publish" ? ", " + esc(__("hidden", "dox-pos")) : "") + ". " + esc(__("If it is the same one, better ", "dox-pos"));
 			const b = document.createElement("button");
 			b.type = "button";
 			b.className = "undo";
-			b.textContent = "edítalo";
+			b.textContent = __("edit it", "dox-pos");
 			b.onclick = () => editarDesdeLista(igual.id);
 			box.appendChild(b);
 			box.appendChild(document.createTextNode("."));
@@ -1229,11 +1237,11 @@
 		if (!el) return;
 		const precio = num($("#p-precio").value), costo = costoForm();
 		el.className = "margen";
-		if (!precio && !costo) { el.textContent = "Escribe precio y costo."; return; }
-		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? "Las tallas cuestan distinto: de " + dinero(pr.edit.cost_min) + " a " + dinero(pr.edit.cost_max) + "." : "Sin costo: sus ventas no entran en la ganancia."; return; }
-		if (!precio) { el.textContent = "Falta el precio."; return; }
+		if (!precio && !costo) { el.textContent = __("Enter a price and a cost.", "dox-pos"); return; }
+		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? sprintf(__("The sizes cost different amounts: from %1$s to %2$s.", "dox-pos"), dinero(pr.edit.cost_min), dinero(pr.edit.cost_max)) : __("No cost: its sales do not count towards the profit.", "dox-pos"); return; }
+		if (!precio) { el.textContent = __("The price is missing.", "dox-pos"); return; }
 		const g = precio - costo;
-		el.textContent = dinero(g) + " por unidad (" + Math.round(g / precio * 100) + " %)" + (g < 0 ? ": se vende a pérdida" : "");
+		el.textContent = sprintf(__("%1$s per unit (%2$d %%)", "dox-pos"), dinero(g), Math.round(g / precio * 100)) + (g < 0 ? __(": sold at a loss", "dox-pos") : "");
 		if (g < 0) el.className = "margen bad";
 	}
 
@@ -1244,7 +1252,7 @@
 		$("#g-colores").hidden = !(pr.form && pr.form.has_color) || !!(pr.edit && pr.edit.type !== "variable");
 		if (!pr.form || !pr.form.has_color || (pr.edit && pr.edit.type !== "variable")) return;
 		if (pr.edit && !pr.edit.colors.length) { // Un producto que no varía por color no gana colores desde aquí.
-			box.innerHTML = '<span class="hint">Este producto no tiene colores. Si los necesita, hay que crearlos en WooCommerce.</span>';
+			box.innerHTML = '<span class="hint">' + esc(__("This product has no colors. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ncol").textContent = "";
 			return;
 		}
@@ -1264,11 +1272,11 @@
 			box.appendChild(ch);
 		});
 		if (ver.length < all.length) {
-			const mas = chip("Más colores (" + (all.length - ver.length) + ")…", false, () => { pr.masColores = true; pintarColores(); });
+			const mas = chip(sprintf(__("More colors (%d)\u2026", "dox-pos"), all.length - ver.length), false, () => { pr.masColores = true; pintarColores(); });
 			mas.classList.add("plus");
 			box.appendChild(mas);
 		}
-		const nuevo = chip("Otro color…", false, () => {
+		const nuevo = chip(__("Another color\u2026", "dox-pos"), false, () => {
 			const row = $("#p-nuevocolor");
 			row.hidden = !row.hidden;
 			if (!row.hidden) $("#p-color-nom").focus();
@@ -1319,7 +1327,7 @@
 		box.innerHTML = "";
 		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable");
 		if (pr.edit && pr.edit.type === "variable" && !pr.edit.sizes.length) { // Un producto que no varía por talla no gana tallas desde aquí.
-			box.innerHTML = '<span class="hint">Este producto no tiene tallas. Si las necesita, hay que crearlas en WooCommerce.</span>';
+			box.innerHTML = '<span class="hint">' + esc(__("This product has no sizes. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ntal").textContent = "";
 			hint.textContent = "";
 			return;
@@ -1341,16 +1349,16 @@
 			box.appendChild(ch);
 		});
 		if (ver.length < all.length) {
-			const mas = chip(ver.length ? "Otras tallas…" : "Elegir tallas…", false, () => { pr.masTallas = true; pintarTallas(); });
+			const mas = chip(ver.length ? __("Other sizes\u2026", "dox-pos") : __("Choose sizes\u2026", "dox-pos"), false, () => { pr.masTallas = true; pintarTallas(); });
 			mas.classList.add("plus");
 			box.appendChild(mas);
 		}
 		const n = pr.tallas.length;
-		$("#p-ntal").textContent = n ? n + (n === 1 ? " talla" : " tallas") : "talla única";
+		$("#p-ntal").textContent = n ? sprintf(_n("%d size", "%d sizes", n, "dox-pos"), n) : __("one size", "dox-pos");
 		if (pr.edit) hint.textContent = "";
-		else if (!pr.cats.length && !n) hint.textContent = "Elige la categoría y salen sus tallas.";
-		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas ? "Esta categoría no usa tallas: queda de talla única." : "Sin tallas: talla única.";
-		else if (!pr.tallasTocadas) hint.textContent = "Marcadas por la categoría. Si el producto no viene en todas, toca las que sobran para quitarlas.";
+		else if (!pr.cats.length && !n) hint.textContent = __("Choose the category and its sizes appear.", "dox-pos");
+		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas ? __("This category does not use sizes: it stays one size.", "dox-pos") : __("No sizes: one size.", "dox-pos");
+		else if (!pr.tallasTocadas) hint.textContent = __("Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.", "dox-pos");
 		else hint.textContent = "";
 	}
 	const tallasOrdenadas = () => ((pr.form && pr.form.sizes) || []).filter((t) => pr.tallas.includes(t.id));
@@ -1358,8 +1366,8 @@
 	// Unidades: una casilla por talla y color. Empiezan vacías (0): lo que no se escribe no existe.
 	const qKey = (ckey, sid) => ckey + "|" + sid;
 	const cantidad = (ckey, sid) => { const v = pr.qty[qKey(ckey, sid)]; return v === undefined ? 0 : v; };
-	const columnas = () => (pr.colores.length ? pr.colores : [{ key: "", name: "Unidades", hex: "" }]);
-	const filas = () => { const r = tallasOrdenadas(); return r.length ? r : [{ id: 0, name: "Talla única", label: "" }]; };
+	const columnas = () => (pr.colores.length ? pr.colores : [{ key: "", name: __("Units", "dox-pos"), hex: "" }]);
+	const filas = () => { const r = tallasOrdenadas(); return r.length ? r : [{ id: 0, name: __("One size", "dox-pos"), label: "" }]; };
 	function pintarCantidades() {
 		const t = $("#p-qty");
 		const shared = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined);
@@ -1368,7 +1376,7 @@
 		$("#p-todo0").hidden = shared;
 		if (shared) { // Existencias en conjunto para todas las tallas: se cambian por mercancía o en WooCommerce.
 			t.innerHTML = "";
-			$("#p-qty-shared").textContent = "Este producto no lleva las unidades por talla, sino un total para todas: " + pr.edit.shared + (pr.edit.shared === 1 ? " unidad" : " unidades") + ". Para cambiarlo, registra la mercancía en Entró mercancía o hazlo en WooCommerce. Una talla nueva usa ese mismo total.";
+			$("#p-qty-shared").textContent = sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared) + " " + __("To change it, record the goods in Stock in or do it in WooCommerce. A new size uses that same total.", "dox-pos");
 			return;
 		}
 		const cols = columnas();
@@ -1397,13 +1405,13 @@
 
 	// Qué falta, y en qué campo. El aviso se queda debajo del campo hasta que se arregla.
 	function problemaProducto() {
-		if (!$("#p-nom").value.trim()) return { msg: "Ponle nombre al producto.", sel: "#p-nom" };
-		if (!pr.cats.length) return { msg: "Elige una categoría.", sel: "#p-cats" };
-		if (num($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: "Ponle precio.", sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
-		if (!pr.edit && pr.form && pr.form.sku_format !== "none" && !$("#p-sku").value.trim()) return { msg: "Falta el código.", sel: "#p-sku" };
-		if (!pr.edit && pr.skuOk === false) return { msg: "Ese código ya está ocupado.", sel: "#p-sku" };
-		if (pr.fotos.some((f) => f.estado === "error")) return { msg: "Una foto no se pudo subir: tócala para reintentar, o quítala.", sel: "#p-fotos" };
-		if (pr.fotos.some((f) => f.estado !== "ok")) return { msg: "Espera a que terminen de subir las fotos.", sel: "#p-fotos" };
+		if (!$("#p-nom").value.trim()) return { msg: __("Give the product a name.", "dox-pos"), sel: "#p-nom" };
+		if (!pr.cats.length) return { msg: __("Choose a category.", "dox-pos"), sel: "#p-cats" };
+		if (num($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: __("Set a price.", "dox-pos"), sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
+		if (!pr.edit && pr.form && pr.form.sku_format !== "none" && !$("#p-sku").value.trim()) return { msg: __("The SKU is missing.", "dox-pos"), sel: "#p-sku" };
+		if (!pr.edit && pr.skuOk === false) return { msg: __("That SKU is already taken.", "dox-pos"), sel: "#p-sku" };
+		if (pr.fotos.some((f) => f.estado === "error")) return { msg: __("A photo could not be uploaded: tap it to try again, or remove it.", "dox-pos"), sel: "#p-fotos" };
+		if (pr.fotos.some((f) => f.estado !== "ok")) return { msg: __("Wait for the photos to finish uploading.", "dox-pos"), sel: "#p-fotos" };
 		return null;
 	}
 	function señalar(p) {
@@ -1429,18 +1437,18 @@
 		const nt = pr.tallas.length, nc = pr.colores.length, u = unidadesTotales();
 		const vars = (nt || 1) * (nc || 1);
 		let que = (nt || nc)
-			? vars + (vars === 1 ? " variación" : " variaciones") + (nt && nc ? " (" + nt + (nt === 1 ? " talla" : " tallas") + " × " + nc + (nc === 1 ? " color" : " colores") + ")" : "")
-			: "Producto de talla única";
-		if (pr.edit && pr.edit.type !== "variable") que = "Producto de talla única";
+			? sprintf(_n("%d variation", "%d variations", vars, "dox-pos"), vars) + (nt && nc ? " (" + sprintf(_n("%d size", "%d sizes", nt, "dox-pos"), nt) + " × " + sprintf(_n("%d color", "%d colors", nc, "dox-pos"), nc) + ")" : "")
+			: __("One-size product", "dox-pos");
+		if (pr.edit && pr.edit.type !== "variable") que = __("One-size product", "dox-pos");
 		const precio = num($("#p-precio").value);
-		const txtPrecio = precio > 0 ? dinero(precio) : (pr.edit && pr.edit.price === "" ? "de " + dinero(pr.edit.price_min) + " a " + dinero(pr.edit.price_max) : dinero(0));
+		const txtPrecio = precio > 0 ? dinero(precio) : (pr.edit && pr.edit.price === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dinero(pr.edit.price_min), dinero(pr.edit.price_max)) : dinero(0));
 		const costo = costoForm();
-		const txtCosto = costo > 0 ? dinero(costo) + (precio > 0 ? " · deja " + dinero(precio - costo) + " (" + Math.round((precio - costo) / precio * 100) + " %)" : "") : (pr.edit && pr.edit.cost === "" ? "de " + dinero(pr.edit.cost_min) + " a " + dinero(pr.edit.cost_max) : "");
-		$("#p-sum").innerHTML = "<div><span>" + esc(que) + "</span><span>" + u + (u === 1 ? " unidad" : " unidades") + "</span></div>" +
-			(cfg.costs && txtCosto ? "<div><span>Costo</span><span>" + txtCosto + "</span></div>" : "") +
-			'<div class="tot"><span>Precio</span><span>' + txtPrecio + "</span></div>";
+		const txtCosto = costo > 0 ? dinero(costo) + (precio > 0 ? " · " + sprintf(__("leaves %1$s (%2$d %%)", "dox-pos"), dinero(precio - costo), Math.round((precio - costo) / precio * 100)) : "") : (pr.edit && pr.edit.cost === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dinero(pr.edit.cost_min), dinero(pr.edit.cost_max)) : "");
+		$("#p-sum").innerHTML = "<div><span>" + esc(que) + "</span><span>" + esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + "</span></div>" +
+			(cfg.costs && txtCosto ? "<div><span>" + esc(__("Cost", "dox-pos")) + "</span><span>" + txtCosto + "</span></div>" : "") +
+			'<div class="tot"><span>' + esc(__("Price", "dox-pos")) + "</span><span>" + txtPrecio + "</span></div>";
 		pintarMargen();
-		$("#p-crear").textContent = pr.edit ? "Guardar cambios" : "Revisar y crear";
+		$("#p-crear").textContent = pr.edit ? __("Save changes", "dox-pos") : __("Review and create", "dox-pos");
 		$("#p-crear").disabled = pr.creando;
 		$("#p-vaciar").hidden = !!pr.edit || !formularioTocado();
 		limpiarSeñales();
@@ -1458,34 +1466,34 @@
 			const precio = num($("#p-precio").value);
 			const fotosOk = pr.fotos.filter((f) => f.estado === "ok");
 			const avisos = [];
-			if (!fotosOk.length) avisos.push("Sin foto: en la tienda saldrá con un cuadro gris.");
-			if (!u) avisos.push("Sin unidades: saldrá agotado.");
+			if (!fotosOk.length) avisos.push(__("No photo: it will show a gray box in the store.", "dox-pos"));
+			if (!u) avisos.push(__("No units: it will show as out of stock.", "dox-pos"));
 			const pr0 = form.price_range || [0, 0];
-			if (pr0[0] > 0 && (precio < pr0[0] / 2 || precio > pr0[1] * 2)) avisos.push("El precio se sale de lo habitual: en la tienda va de " + dinero(pr0[0]) + " a " + dinero(pr0[1]) + ". Revisa los ceros.");
-			if (pr.dup) avisos.push("Ya existe un producto llamado " + pr.dup.name + (pr.dup.sku ? " (" + pr.dup.sku + ")" : "") + ".");
-			if (cfg.costs && costoForm() > precio) avisos.push("El costo es mayor que el precio: se vendería a pérdida.");
-			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push("Las " + pr.tallas.length + " tallas las marcó la categoría. Si el producto no viene en todas, vuelve y quita las que sobran.");
+			if (pr0[0] > 0 && (precio < pr0[0] / 2 || precio > pr0[1] * 2)) avisos.push(sprintf(__("The price is outside what is usual: in the store it goes from %1$s to %2$s. Check the zeros.", "dox-pos"), dinero(pr0[0]), dinero(pr0[1])));
+			if (pr.dup) avisos.push(sprintf(__("There is already a product called %s.", "dox-pos"), pr.dup.name + (pr.dup.sku ? " (" + pr.dup.sku + ")" : "")));
+			if (cfg.costs && costoForm() > precio) avisos.push(__("The cost is higher than the price: it would sell at a loss.", "dox-pos"));
+			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
 			let tabla = "";
 			if (pr.tallas.length || pr.colores.length) {
 				tabla = '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
 					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
 			}
 			const li = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
-			modal('<h3>Revisa antes de crear</h3><dl class="rev">' +
-				li("Nombre", esc($("#p-nom").value.trim())) +
-				li("Código", esc($("#p-sku").value.trim() || "sin código")) +
-				li("Precio", dinero(precio)) +
-				(cfg.costs ? li("Costo", costoForm() ? dinero(costoForm()) + " · deja " + dinero(precio - costoForm()) + " por unidad" : "Sin costo") : "") +
-				li("Categoría", esc(cats.join(", "))) +
-				(pr.colores.length ? li("Colores", esc(pr.colores.map((c) => c.name).join(", "))) : "") +
-				li("Unidades", u + (u === 1 ? " unidad" : " unidades") + tabla) +
-				li("Fotos", fotosOk.length ? fotosOk.length + (fotosOk.length === 1 ? " foto" : " fotos") : "Sin foto") +
-				li("Tienda", $("#p-pub").checked ? "Se publica ahora" : "Queda oculto") +
+			modal("<h3>" + esc(__("Check before creating", "dox-pos")) + '</h3><dl class="rev">' +
+				li(esc(__("Name", "dox-pos")), esc($("#p-nom").value.trim())) +
+				li(esc(__("SKU", "dox-pos")), esc($("#p-sku").value.trim() || __("no SKU", "dox-pos"))) +
+				li(esc(__("Price", "dox-pos")), dinero(precio)) +
+				(cfg.costs ? li(esc(__("Cost", "dox-pos")), costoForm() ? dinero(costoForm()) + " · " + esc(sprintf(__("leaves %s per unit", "dox-pos"), dinero(precio - costoForm()))) : esc(__("No cost", "dox-pos"))) : "") +
+				li(esc(__("Category", "dox-pos")), esc(cats.join(", "))) +
+				(pr.colores.length ? li(esc(__("Colors", "dox-pos")), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
+				li(esc(__("Units", "dox-pos")), esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + tabla) +
+				li(esc(__("Photos", "dox-pos")), fotosOk.length ? esc(sprintf(_n("%d photo", "%d photos", fotosOk.length, "dox-pos"), fotosOk.length)) : esc(__("No photo", "dox-pos"))) +
+				li(esc(__("Store", "dox-pos")), esc($("#p-pub").checked ? __("It is published now", "dox-pos") : __("It stays hidden", "dox-pos"))) +
 				"</dl>" +
 				(avisos.length ? '<ul class="revwarn">' + avisos.map((a) => "<li>" + esc(a) + "</li>").join("") + "</ul>" : "") +
 				'<div class="mbtn stick">' + (fotosOk.length
-					? '<button type="button" class="go" id="m-ok">Crear producto</button><button type="button" class="go alt" id="m-no">Volver a revisar</button>'
-					: '<button type="button" class="go" id="m-foto">Agregar foto</button><button type="button" class="go alt" id="m-ok">Crear sin foto</button><button type="button" class="go alt" id="m-no">Volver</button>') + "</div>");
+					? '<button type="button" class="go" id="m-ok">' + esc(__("Create product", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back to review", "dox-pos")) + "</button>"
+					: '<button type="button" class="go" id="m-foto">' + esc(__("Add a photo", "dox-pos")) + '</button><button type="button" class="go alt" id="m-ok">' + esc(__("Create without a photo", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button>") + "</div>");
 			pendiente = resolve;
 			$("#m-ok").onclick = () => cerrarModal(true);
 			$("#m-no").onclick = () => cerrarModal(false);
@@ -1497,10 +1505,10 @@
 		if (pr.creando) return;
 		const p = problemaProducto();
 		if (p) { señalar(p); return; } // El aviso va en el campo; un aviso flotante encima del botón solo estorbaría el siguiente toque.
-		if (!navigator.onLine) { toast("Para crear un producto hace falta conexión."); return; }
+		if (!navigator.onLine) { toast(__("Creating a product needs a connection.", "dox-pos")); return; }
 		if (!pr.edit) {
 			if (!(await modalRevisar())) return;
-		} else if (!pr.fotos.length && !(await preguntar("El producto quedará sin foto. ¿Guardarlo así?", "Sí, guardar", "No"))) return;
+		} else if (!pr.fotos.length && !(await preguntar(__("The product will have no photo. Save it like that?", "dox-pos"), __("Yes, save it", "dox-pos"), __("No", "dox-pos")))) return;
 		pr.creando = true;
 		pintarResumenProducto();
 		const soltar = ocupar($("#p-crear"), pr.edit ? "Guardando…" : "Creando…");
@@ -1527,7 +1535,7 @@
 			else { borrarBorrador(); modalProductoCreado(d.product); }
 			limpiarProducto();
 		} catch (e) {
-			if (e.red) toast("Sin señal. Vuelve a intentarlo cuando vuelva la conexión: las fotos ya están subidas.");
+			if (e.red) toast(__("No signal. Try again when the connection is back: the photos are already uploaded.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
 		}
 		pr.creando = false;
@@ -1535,8 +1543,8 @@
 		pintarResumenProducto();
 	}
 	function modalProductoCreado(p) {
-		const que = p.variations ? p.variations + (p.variations === 1 ? " variación" : " variaciones") : "talla única";
-		modal("<h3>" + esc(p.name) + '</h3><p class="mp">' + (p.status === "publish" ? "Ya está en la tienda" : "Guardado oculto, sin publicar") + " · " + esc(p.sku || "sin código") + " · " + que + " · " + p.units + (p.units === 1 ? " unidad" : " unidades") + '.</p><div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en la tienda</a><button type="button" class="go alt" id="m-fix">Corregir algo</button><button type="button" class="go alt" id="m-no">Crear otro</button></div>');
+		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
+		modal("<h3>" + esc(p.name) + '</h3><p class="mp">' + esc(p.status === "publish" ? __("It is already in the store", "dox-pos") : __("Saved hidden, not published", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + '.</p><div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-fix">' + esc(__("Fix something", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Create another", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 		$("#m-fix").onclick = () => { cerrarModal(); editarDesdeLista(p.id); };
 	}
@@ -1553,8 +1561,8 @@
 		pr.edit = null;
 		$("#p-sku").disabled = false;
 		$("#p-editbar").hidden = true;
-		$("#p-pub-text").textContent = "Publicar en la tienda ahora";
-		$("#p-pub-hint").textContent = "Apagado: queda guardado pero oculto; lo publicas después desde Editar uno.";
+		$("#p-pub-text").textContent = __("Publish in the store now", "dox-pos");
+		$("#p-pub-hint").textContent = __("Off: it is saved but hidden; you publish it later from Edit one.", "dox-pos");
 		pintarProducto();
 		pintarModo();
 		if (pr.modo === "editar") buscarProductos(pr.ppage || 1);
@@ -1592,9 +1600,9 @@
 	async function ofrecerBorrador() {
 		const b = leerBorrador();
 		if (!b || pr.edit || pr.modo !== "nuevo" || formularioTocado()) return;
-		const que = (b.nombre || "").trim() || "uno sin nombre todavía";
+		const que = (b.nombre || "").trim() || __("one with no name yet", "dox-pos");
 		const viejo = Date.now() - (b.ts || 0) > 20 * 3600 * 1000;
-		if (await preguntar("Tienes un producto a medias: " + que + ". ¿Seguir con él?", "Seguir", "Empezar de cero")) restaurarBorrador(b, viejo);
+		if (await preguntar(sprintf(__("You have a product half done: %s. Carry on with it?", "dox-pos"), que), __("Carry on", "dox-pos"), __("Start over", "dox-pos"))) restaurarBorrador(b, viejo);
 		else borrarBorrador();
 	}
 	function restaurarBorrador(b, sinFotos) {
@@ -1618,10 +1626,10 @@
 		pintarProducto();
 		comprobarNombre();
 		pr.restaurando = false;
-		if (sinFotos && b.fotos && b.fotos.length) toast("Las fotos de ese borrador ya se borraron por el tiempo pasado: vuelve a subirlas.");
+		if (sinFotos && b.fotos && b.fotos.length) toast(__("The photos of that draft were already deleted because of the time passed: upload them again.", "dox-pos"));
 	}
 	function vaciarProducto() {
-		confirmar("¿Empezar de cero? Se borra lo escrito.", () => {
+		confirmar(__("Start over? What you typed is erased.", "dox-pos"), () => {
 			const fotos = pr.fotos.filter((f) => f.id && !f.existing);
 			fotos.forEach((f) => api("products/image/" + f.id, { method: "DELETE" }).catch(() => {}));
 			borrarBorrador();
@@ -1678,15 +1686,15 @@
 			$("#p-prev").onclick = () => { buscarProductos(page - 1); $("#t-producto .scroll").scrollTop = 0; };
 			$("#p-next").onclick = () => { buscarProductos(page + 1); $("#t-producto .scroll").scrollTop = 0; };
 		}
-		if (!items.length) { ul.innerHTML = vacio($("#p-q").value.trim() ? "Nada con eso. Prueba con una palabra o con el código." : "La tienda no tiene productos."); return; }
+		if (!items.length) { ul.innerHTML = vacio($("#p-q").value.trim() ? __("Nothing matches. Try one word or the SKU.", "dox-pos") : __("The store has no products.", "dox-pos")); return; }
 		items.forEach((p) => {
 			const li = document.createElement("li");
 			const b = document.createElement("button");
 			b.type = "button";
 			b.className = "prod";
-			const estado = p.status === "publish" ? "" : '<i class="oculto">' + (p.status === "private" ? "Oculto" : "Borrador") + "</i>";
-			const que = p.type === "variable" ? p.variations + (p.variations === 1 ? " variación" : " variaciones") : "talla única";
-			b.innerHTML = '<span class="n">' + esc(p.name) + "<i>" + esc(p.sku || "sin código") + " · " + que + "</i>" + estado + "</span>" + '<span class="p">' + dinero(p.price) + "</span>";
+			const estado = p.status === "publish" ? "" : '<i class="oculto">' + (p.status === "private" ? __("Hidden", "dox-pos") : __("Draft", "dox-pos")) + "</i>";
+			const que = p.type === "variable" ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
+			b.innerHTML = '<span class="n">' + esc(p.name) + "<i>" + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + "</i>" + estado + "</span>" + '<span class="p">' + dinero(p.price) + "</span>";
 			b.prepend(miniatura(p));
 			b.onclick = () => cargarProducto(p.id);
 			li.appendChild(b);
@@ -1715,24 +1723,24 @@
 		formatearPrecio();
 		$("#p-sku").value = d.sku || "";
 		$("#p-sku").disabled = true;
-		estadoSku(d.sku ? "El código solo se cambia en WooCommerce." : "Sin código.", "");
+		estadoSku(d.sku ? __("The SKU is only changed in WooCommerce.", "dox-pos") : __("No SKU.", "dox-pos"), "");
 		$("#p-desc").value = d.description || "";
 		$("#p-pub").checked = d.status === "publish";
-		$("#p-pub-text").textContent = "Publicado en la tienda";
-		$("#p-pub-hint").textContent = "Apagado: queda oculto, ni se ve ni se vende.";
-		const que = d.type === "variable" ? d.variations + (d.variations === 1 ? " variación" : " variaciones") : "talla única";
-		$("#p-edit-title").textContent = "Editando " + (d.sku ? d.sku + " · " : "") + d.name + " (" + que + ")";
-		$("#p-edit-hint").textContent = d.price === "" ? "Las tallas tienen precios distintos (de " + dinero(d.price_min) + " a " + dinero(d.price_max) + "): si escribes un precio, se pone a todas." : "Los cambios se guardan con el botón de abajo.";
+		$("#p-pub-text").textContent = __("Published in the store", "dox-pos");
+		$("#p-pub-hint").textContent = __("Off: it stays hidden, not shown and not sold.", "dox-pos");
+		const que = d.type === "variable" ? sprintf(_n("%d variation", "%d variations", d.variations, "dox-pos"), d.variations) : __("one size", "dox-pos");
+		$("#p-edit-title").textContent = sprintf(__("Editing %1$s%2$s (%3$s)", "dox-pos"), d.sku ? d.sku + " · " : "", d.name, que);
+		$("#p-edit-hint").textContent = d.price === "" ? sprintf(__("The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them.", "dox-pos"), dinero(d.price_min), dinero(d.price_max)) : __("Changes are saved with the button below.", "dox-pos");
 		$("#p-edit-view").href = d.url || "#";
-		$("#p-edit-view").title = d.status === "publish" ? "Se abre en otra pestaña" : "Está oculto: lo ves tú porque tienes sesión, la clienta no";
+		$("#p-edit-view").title = d.status === "publish" ? __("It opens in another tab", "dox-pos") : __("It is hidden: you see it because you are signed in, the customer does not", "dox-pos");
 		$("#p-editbar").hidden = false;
 		pintarProducto();
 		pintarModo();
 		$("#t-producto .scroll").scrollTop = 0;
 	}
 	function modalProductoGuardado(p) {
-		const que = p.variations ? p.variations + (p.variations === 1 ? " variación" : " variaciones") : "talla única";
-		modal('<h3>Guardado</h3><p class="mp">' + esc(p.name) + " · " + (p.status === "publish" ? "publicado" : "oculto") + " · " + esc(p.sku || "sin código") + " · " + que + " · " + p.units + (p.units === 1 ? " unidad" : " unidades") + '.</p><div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">Ver en la tienda</a><button type="button" class="go alt" id="m-no">Listo</button></div>');
+		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
+		modal("<h3>" + esc(__("Saved", "dox-pos")) + '</h3><p class="mp">' + esc(p.name) + " · " + esc(p.status === "publish" ? __("published", "dox-pos") : __("hidden", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + '.</p><div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 	}
 	// Desde la lista de Vender o de Entró mercancía: "Editar este producto".
@@ -1758,15 +1766,15 @@
 		if (hi.periodo === "fechas") return [hi.desde || fechaISO(hoy), hi.hasta || fechaISO(hoy)];
 		return [fechaISO(hoy), fechaISO(hoy)];
 	}
-	const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+	const DIAS = () => [__("Sun", "dox-pos"), __("Mon", "dox-pos"), __("Tue", "dox-pos"), __("Wed", "dox-pos"), __("Thu", "dox-pos"), __("Fri", "dox-pos"), __("Sat", "dox-pos")];
 	function diaBonito(iso) {
 		const d = new Date(iso + "T12:00:00");
-		return isNaN(d) ? iso : DIAS[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0");
+		return isNaN(d) ? iso : DIAS()[d.getDay()] + " " + d.getDate() + "/" + String(d.getMonth() + 1).padStart(2, "0");
 	}
 	function textoPeriodo() {
 		const [a, b] = rangoHistorial();
-		if (a === b) return hi.periodo === "hoy" ? "de hoy, " + diaBonito(a) : "del " + diaBonito(a);
-		return "del " + diaBonito(a) + " al " + diaBonito(b);
+		if (a === b) return hi.periodo === "hoy" ? sprintf(__("for today, %s", "dox-pos"), diaBonito(a)) : sprintf(__("for %s", "dox-pos"), diaBonito(a));
+		return sprintf(__("from %1$s to %2$s", "dox-pos"), diaBonito(a), diaBonito(b));
 	}
 	function excelHistorial(que) {
 		const [a, b] = rangoHistorial();
@@ -1778,7 +1786,7 @@
 		}
 		return u;
 	}
-	const excelLink = (que) => '<a class="undo dl" href="' + esc(excelHistorial(que)) + '" download>Descargar en Excel</a>';
+	const excelLink = (que) => '<a class="undo dl" href="' + esc(excelHistorial(que)) + '" download>' + esc(__("Download as Excel", "dox-pos")) + "</a>";
 	// Las vistas del historial: las tres del núcleo y las que registren los añadidos con DoxPOS.vistaHistorial({id, cargar, pintar}).
 	// Cada una dice cómo se carga con el periodo (desde, hasta) y cómo se pinta; su panel es el div #h-<id> de la plantilla.
 	const vistasHist = {};
@@ -1792,7 +1800,7 @@
 		const n = ++hi.req;
 		Object.keys(vistasHist).forEach((k) => { const el = $("#h-" + k); if (el) el.hidden = k !== hi.vista; });
 		$("#h-fil").hidden = hi.vista !== "mov";
-		if (!box.dataset.listo) box.innerHTML = '<p class="empty">Cargando…</p>';
+		if (!box.dataset.listo) box.innerHTML = '<p class="empty">' + esc(__("Loading\u2026", "dox-pos")) + "</p>";
 		box.style.opacity = ".55";
 		try {
 			const d = await def.cargar(a, b);
@@ -1800,7 +1808,7 @@
 			box.dataset.listo = "1";
 			def.pintar(d);
 		} catch (e) {
-			if (n === hi.req && e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? "Sin señal: el historial se lee de la tienda." : e.message) + "</p>";
+			if (n === hi.req && e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? __("No signal: the history is read from the store.", "dox-pos") : e.message) + "</p>";
 		}
 		if (n === hi.req) box.style.opacity = "";
 	}
@@ -1808,7 +1816,7 @@
 	function listaHist(titulo, arr, conUnidades) {
 		if (!arr || !arr.length) return "";
 		return '<div class="grp"><h4>' + esc(titulo) + '</h4><ul class="bl">' + arr.map((x) =>
-			"<li><span>" + esc(x.label || x.name) + "</span><span>" + x.n + (x.n === 1 ? " venta" : " ventas") + (conUnidades && x.units !== undefined ? " · " + x.units + (x.units === 1 ? " unidad" : " unidades") : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
+			"<li><span>" + esc(x.label || x.name) + "</span><span>" + esc(sprintf(_n("%d sale", "%d sales", x.n, "dox-pos"), x.n)) + (conUnidades && x.units !== undefined ? " · " + esc(sprintf(_n("%d unit", "%d units", x.units, "dox-pos"), x.units)) : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
 		).join("") + "</ul></div>";
 	}
 	function filaPedidoHist(p, conCosto) {
@@ -1817,9 +1825,9 @@
 		const web = p.origin !== "caja";
 		const canal = web ? '<span class="tag w">' + esc(p.origin_label) + "</span>" : esc(p.channel) + (p.seller ? '<br><span class="sub">' + esc(p.seller) + "</span>" : "");
 		return '<tr class="' + (p.status === "anulado" || p.status === "reembolsado" ? "off" : "") + '"><td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
-			'<td><span class="who">' + esc(p.customer || "Sin nombre") + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
+			'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
 			'<td class="items">' + esc(p.items) + "</td><td>" + canal + "</td>" +
-			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">paga al recibir</span>' : "") + "</td>" +
+			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">' + esc(__("pays on delivery", "dox-pos")) + "</span>" : "") + "</td>" +
 			'<td class="num">' + dinero(p.total) + "</td>" +
 			(conCosto ? '<td class="num">' + (vendido ? (p.profit !== null && p.profit !== undefined ? dinero(p.profit) + '<br><span class="sub">' + p.margin + " %</span>" : '<span class="sub">sin costo</span>') : "") + "</td>" : "") +
 			'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span></td></tr>";
@@ -1827,62 +1835,62 @@
 	function pintarVentas(d) {
 		const t = d.totals;
 		const full = !!cfg.history_full;
-		let h = '<p class="hsub">' + (full ? "Ventas " : "Tus ventas ") + esc(textoPeriodo()) + "</p>";
+		let h = '<p class="hsub">' + esc(full ? __("Sales", "dox-pos") : __("Your sales", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs; // Solo quien administra, con los costos encendidos.
-		h += '<div class="kpis">' + kpi(dinero(t.sold), "Vendido") + kpi(t.orders, t.orders === 1 ? "Venta" : "Ventas") + kpi(t.units, t.units === 1 ? "Unidad" : "Unidades") + kpi(dinero(t.avg), "Por venta") +
-			(conCosto ? kpi(dinero(t.profit), "Ganancia" + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
-			(t.pending_n ? kpi(dinero(t.pending), "Sin pagar aún (" + t.pending_n + ")") : "") + "</div>";
-		if (conCosto && t.no_cost_n) h += '<p class="hint">' + t.no_cost_n + (t.no_cost_n === 1 ? " venta no tiene" : " ventas no tienen") + " el costo de todos sus productos y no " + (t.no_cost_n === 1 ? "entra" : "entran") + " en la ganancia. El costo se pone en Productos, o se carga de golpe desde el Excel del inventario en Entró mercancía.</p>";
-		if (full) h += '<div class="brk">' + listaHist("Por canal", d.by_channel) + listaHist("Por forma de pago", d.by_payment) + listaHist("Por vendedora", d.by_seller) +
-			(d.by_day.length > 1 ? listaHist("Por día", d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
-		h += '<div class="grp"><h4>Pedidos <span class="cnt">' + d.count + (d.count > d.items.length ? " · los últimos " + d.items.length : "") + (d.count ? " " + excelLink("ventas") : "") + "</span></h4>";
-		if (!d.items.length) h += '<p class="empty">Nada en este periodo.</p>';
-		else h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Pedido</th><th>Cliente</th><th>Productos</th><th>Canal</th><th>Pago</th><th class="num">Total</th>' + (conCosto ? '<th class="num">Ganancia</th>' : "") + '<th>Estado</th></tr></thead><tbody>' + d.items.map((p) => filaPedidoHist(p, conCosto)).join("") + "</tbody></table></div>";
+		h += '<div class="kpis">' + kpi(dinero(t.sold), __("Sold", "dox-pos")) + kpi(t.orders, _n("Sale", "Sales", t.orders, "dox-pos")) + kpi(t.units, _n("Unit", "Units", t.units, "dox-pos")) + kpi(dinero(t.avg), __("Per sale", "dox-pos")) +
+			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
+			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n)) : "") + "</div>";
+		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Stock in.", "dox-pos")) + "</p>";
+		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel) + listaHist(__("By payment method", "dox-pos"), d.by_payment) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
+			(d.by_day.length > 1 ? listaHist(__("By day", "dox-pos"), d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
+		h += '<div class="grp"><h4>' + esc(__("Orders", "dox-pos")) + ' <span class="cnt">' + d.count + (d.count > d.items.length ? " · " + esc(sprintf(__("the latest %d", "dox-pos"), d.items.length)) : "") + (d.count ? " " + excelLink("ventas") : "") + "</span></h4>";
+		if (!d.items.length) h += '<p class="empty">' + esc(__("Nothing in this period.", "dox-pos")) + "</p>";
+		else h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>' + esc(__("Order", "dox-pos")) + '</th><th>' + esc(__("Customer", "dox-pos")) + '</th><th>' + esc(__("Products", "dox-pos")) + '</th><th>' + esc(__("Channel", "dox-pos")) + '</th><th>' + esc(__("Payment", "dox-pos")) + '</th><th class="num">' + esc(__("Total", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Profit", "dox-pos")) + "</th>" : "") + "<th>" + esc(__("Status", "dox-pos")) + "</th></tr></thead><tbody>" + d.items.map((p) => filaPedidoHist(p, conCosto)).join("") + "</tbody></table></div>";
 		h += "</div>";
 		$("#h-ventas").innerHTML = h;
 	}
 	function pintarCaja(d) {
 		const t = d.totals;
-		let h = '<p class="hsub">La caja ' + esc(textoPeriodo()) + "</p>";
+		let h = '<p class="hsub">' + esc(__("The cash", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs;
-		h += '<div class="kpis">' + kpi(dinero(t.cashed), "Cobrado") + kpi(dinero(t.sold), "Vendido") + (conCosto ? kpi(dinero(t.profit), "Ganancia") : "") + kpi(dinero(t.cod), "Por cobrar al entregar" + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), "Apartado sin pagar" + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
-		if (conCosto && t.no_cost_n) h += '<p class="hint">' + t.no_cost_n + (t.no_cost_n === 1 ? " venta sin costo completo no entra" : " ventas sin costo completo no entran") + " en la ganancia.</p>";
-		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist("Cobrado por forma de pago", d.method_totals) + "</div>";
-		h += '<div class="grp"><h4>Por día' + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
+		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos")) + kpi(dinero(t.sold), __("Sold", "dox-pos")) + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos")) : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
+		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals) + "</div>";
+		h += '<div class="grp"><h4>' + esc(__("By day", "dox-pos")) + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
 		if (!d.days.length) h += '<p class="empty">Nada en este periodo.</p>';
 		else {
 			const tot = (m) => (d.method_totals.find((x) => x.name === m) || {}).total || 0;
-			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Día</th><th class="num">Ventas</th><th class="num">Vendido</th>' + (conCosto ? '<th class="num">Costo</th><th class="num">Ganancia</th>' : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">Por cobrar</th><th class="num">Apartado</th></tr></thead><tbody>';
+			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>' + esc(__("Day", "dox-pos")) + '</th><th class="num">' + esc(__("Sales", "dox-pos")) + '</th><th class="num">' + esc(__("Sold", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Cost", "dox-pos")) + '</th><th class="num">' + esc(__("Profit", "dox-pos")) + "</th>" : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">' + esc(__("To collect", "dox-pos")) + '</th><th class="num">' + esc(__("Layaway", "dox-pos")) + "</th></tr></thead><tbody>";
 			d.days.forEach((r) => {
 				h += "<tr><td>" + esc(diaBonito(r.day)) + '</td><td class="num">' + r.n + '</td><td class="num">' + dinero(r.sold) + "</td>" + (conCosto ? '<td class="num">' + (r.n ? dinero(r.cost) : "") + '</td><td class="num">' + (r.n ? dinero(r.profit) : "") + "</td>" : "") + d.methods.map((m) => '<td class="num">' + (r.methods[m] ? dinero(r.methods[m]) : "") + "</td>").join("") + '<td class="num">' + (r.cod ? dinero(r.cod) : "") + '</td><td class="num">' + (r.holds ? dinero(r.holds) : "") + "</td></tr>";
 			});
-			if (d.days.length > 1) h += '<tr class="tot"><td>Total</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + (conCosto ? '<td class="num">' + dinero(t.cost) + '</td><td class="num">' + dinero(t.profit) + "</td>" : "") + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
+			if (d.days.length > 1) h += '<tr class="tot"><td>' + esc(__("Total", "dox-pos")) + '</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + (conCosto ? '<td class="num">' + dinero(t.cost) + '</td><td class="num">' + dinero(t.profit) + "</td>" : "") + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
 			h += "</tbody></table></div>";
 		}
 		h += "</div>";
 		if (d.pending && d.pending.length) {
-			h += '<div class="grp"><h4>Por cobrar <span class="cnt">' + d.pending.length + '</span></h4><ul class="bl">' + d.pending.map((p) =>
-				"<li><span>#" + esc(p.number) + " · " + esc(p.customer || "Sin nombre") + ' <span class="sub">' + (p.kind === "cod" ? "contraentrega, " : "") + esc(String(p.label).toLowerCase()) + "</span></span><span><b>" + dinero(p.total) + "</b></span></li>"
+			h += '<div class="grp"><h4>' + esc(__("To collect", "dox-pos")) + ' <span class="cnt">' + d.pending.length + '</span></h4><ul class="bl">' + d.pending.map((p) =>
+				"<li><span>#" + esc(p.number) + " · " + esc(p.customer || __("No name", "dox-pos")) + ' <span class="sub">' + (p.kind === "cod" ? esc(__("cash on delivery", "dox-pos")) + ", " : "") + esc(String(p.label).toLowerCase()) + "</span></span><span><b>" + dinero(p.total) + "</b></span></li>"
 			).join("") + "</ul></div>";
 		}
 		$("#h-caja").innerHTML = h;
 	}
 	function pintarTipos() {
-		const tipos = [["", "Todos"], ["ventas", "Ventas"], ["entradas", "Entradas"], ["devueltos", "Devueltos"], ["ajustes", "Ajustes"]];
+		const tipos = [["", __("All", "dox-pos")], ["ventas", __("Sales", "dox-pos")], ["entradas", __("Stock entries", "dox-pos")], ["devueltos", __("Returned", "dox-pos")], ["ajustes", __("Adjustments", "dox-pos")]];
 		chips($("#h-tipo"), tipos, hi.tipo, (x) => { hi.tipo = x; hi.page = 1; cargarHistorial(); });
 	}
 	function pintarMovimientos(d) {
-		let h = '<p class="hsub">Movimientos ' + esc(textoPeriodo()) + "</p>";
-		if (hi.producto) h += '<p class="hint">Solo <b>' + esc(hi.productoNombre) + '</b> <button type="button" class="undo" id="h-solo-x">ver todos</button></p>';
-		h += '<p class="hint">' + (d.total ? d.total + (d.total === 1 ? " movimiento" : " movimientos") + " · entraron <b>+" + d.in + "</b> · salieron <b>−" + d.out + "</b> · " + excelLink("movimientos") : "Sin movimientos en este periodo. Aquí queda cada venta, entrada, anulación y cambio de existencias, con su motivo y quién lo hizo.") + "</p>";
+		let h = '<p class="hsub">' + esc(__("Movements", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
+		if (hi.producto) h += '<p class="hint">' + esc(__("Only", "dox-pos")) + " <b>" + esc(hi.productoNombre) + '</b> <button type="button" class="undo" id="h-solo-x">' + esc(__("see them all", "dox-pos")) + "</button></p>";
+		h += '<p class="hint">' + (d.total ? esc(sprintf(_n("%d movement", "%d movements", d.total, "dox-pos"), d.total)) + " · " + esc(__("in", "dox-pos")) + " <b>+" + d.in + "</b> · " + esc(__("out", "dox-pos")) + " <b>−" + d.out + "</b> · " + excelLink("movimientos") : esc(__("No movements in this period. Every sale, stock entry, cancellation and stock change is kept here, with its reason and who did it.", "dox-pos"))) + "</p>";
 		if (d.items.length) {
 			const conCosto = !!d.costs; // El costo por unidad de cada movimiento (el de compra en una entrada), para quien administra.
-			h += '<div class="wrapx2"><table class="ped kdx"><thead><tr><th>Cuándo</th><th>Producto</th><th class="num">Había</th><th class="num">Cambio</th><th class="num">Quedan</th>' + (conCosto ? '<th class="num">Costo unit.</th>' : "") + '<th>Motivo</th><th>Quién</th></tr></thead><tbody>';
+			h += '<div class="wrapx2"><table class="ped kdx"><thead><tr><th>' + esc(__("When", "dox-pos")) + '</th><th>' + esc(__("Product", "dox-pos")) + '</th><th class="num">' + esc(__("Before", "dox-pos")) + '</th><th class="num">' + esc(__("Change", "dox-pos")) + '</th><th class="num">' + esc(__("After", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Unit cost", "dox-pos")) + "</th>" : "") + "<th>" + esc(__("Reason", "dox-pos")) + "</th><th>" + esc(__("Who", "dox-pos")) + "</th></tr></thead><tbody>";
 			d.items.forEach((r) => {
 				h += '<tr><td class="num"><span class="sub">' + esc(r.date) + '</span></td><td><button type="button" class="linkp" data-pid="' + r.product_id + '" data-name="' + esc(r.name) + '">' + esc(r.name) + '</button><br><span class="sub">' + esc(r.sku) + '</span></td><td class="num">' + (r.before === null ? "" : r.before) + '</td><td class="num"><span class="delta ' + (r.delta > 0 ? "in" : "out") + '">' + (r.delta > 0 ? "+" : "−") + Math.abs(r.delta) + '</span></td><td class="num"><b>' + (r.after === null ? "" : r.after) + "</b></td>" + (conCosto ? '<td class="num">' + (r.unit_cost === null || r.unit_cost === undefined ? "" : dinero(r.unit_cost)) + "</td>" : "") + "<td>" + esc(r.label) + (r.note ? '<br><span class="sub">' + esc(r.note) + "</span>" : "") + "</td><td>" + esc(r.user) + "</td></tr>";
 			});
 			h += "</tbody></table></div>";
-			if (d.pages > 1) h += '<div class="pager"><button type="button" class="mini" id="h-prev"' + (d.page <= 1 ? " disabled" : "") + '>Anteriores</button><span>' + ((d.page - 1) * 50 + 1) + "-" + Math.min(d.total, d.page * 50) + " de " + d.total + '</span><button type="button" class="mini" id="h-next"' + (d.page >= d.pages ? " disabled" : "") + ">Siguientes</button></div>";
+			if (d.pages > 1) h += '<div class="pager"><button type="button" class="mini" id="h-prev"' + (d.page <= 1 ? " disabled" : "") + ">" + esc(__("Previous", "dox-pos")) + "</button><span>" + esc(sprintf(__("%1$s-%2$s of %3$s", "dox-pos"), (d.page - 1) * 50 + 1, Math.min(d.total, d.page * 50), d.total)) + '</span><button type="button" class="mini" id="h-next"' + (d.page >= d.pages ? " disabled" : "") + ">" + esc(__("Next", "dox-pos")) + "</button></div>";
 		}
 		const box = $("#h-mov");
 		box.innerHTML = h;
@@ -1904,19 +1912,19 @@
 		const f = inp.files && inp.files[0];
 		inp.value = "";
 		if (!f) return;
-		const soltar = ocupar($("#e-costos"), "Subiendo…");
+		const soltar = ocupar($("#e-costos"), __("Uploading\u2026", "dox-pos"));
 		try {
 			const fd = new FormData();
 			fd.append("file", f, f.name);
 			const r = await api("costs/import", { method: "POST", body: fd });
-			let t = r.updated + (r.updated === 1 ? " costo cambiado" : " costos cambiados") + " de " + r.rows + (r.rows === 1 ? " fila." : " filas.");
-			if (r.same) t += " " + r.same + " ya " + (r.same === 1 ? "estaba" : "estaban") + " igual.";
-			if (r.skipped) t += " " + r.skipped + (r.skipped === 1 ? " fila sin costo" : " filas sin costo") + " (se saltan).";
-			if (r.missing) t += " " + r.missing + (r.missing === 1 ? " código no está" : " códigos no están") + " en la tienda" + (r.missing_list && r.missing_list.length ? ": " + r.missing_list.map(esc).join(", ") : "") + ".";
-			modal("<h3>Costos cargados</h3><p class=\"mp\">" + t + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">Listo</button></div>');
+			let t = sprintf(_n("%d cost changed", "%d costs changed", r.updated, "dox-pos"), r.updated) + " " + sprintf(_n("out of %d row.", "out of %d rows.", r.rows, "dox-pos"), r.rows);
+			if (r.same) t += " " + sprintf(_n("%d was already the same.", "%d were already the same.", r.same, "dox-pos"), r.same);
+			if (r.skipped) t += " " + sprintf(_n("%d row with no cost (skipped).", "%d rows with no cost (skipped).", r.skipped, "dox-pos"), r.skipped);
+			if (r.missing) t += " " + sprintf(_n("%d SKU is not in the store", "%d SKUs are not in the store", r.missing, "dox-pos"), r.missing) + (r.missing_list && r.missing_list.length ? ": " + r.missing_list.map(esc).join(", ") : "") + ".";
+			modal("<h3>" + esc(__("Costs loaded", "dox-pos")) + '</h3><p class="mp">' + t + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 			$("#m-no").onclick = cerrarModal;
 		} catch (e) {
-			if (e.message !== "sesion") toast(e.red ? "Sin señal: no se pudo subir el archivo." : e.message);
+			if (e.message !== "sesion") toast(e.red ? __("No signal: the file could not be uploaded.", "dox-pos") : e.message);
 		}
 		soltar();
 	}
@@ -2081,8 +2089,8 @@
 		pintarDepartamentos();
 		pintarTodo();
 		pintarEnvio();
-		listaDe("venta").innerHTML = vacio("Escribe dos letras del nombre, o el código.");
-		listaDe("entrada").innerHTML = vacio("Busca lo que llegó por nombre o por código.");
+		listaDe("venta").innerHTML = vacio(__("Type two letters of the name, or the SKU.", "dox-pos"));
+		listaDe("entrada").innerHTML = vacio(__("Search what arrived by name or SKU.", "dox-pos"));
 		cargarPedidos();
 		window.addEventListener("online", () => { pintarCola(); vaciarCola(); });
 		window.addEventListener("offline", pintarCola);

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.22.0
+Stable tag: 0.23.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.23.0 =
+* The texts inside the register itself (the JavaScript) are now translated too, through the WordPress script translation system. The plugin is fully in English, with the Spanish translation included; nothing changes on a Spanish site.
 
 = 0.22.0 =
 * The plugin now ships in English, with the Spanish translation included. Nothing changes on a Spanish site.

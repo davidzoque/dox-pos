@@ -1,0 +1,998 @@
+{
+ "translation-revision-date": "2026-09-08 00:00:00+0000",
+ "generator": "Dox POS",
+ "source": "assets/js/caja.js",
+ "domain": "messages",
+ "locale_data": {
+  "messages": {
+   "": {
+    "domain": "messages",
+    "lang": "es_ES",
+    "plural-forms": "nplurals=2; plural=(n != 1);"
+   },
+   "Nothing matches. Try a single word.": [
+    "Nada con eso. Prueba con una sola palabra."
+   ],
+   "Type two letters of the name, or the SKU.": [
+    "Escribe dos letras del nombre, o el código."
+   ],
+   "No signal": [
+    "Sin señal"
+   ],
+   "Could not reach the store (%s).": [
+    "No se pudo hablar con la tienda (%s)."
+   ],
+   "Your session expired. Please sign in again.": [
+    "Tu sesión caducó. Vuelve a entrar."
+   ],
+   "The search failed. Check the connection and try again.": [
+    "No se pudo buscar. Revisa la conexión y vuelve a intentarlo."
+   ],
+   "Search what arrived by name or SKU.": [
+    "Busca lo que llegó por nombre o por código."
+   ],
+   "out of stock": [
+    "agotado"
+   ],
+   "no limit": [
+    "sin límite"
+   ],
+   "%s left": [
+    "quedan %s"
+   ],
+   "none left": [
+    "sin existencias"
+   ],
+   "available": [
+    "disponible"
+   ],
+   "%d in stock": [
+    "%d en existencia"
+   ],
+   "One less": [
+    "Una menos"
+   ],
+   "One more": [
+    "Una más"
+   ],
+   "Tap a product on the left to add it.": [
+    "Toca un producto de la izquierda para agregarlo."
+   ],
+   "Cost per unit": [
+    "Costo por unidad"
+   ],
+   "Cost of the goods": [
+    "Costo de la mercancía"
+   ],
+   "no cost": [
+    "sin costo"
+   ],
+   "Units coming in": [
+    "Unidades que entran"
+   ],
+   "Subtotal": [
+    "Subtotal"
+   ],
+   "Discount": [
+    "Descuento"
+   ],
+   "Shipping": [
+    "Envío"
+   ],
+   "Total": [
+    "Total"
+   ],
+   "Choose the %s and the city to see the store’s shipping options.": [
+    "Elige el %s y la ciudad para ver las opciones de envío de la tienda."
+   ],
+   "Add products and set the city to see the shipping.": [
+    "Agrega productos y pon la ciudad para ver el envío."
+   ],
+   "A layaway needs the customer’s WhatsApp number.": [
+    "Para apartar hace falta el WhatsApp del cliente."
+   ],
+   "Putting on layaway…": [
+    "Apartando…"
+   ],
+   "Recording…": [
+    "Registrando…"
+   ],
+   "Sale recorded: order #%s. The stock has already gone down.": [
+    "Venta registrada: pedido #%s. El inventario ya bajó."
+   ],
+   "Paid": [
+    "Ya pagó"
+   ],
+   "Release": [
+    "Liberar"
+   ],
+   "Release the layaway for %s? The product goes back to stock.": [
+    "¿Liberar el apartado de %s? El producto vuelve al inventario."
+   ],
+   "this customer": [
+    "este cliente"
+   ],
+   "Confirm the payment of order #%s? It moves to ready to ship and the stock goes down.": [
+    "¿Confirmar el pago del pedido #%s? Pasa a por enviar y descuenta el inventario."
+   ],
+   "Confirm the payment of order #%s? It moves to ready to ship.": [
+    "¿Confirmar el pago del pedido #%s? Pasa a por enviar."
+   ],
+   "Cancel": [
+    "Anular"
+   ],
+   "Cancel order #%s?": [
+    "¿Anular el pedido #%s?"
+   ],
+   "Cancel order #%s? The stock goes back.": [
+    "¿Anular el pedido #%s? El inventario vuelve."
+   ],
+   "Mark as shipped": [
+    "Marcar enviado"
+   ],
+   "Mark as delivered": [
+    "Marcar entregado"
+   ],
+   "Order": [
+    "Pedido"
+   ],
+   "Loading…": [
+    "Cargando…"
+   ],
+   "No signal: the order could not be loaded.": [
+    "Sin señal: no se pudo cargar el pedido."
+   ],
+   "Close": [
+    "Cerrar"
+   ],
+   "Pays on delivery": [
+    "Paga al recibir"
+   ],
+   "Paid on %s": [
+    "Pagado el %s"
+   ],
+   "Unpaid": [
+    "Sin pagar"
+   ],
+   "In progress": [
+    "En proceso"
+   ],
+   "%d left": [
+    "quedan %d"
+   ],
+   "cost %s": [
+    "costo %s"
+   ],
+   "View in the store": [
+    "Ver en la tienda"
+   ],
+   "Hidden in the store": [
+    "Oculto en la tienda"
+   ],
+   "It no longer exists": [
+    "Ya no existe"
+   ],
+   "Edit": [
+    "Editar"
+   ],
+   "Order #%s": [
+    "Pedido #%s"
+   ],
+   "(from %s)": [
+    "(desde %s)"
+   ],
+   "Register": [
+    "Caja"
+   ],
+   "demo": [
+    "demostración"
+   ],
+   "Products": [
+    "Productos"
+   ],
+   "No products.": [
+    "Sin productos."
+   ],
+   "Profit": [
+    "Ganancia"
+   ],
+   "Customer": [
+    "Cliente"
+   ],
+   "Payment and shipping": [
+    "Pago y envío"
+   ],
+   "Name": [
+    "Nombre"
+   ],
+   "No name": [
+    "Sin nombre"
+   ],
+   "Phone": [
+    "Teléfono"
+   ],
+   "Email": [
+    "Correo"
+   ],
+   "Address": [
+    "Dirección"
+   ],
+   "Note": [
+    "Nota"
+   ],
+   "Payment": [
+    "Pago"
+   ],
+   "Layaway": [
+    "Apartado"
+   ],
+   "expires on %s": [
+    "vence el %s"
+   ],
+   "Delivered": [
+    "Entregado"
+   ],
+   "History": [
+    "Historial"
+   ],
+   "Open in WooCommerce": [
+    "Abrir en WooCommerce"
+   ],
+   "from %s": [
+    "desde %s"
+   ],
+   "expires in %d h": [
+    "vence en %d h"
+   ],
+   "This is a demo order: no emails are sent.": [
+    "Es un pedido de demostración: no se mandan correos."
+   ],
+   "An email with the tracking number and the tracking link reached %s.": [
+    "Le llegó un correo a %s con la guía y el enlace de rastreo."
+   ],
+   "The email to %s could not be sent.": [
+    "No se pudo mandar el correo a %s."
+   ],
+   "This order has no email address.": [
+    "Este pedido no tiene correo."
+   ],
+   "If you want, tell them on WhatsApp too: the message already carries the tracking number.": [
+    "Si quieres, avísale también por WhatsApp: el mensaje ya va con la guía."
+   ],
+   "Marked as shipped": [
+    "Marcado como enviado"
+   ],
+   "Tell them on WhatsApp": [
+    "Avisar por WhatsApp"
+   ],
+   "Done": [
+    "Listo"
+   ],
+   "Payment confirmed. It is now ready to ship.": [
+    "Pago confirmado. Queda por enviar."
+   ],
+   "Layaway released. The product goes back to stock.": [
+    "Apartado liberado. El producto vuelve al inventario."
+   ],
+   "Marked as shipped.": [
+    "Marcado como enviado."
+   ],
+   "Delivered. The order is closed.": [
+    "Entregado. Pedido cerrado."
+   ],
+   "Order cancelled. The stock goes back.": [
+    "Pedido anulado. El inventario vuelve."
+   ],
+   "Order cancelled.": [
+    "Pedido anulado."
+   ],
+   "Is this a different entry?": [
+    "¿Es otra entrada distinta?"
+   ],
+   "Yes, record it": [
+    "Sí, registrarla"
+   ],
+   "No": [
+    "No"
+   ],
+   "No stock entries recorded yet.": [
+    "Todavía no hay entradas registradas."
+   ],
+   "voided": [
+    "anulada"
+   ],
+   "Void": [
+    "Anular"
+   ],
+   "Entry voided.": [
+    "Entrada anulada."
+   ],
+   "No signal. The entry is kept on this phone and goes in on its own when the connection is back.": [
+    "Sin señal. La entrada quedó guardada en el teléfono y entra sola cuando vuelva la conexión."
+   ],
+   "No signal. The layaway is kept on this phone and goes in on its own when the connection is back.": [
+    "Sin señal. El apartado quedó guardado en el teléfono y entra solo cuando vuelva la conexión."
+   ],
+   "No signal. The sale is kept on this phone and goes in on its own when the connection is back.": [
+    "Sin señal. La venta quedó guardada en el teléfono y entra sola cuando vuelva la conexión."
+   ],
+   "Waiting to be sent.": [
+    "Pendiente de enviar."
+   ],
+   "No signal.": [
+    "Sin señal."
+   ],
+   ", sending…": [
+    ", enviando…"
+   ],
+   "; they go in on their own when the connection is back.": [
+    "; entran solos cuando vuelva la conexión."
+   ],
+   "Send now": [
+    "Enviar ahora"
+   ],
+   "Whatever you record is kept on this phone and goes in on its own when the connection is back.": [
+    "Lo que registres se guarda en el teléfono y entra solo al volver la conexión."
+   ],
+   "No, discard it": [
+    "No, descartarla"
+   ],
+   "Entry discarded: %s.": [
+    "Entrada descartada: %s."
+   ],
+   "Entry saved: %s.": [
+    "Entrada guardada: %s."
+   ],
+   "Layaway recorded: order #%s. The WhatsApp button is in Orders.": [
+    "Apartado registrado: pedido #%s. En Pedidos tienes el botón de WhatsApp."
+   ],
+   "Sale recorded: order #%s.": [
+    "Venta registrada: pedido #%s."
+   ],
+   "%1$s could not be recorded: %2$s": [
+    "No se pudo registrar %1$s: %2$s"
+   ],
+   "One moment": [
+    "Un momento"
+   ],
+   "Yes, go on": [
+    "Sí, seguir"
+   ],
+   "Layaway #%s": [
+    "Apartado #%s"
+   ],
+   "The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.": [
+    "El producto ya quedó reservado. Se abre WhatsApp con el mensaje escrito: solo hay que darle enviar. Si no paga en %d horas, vuelve solo al inventario."
+   ],
+   "Open WhatsApp": [
+    "Abrir WhatsApp"
+   ],
+   "DHL, UPS…": [
+    "Interrapidísimo, Servientrega…"
+   ],
+   "When you mark it as shipped, %s gets an email with the carrier, the tracking number and the tracking link.": [
+    "Al marcar enviado le llega un correo a %s con la transportadora, la guía y el enlace de rastreo."
+   ],
+   "No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you.": [
+    "Sin correo: al marcar enviado te queda listo el WhatsApp con la guía."
+   ],
+   "Ship order #%s": [
+    "Enviar el pedido #%s"
+   ],
+   "Carrier": [
+    "Transportadora"
+   ],
+   "Tracking number": [
+    "Número de guía"
+   ],
+   "Optional": [
+    "Opcional"
+   ],
+   "Remove the photo": [
+    "Quitar la foto"
+   ],
+   "Could not upload": [
+    "No se pudo subir"
+   ],
+   "tap to try again": [
+    "toca para reintentar"
+   ],
+   "Converting…": [
+    "Convirtiendo…"
+   ],
+   "Queued": [
+    "En cola"
+   ],
+   "Which color the photo is for": [
+    "Para qué color es la foto"
+   ],
+   "All colors": [
+    "Todos los colores"
+   ],
+   "%s is larger than the server allows.": [
+    "%s pesa más de lo que admite el servidor."
+   ],
+   "Session expired": [
+    "Sesión caducada"
+   ],
+   "The form could not be loaded: %s": [
+    "No se pudo cargar el formulario: %s"
+   ],
+   "Free: the next one after %s.": [
+    "Libre: el siguiente de %s."
+   ],
+   "Checking…": [
+    "Comprobando…"
+   ],
+   "Free.": [
+    "Libre."
+   ],
+   "hidden": [
+    "oculto"
+   ],
+   "If it is the same one, better ": [
+    "Si es el mismo, mejor "
+   ],
+   "edit it": [
+    "edítalo"
+   ],
+   "The price is missing.": [
+    "Falta el precio."
+   ],
+   "There is already a product called": [
+    "Ya existe un producto llamado"
+   ],
+   "Enter a price and a cost.": [
+    "Escribe precio y costo."
+   ],
+   "The sizes cost different amounts: from %1$s to %2$s.": [
+    "Las tallas cuestan distinto: de %1$s a %2$s."
+   ],
+   "No cost: its sales do not count towards the profit.": [
+    "Sin costo: sus ventas no entran en la ganancia."
+   ],
+   "%1$s per unit (%2$d %%)": [
+    "%1$s por unidad (%2$d %%)"
+   ],
+   ": sold at a loss": [
+    ": se vende a pérdida"
+   ],
+   "This product has no colors. If it needs them, they have to be created in WooCommerce.": [
+    "Este producto no tiene colores. Si los necesita, hay que crearlos en WooCommerce."
+   ],
+   "More colors (%d)…": [
+    "Más colores (%d)…"
+   ],
+   "Another color…": [
+    "Otro color…"
+   ],
+   "This product has no sizes. If it needs them, they have to be created in WooCommerce.": [
+    "Este producto no tiene tallas. Si las necesita, hay que crearlas en WooCommerce."
+   ],
+   "Other sizes…": [
+    "Otras tallas…"
+   ],
+   "Choose sizes…": [
+    "Elegir tallas…"
+   ],
+   "one size": [
+    "talla única"
+   ],
+   "Choose the category and its sizes appear.": [
+    "Elige la categoría y salen sus tallas."
+   ],
+   "This category does not use sizes: it stays one size.": [
+    "Esta categoría no usa tallas: queda de talla única."
+   ],
+   "No sizes: one size.": [
+    "Sin tallas: talla única."
+   ],
+   "Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.": [
+    "Marcadas por la categoría. Si el producto no viene en todas, toca las que sobran para quitarlas."
+   ],
+   "Units": [
+    "Unidades"
+   ],
+   "One size": [
+    "Talla única"
+   ],
+   "To change it, record the goods in Stock in or do it in WooCommerce. A new size uses that same total.": [
+    "Para cambiarlo, registra la mercancía en Entró mercancía o hazlo en WooCommerce. Una talla nueva usa ese mismo total."
+   ],
+   "Give the product a name.": [
+    "Ponle nombre al producto."
+   ],
+   "Choose a category.": [
+    "Elige una categoría."
+   ],
+   "Set a price.": [
+    "Ponle precio."
+   ],
+   "The SKU is missing.": [
+    "Falta el código."
+   ],
+   "That SKU is already taken.": [
+    "Ese código ya está ocupado."
+   ],
+   "A photo could not be uploaded: tap it to try again, or remove it.": [
+    "Una foto no se pudo subir: tócala para reintentar, o quítala."
+   ],
+   "Wait for the photos to finish uploading.": [
+    "Espera a que terminen de subir las fotos."
+   ],
+   "One-size product": [
+    "Producto de talla única"
+   ],
+   "from %1$s to %2$s": [
+    "de %1$s a %2$s"
+   ],
+   "leaves %1$s (%2$d %%)": [
+    "deja %1$s (%2$d %%)"
+   ],
+   "Cost": [
+    "Costo"
+   ],
+   "Price": [
+    "Precio"
+   ],
+   "Save changes": [
+    "Guardar cambios"
+   ],
+   "Review and create": [
+    "Revisar y crear"
+   ],
+   "No photo: it will show a gray box in the store.": [
+    "Sin foto: en la tienda saldrá con un cuadro gris."
+   ],
+   "No units: it will show as out of stock.": [
+    "Sin unidades: saldrá agotado."
+   ],
+   "The price is outside what is usual: in the store it goes from %1$s to %2$s. Check the zeros.": [
+    "El precio se sale de lo habitual: en la tienda va de %1$s a %2$s. Revisa los ceros."
+   ],
+   "There is already a product called %s.": [
+    "Ya existe un producto llamado %s."
+   ],
+   "The cost is higher than the price: it would sell at a loss.": [
+    "El costo es mayor que el precio: se vendería a pérdida."
+   ],
+   "The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.": [
+    "Las %d tallas las marcó la categoría. Si el producto no viene en todas, vuelve y quita las que sobran."
+   ],
+   "Check before creating": [
+    "Revisa antes de crear"
+   ],
+   "SKU": [
+    "Código"
+   ],
+   "no SKU": [
+    "sin código"
+   ],
+   "leaves %s per unit": [
+    "deja %s por unidad"
+   ],
+   "No cost": [
+    "Sin costo"
+   ],
+   "Category": [
+    "Categoría"
+   ],
+   "Colors": [
+    "Colores"
+   ],
+   "Photos": [
+    "Fotos"
+   ],
+   "No photo": [
+    "Sin foto"
+   ],
+   "Store": [
+    "Tienda"
+   ],
+   "It is published now": [
+    "Se publica ahora"
+   ],
+   "It stays hidden": [
+    "Queda oculto"
+   ],
+   "Create product": [
+    "Crear producto"
+   ],
+   "Back to review": [
+    "Volver a revisar"
+   ],
+   "Add a photo": [
+    "Agregar foto"
+   ],
+   "Create without a photo": [
+    "Crear sin foto"
+   ],
+   "Back": [
+    "Volver"
+   ],
+   "Creating a product needs a connection.": [
+    "Para crear un producto hace falta conexión."
+   ],
+   "The product will have no photo. Save it like that?": [
+    "El producto quedará sin foto. ¿Guardarlo así?"
+   ],
+   "Yes, save it": [
+    "Sí, guardar"
+   ],
+   "No signal. Try again when the connection is back: the photos are already uploaded.": [
+    "Sin señal. Vuelve a intentarlo cuando vuelva la conexión: las fotos ya están subidas."
+   ],
+   "It is already in the store": [
+    "Ya está en la tienda"
+   ],
+   "Saved hidden, not published": [
+    "Guardado oculto, sin publicar"
+   ],
+   "Fix something": [
+    "Corregir algo"
+   ],
+   "Create another": [
+    "Crear otro"
+   ],
+   "Saved": [
+    "Guardado"
+   ],
+   "published": [
+    "publicado"
+   ],
+   "Publish in the store now": [
+    "Publicar en la tienda ahora"
+   ],
+   "Off: it is saved but hidden; you publish it later from Edit one.": [
+    "Apagado: queda guardado pero oculto; lo publicas después desde Editar uno."
+   ],
+   "Published in the store": [
+    "Publicado en la tienda"
+   ],
+   "Off: it stays hidden, not shown and not sold.": [
+    "Apagado: queda oculto, ni se ve ni se vende."
+   ],
+   "one with no name yet": [
+    "uno sin nombre todavía"
+   ],
+   "You have a product half done: %s. Carry on with it?": [
+    "Tienes un producto a medias: %s. ¿Seguir con él?"
+   ],
+   "Carry on": [
+    "Seguir"
+   ],
+   "Start over": [
+    "Empezar de cero"
+   ],
+   "The photos of that draft were already deleted because of the time passed: upload them again.": [
+    "Las fotos de ese borrador ya se borraron por el tiempo pasado: vuelve a subirlas."
+   ],
+   "Start over? What you typed is erased.": [
+    "¿Empezar de cero? Se borra lo escrito."
+   ],
+   "Nothing matches. Try one word or the SKU.": [
+    "Nada con eso. Prueba con una palabra o con el código."
+   ],
+   "The store has no products.": [
+    "La tienda no tiene productos."
+   ],
+   "Hidden": [
+    "Oculto"
+   ],
+   "Draft": [
+    "Borrador"
+   ],
+   "The SKU is only changed in WooCommerce.": [
+    "El código solo se cambia en WooCommerce."
+   ],
+   "No SKU.": [
+    "Sin código."
+   ],
+   "Editing %1$s%2$s (%3$s)": [
+    "Editando %1$s%2$s (%3$s)"
+   ],
+   "The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them.": [
+    "Las tallas tienen precios distintos (de %1$s a %2$s): si escribes un precio, se pone a todas."
+   ],
+   "Changes are saved with the button below.": [
+    "Los cambios se guardan con el botón de abajo."
+   ],
+   "It opens in another tab": [
+    "Se abre en otra pestaña"
+   ],
+   "It is hidden: you see it because you are signed in, the customer does not": [
+    "Está oculto: lo ves tú porque tienes sesión, la clienta no"
+   ],
+   "Sun": [
+    "dom"
+   ],
+   "Mon": [
+    "lun"
+   ],
+   "Tue": [
+    "mar"
+   ],
+   "Wed": [
+    "mié"
+   ],
+   "Thu": [
+    "jue"
+   ],
+   "Fri": [
+    "vie"
+   ],
+   "Sat": [
+    "sáb"
+   ],
+   "for today, %s": [
+    "de hoy, %s"
+   ],
+   "for %s": [
+    "del %s"
+   ],
+   "Download as Excel": [
+    "Descargar en Excel"
+   ],
+   "No signal: the history is read from the store.": [
+    "Sin señal: el historial se lee de la tienda."
+   ],
+   "pays on delivery": [
+    "paga al recibir"
+   ],
+   "Sales": [
+    "Ventas"
+   ],
+   "Your sales": [
+    "Tus ventas"
+   ],
+   "Sold": [
+    "Vendido"
+   ],
+   "Per sale": [
+    "Por venta"
+   ],
+   "Not paid yet (%d)": [
+    "Sin pagar aún (%d)"
+   ],
+   "The cost is set in Products, or loaded all at once from the inventory Excel in Stock in.": [
+    "El costo se pone en Productos, o se carga de golpe desde el Excel del inventario en Entró mercancía."
+   ],
+   "By channel": [
+    "Por canal"
+   ],
+   "By payment method": [
+    "Por forma de pago"
+   ],
+   "By salesperson": [
+    "Por vendedora"
+   ],
+   "By day": [
+    "Por día"
+   ],
+   "Orders": [
+    "Pedidos"
+   ],
+   "the latest %d": [
+    "los últimos %d"
+   ],
+   "Nothing in this period.": [
+    "Nada en este periodo."
+   ],
+   "Channel": [
+    "Canal"
+   ],
+   "Status": [
+    "Estado"
+   ],
+   "The cash": [
+    "La caja"
+   ],
+   "Collected": [
+    "Cobrado"
+   ],
+   "To collect on delivery": [
+    "Por cobrar al entregar"
+   ],
+   "Unpaid layaway": [
+    "Apartado sin pagar"
+   ],
+   "Collected by payment method": [
+    "Cobrado por forma de pago"
+   ],
+   "Day": [
+    "Día"
+   ],
+   "To collect": [
+    "Por cobrar"
+   ],
+   "cash on delivery": [
+    "contraentrega"
+   ],
+   "All": [
+    "Todos"
+   ],
+   "Stock entries": [
+    "Entradas"
+   ],
+   "Returned": [
+    "Devueltos"
+   ],
+   "Adjustments": [
+    "Ajustes"
+   ],
+   "Movements": [
+    "Movimientos"
+   ],
+   "Only": [
+    "Solo"
+   ],
+   "see them all": [
+    "ver todos"
+   ],
+   "in": [
+    "entraron"
+   ],
+   "out": [
+    "salieron"
+   ],
+   "No movements in this period. Every sale, stock entry, cancellation and stock change is kept here, with its reason and who did it.": [
+    "Sin movimientos en este periodo. Aquí queda cada venta, entrada, anulación y cambio de existencias, con su motivo y quién lo hizo."
+   ],
+   "When": [
+    "Cuándo"
+   ],
+   "Before": [
+    "Había"
+   ],
+   "Change": [
+    "Cambio"
+   ],
+   "After": [
+    "Quedan"
+   ],
+   "Unit cost": [
+    "Costo unit."
+   ],
+   "Reason": [
+    "Motivo"
+   ],
+   "Who": [
+    "Quién"
+   ],
+   "Previous": [
+    "Anteriores"
+   ],
+   "Next": [
+    "Siguientes"
+   ],
+   "%1$s-%2$s of %3$s": [
+    "%1$s-%2$s de %3$s"
+   ],
+   "Uploading…": [
+    "Subiendo…"
+   ],
+   "Costs loaded": [
+    "Costos cargados"
+   ],
+   "No signal: the file could not be uploaded.": [
+    "Sin señal: no se pudo subir el archivo."
+   ],
+   "PHOTO": [
+    "FOTO"
+   ],
+   "Another photo": [
+    "Otra foto"
+   ],
+   "Add photos": [
+    "Agregar fotos"
+   ],
+   "%s in general": [
+    "%s en general"
+   ],
+   "size": [
+    "talla",
+    "tallas"
+   ],
+   "option": [
+    "opción",
+    "opciones"
+   ],
+   "%d line with no cost": [
+    "%d línea sin costo",
+    "%d líneas sin costo"
+   ],
+   "%d unit": [
+    "%d unidad",
+    "%d unidades"
+   ],
+   "no cost on %d line": [
+    "sin costo en %d línea",
+    "sin costo en %d líneas"
+   ],
+   "Entry saved. The stock went up by %d unit.": [
+    "Entrada guardada. El inventario subió %d unidad.",
+    "Entrada guardada. El inventario subió %d unidades."
+   ],
+   "The average cost changed on %d product.": [
+    "El costo promedio cambió en %d producto.",
+    "El costo promedio cambió en %d productos."
+   ],
+   "Void this entry? %d unit is taken back.": [
+    "¿Anular esta entrada? Se resta %d unidad.",
+    "¿Anular esta entrada? Se restan %d unidades."
+   ],
+   "%d record kept on this phone": [
+    "%d registro guardado en el teléfono",
+    "%d registros guardados en el teléfono"
+   ],
+   "%d size": [
+    "%d talla",
+    "%d tallas"
+   ],
+   "This product does not carry units per size but one total for all of them: %d unit.": [
+    "Este producto no lleva las unidades por talla, sino un total para todas: %d unidad.",
+    "Este producto no lleva las unidades por talla, sino un total para todas: %d unidades."
+   ],
+   "%d variation": [
+    "%d variación",
+    "%d variaciones"
+   ],
+   "%d color": [
+    "%d color",
+    "%d colores"
+   ],
+   "%d photo": [
+    "%d foto",
+    "%d fotos"
+   ],
+   "%d sale": [
+    "%d venta",
+    "%d ventas"
+   ],
+   "Sale": [
+    "Venta",
+    "Ventas"
+   ],
+   "Unit": [
+    "Unidad",
+    "Unidades"
+   ],
+   "%d sale does not have the cost of all its products, so it does not count towards the profit.": [
+    "%d venta no tiene el costo de todos sus productos y no entra en la ganancia.",
+    "%d ventas no tienen el costo de todos sus productos y no entran en la ganancia."
+   ],
+   "%d sale without a complete cost does not count towards the profit.": [
+    "%d venta sin costo completo no entra en la ganancia.",
+    "%d ventas sin costo completo no entran en la ganancia."
+   ],
+   "%d movement": [
+    "%d movimiento",
+    "%d movimientos"
+   ],
+   "%d cost changed": [
+    "%d costo cambiado",
+    "%d costos cambiados"
+   ],
+   "out of %d row.": [
+    "de %d fila.",
+    "de %d filas."
+   ],
+   "%d was already the same.": [
+    "%d ya estaba igual.",
+    "%d ya estaban igual."
+   ],
+   "%d row with no cost (skipped).": [
+    "%d fila sin costo (se salta).",
+    "%d filas sin costo (se saltan)."
+   ],
+   "%d SKU is not in the store": [
+    "%d código no está en la tienda",
+    "%d códigos no están en la tienda"
+   ],
+   "%d product": [
+    "%d producto",
+    "%d productos"
+   ]
+  }
+ }
+}

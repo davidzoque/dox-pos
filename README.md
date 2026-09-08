@@ -40,10 +40,16 @@ Al tocar un texto: cambiarlo en inglés en el código y añadir el par al `.po`,
 el `.l10n.php` (los tres tienen que decir lo mismo, y el `.l10n.php` gana). Un sitio en español no
 nota nada: la caja y los ajustes siguen en español palabra por palabra.
 
-Lo que **todavía está en español** son los textos dentro del JavaScript (167 entre `caja.js` y
-`ajustes.js`), que no pasan por el sistema de traducción. Para pasarlos hace falta encolar con
-`wp-i18n`, envolverlos en `__()` de `wp.i18n` y generar el JSON de traducción con
-`wp_set_script_translations`. El Pro sigue entero en español: no va a WordPress.org.
+Los textos del JavaScript van por el mismo camino, con el sistema de traducción de scripts:
+`caja.js` se encola con dependencia de `wp-i18n` y `wp_set_script_translations()` le sirve
+`languages/dox-pos-<idioma>-<md5 de "assets/js/caja.js">.json`. Dentro del archivo, `__`, `_n` y
+`sprintf` salen de `window.wp.i18n` con un respaldo por si algún optimizador tira ese script: sin
+él la caja funciona en inglés, no se queda en blanco. `ajustes.js` no lo necesita: sus textos
+llegan del PHP en `DOX_POS_AJUSTES.i18n`.
+
+El `.po` lleva todo (PHP y JavaScript, 698 entradas); el `.mo` y el `.l10n.php` solo lo del PHP,
+y el `.json` solo lo del JavaScript, que es como lo reparte WordPress. El Pro sigue entero en
+español: no va a WordPress.org.
 
 ## Cómo se cargan los archivos de la caja
 
