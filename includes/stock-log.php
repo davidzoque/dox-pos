@@ -1,8 +1,8 @@
 <?php
 /**
  * El kardex: cada cambio de existencias deja una fila en su propia tabla, con cuántas había,
- * cuántas quedan, el motivo (venta #, apartado #, entrada #, anulación, edición, WooCommerce...)
- * y quién lo hizo. WooCommerce no guarda esto: solo deja una nota en el pedido cuando descuenta,
+ * cuántas quedan, el motivo (venta #, apartado #, entrada #, anulación, edición, WooCommerce...),
+ * quién lo hizo y el costo por unidad en ese momento (el de compra en una entrada). WooCommerce no guarda esto: solo deja una nota en el pedido cuando descuenta,
  * y de un cambio a mano en un producto no queda rastro.
  *
  * Se captura con los avisos que WooCommerce lanza al cambiar existencias
@@ -34,11 +34,12 @@ function dox_pos_stock_log_table() {
  * @param string $reason sale | hold | web | cancel | release | refund | entry | entry_undo | create | edit | admin | import | api | cli | other.
  * @param int    $ref_id El pedido o la entrada, si lo hay.
  * @param string $note   Un detalle corto (el proveedor, la factura).
+ * @param array  $costs  Solo una entrada: el costo de compra por unidad de cada producto o talla (id => costo).
  * @return array|null
  */
-function dox_pos_stock_context( $reason, $ref_id = 0, $note = '' ) {
+function dox_pos_stock_context( $reason, $ref_id = 0, $note = '', $costs = array() ) {
 	$prev = $GLOBALS['dox_pos_stock_ctx'] ?? null;
-	$GLOBALS['dox_pos_stock_ctx'] = array( 'reason' => (string) $reason, 'ref_id' => (int) $ref_id, 'note' => (string) $note, 'ids' => array() );
+	$GLOBALS['dox_pos_stock_ctx'] = array( 'reason' => (string) $reason, 'ref_id' => (int) $ref_id, 'note' => (string) $note, 'ids' => array(), 'costs' => (array) $costs );
 	return $prev;
 }
 
@@ -205,6 +206,8 @@ function dox_pos_stock_changed( $product ) {
 		$GLOBALS['dox_pos_stock_last'][ $id ] = $key;
 		$ctx  = dox_pos_stock_guess_context( $creating );
 		$user = wp_get_current_user();
+		// El costo por unidad en este momento: el de compra si es una entrada que lo trae; si no, el del producto.
+		$unit = isset( $ctx['costs'][ $id ] ) ? (float) $ctx['costs'][ $id ] : dox_pos_product_cost( $product );
 		global $wpdb;
 		$wpdb->insert(
 			dox_pos_stock_log_table(),
@@ -217,13 +220,14 @@ function dox_pos_stock_changed( $product ) {
 				'qty_before'   => $b,
 				'qty_after'    => $a,
 				'delta'        => (int) $a - (int) $b,
+				'unit_cost'    => null === $unit ? null : round( (float) $unit, 2 ),
 				'reason'       => $ctx['reason'],
 				'ref_id'       => (int) $ctx['ref_id'],
 				'user_id'      => (int) $user->ID,
 				'user_name'    => $user->ID ? (string) $user->display_name : '',
 				'note'         => mb_substr( (string) $ctx['note'], 0, 255 ),
 			),
-			array( '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s', '%d', '%d', '%s', '%s' )
+			array( '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%f', '%s', '%d', '%d', '%s', '%s' )
 		);
 		if ( $wpdb->insert_id && isset( $GLOBALS['dox_pos_stock_ctx']['ids'] ) ) {
 			$GLOBALS['dox_pos_stock_ctx']['ids'][] = (int) $wpdb->insert_id;

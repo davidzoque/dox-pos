@@ -5,8 +5,9 @@
  * vendedora, canal, forma de pago y total; los movimientos, de la tabla del kardex
  * (stock-log.php). Todo se baja en Excel con el mismo generador del inventario.
  *
- * Quién ve qué: administradores y gerentes ven todo; una persona con el rol Caja ve solo sus
- * ventas de hoy, para cuadrar su día, sin los totales del negocio.
+ * Quién ve qué: administradores y gerentes ven todo, con el costo y la ganancia de cada venta
+ * (costs.php); una persona con el rol Caja ve solo sus ventas de hoy, para cuadrar su día, sin
+ * los totales del negocio ni los costos.
  *
  * @package DoxPos
  */
@@ -104,16 +105,24 @@ function dox_pos_order_units( $order ) {
 function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 	$range  = dox_pos_history_range( $from, $to );
 	$orders = dox_pos_history_orders( $range, $seller );
+	$see    = dox_pos_can_see_costs(); // El costo y la ganancia: solo para quien administra.
 	$t      = array( 'orders' => 0, 'units' => 0, 'sold' => 0.0, 'avg' => 0.0, 'pending_n' => 0, 'pending' => 0.0, 'cancelled_n' => 0 );
-	$by     = array( 'channel' => array(), 'payment' => array(), 'seller' => array(), 'day' => array() );
-	$add    = function ( &$arr, $key, $total, $units ) {
+	if ( $see ) {
+		// La ganancia suma solo las ventas con el costo de todas sus líneas; las que no lo tienen se cuentan aparte.
+		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'revenue' => 0.0, 'margin' => null, 'profit_n' => 0, 'no_cost_n' => 0 );
+	}
+	$by  = array( 'channel' => array(), 'payment' => array(), 'seller' => array(), 'day' => array() );
+	$add = function ( &$arr, $key, $total, $units, $profit = null ) {
 		$key = '' === (string) $key ? __( 'Sin dato', 'dox-pos' ) : (string) $key;
 		if ( ! isset( $arr[ $key ] ) ) {
-			$arr[ $key ] = array( 'name' => $key, 'n' => 0, 'units' => 0, 'total' => 0.0 );
+			$arr[ $key ] = array( 'name' => $key, 'n' => 0, 'units' => 0, 'total' => 0.0, 'profit' => 0.0 );
 		}
 		$arr[ $key ]['n']++;
 		$arr[ $key ]['units'] += $units;
 		$arr[ $key ]['total'] += $total;
+		if ( null !== $profit ) {
+			$arr[ $key ]['profit'] += $profit;
+		}
 	};
 	$items = array();
 	foreach ( $orders as $o ) {
@@ -121,14 +130,34 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 		$f['units'] = dox_pos_order_units( $o );
 		$f['day']   = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status     = $o->get_status();
+		$pr         = null;
+		if ( $see ) {
+			$pr                = dox_pos_order_profit( $o );
+			$f['cost']         = $pr['cost'];
+			$f['profit']       = $pr['profit'];
+			$f['margin']       = null === $pr['profit'] ? null : dox_pos_margin( $pr['profit'], $pr['revenue'] );
+			$f['cost_missing'] = $pr['missing']; // Líneas sin costo: con alguna, la ganancia de esa venta no se sabe.
+		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$t['orders']++;
 			$t['units'] += $f['units'];
 			$t['sold']  += $f['total'];
-			$add( $by['channel'], $f['channel'], $f['total'], $f['units'] );
-			$add( $by['payment'], $f['payment'], $f['total'], $f['units'] );
-			$add( $by['seller'], $f['seller'] ? $f['seller'] : ( 'caja' === $f['origin'] ? '' : $f['origin_label'] ), $f['total'], $f['units'] );
-			$add( $by['day'], $f['day'], $f['total'], $f['units'] );
+			$profit      = null;
+			if ( $pr ) {
+				if ( null !== $pr['profit'] ) {
+					$t['cost']    += $pr['cost'];
+					$t['profit']  += $pr['profit'];
+					$t['revenue'] += $pr['revenue'];
+					$t['profit_n']++;
+					$profit = $pr['profit'];
+				} else {
+					$t['no_cost_n']++;
+				}
+			}
+			$add( $by['channel'], $f['channel'], $f['total'], $f['units'], $profit );
+			$add( $by['payment'], $f['payment'], $f['total'], $f['units'], $profit );
+			$add( $by['seller'], $f['seller'] ? $f['seller'] : ( 'caja' === $f['origin'] ? '' : $f['origin_label'] ), $f['total'], $f['units'], $profit );
+			$add( $by['day'], $f['day'], $f['total'], $f['units'], $profit );
 		} elseif ( in_array( $status, DOX_POS_OPEN, true ) ) {
 			$t['pending_n']++;
 			$t['pending'] += $f['total'];
@@ -140,7 +169,10 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 		}
 	}
 	$t['avg'] = $t['orders'] ? $t['sold'] / $t['orders'] : 0.0;
-	$desc     = fn( $a, $b ) => $b['total'] <=> $a['total'];
+	if ( $see ) {
+		$t['margin'] = dox_pos_margin( $t['profit'], $t['revenue'] );
+	}
+	$desc = fn( $a, $b ) => $b['total'] <=> $a['total'];
 	usort( $by['channel'], $desc );
 	usort( $by['payment'], $desc );
 	usort( $by['seller'], $desc );
@@ -155,6 +187,7 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 		'by_day'     => array_values( $by['day'] ),
 		'items'      => $items,
 		'count'      => count( $orders ),
+		'costs'      => $see,
 	);
 }
 
@@ -169,22 +202,37 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 function dox_pos_history_cash( $from, $to ) {
 	$range   = dox_pos_history_range( $from, $to );
 	$orders  = dox_pos_history_orders( $range );
+	$see     = dox_pos_can_see_costs();
 	$days    = array();
 	$methods = array();
 	$t       = array( 'orders' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'cod' => 0.0, 'cod_n' => 0, 'holds' => 0.0, 'holds_n' => 0 );
+	if ( $see ) {
+		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'no_cost_n' => 0 ); // La ganancia del día, con las ventas que tienen costo completo.
+	}
 	$pending = array();
 	foreach ( $orders as $o ) {
 		$f      = dox_pos_format_order( $o );
 		$day    = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status = $o->get_status();
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0 );
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0 );
 		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$days[ $day ]['n']++;
 			$days[ $day ]['sold'] += $f['total'];
 			$t['orders']++;
 			$t['sold'] += $f['total'];
+			if ( $see ) {
+				$pr = dox_pos_order_profit( $o );
+				if ( null !== $pr['profit'] ) {
+					$days[ $day ]['cost']   += $pr['cost'];
+					$days[ $day ]['profit'] += $pr['profit'];
+					$t['cost']              += $pr['cost'];
+					$t['profit']            += $pr['profit'];
+				} else {
+					$t['no_cost_n']++;
+				}
+			}
 			if ( $f['cod'] && 'completed' !== $status ) {
 				$days[ $day ]['cod'] += $f['total'];
 				$t['cod']           += $f['total'];
@@ -221,6 +269,7 @@ function dox_pos_history_cash( $from, $to ) {
 		'method_totals' => array_values( $methods ),
 		'days'          => array_values( $days ),
 		'pending'       => array_slice( $pending, 0, 200 ),
+		'costs'         => $see,
 	);
 }
 
@@ -280,10 +329,13 @@ function dox_pos_history_stock( $a ) {
 		'in'        => $in,
 		'out'       => $out,
 		'by_reason' => $by,
+		'costs'     => dox_pos_can_see_costs(),
 	);
 }
 
 function dox_pos_format_stock_row( $r ) {
+	// El costo por unidad en ese momento (el de compra si fue una entrada), solo para quien administra.
+	$unit = dox_pos_can_see_costs() && isset( $r['unit_cost'] ) && null !== $r['unit_cost'] && '' !== $r['unit_cost'] ? (float) $r['unit_cost'] : null;
 	return array(
 		'id'           => (int) $r['id'],
 		'date'         => mysql2date( 'd/m H:i', $r['created_at'] ),
@@ -300,6 +352,8 @@ function dox_pos_format_stock_row( $r ) {
 		'ref'          => (int) $r['ref_id'],
 		'user'         => '' !== (string) $r['user_name'] ? (string) $r['user_name'] : ( (int) $r['user_id'] ? '' : __( 'Automático', 'dox-pos' ) ),
 		'note'         => (string) $r['note'],
+		'unit_cost'    => $unit,
+		'value'        => null === $unit ? null : round( (int) $r['delta'] * $unit, 2 ), // Lo que vale el movimiento al costo.
 	);
 }
 
@@ -341,6 +395,7 @@ function dox_pos_send_history( $what, $from, $to, $q = '', $product = 0, $kind =
  * Ventas: una hoja con cada pedido y otra con el resumen por día, canal, forma de pago y vendedora.
  */
 function dox_pos_sales_xlsx( $d ) {
+	$see  = ! empty( $d['costs'] );
 	$cols = array(
 		array( __( 'Pedido', 'dox-pos' ), 'number', 'text', 9 ),
 		array( __( 'Fecha', 'dox-pos' ), 'date', 'text', 13 ),
@@ -352,14 +407,24 @@ function dox_pos_sales_xlsx( $d ) {
 		array( __( 'Vendedora', 'dox-pos' ), 'seller', 'text', 18 ),
 		array( __( 'Pago', 'dox-pos' ), 'payment', 'text', 16 ),
 		array( __( 'Total', 'dox-pos' ), 'total', 'money', 13 ),
-		array( __( 'Estado', 'dox-pos' ), 'label', 'text', 18 ),
 	);
-	$rows = array();
+	if ( $see ) { // El costo congelado al venderse y lo que dejó; vacío en las ventas sin costo.
+		$cols[] = array( __( 'Costo', 'dox-pos' ), 'cost', 'money', 13 );
+		$cols[] = array( __( 'Ganancia', 'dox-pos' ), 'profit', 'money', 13 );
+		$cols[] = array( __( 'Margen %', 'dox-pos' ), 'margin', 'int', 10 );
+	}
+	$cols[] = array( __( 'Estado', 'dox-pos' ), 'label', 'text', 18 );
+	$rows   = array();
 	foreach ( $d['items'] as $p ) {
 		$sold        = in_array( $p['status'], array( 'por_enviar', 'enviado', 'entregado' ), true );
 		$p['seller'] = $p['seller'] ? $p['seller'] : ( 'caja' === $p['origin'] ? '' : $p['origin_label'] );
 		$p['label']  = $p['label'] . ( $p['cod'] && 'entregado' !== $p['status'] && $sold ? ' · ' . __( 'paga al recibir', 'dox-pos' ) : '' );
-		$rows[]      = $p;
+		if ( $see && ! $sold ) {
+			$p['cost']   = null; // Una venta anulada o sin pagar no cuenta.
+			$p['profit'] = null;
+			$p['margin'] = null;
+		}
+		$rows[] = $p;
 	}
 	$n      = 1;
 	$lines  = dox_pos_xlsx_rows( $cols, $rows, $n );
@@ -372,10 +437,15 @@ function dox_pos_sales_xlsx( $d ) {
 		array( __( 'Unidades', 'dox-pos' ), 'units', 'int', 10 ),
 		array( __( 'Total', 'dox-pos' ), 'total', 'money', 14 ),
 	);
+	$sum = array( 'n', 'units', 'total' );
+	if ( $see ) {
+		$cols2[] = array( __( 'Ganancia', 'dox-pos' ), 'profit', 'money', 14 );
+		$sum[]   = 'profit';
+	}
 	$n     = 1;
 	$lines = array();
 	$t     = $d['totals'];
-	$lines[] = dox_pos_xlsx_rows( $cols2, array_map( fn( $x ) => array( 'name' => mysql2date( 'D d/m/Y', $x['name'] . ' 12:00:00' ), 'n' => $x['n'], 'units' => $x['units'], 'total' => $x['total'] ), $d['by_day'] ), $n, array( 'n', 'units', 'total' ) );
+	$lines[] = dox_pos_xlsx_rows( $cols2, array_map( fn( $x ) => array( 'name' => mysql2date( 'D d/m/Y', $x['name'] . ' 12:00:00' ), 'n' => $x['n'], 'units' => $x['units'], 'total' => $x['total'], 'profit' => $x['profit'] ?? null ), $d['by_day'] ), $n, $sum );
 	foreach ( array( 'by_channel' => __( 'Canal', 'dox-pos' ), 'by_payment' => __( 'Forma de pago', 'dox-pos' ), 'by_seller' => __( 'Vendedora', 'dox-pos' ) ) as $key => $title ) {
 		if ( ! $d[ $key ] ) {
 			continue;
@@ -384,15 +454,22 @@ function dox_pos_sales_xlsx( $d ) {
 		$c       = $cols2;
 		$c[0][0] = $title;
 		$lines[] = dox_pos_xlsx_header( $c, $n );
-		$lines[] = dox_pos_xlsx_rows( $c, $d[ $key ], $n, array( 'n', 'units', 'total' ) );
+		$lines[] = dox_pos_xlsx_rows( $c, $d[ $key ], $n, $sum );
 	}
 	$n      += 2;
 	$extra   = array(
-		array( 'name' => __( 'Sin pagar aún (apartados y pagos por confirmar)', 'dox-pos' ), 'n' => $t['pending_n'], 'units' => null, 'total' => $t['pending'] ),
-		array( 'name' => __( 'Anulados', 'dox-pos' ), 'n' => $t['cancelled_n'], 'units' => null, 'total' => null ),
+		array( 'name' => __( 'Sin pagar aún (apartados y pagos por confirmar)', 'dox-pos' ), 'n' => $t['pending_n'], 'units' => null, 'total' => $t['pending'], 'profit' => null ),
+		array( 'name' => __( 'Anulados', 'dox-pos' ), 'n' => $t['cancelled_n'], 'units' => null, 'total' => null, 'profit' => null ),
 	);
+	if ( $see ) {
+		$extra[] = array( 'name' => __( 'Ventas sin costo completo (no entran en la ganancia)', 'dox-pos' ), 'n' => $t['no_cost_n'], 'units' => null, 'total' => null, 'profit' => null );
+		$extra[] = array( 'name' => __( 'Margen sobre lo vendido con costo', 'dox-pos' ), 'n' => null, 'units' => null, 'total' => null, 'profit' => null === $t['margin'] ? null : $t['margin'] . ' %' );
+	}
 	$c       = $cols2;
 	$c[0][0] = __( 'Aparte', 'dox-pos' );
+	if ( $see ) {
+		$c[4][2] = 'text'; // El margen va como texto ("43 %").
+	}
 	$lines[] = dox_pos_xlsx_header( $c, $n );
 	$lines[] = dox_pos_xlsx_rows( $c, $extra, $n );
 	$sheet2  = dox_pos_xlsx_sheet( $cols2, $lines, 1, false, false );
@@ -410,13 +487,21 @@ function dox_pos_sales_xlsx( $d ) {
  * cobrar y lo apartado; y una segunda hoja con los pedidos por cobrar.
  */
 function dox_pos_cash_xlsx( $d ) {
+	$see  = ! empty( $d['costs'] );
 	$cols = array(
 		array( __( 'Día', 'dox-pos' ), 'day', 'text', 16 ),
 		array( __( 'Ventas', 'dox-pos' ), 'n', 'int', 9 ),
 		array( __( 'Vendido', 'dox-pos' ), 'sold', 'money', 14 ),
-		array( __( 'Cobrado', 'dox-pos' ), 'cashed', 'money', 14 ),
 	);
-	$sum = array( 'n', 'sold', 'cashed' );
+	$sum = array( 'n', 'sold' );
+	if ( $see ) {
+		$cols[] = array( __( 'Costo', 'dox-pos' ), 'cost', 'money', 14 );
+		$cols[] = array( __( 'Ganancia', 'dox-pos' ), 'profit', 'money', 14 );
+		$sum[]  = 'cost';
+		$sum[]  = 'profit';
+	}
+	$cols[] = array( __( 'Cobrado', 'dox-pos' ), 'cashed', 'money', 14 );
+	$sum[]  = 'cashed';
 	foreach ( $d['methods'] as $i => $m ) {
 		$cols[] = array( $m, 'm' . $i, 'money', 14 );
 		$sum[]  = 'm' . $i;
@@ -427,7 +512,7 @@ function dox_pos_cash_xlsx( $d ) {
 	$sum[]  = 'holds';
 	$rows   = array();
 	foreach ( $d['days'] as $r ) {
-		$row = array( 'day' => mysql2date( 'D d/m/Y', $r['day'] . ' 12:00:00' ), 'n' => $r['n'], 'sold' => $r['sold'], 'cashed' => $r['cashed'], 'cod' => $r['cod'] ? $r['cod'] : null, 'holds' => $r['holds'] ? $r['holds'] : null );
+		$row = array( 'day' => mysql2date( 'D d/m/Y', $r['day'] . ' 12:00:00' ), 'n' => $r['n'], 'sold' => $r['sold'], 'cashed' => $r['cashed'], 'cod' => $r['cod'] ? $r['cod'] : null, 'holds' => $r['holds'] ? $r['holds'] : null, 'cost' => $r['cost'] ?? null, 'profit' => $r['profit'] ?? null );
 		foreach ( $d['methods'] as $i => $m ) {
 			$row[ 'm' . $i ] = isset( $r['methods'][ $m ] ) ? $r['methods'][ $m ] : null;
 		}
@@ -465,6 +550,7 @@ function dox_pos_cash_xlsx( $d ) {
  * Los movimientos: cada fila del kardex, y el resumen por motivo.
  */
 function dox_pos_stock_xlsx( $d ) {
+	$see  = dox_pos_can_see_costs();
 	$cols = array(
 		array( __( 'Cuándo', 'dox-pos' ), 'datetime', 'text', 16 ),
 		array( __( 'Código', 'dox-pos' ), 'sku', 'text', 13 ),
@@ -472,12 +558,16 @@ function dox_pos_stock_xlsx( $d ) {
 		array( __( 'Había', 'dox-pos' ), 'before', 'int', 9 ),
 		array( __( 'Cambio', 'dox-pos' ), 'delta', 'int', 9 ),
 		array( __( 'Quedan', 'dox-pos' ), 'after', 'int', 9 ),
-		array( __( 'Motivo', 'dox-pos' ), 'label', 'text', 24 ),
-		array( __( 'Quién', 'dox-pos' ), 'user', 'text', 18 ),
-		array( __( 'Nota', 'dox-pos' ), 'note', 'text', 24 ),
 	);
-	$items = $d['items'];
-	$urls  = dox_pos_product_urls( array_column( $items, 'product_id' ) );
+	if ( $see ) { // El costo por unidad en ese momento y lo que vale el movimiento.
+		$cols[] = array( __( 'Costo unit.', 'dox-pos' ), 'unit_cost', 'money', 13 );
+		$cols[] = array( __( 'Valor', 'dox-pos' ), 'value', 'money', 14 );
+	}
+	$cols[] = array( __( 'Motivo', 'dox-pos' ), 'label', 'text', 24 );
+	$cols[] = array( __( 'Quién', 'dox-pos' ), 'user', 'text', 18 );
+	$cols[] = array( __( 'Nota', 'dox-pos' ), 'note', 'text', 24 );
+	$items  = $d['items'];
+	$urls   = dox_pos_product_urls( array_column( $items, 'product_id' ) );
 	foreach ( $items as &$it ) {
 		$it['url'] = $urls[ (int) $it['product_id'] ] ?? '';
 	}

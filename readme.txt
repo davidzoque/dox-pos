@@ -4,7 +4,7 @@ Tags: woocommerce, pos, inventario, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.20.0
+Stable tag: 0.21.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,6 +20,10 @@ Añade la página /caja con su propio login. Desde ahí se buscan los productos 
 Sube la carpeta `dox-pos` a `/wp-content/plugins/` y activa el plugin. Entra a `/caja` con un usuario administrador, gerente de tienda o con el rol "Caja". Para otra marca, ve a WooCommerce > Dox POS.
 
 == Changelog ==
+
+= 0.21.0 =
+* Costos y ganancia. Cada producto lleva su costo por unidad en el campo de costo de WooCommerce (la función "Cost of Goods Sold", que el plugin enciende solo): se pone al crear o editar en la caja, y de golpe desde el Excel del inventario con la columna Costo llena (Entró mercancía > Subir costos desde Excel). Cada compra registrada en Entró mercancía lleva lo que costó cada unidad y recalcula el costo promedio ponderado del producto. Cada venta deja el costo congelado en su pedido, así que subir el costo después no cambia la historia. El historial enseña la ganancia y el margen (Ventas, Caja del día por día, el detalle de cada pedido) y el kardex el costo por unidad de cada movimiento; los Excel llevan las columnas de costo, ganancia y valor al costo. Todo esto solo lo ven administradores y gerentes; el rol Caja no. Se apaga en Ajustes > Productos.
+* Para los añadidos: las acciones dox_pos_history_views y dox_pos_history_panels (vistas nuevas en Historial), dox_pos_download (Excel propios) y DoxPOS.vistaHistorial en el JS.
 
 = 0.20.0 =
 * Las actualizaciones llegan desde GitHub mientras el plugin no esté en WordPress.org: cada versión etiquetada arma su zip y WordPress avisa de la actualización como siempre (Plugin Update Checker sobre las releases de github.com/davidzoque/dox-pos). La compilación para WordPress.org se arma sin esa pieza.

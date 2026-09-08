@@ -550,12 +550,16 @@ function dox_pos_sanitize_products( $in ) {
 		$px = 1600;
 	}
 	delete_transient( 'dox_pos_product_form' );
+	if ( ! empty( $in['costs'] ) ) {
+		dox_pos_costs_enable(); // Con los costos encendidos, WooCommerce tiene que tener su campo de costo activo.
+	}
 	return array(
 		'quality'    => $q,
 		'max_px'     => $px,
 		'sku'        => in_array( $sku, array( 'codes', 'slugs', 'none' ), true ) ? $sku : 'codes',
 		'size_attr'  => isset( $all[ $size ] ) ? $size : '',
 		'color_attr' => isset( $all[ $col ] ) ? $col : '',
+		'costs'      => ! empty( $in['costs'] ),
 	);
 }
 
@@ -1367,6 +1371,24 @@ function dox_pos_settings_page() {
 							</label>
 							<?php endforeach; ?>
 						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Costos y ganancia', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Entró mercancía, cada compra con su costo recalcula el costo promedio del producto.', 'dox-pos' ); ?></p>
+						</div>
+						<?php if ( ! method_exists( 'WC_Product', 'get_cogs_value' ) ) : ?>
+						<div class="dp-callout">
+							<?php echo dox_pos_icon( 'alert' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<div>
+								<b><?php esc_html_e( 'Esta versión de WooCommerce no trae el campo de costo', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'Hace falta WooCommerce 9.5 o más nuevo. Al actualizarlo, los costos se encienden solos.', 'dox-pos' ); ?></span>
+							</div>
+						</div>
+						<?php endif; ?>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Llevar el costo de los productos y ver la ganancia', 'dox-pos' ); ?></span></label>
+						<p class="dp-hint"><?php esc_html_e( 'Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con "Subir costos desde Excel" en Entró mercancía.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">

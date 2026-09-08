@@ -203,11 +203,13 @@
 	}
 
 	// ---------- el pedido y la entrada ----------
+	// El costo que la tienda conoce de una talla (solo llega a quien administra): la entrada lo propone como costo de compra.
+	const costoConocido = (vid) => (cfg.costs && st.vars[vid] && st.vars[vid].v.cost > 0 ? Math.round(st.vars[vid].v.cost) : 0);
 	function añadir(vid, modo) {
 		const arr = modo === "venta" ? st.lineas : st.entrada;
 		const ya = arr.find((l) => l.vid === vid);
 		if (ya) ya.n++;
-		else arr.push({ vid: vid, n: 1 });
+		else arr.push(modo === "entrada" ? { vid: vid, n: 1, c: costoConocido(vid) } : { vid: vid, n: 1 });
 		st.flash = modo + ":" + vid;
 		pintarTodo();
 	}
@@ -217,12 +219,35 @@
 			const d = st.vars[l.vid];
 			if (!d) return;
 			const li = document.createElement("li");
-			li.className = "lin" + (st.flash === modo + ":" + l.vid ? " flash" : "");
+			const conCosto = modo === "entrada" && !!cfg.costs; // Cada línea de la entrada lleva lo que costó la unidad, en su propia fila.
+			li.className = "lin" + (conCosto ? " cost" : "") + (st.flash === modo + ":" + l.vid ? " flash" : "");
+			li.dataset.vid = String(l.vid);
 			li.innerHTML =
 				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + "</i></span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="Una menos">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="Una más">+</button></span>' +
-				'<span class="v">' + dinero(l.n * d.v.price) + "</span>";
-			li.querySelectorAll("button").forEach((b) => {
+				(conCosto
+					? '<span class="cst"><label>Costo por unidad</label><input inputmode="numeric" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="Costo por unidad"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
+					: '<span class="v">' + dinero(l.n * d.v.price) + "</span>");
+			if (conCosto) {
+				const inp = li.querySelector(".cst input");
+				inp.addEventListener("focus", () => inp.select());
+				inp.addEventListener("input", () => {
+					const v = num(inp.value), old = l.c || 0;
+					l.c = v;
+					// Las otras tallas del mismo producto que iban con el mismo costo cambian con esta: una compra suele costar igual en todas.
+					arr.forEach((o) => { const od = st.vars[o.vid]; if (o !== l && od && od.p.id === d.p.id && (o.c || 0) === old) o.c = v; });
+					ul.querySelectorAll("li[data-vid]").forEach((row) => {
+						const o = arr.find((x) => String(x.vid) === row.dataset.vid);
+						if (!o) return;
+						const oi = row.querySelector(".cst input");
+						if (oi && oi !== inp && num(oi.value) !== (o.c || 0)) oi.value = miles(o.c || 0);
+						row.querySelector(".vt").textContent = o.c ? dinero(o.n * o.c) : "";
+					});
+					formatearMiles(inp);
+					pintarSum();
+				});
+			}
+			li.querySelectorAll(".qty button").forEach((b) => {
 				b.onclick = () => {
 					const delta = +b.dataset.d;
 					if (delta > 0 && modo === "venta" && d.v.stock !== null && libres(d.v) < 1) return;
@@ -251,7 +276,10 @@
 		$("#reg").disabled = st.ocupado || !st.lineas.length;
 		$("#apartar").disabled = st.ocupado || !st.lineas.length;
 		const uds = st.entrada.reduce((a, l) => a + l.n, 0);
-		$("#sum2").innerHTML = '<div class="tot"><span>Unidades que entran</span><span>' + uds + "</span></div>";
+		const costo = cfg.costs ? st.entrada.reduce((a, l) => a + l.n * (l.c || 0), 0) : 0;
+		const sinCosto = cfg.costs ? st.entrada.filter((l) => !l.c).length : 0;
+		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>Costo de la mercancía</span><span>" + (costo ? dinero(costo) : "sin costo") + (sinCosto && costo ? " · " + sinCosto + (sinCosto === 1 ? " línea sin costo" : " líneas sin costo") : "") + "</span></div>" : "") +
+			'<div class="tot"><span>Unidades que entran</span><span>' + uds + "</span></div>";
 		$("#reg2").disabled = st.ocupado || !st.entrada.length;
 	}
 	function pintarTodo() {
@@ -467,7 +495,7 @@
 		const items = (d.items_list || []).map((it) => "<li>" +
 			'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
 			'<div class="odi"><b>' + esc(it.name) + "</b>" +
-			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · quedan " + it.stock : "") + "</span>" +
+			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · quedan " + it.stock : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · costo " + dinero(it.unit_cost) : "") + "</span>" +
 			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">Ver en la tienda</a>' : '<span class="sub">' + (it.exists ? "Oculto en la tienda" : "Ya no existe") + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">Editar</button>' : "") + "</span>" +
 			"</div>" +
 			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
@@ -479,7 +507,10 @@
 		h += '<table class="tot"><tbody><tr><td>Subtotal</td><td>' + dinero(d.subtotal) + "</td></tr>" +
 			(d.discount ? "<tr><td>Descuento</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
 			(d.shipping_total || d.shipping_method ? "<tr><td>Envío" + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
-			'<tr class="t"><td>Total</td><td>' + dinero(d.total) + "</td></tr></tbody></table></section>";
+			'<tr class="t"><td>Total</td><td>' + dinero(d.total) + "</td></tr>" +
+			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse.
+			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>Ganancia</td><td>" + dinero(d.profit) + (d.margin !== null ? ' <span class="sub">' + d.margin + " %</span>" : "") + "</td></tr>" : '<tr><td>Ganancia</td><td><span class="sub">sin costo en ' + d.cost_missing + (d.cost_missing === 1 ? " línea" : " líneas") + "</span></td></tr>") : "") +
+			"</tbody></table></section>";
 		h += '<section><h4>Cliente</h4><div class="kv">';
 		h += "<span>Nombre</span><span>" + esc(d.customer || "Sin nombre") + "</span>";
 		if (d.phone) h += "<span>Teléfono</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">WhatsApp</a>' : "") + "</span>";
@@ -565,7 +596,7 @@
 		st.ocupado = true;
 		pintarSum();
 		const soltar = ocupar($("#reg2"), "Guardando…");
-		const payload = { ref: uuid(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n })), supplier: $("#e-prov").value.trim(), invoice: $("#e-fac").value.trim(), date: $("#e-fec").value, note: $("#e-nota").value.trim() };
+		const payload = { ref: uuid(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n, cost: l.c || "" })), supplier: $("#e-prov").value.trim(), invoice: $("#e-fac").value.trim(), date: $("#e-fec").value, note: $("#e-nota").value.trim() };
 		const resumen = resumenLineas(st.entrada);
 		const limpiar = () => {
 			st.entrada = [];
@@ -582,7 +613,8 @@
 				if (d) {
 					limpiar();
 					await Promise.all([refrescarStock(), cargarEntradas()]);
-					toast("Entrada guardada. El inventario subió " + d.entry.units + (d.entry.units === 1 ? " unidad." : " unidades."));
+					const ch = (d.entry.cost_changes || []).length;
+					toast("Entrada guardada. El inventario subió " + d.entry.units + (d.entry.units === 1 ? " unidad." : " unidades.") + (ch ? " El costo promedio cambió en " + ch + (ch === 1 ? " producto." : " productos.") : ""));
 				}
 			} catch (e) {
 				if (e.red) {
@@ -624,7 +656,7 @@
 			const li = document.createElement("li");
 			li.className = "lin" + (e.status !== "ok" ? " off" : "");
 			li.innerHTML =
-				'<span class="n">' + esc(e.items) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.status !== "ok" ? " · anulada" : "") + "</i></span>" +
+				'<span class="n">' + esc(e.items) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · anulada" : "") + "</i></span>" +
 				'<span class="v">+' + e.units + "</span>";
 			if (e.status === "ok") {
 				const b = document.createElement("button");
@@ -1172,12 +1204,37 @@
 		} catch (e) { /* sin aviso */ }
 	}
 
-	// El precio: con puntos de miles mientras se escribe, para que se vean los ceros.
-	function formatearPrecio() {
-		const el = $("#p-precio");
-		const v = num(el.value);
-		const s = v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand) : "";
+	// Un número con puntos de miles mientras se escribe, para que se vean los ceros.
+	const miles = (v) => (v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand) : "");
+	function formatearMiles(el) {
+		if (!el) return;
+		const s = miles(num(el.value));
 		if (el.value !== s) el.value = s;
+	}
+	function formatearPrecio() { formatearMiles($("#p-precio")); formatearMiles($("#p-costo")); }
+	// El costo escrito en el formulario (0 si no hay campo o está vacío).
+	const costoForm = () => ($("#p-costo") ? num($("#p-costo").value) : 0);
+	// Qué costo se manda: al crear, el escrito; al editar, solo si cambió ('' = no tocar; 0 = quitarlo).
+	function costoPayload() {
+		if (!cfg.costs || !$("#p-costo")) return "";
+		const v = costoForm();
+		if (!pr.edit) return v || "";
+		if (pr.edit.cost === "" && !v) return ""; // Las tallas cuestan distinto y no se escribió nada: se quedan como están.
+		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : Math.round(Number(pr.edit.cost));
+		return v === was ? "" : v;
+	}
+	// Lo que deja cada unidad con el precio y el costo escritos.
+	function pintarMargen() {
+		const el = $("#p-margen");
+		if (!el) return;
+		const precio = num($("#p-precio").value), costo = costoForm();
+		el.className = "margen";
+		if (!precio && !costo) { el.textContent = "Escribe precio y costo."; return; }
+		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? "Las tallas cuestan distinto: de " + dinero(pr.edit.cost_min) + " a " + dinero(pr.edit.cost_max) + "." : "Sin costo: sus ventas no entran en la ganancia."; return; }
+		if (!precio) { el.textContent = "Falta el precio."; return; }
+		const g = precio - costo;
+		el.textContent = dinero(g) + " por unidad (" + Math.round(g / precio * 100) + " %)" + (g < 0 ? ": se vende a pérdida" : "");
+		if (g < 0) el.className = "margen bad";
 	}
 
 	// Colores: los más usados (doce) y "Más colores…" para el resto; "Otro color…" crea uno nuevo con su tono.
@@ -1367,7 +1424,7 @@
 		document.querySelectorAll("#p-form .bad").forEach((x) => x.classList.remove("bad"));
 		document.querySelectorAll("#p-form .ferr").forEach((x) => x.remove());
 	}
-	const formularioTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || num($("#p-precio").value));
+	const formularioTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || num($("#p-precio").value) || costoForm());
 	function pintarResumenProducto() {
 		const nt = pr.tallas.length, nc = pr.colores.length, u = unidadesTotales();
 		const vars = (nt || 1) * (nc || 1);
@@ -1377,8 +1434,12 @@
 		if (pr.edit && pr.edit.type !== "variable") que = "Producto de talla única";
 		const precio = num($("#p-precio").value);
 		const txtPrecio = precio > 0 ? dinero(precio) : (pr.edit && pr.edit.price === "" ? "de " + dinero(pr.edit.price_min) + " a " + dinero(pr.edit.price_max) : dinero(0));
+		const costo = costoForm();
+		const txtCosto = costo > 0 ? dinero(costo) + (precio > 0 ? " · deja " + dinero(precio - costo) + " (" + Math.round((precio - costo) / precio * 100) + " %)" : "") : (pr.edit && pr.edit.cost === "" ? "de " + dinero(pr.edit.cost_min) + " a " + dinero(pr.edit.cost_max) : "");
 		$("#p-sum").innerHTML = "<div><span>" + esc(que) + "</span><span>" + u + (u === 1 ? " unidad" : " unidades") + "</span></div>" +
+			(cfg.costs && txtCosto ? "<div><span>Costo</span><span>" + txtCosto + "</span></div>" : "") +
 			'<div class="tot"><span>Precio</span><span>' + txtPrecio + "</span></div>";
+		pintarMargen();
 		$("#p-crear").textContent = pr.edit ? "Guardar cambios" : "Revisar y crear";
 		$("#p-crear").disabled = pr.creando;
 		$("#p-vaciar").hidden = !!pr.edit || !formularioTocado();
@@ -1402,6 +1463,7 @@
 			const pr0 = form.price_range || [0, 0];
 			if (pr0[0] > 0 && (precio < pr0[0] / 2 || precio > pr0[1] * 2)) avisos.push("El precio se sale de lo habitual: en la tienda va de " + dinero(pr0[0]) + " a " + dinero(pr0[1]) + ". Revisa los ceros.");
 			if (pr.dup) avisos.push("Ya existe un producto llamado " + pr.dup.name + (pr.dup.sku ? " (" + pr.dup.sku + ")" : "") + ".");
+			if (cfg.costs && costoForm() > precio) avisos.push("El costo es mayor que el precio: se vendería a pérdida.");
 			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push("Las " + pr.tallas.length + " tallas las marcó la categoría. Si el producto no viene en todas, vuelve y quita las que sobran.");
 			let tabla = "";
 			if (pr.tallas.length || pr.colores.length) {
@@ -1413,6 +1475,7 @@
 				li("Nombre", esc($("#p-nom").value.trim())) +
 				li("Código", esc($("#p-sku").value.trim() || "sin código")) +
 				li("Precio", dinero(precio)) +
+				(cfg.costs ? li("Costo", costoForm() ? dinero(costoForm()) + " · deja " + dinero(precio - costoForm()) + " por unidad" : "Sin costo") : "") +
 				li("Categoría", esc(cats.join(", "))) +
 				(pr.colores.length ? li("Colores", esc(pr.colores.map((c) => c.name).join(", "))) : "") +
 				li("Unidades", u + (u === 1 ? " unidad" : " unidades") + tabla) +
@@ -1448,6 +1511,7 @@
 			ref: uuid(),
 			name: $("#p-nom").value.trim(),
 			price: num($("#p-precio").value),
+			cost: costoPayload(),
 			sku: $("#p-sku").value.trim(),
 			categories: pr.cats.slice(),
 			description: $("#p-desc").value.trim(),
@@ -1481,7 +1545,7 @@
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
-		["#p-nom", "#p-precio", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { $(s).value = ""; });
+		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		$("#p-pub").checked = true;
 		$("#p-nuevocolor").hidden = true;
 		$("#p-nom-dup").hidden = true;
@@ -1509,7 +1573,7 @@
 	function guardarBorrador() {
 		if (pr.edit || pr.restaurando) return;
 		const b = {
-			ts: Date.now(), nombre: $("#p-nom").value, precio: $("#p-precio").value, sku: $("#p-sku").value, manual: pr.manual,
+			ts: Date.now(), nombre: $("#p-nom").value, precio: $("#p-precio").value, costo: $("#p-costo") ? $("#p-costo").value : "", sku: $("#p-sku").value, manual: pr.manual,
 			cats: pr.cats, colores: pr.colores, tallas: pr.tallas, tocadas: pr.tallasTocadas, qty: pr.qty,
 			desc: $("#p-desc").value, pub: $("#p-pub").checked,
 			fotos: pr.fotos.filter((f) => f.estado === "ok" && f.id).map((f) => ({ id: f.id, url: f.url, color: f.color, kb: f.kb })),
@@ -1537,6 +1601,7 @@
 		pr.restaurando = true;
 		$("#p-nom").value = b.nombre || "";
 		$("#p-precio").value = b.precio || "";
+		if ($("#p-costo")) $("#p-costo").value = b.costo || "";
 		$("#p-sku").value = b.sku || "";
 		$("#p-desc").value = b.desc || "";
 		$("#p-pub").checked = b.pub !== false;
@@ -1646,6 +1711,7 @@
 		$("#p-nom-dup").hidden = true;
 		$("#p-nom").value = d.name || "";
 		$("#p-precio").value = d.price === "" || d.price === null ? "" : String(d.price);
+		if ($("#p-costo")) $("#p-costo").value = d.cost === "" || d.cost === null || d.cost === undefined ? "" : String(Math.round(d.cost));
 		formatearPrecio();
 		$("#p-sku").value = d.sku || "";
 		$("#p-sku").disabled = true;
@@ -1713,23 +1779,26 @@
 		return u;
 	}
 	const excelLink = (que) => '<a class="undo dl" href="' + esc(excelHistorial(que)) + '" download>Descargar en Excel</a>';
+	// Las vistas del historial: las tres del núcleo y las que registren los añadidos con DoxPOS.vistaHistorial({id, cargar, pintar}).
+	// Cada una dice cómo se carga con el periodo (desde, hasta) y cómo se pinta; su panel es el div #h-<id> de la plantilla.
+	const vistasHist = {};
+	function vistaHistorial(def) { vistasHist[def.id] = def; }
 	async function cargarHistorial() {
 		if (!hayHistorial()) return;
+		const def = vistasHist[hi.vista];
+		const box = $("#h-" + hi.vista);
+		if (!def || !box) return;
 		const [a, b] = rangoHistorial();
 		const n = ++hi.req;
-		const box = $("#h-" + hi.vista);
-		["ventas", "caja", "mov"].forEach((k) => { $("#h-" + k).hidden = k !== hi.vista; });
+		Object.keys(vistasHist).forEach((k) => { const el = $("#h-" + k); if (el) el.hidden = k !== hi.vista; });
 		$("#h-fil").hidden = hi.vista !== "mov";
 		if (!box.dataset.listo) box.innerHTML = '<p class="empty">Cargando…</p>';
 		box.style.opacity = ".55";
 		try {
-			let d;
-			if (hi.vista === "ventas") d = await api("history/sales?from=" + a + "&to=" + b);
-			else if (hi.vista === "caja") d = await api("history/cash?from=" + a + "&to=" + b);
-			else d = await api("history/stock?from=" + a + "&to=" + b + "&q=" + encodeURIComponent(hi.q) + "&product=" + hi.producto + "&kind=" + hi.tipo + "&page=" + hi.page);
+			const d = await def.cargar(a, b);
 			if (n !== hi.req) return;
 			box.dataset.listo = "1";
-			if (hi.vista === "ventas") pintarVentas(d); else if (hi.vista === "caja") pintarCaja(d); else pintarMovimientos(d);
+			def.pintar(d);
 		} catch (e) {
 			if (n === hi.req && e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? "Sin señal: el historial se lee de la tienda." : e.message) + "</p>";
 		}
@@ -1742,7 +1811,8 @@
 			"<li><span>" + esc(x.label || x.name) + "</span><span>" + x.n + (x.n === 1 ? " venta" : " ventas") + (conUnidades && x.units !== undefined ? " · " + x.units + (x.units === 1 ? " unidad" : " unidades") : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
 		).join("") + "</ul></div>";
 	}
-	function filaPedidoHist(p) {
+	function filaPedidoHist(p, conCosto) {
+		const vendido = ["por_enviar", "enviado", "entregado"].includes(p.status);
 		const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[p.status] || "e";
 		const web = p.origin !== "caja";
 		const canal = web ? '<span class="tag w">' + esc(p.origin_label) + "</span>" : esc(p.channel) + (p.seller ? '<br><span class="sub">' + esc(p.seller) + "</span>" : "");
@@ -1750,36 +1820,43 @@
 			'<td><span class="who">' + esc(p.customer || "Sin nombre") + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
 			'<td class="items">' + esc(p.items) + "</td><td>" + canal + "</td>" +
 			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">paga al recibir</span>' : "") + "</td>" +
-			'<td class="num">' + dinero(p.total) + '</td><td><span class="tag ' + cls + '">' + esc(p.label) + "</span></td></tr>";
+			'<td class="num">' + dinero(p.total) + "</td>" +
+			(conCosto ? '<td class="num">' + (vendido ? (p.profit !== null && p.profit !== undefined ? dinero(p.profit) + '<br><span class="sub">' + p.margin + " %</span>" : '<span class="sub">sin costo</span>') : "") + "</td>" : "") +
+			'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span></td></tr>";
 	}
 	function pintarVentas(d) {
 		const t = d.totals;
 		const full = !!cfg.history_full;
 		let h = '<p class="hsub">' + (full ? "Ventas " : "Tus ventas ") + esc(textoPeriodo()) + "</p>";
+		const conCosto = !!d.costs; // Solo quien administra, con los costos encendidos.
 		h += '<div class="kpis">' + kpi(dinero(t.sold), "Vendido") + kpi(t.orders, t.orders === 1 ? "Venta" : "Ventas") + kpi(t.units, t.units === 1 ? "Unidad" : "Unidades") + kpi(dinero(t.avg), "Por venta") +
+			(conCosto ? kpi(dinero(t.profit), "Ganancia" + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
 			(t.pending_n ? kpi(dinero(t.pending), "Sin pagar aún (" + t.pending_n + ")") : "") + "</div>";
+		if (conCosto && t.no_cost_n) h += '<p class="hint">' + t.no_cost_n + (t.no_cost_n === 1 ? " venta no tiene" : " ventas no tienen") + " el costo de todos sus productos y no " + (t.no_cost_n === 1 ? "entra" : "entran") + " en la ganancia. El costo se pone en Productos, o se carga de golpe desde el Excel del inventario en Entró mercancía.</p>";
 		if (full) h += '<div class="brk">' + listaHist("Por canal", d.by_channel) + listaHist("Por forma de pago", d.by_payment) + listaHist("Por vendedora", d.by_seller) +
 			(d.by_day.length > 1 ? listaHist("Por día", d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
 		h += '<div class="grp"><h4>Pedidos <span class="cnt">' + d.count + (d.count > d.items.length ? " · los últimos " + d.items.length : "") + (d.count ? " " + excelLink("ventas") : "") + "</span></h4>";
 		if (!d.items.length) h += '<p class="empty">Nada en este periodo.</p>';
-		else h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Pedido</th><th>Cliente</th><th>Productos</th><th>Canal</th><th>Pago</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody>' + d.items.map(filaPedidoHist).join("") + "</tbody></table></div>";
+		else h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Pedido</th><th>Cliente</th><th>Productos</th><th>Canal</th><th>Pago</th><th class="num">Total</th>' + (conCosto ? '<th class="num">Ganancia</th>' : "") + '<th>Estado</th></tr></thead><tbody>' + d.items.map((p) => filaPedidoHist(p, conCosto)).join("") + "</tbody></table></div>";
 		h += "</div>";
 		$("#h-ventas").innerHTML = h;
 	}
 	function pintarCaja(d) {
 		const t = d.totals;
 		let h = '<p class="hsub">La caja ' + esc(textoPeriodo()) + "</p>";
-		h += '<div class="kpis">' + kpi(dinero(t.cashed), "Cobrado") + kpi(dinero(t.sold), "Vendido") + kpi(dinero(t.cod), "Por cobrar al entregar" + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), "Apartado sin pagar" + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		const conCosto = !!d.costs;
+		h += '<div class="kpis">' + kpi(dinero(t.cashed), "Cobrado") + kpi(dinero(t.sold), "Vendido") + (conCosto ? kpi(dinero(t.profit), "Ganancia") : "") + kpi(dinero(t.cod), "Por cobrar al entregar" + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), "Apartado sin pagar" + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		if (conCosto && t.no_cost_n) h += '<p class="hint">' + t.no_cost_n + (t.no_cost_n === 1 ? " venta sin costo completo no entra" : " ventas sin costo completo no entran") + " en la ganancia.</p>";
 		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist("Cobrado por forma de pago", d.method_totals) + "</div>";
 		h += '<div class="grp"><h4>Por día' + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
 		if (!d.days.length) h += '<p class="empty">Nada en este periodo.</p>';
 		else {
 			const tot = (m) => (d.method_totals.find((x) => x.name === m) || {}).total || 0;
-			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Día</th><th class="num">Ventas</th><th class="num">Vendido</th>' + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">Por cobrar</th><th class="num">Apartado</th></tr></thead><tbody>';
+			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>Día</th><th class="num">Ventas</th><th class="num">Vendido</th>' + (conCosto ? '<th class="num">Costo</th><th class="num">Ganancia</th>' : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">Por cobrar</th><th class="num">Apartado</th></tr></thead><tbody>';
 			d.days.forEach((r) => {
-				h += "<tr><td>" + esc(diaBonito(r.day)) + '</td><td class="num">' + r.n + '</td><td class="num">' + dinero(r.sold) + "</td>" + d.methods.map((m) => '<td class="num">' + (r.methods[m] ? dinero(r.methods[m]) : "") + "</td>").join("") + '<td class="num">' + (r.cod ? dinero(r.cod) : "") + '</td><td class="num">' + (r.holds ? dinero(r.holds) : "") + "</td></tr>";
+				h += "<tr><td>" + esc(diaBonito(r.day)) + '</td><td class="num">' + r.n + '</td><td class="num">' + dinero(r.sold) + "</td>" + (conCosto ? '<td class="num">' + (r.n ? dinero(r.cost) : "") + '</td><td class="num">' + (r.n ? dinero(r.profit) : "") + "</td>" : "") + d.methods.map((m) => '<td class="num">' + (r.methods[m] ? dinero(r.methods[m]) : "") + "</td>").join("") + '<td class="num">' + (r.cod ? dinero(r.cod) : "") + '</td><td class="num">' + (r.holds ? dinero(r.holds) : "") + "</td></tr>";
 			});
-			if (d.days.length > 1) h += '<tr class="tot"><td>Total</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
+			if (d.days.length > 1) h += '<tr class="tot"><td>Total</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + (conCosto ? '<td class="num">' + dinero(t.cost) + '</td><td class="num">' + dinero(t.profit) + "</td>" : "") + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
 			h += "</tbody></table></div>";
 		}
 		h += "</div>";
@@ -1799,9 +1876,10 @@
 		if (hi.producto) h += '<p class="hint">Solo <b>' + esc(hi.productoNombre) + '</b> <button type="button" class="undo" id="h-solo-x">ver todos</button></p>';
 		h += '<p class="hint">' + (d.total ? d.total + (d.total === 1 ? " movimiento" : " movimientos") + " · entraron <b>+" + d.in + "</b> · salieron <b>−" + d.out + "</b> · " + excelLink("movimientos") : "Sin movimientos en este periodo. Aquí queda cada venta, entrada, anulación y cambio de existencias, con su motivo y quién lo hizo.") + "</p>";
 		if (d.items.length) {
-			h += '<div class="wrapx2"><table class="ped kdx"><thead><tr><th>Cuándo</th><th>Producto</th><th class="num">Había</th><th class="num">Cambio</th><th class="num">Quedan</th><th>Motivo</th><th>Quién</th></tr></thead><tbody>';
+			const conCosto = !!d.costs; // El costo por unidad de cada movimiento (el de compra en una entrada), para quien administra.
+			h += '<div class="wrapx2"><table class="ped kdx"><thead><tr><th>Cuándo</th><th>Producto</th><th class="num">Había</th><th class="num">Cambio</th><th class="num">Quedan</th>' + (conCosto ? '<th class="num">Costo unit.</th>' : "") + '<th>Motivo</th><th>Quién</th></tr></thead><tbody>';
 			d.items.forEach((r) => {
-				h += '<tr><td class="num"><span class="sub">' + esc(r.date) + '</span></td><td><button type="button" class="linkp" data-pid="' + r.product_id + '" data-name="' + esc(r.name) + '">' + esc(r.name) + '</button><br><span class="sub">' + esc(r.sku) + '</span></td><td class="num">' + (r.before === null ? "" : r.before) + '</td><td class="num"><span class="delta ' + (r.delta > 0 ? "in" : "out") + '">' + (r.delta > 0 ? "+" : "−") + Math.abs(r.delta) + '</span></td><td class="num"><b>' + (r.after === null ? "" : r.after) + "</b></td><td>" + esc(r.label) + (r.note ? '<br><span class="sub">' + esc(r.note) + "</span>" : "") + "</td><td>" + esc(r.user) + "</td></tr>";
+				h += '<tr><td class="num"><span class="sub">' + esc(r.date) + '</span></td><td><button type="button" class="linkp" data-pid="' + r.product_id + '" data-name="' + esc(r.name) + '">' + esc(r.name) + '</button><br><span class="sub">' + esc(r.sku) + '</span></td><td class="num">' + (r.before === null ? "" : r.before) + '</td><td class="num"><span class="delta ' + (r.delta > 0 ? "in" : "out") + '">' + (r.delta > 0 ? "+" : "−") + Math.abs(r.delta) + '</span></td><td class="num"><b>' + (r.after === null ? "" : r.after) + "</b></td>" + (conCosto ? '<td class="num">' + (r.unit_cost === null || r.unit_cost === undefined ? "" : dinero(r.unit_cost)) + "</td>" : "") + "<td>" + esc(r.label) + (r.note ? '<br><span class="sub">' + esc(r.note) + "</span>" : "") + "</td><td>" + esc(r.user) + "</td></tr>";
 			});
 			h += "</tbody></table></div>";
 			if (d.pages > 1) h += '<div class="pager"><button type="button" class="mini" id="h-prev"' + (d.page <= 1 ? " disabled" : "") + '>Anteriores</button><span>' + ((d.page - 1) * 50 + 1) + "-" + Math.min(d.total, d.page * 50) + " de " + d.total + '</span><button type="button" class="mini" id="h-next"' + (d.page >= d.pages ? " disabled" : "") + ">Siguientes</button></div>";
@@ -1814,6 +1892,33 @@
 		const pv = $("#h-prev"), nx = $("#h-next");
 		if (pv) pv.onclick = () => { hi.page--; cargarHistorial(); $("#t-historial .scroll").scrollTop = 0; };
 		if (nx) nx.onclick = () => { hi.page++; cargarHistorial(); $("#t-historial .scroll").scrollTop = 0; };
+	}
+
+	vistaHistorial({ id: "ventas", cargar: (a, b) => api("history/sales?from=" + a + "&to=" + b), pintar: pintarVentas });
+	vistaHistorial({ id: "caja", cargar: (a, b) => api("history/cash?from=" + a + "&to=" + b), pintar: pintarCaja });
+	vistaHistorial({ id: "mov", cargar: (a, b) => api("history/stock?from=" + a + "&to=" + b + "&q=" + encodeURIComponent(hi.q) + "&product=" + hi.producto + "&kind=" + hi.tipo + "&page=" + hi.page), pintar: pintarMovimientos });
+
+	// ---------- los costos de golpe: el Excel del inventario con la columna Costo llena ----------
+	async function subirCostos() {
+		const inp = $("#e-costos-file");
+		const f = inp.files && inp.files[0];
+		inp.value = "";
+		if (!f) return;
+		const soltar = ocupar($("#e-costos"), "Subiendo…");
+		try {
+			const fd = new FormData();
+			fd.append("file", f, f.name);
+			const r = await api("costs/import", { method: "POST", body: fd });
+			let t = r.updated + (r.updated === 1 ? " costo cambiado" : " costos cambiados") + " de " + r.rows + (r.rows === 1 ? " fila." : " filas.");
+			if (r.same) t += " " + r.same + " ya " + (r.same === 1 ? "estaba" : "estaban") + " igual.";
+			if (r.skipped) t += " " + r.skipped + (r.skipped === 1 ? " fila sin costo" : " filas sin costo") + " (se saltan).";
+			if (r.missing) t += " " + r.missing + (r.missing === 1 ? " código no está" : " códigos no están") + " en la tienda" + (r.missing_list && r.missing_list.length ? ": " + r.missing_list.map(esc).join(", ") : "") + ".";
+			modal("<h3>Costos cargados</h3><p class=\"mp\">" + t + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">Listo</button></div>');
+			$("#m-no").onclick = cerrarModal;
+		} catch (e) {
+			if (e.message !== "sesion") toast(e.red ? "Sin señal: no se pudo subir el archivo." : e.message);
+		}
+		soltar();
 	}
 
 	// ---------- pestañas y arranque ----------
@@ -1834,7 +1939,7 @@
 		hash: () => (hi.vista !== "ventas" ? hi.vista : ""),
 		// #historial/mov, #historial/ventas/2026-09-05 (las ventas de un día) o #historial/ventas/semana.
 		desdeHash(vista, extra) {
-			if (["ventas", "caja", "mov"].includes(vista)) { hi.vista = vista; document.querySelectorAll("#h-vista button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.v === vista)); }
+			if (vistasHist[vista]) { hi.vista = vista; document.querySelectorAll("#h-vista button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.v === vista)); }
 			const per = /^\d{4}-\d{2}-\d{2}$/.test(extra || "") ? "fechas" : (["hoy", "semana", "mes"].includes(extra) ? extra : "");
 			if (per) {
 				hi.periodo = per;
@@ -1893,6 +1998,7 @@
 			zona.addEventListener("drop", (e) => { e.preventDefault(); zona.classList.remove("over"); if (e.dataTransfer) agregarArchivos(e.dataTransfer.files); });
 			$("#p-nom").addEventListener("input", () => { pintarResumenProducto(); programarNombre(); });
 			$("#p-precio").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
+			if ($("#p-costo")) $("#p-costo").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
 			$("#p-desc").addEventListener("input", programarBorrador);
 			$("#p-pub").addEventListener("change", programarBorrador);
 			$("#p-sku").addEventListener("input", comprobarCodigo);
@@ -1959,6 +2065,10 @@
 		$("#reg").onclick = () => cerrar(false);
 		$("#apartar").onclick = () => cerrar(true);
 		$("#reg2").onclick = guardarEntrada;
+		if ($("#e-costos")) {
+			$("#e-costos").onclick = () => $("#e-costos-file").click();
+			$("#e-costos-file").addEventListener("change", subirCostos);
+		}
 		$("#modal").addEventListener("click", (e) => { if (e.target === $("#modal")) cerrarModal(); });
 		// Tocar el número o los productos de un pedido (en Pedidos, Historial u Hoy) abre su detalle.
 		document.addEventListener("click", (e) => { const b = e.target.closest("[data-ver]"); if (b) { e.preventDefault(); verPedido(+b.dataset.ver); } });
@@ -1989,6 +2099,7 @@
 		cfg, M, $, esc, num, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
 		verPedido, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
+		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,
 		pestaña, on, emit, pestañaActual: () => st.tab, arrancar: init,
 	};
 })();

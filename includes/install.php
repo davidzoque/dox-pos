@@ -32,6 +32,7 @@ function dox_pos_maybe_install() {
 function dox_pos_install() {
 	dox_pos_install_roles();
 	dox_pos_install_tables();
+	dox_pos_costs_install(); // Enciende el campo de costo de WooCommerce si la caja lleva costos.
 	dox_pos_add_rewrite();
 	dox_pos_schedule_cleanup();
 	flush_rewrite_rules();
@@ -52,8 +53,9 @@ function dox_pos_schedule_cleanup() {
 }
 
 /**
- * Las tablas: las entradas de mercancía (WooCommerce no guarda lo que entra, solo lo que sale)
- * y el kardex (cada cambio de existencias, con su motivo y quién lo hizo).
+ * Las tablas: las entradas de mercancía (WooCommerce no guarda lo que entra, solo lo que sale),
+ * con lo que costó, y el kardex (cada cambio de existencias, con su motivo, quién lo hizo y el
+ * costo por unidad en ese momento).
  */
 function dox_pos_install_tables() {
 	global $wpdb;
@@ -71,6 +73,7 @@ function dox_pos_install_tables() {
 			note text,
 			items longtext NOT NULL,
 			units int(11) NOT NULL DEFAULT 0,
+			cost decimal(15,2) DEFAULT NULL,
 			status varchar(20) NOT NULL DEFAULT 'ok',
 			ref varchar(64) NOT NULL DEFAULT '',
 			PRIMARY KEY  (id),
@@ -90,6 +93,7 @@ function dox_pos_install_tables() {
 			qty_before int(11) DEFAULT NULL,
 			qty_after int(11) DEFAULT NULL,
 			delta int(11) NOT NULL DEFAULT 0,
+			unit_cost decimal(15,2) DEFAULT NULL,
 			reason varchar(20) NOT NULL DEFAULT 'other',
 			ref_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			user_id bigint(20) unsigned NOT NULL DEFAULT 0,

@@ -3,7 +3,7 @@
  * Plugin Name:       Dox POS
  * Plugin URI:        https://doxstudio.com
  * Description:       La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y mercancía desde el frontend (/caja), sin entrar a wp-admin, con pedidos, productos, historial, kardex y Excel. Cada venta es un pedido de WooCommerce y el inventario baja solo. Con Dox POS Pro, el asistente de negocio.
- * Version:           0.20.0
+ * Version:           0.21.0
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.20.0' );
+define( 'DOX_POS_VERSION', '0.21.0' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -48,6 +48,7 @@ require_once DOX_POS_PATH . 'includes/shipping.php';
 require_once DOX_POS_PATH . 'includes/orders.php';
 require_once DOX_POS_PATH . 'includes/entries.php';
 require_once DOX_POS_PATH . 'includes/stock-log.php';
+require_once DOX_POS_PATH . 'includes/costs.php';
 require_once DOX_POS_PATH . 'includes/products.php';
 require_once DOX_POS_PATH . 'includes/inventory.php';
 require_once DOX_POS_PATH . 'includes/history.php';

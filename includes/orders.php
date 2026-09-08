@@ -768,6 +768,7 @@ function dox_pos_order_detail( $id ) {
 		return $order;
 	}
 	$f     = dox_pos_format_order( $order );
+	$see   = dox_pos_can_see_costs();
 	$items = array();
 	foreach ( $order->get_items() as $it ) {
 		$pid    = (int) $it->get_product_id();
@@ -803,6 +804,7 @@ function dox_pos_order_detail( $id ) {
 			'stock'        => $stock,
 			'exists'       => (bool) $p,
 			'editable'     => (bool) $parent && in_array( $parent->get_type(), array( 'simple', 'variable' ), true ),
+			'unit_cost'    => $see ? dox_pos_line_unit_cost( $it ) : null, // El costo congelado al venderse.
 		);
 	}
 	$discount = 0.0;
@@ -819,7 +821,7 @@ function dox_pos_order_detail( $id ) {
 	foreach ( wc_get_order_notes( array( 'order_id' => $order->get_id(), 'limit' => 12 ) ) as $n ) {
 		$notes[] = array(
 			'date'     => $n->date_created ? $n->date_created->date_i18n( 'd/m H:i' ) : '',
-			'text'     => trim( wp_strip_all_tags( (string) $n->content ) ),
+			'text'     => trim( html_entity_decode( wp_strip_all_tags( (string) $n->content ), ENT_QUOTES, 'UTF-8' ) ), // WooCommerce escribe "4&rarr;3" en sus notas.
 			'customer' => ! empty( $n->customer_note ),
 		);
 	}
@@ -842,7 +844,24 @@ function dox_pos_order_detail( $id ) {
 			'notes'           => $notes,
 			'edit_url'        => current_user_can( 'manage_woocommerce' ) ? $order->get_edit_order_url() : '',
 			'demo'            => (bool) $order->get_meta( '_dox_pos_demo' ),
-		)
+		),
+		$see ? dox_pos_order_profit_fields( $order ) : array()
+	);
+}
+
+/**
+ * El costo, la ganancia y el margen de un pedido, como los enseña la caja (solo a quien administra).
+ *
+ * @param WC_Order $order El pedido.
+ * @return array cost, profit, margin, cost_missing.
+ */
+function dox_pos_order_profit_fields( $order ) {
+	$pr = dox_pos_order_profit( $order );
+	return array(
+		'cost'         => $pr['cost'],
+		'profit'       => $pr['profit'],
+		'margin'       => null === $pr['profit'] ? null : dox_pos_margin( $pr['profit'], $pr['revenue'] ),
+		'cost_missing' => $pr['missing'], // Líneas sin costo: con alguna, la ganancia no se sabe.
 	);
 }
 

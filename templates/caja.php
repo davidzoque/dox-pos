@@ -135,8 +135,16 @@ $cfg   = dox_pos_js_config();
 						<div class="grp">
 							<h4><?php esc_html_e( 'Inventario completo', 'dox-pos' ); ?></h4>
 							<a class="go alt dl" id="e-excel" href="<?php echo esc_url( add_query_arg( 'descargar', 'inventario', dox_pos_url() ) ); ?>" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Descargar en Excel', 'dox-pos' ); ?></a>
-							<p class="hint"><?php esc_html_e( 'Todas las referencias con talla, color, precio, existencias y su valor, y un resumen por categoría. Abre en Excel, Numbers o Google Sheets.', 'dox-pos' ); ?></p>
+							<p class="hint"><?php echo esc_html( $cfg['costs'] ? __( 'Todas las referencias con talla, color, precio, costo, existencias y su valor (a precio y al costo), y un resumen por categoría. Abre en Excel, Numbers o Google Sheets.', 'dox-pos' ) : __( 'Todas las referencias con talla, color, precio, existencias y su valor, y un resumen por categoría. Abre en Excel, Numbers o Google Sheets.', 'dox-pos' ) ); ?></p>
 						</div>
+						<?php if ( $cfg['costs'] ) : // Los costos de golpe, desde ese mismo Excel con la columna Costo llena. ?>
+						<div class="grp">
+							<h4><?php esc_html_e( 'Cargar costos', 'dox-pos' ); ?></h4>
+							<input type="file" id="e-costos-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+							<button type="button" class="go alt dl" id="e-costos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Subir costos desde Excel', 'dox-pos' ); ?></button>
+							<p class="hint"><?php esc_html_e( 'Descarga el inventario, llena la columna Costo (en la fila de cada talla, o en la fila del producto para ponérselo a todas) y súbelo aquí. Solo cambia los costos: no toca existencias ni precios.', 'dox-pos' ); ?></p>
+						</div>
+						<?php endif; ?>
 					</div>
 					<div class="foot">
 						<div class="sum" id="sum2"></div>
@@ -201,6 +209,13 @@ $cfg   = dox_pos_js_config();
 								<div class="field"><label for="p-precio"><?php esc_html_e( 'Precio', 'dox-pos' ); ?></label><input id="p-precio" inputmode="numeric" autocomplete="off" placeholder="0"></div>
 								<div class="field"><label for="p-sku"><?php esc_html_e( 'Código', 'dox-pos' ); ?></label><input id="p-sku" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="pstatus" id="p-sku-st" aria-live="polite"></span></div>
 							</div>
+							<?php if ( $cfg['costs'] ) : // El costo por unidad, solo para quien administra. ?>
+							<div class="g2 mt">
+								<div class="field"><label for="p-costo"><?php esc_html_e( 'Costo por unidad', 'dox-pos' ); ?></label><input id="p-costo" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+								<div class="field"><span class="lbl"><?php esc_html_e( 'Ganancia', 'dox-pos' ); ?></span><p class="margen" id="p-margen"><?php esc_html_e( 'Escribe precio y costo.', 'dox-pos' ); ?></p></div>
+							</div>
+							<p class="hint"><?php esc_html_e( 'Lo que pagaste por cada unidad, con el envío del proveedor si lo hubo. Solo lo ven quienes administran; en cada venta queda la ganancia. Un producto de tallas lleva un costo para todas; si alguna cuesta distinto, se pone en WooCommerce.', 'dox-pos' ); ?></p>
+							<?php endif; ?>
 						</div>
 						<div class="grp" id="g-colores">
 							<h4><?php esc_html_e( 'Colores', 'dox-pos' ); ?> <span class="cnt" id="p-ncol"></span></h4>
@@ -255,6 +270,7 @@ $cfg   = dox_pos_js_config();
 					<button type="button" data-v="ventas" aria-pressed="true"><?php esc_html_e( 'Ventas', 'dox-pos' ); ?></button>
 					<button type="button" data-v="caja" aria-pressed="false"><?php esc_html_e( 'Caja del día', 'dox-pos' ); ?></button>
 					<button type="button" data-v="mov" aria-pressed="false"><?php esc_html_e( 'Movimientos', 'dox-pos' ); ?></button>
+					<?php do_action( 'dox_pos_history_views', $cfg ); // Vistas de los añadidos (el Pro pone Rendimiento): un botón data-v="<vista>". ?>
 				</div>
 				<?php endif; ?>
 			</div>
@@ -266,6 +282,7 @@ $cfg   = dox_pos_js_config();
 				<div id="h-ventas"></div>
 				<div id="h-caja" hidden></div>
 				<div id="h-mov" hidden></div>
+				<?php do_action( 'dox_pos_history_panels', $cfg ); // Sus paneles: un div id="h-<vista>" oculto. ?>
 			</div></div>
 		</section>
 

@@ -110,6 +110,8 @@ function dox_pos_register_routes() {
 		)
 	);
 	register_rest_route( $ns, '/products/image/(?P<id>\d+)', array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => 'dox_pos_rest_delete_image', 'permission_callback' => $pperm ) );
+	// Los costos de golpe, desde el Excel del inventario con la columna Costo llena.
+	register_rest_route( $ns, '/costs/import', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_costs_import', 'permission_callback' => $pperm ) );
 
 	// El historial: las ventas las ve cualquiera de la caja (el rol Caja, solo las suyas de hoy);
 	// la caja del día y los movimientos, administradores y gerentes.

@@ -17,7 +17,8 @@ function dox_pos_entries_table() {
 /**
  * Registra una entrada y suma las unidades.
  *
- * @param array $data lines [ [id, qty] ], supplier, invoice, date, note, ref, force.
+ * @param array $data lines [ [id, qty, cost] ], supplier, invoice, date, note, ref, force. El costo
+ *                    (por unidad, lo que se pagó) es opcional y solo lo manda quien administra.
  * @return array|WP_Error La entrada, ya formateada.
  */
 function dox_pos_create_entry( $data ) {
@@ -53,35 +54,51 @@ function dox_pos_create_entry( $data ) {
 			);
 		}
 	}
+	$see   = dox_pos_can_see_costs(); // El costo de la compra solo lo manda quien administra; el rol Caja registra sin costos.
 	$lines = array();
+	$costs = array(); // Para el kardex: el costo de compra por unidad de cada producto o talla.
 	foreach ( (array) ( $data['lines'] ?? array() ) as $l ) {
 		$p   = wc_get_product( (int) ( $l['id'] ?? 0 ) );
 		$qty = (int) ( $l['qty'] ?? 0 );
 		if ( ! $p || $qty < 1 ) {
 			continue;
 		}
-		$lines[] = array( 'product' => $p, 'qty' => $qty );
+		$cost = $see && isset( $l['cost'] ) && '' !== $l['cost'] ? dox_pos_parse_money( $l['cost'] ) : null;
+		$cost = null === $cost || $cost <= 0 ? null : round( $cost, 2 );
+		if ( null !== $cost ) {
+			$costs[ $p->get_id() ] = $cost;
+		}
+		$lines[] = array( 'product' => $p, 'qty' => $qty, 'cost' => $cost );
 	}
 	if ( ! $lines ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'No hay nada que registrar.', 'dox-pos' ) );
 	}
 	$saved = array();
 	$units = 0;
-	$ctx   = dox_pos_stock_context( 'entry', 0, trim( sanitize_text_field( $data['supplier'] ?? '' ) . ' ' . $invoice ) ); // El kardex: "Entrada #N" (el número se pone al guardarla).
+	$total = 0.0; // Lo que costó la mercancía que trae costo.
+	$ctx   = dox_pos_stock_context( 'entry', 0, trim( sanitize_text_field( $data['supplier'] ?? '' ) . ' ' . $invoice ), $costs ); // El kardex: "Entrada #N" (el número se pone al guardarla).
 	foreach ( $lines as $l ) {
 		$p      = $l['product'];
 		$before = $p->managing_stock() ? (int) $p->get_stock_quantity() : null;
+		$was    = dox_pos_product_cost( $p ); // El costo que tenía antes de promediar, para el registro.
 		$after  = wc_update_product_stock( $p, $l['qty'], 'increase' );
 		$saved[] = array(
-			'id'     => $p->get_id(),
-			'sku'    => $p->get_sku( 'edit' ),
-			'name'   => dox_pos_item_name( $p ),
-			'qty'    => $l['qty'],
-			'before' => $before,
-			'after'  => null === $after ? null : (int) $after,
+			'id'          => $p->get_id(),
+			'sku'         => $p->get_sku( 'edit' ),
+			'name'        => dox_pos_item_name( $p ),
+			'qty'         => $l['qty'],
+			'before'      => $before,
+			'after'       => null === $after ? null : (int) $after,
+			'cost'        => $l['cost'],
+			'cost_before' => $was,
 		);
 		$units += $l['qty'];
+		if ( null !== $l['cost'] ) {
+			$total += $l['qty'] * $l['cost'];
+		}
 	}
+	// Con las unidades ya sumadas, el costo promedio de cada producto que trajo costo.
+	$changed = dox_pos_costs_after_entry( $lines );
 	$wpdb->insert(
 		dox_pos_entries_table(),
 		array(
@@ -93,14 +110,17 @@ function dox_pos_create_entry( $data ) {
 			'note'       => sanitize_textarea_field( $data['note'] ?? '' ),
 			'items'      => wp_json_encode( $saved ),
 			'units'      => $units,
+			'cost'       => $total > 0 ? round( $total, 2 ) : null,
 			'status'     => 'ok',
 			'ref'        => $ref,
 		),
-		array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
+		array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%s', '%s' )
 	);
 	$entry_id = (int) $wpdb->insert_id;
 	dox_pos_stock_log_set_ref( dox_pos_stock_context_end( $ctx ), $entry_id );
-	return dox_pos_get_entry( $entry_id );
+	$entry                 = dox_pos_get_entry( $entry_id );
+	$entry['cost_changes'] = $changed; // Los productos cuyo costo promedio cambió con esta compra.
+	return $entry;
 }
 
 /**
@@ -172,6 +192,7 @@ function dox_pos_format_entry( $row ) {
 		'invoice'  => $row['invoice'],
 		'note'     => $row['note'],
 		'units'    => (int) $row['units'],
+		'cost'     => dox_pos_can_see_costs() && isset( $row['cost'] ) && null !== $row['cost'] && '' !== $row['cost'] ? (float) $row['cost'] : null, // Lo que costó la mercancía, si se apuntó.
 		'status'   => $row['status'],
 		'user'     => $user ? $user->display_name : '',
 		'items'    => implode( ' + ', array_map( fn( $l ) => $l['name'] . ' ×' . $l['qty'], $lines ) ),

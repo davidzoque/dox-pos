@@ -65,6 +65,8 @@ function dox_pos_render() {
 		} elseif ( in_array( $what, array( 'ventas', 'caja', 'movimientos' ), true ) ) {
 			$g = fn( $k ) => sanitize_text_field( wp_unslash( $_GET[ $k ] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			dox_pos_send_history( $what, $g( 'desde' ), $g( 'hasta' ), $g( 'q' ), (int) $g( 'producto' ), $g( 'tipo' ) );
+		} else {
+			do_action( 'dox_pos_download', $what ); // Los Excel de los añadidos (el Pro: rendimiento). Quien lo sirve termina con exit.
 		}
 	}
 
@@ -195,6 +197,7 @@ function dox_pos_js_config() {
 		'hold_hours'      => dox_pos_hold_hours(),
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
+		'costs'           => dox_pos_can_see_costs(),                     // ¿Ve costos y ganancia? (administradores y gerentes, con los costos encendidos)
 		'url'             => dox_pos_url(),
 		'today'           => wp_date( 'Y-m-d' ),                          // El día de la tienda, para los periodos.
 		'max_upload'      => (int) wp_max_upload_size(),

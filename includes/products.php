@@ -26,7 +26,7 @@ function dox_pos_products_cap() {
 /**
  * Los ajustes de productos (WooCommerce > Dox POS > Productos), ya validados.
  *
- * @return array{quality:int,max_px:int,sku:string,size_attr:string,color_attr:string}
+ * @return array{quality:int,max_px:int,sku:string,size_attr:string,color_attr:string,costs:bool}
  */
 function dox_pos_products_settings() {
 	static $cache = null;
@@ -42,6 +42,7 @@ function dox_pos_products_settings() {
 		'sku'        => in_array( $sku, array( 'codes', 'slugs', 'none' ), true ) ? $sku : 'codes',
 		'size_attr'  => dox_pos_attribute_taxonomy( (string) ( $s['size_attr'] ?? '' ), array( 'talla', 'tallas', 'talle', 'size', 'sizes' ) ),
 		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), array( 'color', 'colores', 'colour', 'colors' ) ),
+		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
 	);
 	return $cache;
 }
@@ -716,7 +717,7 @@ function dox_pos_clean_pending_images() {
 /**
  * Crea el producto con sus variaciones.
  *
- * @param array $data name, price, sku, categories [id], description, publish, ref,
+ * @param array $data name, price, cost (por unidad, opcional), sku, categories [id], description, publish, ref,
  *                    sizes [id], colors [ {key, id | name, hex} ], qty {colorKey: {sizeId: n}},
  *                    images [ {id, color: colorKey | ''} ].
  * @return array|WP_Error
@@ -825,6 +826,10 @@ function dox_pos_create_product( $data ) {
 	$product->set_catalog_visibility( 'visible' );
 	$product->set_category_ids( $cats );
 	$product->set_description( wp_kses_post( (string) ( $data['description'] ?? '' ) ) );
+	$cost = dox_pos_can_see_costs() ? dox_pos_parse_money( $data['cost'] ?? '' ) : null;
+	if ( null !== $cost && $cost > 0 ) {
+		$product->set_cogs_value( round( $cost, 2 ) ); // El costo por unidad va en el producto; cada talla lo hereda.
+	}
 	if ( $main ) {
 		$product->set_image_id( $main );
 	}
@@ -1243,6 +1248,7 @@ function dox_pos_product_edit_data( $id ) {
 		}
 	}
 	$prices = array_values( array_unique( array_filter( $prices, fn( $x ) => $x > 0 ) ) );
+	$cs     = dox_pos_can_see_costs() ? dox_pos_product_cost_summary( $p ) : null;
 	return array(
 		'id'          => $p->get_id(),
 		'name'        => $p->get_name(),
@@ -1255,6 +1261,9 @@ function dox_pos_product_edit_data( $id ) {
 		'price'       => 1 === count( $prices ) ? $prices[0] : '', // Vacío: las tallas tienen precios distintos.
 		'price_min'   => $prices ? min( $prices ) : 0,
 		'price_max'   => $prices ? max( $prices ) : 0,
+		'cost'        => $cs ? $cs['cost'] : null, // Uno solo; '' si las tallas cuestan distinto; null sin costo (o sin permiso para verlo).
+		'cost_min'    => $cs ? $cs['min'] : 0,
+		'cost_max'    => $cs ? $cs['max'] : 0,
 		'sizes'       => $model['sizes'],
 		'colors'      => $model['colors'],
 		'qty'         => (object) $qty,
@@ -1292,8 +1301,8 @@ function dox_pos_common_price( $variations ) {
  * y colores que ya tenía no se quitan desde aquí (sería borrar variaciones).
  *
  * @param int   $id   Producto.
- * @param array $data Igual que al crear: name, price ('' = no tocar), categories, description,
- *                    publish, sizes, colors, qty, images.
+ * @param array $data Igual que al crear: name, price ('' = no tocar), cost ('' = no tocar, 0 = quitarlo),
+ *                    categories, description, publish, sizes, colors, qty, images.
  * @return array|WP_Error
  */
 function dox_pos_update_product( $id, $data ) {
@@ -1315,6 +1324,12 @@ function dox_pos_update_product( $id, $data ) {
 	$price = wc_format_decimal( (string) ( $data['price'] ?? '' ) );
 	if ( '' !== $price && (float) $price <= 0 ) {
 		return new WP_Error( 'dox_pos_sin_precio', __( 'El precio tiene que ser mayor que cero.', 'dox-pos' ) );
+	}
+	// El costo: '' o ausente = no tocar; 0 = quitarlo; más = ponerlo a todo el producto (a todas las tallas).
+	$cost = null;
+	if ( dox_pos_can_see_costs() && isset( $data['cost'] ) && '' !== $data['cost'] ) {
+		$cost = dox_pos_parse_money( $data['cost'] );
+		$cost = null === $cost ? null : max( 0.0, $cost );
 	}
 	$cats = array();
 	foreach ( (array) ( $data['categories'] ?? array() ) as $cid ) {
@@ -1441,6 +1456,9 @@ function dox_pos_update_product( $id, $data ) {
 			$p->set_attributes( $attrs );
 		}
 	}
+	if ( null !== $cost ) {
+		$p->set_cogs_value( $cost > 0 ? round( $cost, 2 ) : null );
+	}
 	try {
 		$pid = $p->save();
 	} catch ( Exception $e ) {
@@ -1543,6 +1561,15 @@ function dox_pos_update_product( $id, $data ) {
 				}
 				$v->save();
 				$nvars++;
+			}
+		}
+		if ( null !== $cost ) {
+			// El costo escrito vale para todas las tallas: la que tenía uno propio lo suelta y hereda el del producto.
+			foreach ( $model['variations'] as $vr ) {
+				$v = wc_get_product( $vr['id'] );
+				if ( $v && null !== $v->get_cogs_value() ) {
+					dox_pos_set_product_cost( $v, null );
+				}
 			}
 		}
 		WC_Product_Variable::sync( $pid );
