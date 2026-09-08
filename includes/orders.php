@@ -827,7 +827,8 @@ function dox_pos_order_detail( $id ) {
 	}
 	$ship  = $order->has_shipping_address();
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
-	$fmt   = 'j \d\e F, G:i';
+	/* translators: formato de fecha de PHP: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
+	$fmt   = _x( 'F j, G:i', 'fecha y hora', 'dox-pos' );
 	return array_merge(
 		$f,
 		array(

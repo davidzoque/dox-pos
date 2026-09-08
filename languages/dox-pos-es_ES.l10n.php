@@ -674,6 +674,7 @@ return array(
 		'edit it' => 'edítalo',
 		'expires in %d h' => 'vence en %d h',
 		'expires on %s' => 'vence el %s',
+		'fecha y horaF j, G:i' => 'j \\d\\e F, G:i',
 		'for %s' => 'del %s',
 		'for today, %s' => 'de hoy, %s',
 		'from %1$s to %2$s' => 'de %1$s a %2$s',

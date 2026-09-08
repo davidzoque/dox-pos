@@ -2167,3 +2167,8 @@ msgstr "Hola {name}, te aparté {items} por {total}. Te lo guardo {hours} horas.
 
 msgid "Hi {name}, your order #{order} from {store} is on its way with {carrier}.\nTracking number: {tracking}\nYou can follow it here: {link}"
 msgstr "Hola {name}, tu pedido #{order} de {store} ya salió con {carrier}.\nGuía: {tracking}\nPuedes seguirlo aquí: {link}"
+
+#: includes/orders.php:831
+msgctxt "fecha y hora"
+msgid "F j, G:i"
+msgstr "j \\d\\e F, G:i"
