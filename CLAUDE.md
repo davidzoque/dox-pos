@@ -39,8 +39,10 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 
 ## Las capturas del directorio
 
-Van en `.wordpress-org/` (`screenshot-1.png` … `screenshot-6.png`, con sus pies de foto en la
-sección `== Screenshots ==` de `readme.txt`, en el mismo orden). **No van dentro del zip**: el
+Van en `.wordpress-org/`, con el icono y los dos banners: `icon-128x128.png`,
+`icon-256x256.png`, `banner-772x250.png`, `banner-1544x500.png` y `screenshot-1.png` …
+`screenshot-6.png` (con sus pies de foto en la sección `== Screenshots ==` de `readme.txt`,
+en el mismo orden). **No van dentro del zip**: el
 `subir.sh` y la Action las excluyen, porque en WordPress.org viven en la carpeta `assets/` del
 SVN, no en el plugin.
 
@@ -48,3 +50,8 @@ No son capturas de la tienda de un cliente: se generan con una maqueta HTML que 
 `caja.css` y el `ajustes.css` de verdad y pinta datos de una tienda inventada (`YOURSHOP`). Están
 en Drive, en `Dox Studio/WordPress/paginas/maqueta-caja/`, y se rehacen con `./hacer.sh`. Si
 cambia la interfaz, hay que copiar el CSS nuevo a esa carpeta y volver a generarlas.
+
+El icono y los banners salen de `./hacer-directorio.sh`, de `icono.html` y `banner.html`.
+El isotipo es el de Dox Studio redibujado en SVG midiendo el PNG de la marca, así que sale
+limpio a cualquier tamaño. El icono tiene tres fondos (`?v=a|b|c`); va el oscuro, y se cambia
+con `ICONO=a ./hacer-directorio.sh`.

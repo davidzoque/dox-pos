@@ -140,14 +140,17 @@ function dox_pos_cancel_entry( $id ) {
 	if ( 'ok' !== $row['status'] ) {
 		return new WP_Error( 'dox_pos_ya_anulada', __( 'That stock entry was already voided.', 'dox-pos' ) );
 	}
-	$ctx = dox_pos_stock_context( 'entry_undo', $id );
-	foreach ( (array) json_decode( $row['items'], true ) as $l ) {
-		$p = wc_get_product( (int) $l['id'] );
-		if ( $p ) {
-			wc_update_product_stock( $p, (int) $l['qty'], 'decrease' );
+	// Una entrada de demostración (las crea Dox POS Pro) nunca sumó nada, así que tampoco resta.
+	if ( ! dox_pos_is_demo_ref( $row['ref'] ?? '' ) ) {
+		$ctx = dox_pos_stock_context( 'entry_undo', $id );
+		foreach ( (array) json_decode( $row['items'], true ) as $l ) {
+			$p = wc_get_product( (int) $l['id'] );
+			if ( $p ) {
+				wc_update_product_stock( $p, (int) $l['qty'], 'decrease' );
+			}
 		}
+		dox_pos_stock_context_end( $ctx );
 	}
-	dox_pos_stock_context_end( $ctx );
 	$wpdb->update( dox_pos_entries_table(), array( 'status' => 'anulada' ), array( 'id' => $id ), array( '%s' ), array( '%d' ) );
 	return dox_pos_get_entry( $id );
 }

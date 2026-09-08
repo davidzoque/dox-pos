@@ -873,3 +873,14 @@ add_filter( 'woocommerce_can_restore_order_stock', 'dox_pos_demo_no_stock', 5, 2
 function dox_pos_demo_no_stock( $can, $order ) {
 	return $order instanceof WC_Order && $order->get_meta( '_dox_pos_demo' ) ? false : $can;
 }
+
+/**
+ * Lo que no es un pedido (una entrada de mercancía, un carrito) se marca como demostración con
+ * el prefijo de su referencia. Anular una entrada de ejemplo no puede restar existencias de verdad.
+ *
+ * @param string $ref La referencia de la fila.
+ * @return bool
+ */
+function dox_pos_is_demo_ref( $ref ) {
+	return 0 === strpos( (string) $ref, DOX_POS_DEMO_REF );
+}
