@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.24.4
+Stable tag: 0.24.5
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -73,7 +73,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Screenshots ==
 
-1. Recording a sale: search on the left, the order on the right, with channel, customer, payment and shipping.
+1. Recording a sale: search on the left, the order on the right, with the channel it came in through, the customer and how they pay.
 2. Stock in, with the supplier, the invoice and the cost of each unit.
 3. Orders from the register and from the website, with their status and the WhatsApp message ready.
 4. Creating a product from the phone: photos, sizes, colors and units.
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.24.5 =
+* The "No logo: the name shows" notice on the settings page follows the color of the bar: with a dark bar it was black on black.
 
 = 0.24.4 =
 * The date on the order detail follows the language of the site: it was written in Spanish inside the code, so an English shop read "8 de September".

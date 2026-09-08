@@ -36,3 +36,15 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
   no lo admite): lo de pago va en el Pro.
 - No pegar claves ni secretos en el chat ni en el código.
 - No subir a WordPress.org el zip que lleva `vendor/plugin-update-checker`: para eso está `dox-pos-wordpress-org.zip`.
+
+## Las capturas del directorio
+
+Van en `.wordpress-org/` (`screenshot-1.png` … `screenshot-6.png`, con sus pies de foto en la
+sección `== Screenshots ==` de `readme.txt`, en el mismo orden). **No van dentro del zip**: el
+`subir.sh` y la Action las excluyen, porque en WordPress.org viven en la carpeta `assets/` del
+SVN, no en el plugin.
+
+No son capturas de la tienda de un cliente: se generan con una maqueta HTML que carga el
+`caja.css` y el `ajustes.css` de verdad y pinta datos de una tienda inventada (`YOURSHOP`). Están
+en Drive, en `Dox Studio/WordPress/paginas/maqueta-caja/`, y se rehacen con `./hacer.sh`. Si
+cambia la interfaz, hay que copiar el CSS nuevo a esa carpeta y volver a generarlas.

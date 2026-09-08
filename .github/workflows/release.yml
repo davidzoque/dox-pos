@@ -31,7 +31,7 @@ jobs:
       - name: Construir los zips
         run: |
           mkdir -p build/dox-pos
-          rsync -a --exclude='.git*' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' --exclude='phpcs.xml.dist' --exclude='tools' ./ build/dox-pos/
+          rsync -a --exclude='.git*' --exclude='.wordpress-org' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' --exclude='phpcs.xml.dist' --exclude='tools' ./ build/dox-pos/
           cd build
           zip -rq dox-pos.zip dox-pos
           rm -rf dox-pos/vendor dox-pos/includes/updater.php
