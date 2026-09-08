@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.24.5
+Stable tag: 0.24.6
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.24.6 =
+* The total, the figures in the history and the headings are set in Manrope instead of Libre Baskerville: the register reads as a tool, not as a book. If your shop already picked its own fonts in Settings, nothing changes.
 
 = 0.24.5 =
 * The "No logo: the name shows" notice on the settings page follows the color of the bar: with a dark bar it was black on black.

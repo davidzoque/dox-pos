@@ -258,7 +258,7 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 /* La caja en miniatura: las mismas variables que caja.css. */
 .dp-bar{display:flex;align-items:center;gap:9px;padding:11px 14px;background:var(--bar);color:var(--bar-ink)}
 .dp-logo-prev{height:16px;width:auto;display:block}
-.dp-brand{font-family:var(--serif);font-size:15px;white-space:nowrap}
+.dp-brand{font-family:var(--serif);font-weight:600;font-size:15px;white-space:nowrap}
 .dp-cajita{font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.8;font-weight:500;padding-left:9px;border-left:1px solid currentColor;white-space:nowrap}
 .dp-tabs{margin-left:auto;display:flex;gap:3px}
 .dp-tab{font-size:11px;font-weight:500;padding:5px 10px;border-radius:8px}
@@ -277,7 +277,7 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 .dp-tag-prev{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--soft-accent)}
 .dp-total{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px}
 .dp-total span{font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;color:var(--muted)}
-.dp-total b{font-family:var(--serif);font-weight:400;font-size:20px}
+.dp-total b{font-family:var(--serif);font-weight:600;font-size:20px}
 .dp-go{display:block;text-align:center;background:var(--primary);color:var(--primary-ink);border-radius:10px;padding:10px;font-weight:600;font-size:13px}
 .dp-go.alt{background:#fff;color:var(--primary);border:1px solid var(--primary);margin-top:6px;padding:7px;font-size:12px;font-weight:500}
 
@@ -297,7 +297,7 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 /* La ventana de "marcar como enviado". */
 .dp-envio{display:grid;place-items:center;padding:24px 16px}
 .dp-modal-prev{width:100%;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 16px 40px -20px rgba(0,0,0,.35)}
-.dp-modal-title{font-family:var(--serif);font-size:17px;margin:0 0 14px;color:var(--ink)}
+.dp-modal-title{font-family:var(--serif);font-weight:600;font-size:17px;margin:0 0 14px;color:var(--ink)}
 .dp-fake-input{display:block;height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;margin-bottom:14px}
 .dp-envio .dp-go{margin-top:4px}
 

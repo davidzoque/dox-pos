@@ -34,7 +34,7 @@ function dox_pos_default_colors() {
 function dox_pos_default_fonts() {
 	return array(
 		'ui'    => 'Poppins',
-		'serif' => 'Libre Baskerville',
+		'serif' => 'Manrope',
 	);
 }
 
@@ -476,7 +476,7 @@ function dox_pos_fonts_url() {
 		return '';
 	}
 	$f = dox_pos_fonts();
-	return 'https://fonts.googleapis.com/css2?family=' . str_replace( ' ', '+', $f['ui'] ) . ':wght@400;500;600;700&family=' . str_replace( ' ', '+', $f['serif'] ) . ':wght@400;700&display=swap';
+	return 'https://fonts.googleapis.com/css2?family=' . str_replace( ' ', '+', $f['ui'] ) . ':wght@400;500;600;700&family=' . str_replace( ' ', '+', $f['serif'] ) . ':wght@400;600;700&display=swap';
 }
 
 /**
