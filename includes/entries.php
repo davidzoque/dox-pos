@@ -42,13 +42,13 @@ function dox_pos_create_entry( $data ) {
 				'dox_pos_factura_repetida',
 				sprintf(
 					/* translators: 1: factura, 2: fecha y hora, 3: ", de Proveedor" o nada, 4: ", por Usuario" o nada, 5: "con N unidades" */
-					__( 'La factura %1$s ya se registró el %2$s%3$s%4$s, %5$s.', 'dox-pos' ),
+					__( 'Invoice %1$s was already recorded on %2$s%3$s%4$s, %5$s.', 'dox-pos' ),
 					$prev['invoice'],
 					$prev['date'],
-					$prev['supplier'] ? sprintf( __( ', de %s', 'dox-pos' ), $prev['supplier'] ) : '',
-					$prev['user'] ? sprintf( __( ', por %s', 'dox-pos' ), $prev['user'] ) : '',
+					$prev['supplier'] ? sprintf( __( ', from %s', 'dox-pos' ), $prev['supplier'] ) : '',
+					$prev['user'] ? sprintf( __( ', by %s', 'dox-pos' ), $prev['user'] ) : '',
 					/* translators: %d: unidades */
-					sprintf( _n( 'con %d unidad', 'con %d unidades', $prev['units'], 'dox-pos' ), $prev['units'] )
+					sprintf( _n( 'with %d unit', 'with %d units', $prev['units'], 'dox-pos' ), $prev['units'] )
 				),
 				array( 'entry' => $prev )
 			);
@@ -71,7 +71,7 @@ function dox_pos_create_entry( $data ) {
 		$lines[] = array( 'product' => $p, 'qty' => $qty, 'cost' => $cost );
 	}
 	if ( ! $lines ) {
-		return new WP_Error( 'dox_pos_sin_lineas', __( 'No hay nada que registrar.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_lineas', __( 'There is nothing to record.', 'dox-pos' ) );
 	}
 	$saved = array();
 	$units = 0;
@@ -133,10 +133,10 @@ function dox_pos_cancel_entry( $id ) {
 	global $wpdb;
 	$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . dox_pos_entries_table() . ' WHERE id = %d', $id ), ARRAY_A );
 	if ( ! $row ) {
-		return new WP_Error( 'dox_pos_no_existe', __( 'Esa entrada no existe.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_existe', __( 'That stock entry does not exist.', 'dox-pos' ) );
 	}
 	if ( 'ok' !== $row['status'] ) {
-		return new WP_Error( 'dox_pos_ya_anulada', __( 'Esa entrada ya estaba anulada.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_ya_anulada', __( 'That stock entry was already voided.', 'dox-pos' ) );
 	}
 	$ctx = dox_pos_stock_context( 'entry_undo', $id );
 	foreach ( (array) json_decode( $row['items'], true ) as $l ) {

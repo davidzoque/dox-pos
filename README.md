@@ -28,6 +28,23 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 | `templates/` | `login.php` y `caja.php`, páginas completas fuera del tema. |
 | `assets/` | `caja.css` y `caja.js` (la caja y el asistente, sin dependencias) y `ajustes.css` y `ajustes.js` (la página de ajustes: pestañas, vista previa en vivo, comprobación de la dirección, canales ordenables, etiquetas de transportadoras y la prueba de conexión con OpenAI; sin jQuery salvo la biblioteca de medios). |
 
+## El idioma
+
+Desde la 0.22.0 el código va **en inglés**, que es lo que espera WordPress.org, y el español viaja
+como traducción en `languages/`: `dox-pos-es_ES.po` (la fuente), `.mo` (el formato de siempre) y
+`.l10n.php` (el que WordPress 6.5 y posteriores prefieren y el que manda si está). Son 447 entradas,
+plurales incluidos, más la descripción de la cabecera del plugin, que WordPress también traduce.
+`dox_pos_textdomain()` carga la carpeta en `init` con prioridad 1.
+
+Al tocar un texto: cambiarlo en inglés en el código y añadir el par al `.po`, y regenerar el `.mo` y
+el `.l10n.php` (los tres tienen que decir lo mismo, y el `.l10n.php` gana). Un sitio en español no
+nota nada: la caja y los ajustes siguen en español palabra por palabra.
+
+Lo que **todavía está en español** son los textos dentro del JavaScript (167 entre `caja.js` y
+`ajustes.js`), que no pasan por el sistema de traducción. Para pasarlos hace falta encolar con
+`wp-i18n`, envolverlos en `__()` de `wp.i18n` y generar el JSON de traducción con
+`wp_set_script_translations`. El Pro sigue entero en español: no va a WordPress.org.
+
 ## Cómo se cargan los archivos de la caja
 
 La caja es una página completa fuera del tema, así que no llama a `wp_head()` ni a `wp_footer()`: arrastrarían todo lo del tema y de los demás plugins. Aun así, la hoja de estilo y el JS se encolan con el sistema de WordPress (`dox_pos_enqueue_caja()`, en `page.php`): `dox-pos-caja` (con los colores de la marca como CSS en línea, `wp_add_inline_style`), `dox-pos-fonts` si las fuentes vienen de Google, y `dox-pos-caja` en JS con `window.DOX_POS` delante (`wp_add_inline_script`, posición `before`). Lo que se imprime se acota a los archivos del plugin: `dox_pos_assets( 'style' | 'script' )` filtra la cola por el prefijo `dox-pos` (con el filtro `dox_pos_assets` para un añadido que use otro), la cabecera hace `wp_print_styles()` con esa lista y la plantilla `wp_print_scripts()` al final, después del gancho `dox_pos_scripts`. Sin eso se colaban en la caja la barra de administración y lo que otros plugins encolen pronto. Un añadido solo tiene que encolar en `dox_pos_scripts` con dependencia de `dox-pos-caja`.

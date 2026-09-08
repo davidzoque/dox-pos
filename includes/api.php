@@ -148,7 +148,7 @@ function dox_pos_rest_products_permission() {
 		return $ok;
 	}
 	if ( ! current_user_can( dox_pos_products_cap() ) ) {
-		return new WP_Error( 'dox_pos_sin_permiso', __( 'Crear productos es cosa de administradores y gerentes de tienda.', 'dox-pos' ), array( 'status' => 403 ) );
+		return new WP_Error( 'dox_pos_sin_permiso', __( 'Only administrators and shop managers can create products.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -160,10 +160,10 @@ function dox_pos_rest_products_permission() {
  */
 function dox_pos_rest_permission() {
 	if ( ! is_user_logged_in() ) {
-		return new WP_Error( 'dox_pos_sin_sesion', __( 'Tu sesión caducó. Vuelve a entrar.', 'dox-pos' ), array( 'status' => 401 ) );
+		return new WP_Error( 'dox_pos_sin_sesion', __( 'Your session expired. Please sign in again.', 'dox-pos' ), array( 'status' => 401 ) );
 	}
 	if ( ! current_user_can( DOX_POS_CAP ) ) {
-		return new WP_Error( 'dox_pos_sin_permiso', __( 'Tu usuario no tiene acceso a la caja.', 'dox-pos' ), array( 'status' => 403 ) );
+		return new WP_Error( 'dox_pos_sin_permiso', __( 'Your user does not have access to the register.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -254,7 +254,7 @@ function dox_pos_rest_sku( WP_REST_Request $request ) {
 function dox_pos_rest_upload_image( WP_REST_Request $request ) {
 	$files = $request->get_file_params();
 	if ( empty( $files['file'] ) ) {
-		return new WP_Error( 'dox_pos_foto', __( 'No llegó ninguna foto.', 'dox-pos' ), array( 'status' => 400 ) );
+		return new WP_Error( 'dox_pos_foto', __( 'No photo was received.', 'dox-pos' ), array( 'status' => 400 ) );
 	}
 	return dox_pos_rest_out( dox_pos_upload_image( $files['file'], sanitize_text_field( (string) $request->get_param( 'name' ) ) ) );
 }

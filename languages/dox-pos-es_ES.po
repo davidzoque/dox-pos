@@ -1,0 +1,1362 @@
+# Traducción al español de Dox POS.
+msgid ""
+msgstr ""
+"Project-Id-Version: Dox POS\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Only administrators and shop managers can create products."
+msgstr "Crear productos es cosa de administradores y gerentes de tienda."
+
+msgid "Your session expired. Please sign in again."
+msgstr "Tu sesión caducó. Vuelve a entrar."
+
+msgid "Your user does not have access to the register."
+msgstr "Tu usuario no tiene acceso a la caja."
+
+msgid "No photo was received."
+msgstr "No llegó ninguna foto."
+
+msgid "One size"
+msgstr "Talla única"
+
+msgid "Any"
+msgstr "Cualquiera"
+
+msgid "This server cannot read Excel files: the PHP zip extension is missing."
+msgstr "Este servidor no puede leer archivos de Excel: le falta la extensión zip de PHP."
+
+msgid "That file is not an Excel file (.xlsx)."
+msgstr "Ese archivo no es un Excel (.xlsx)."
+
+msgid "The sheet was not found inside the Excel file."
+msgstr "No se encontró la hoja dentro del Excel."
+
+msgid "The Excel sheet could not be read."
+msgstr "No se pudo leer la hoja del Excel."
+
+msgid "Only administrators and shop managers can upload costs."
+msgstr "Los costos los cargan administradores y gerentes."
+
+msgid "No file was received."
+msgstr "No llegó ningún archivo."
+
+msgid "Upload the Excel file (.xlsx) you downloaded from the register."
+msgstr "Sube el archivo de Excel (.xlsx) que descargaste de la caja."
+
+msgid "The Excel file has no rows."
+msgstr "El Excel no tiene filas."
+
+msgid "The Excel file has no \"Cost\" column. Download the inventory from the register, fill in that column and upload it."
+msgstr "El Excel no tiene una columna \"Costo\". Descarga el inventario desde la caja, llena esa columna y súbelo."
+
+msgid "The Excel file has neither a \"SKU\" nor a \"Ref.\" column, so there is no way to tell which product each cost belongs to."
+msgstr "El Excel no tiene la columna \"Código\" ni \"Ref.\": no se sabe a qué producto va cada costo."
+
+msgid "Invoice %1$s was already recorded on %2$s%3$s%4$s, %5$s."
+msgstr "La factura %1$s ya se registró el %2$s%3$s%4$s, %5$s."
+
+msgid ", from %s"
+msgstr ", de %s"
+
+msgid ", by %s"
+msgstr ", por %s"
+
+msgid "There is nothing to record."
+msgstr "No hay nada que registrar."
+
+msgid "That stock entry does not exist."
+msgstr "Esa entrada no existe."
+
+msgid "That stock entry was already voided."
+msgstr "Esa entrada ya estaba anulada."
+
+msgid "No data"
+msgstr "Sin dato"
+
+msgid "No payment method"
+msgstr "Sin forma de pago"
+
+msgid "Automatic"
+msgstr "Automático"
+
+msgid "That report is for administrators and shop managers."
+msgstr "Ese informe es de administradores y gerentes."
+
+msgid "Order"
+msgstr "Pedido"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Customer"
+msgstr "Cliente"
+
+msgid "City"
+msgstr "Ciudad"
+
+msgid "Products"
+msgstr "Productos"
+
+msgid "Units"
+msgstr "Unidades"
+
+msgid "Channel"
+msgstr "Canal"
+
+msgid "Salesperson"
+msgstr "Vendedora"
+
+msgid "Payment"
+msgstr "Pago"
+
+msgid "Cost"
+msgstr "Costo"
+
+msgid "Profit"
+msgstr "Ganancia"
+
+msgid "Margin %"
+msgstr "Margen %"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "cash on delivery"
+msgstr "paga al recibir"
+
+msgid "Day"
+msgstr "Día"
+
+msgid "Sales"
+msgstr "Ventas"
+
+msgid "Payment method"
+msgstr "Forma de pago"
+
+msgid "Not paid yet (layaways and payments to confirm)"
+msgstr "Sin pagar aún (apartados y pagos por confirmar)"
+
+msgid "Cancelled orders"
+msgstr "Anulados"
+
+msgid "Sales without a complete cost (not counted in the profit)"
+msgstr "Ventas sin costo completo (no entran en la ganancia)"
+
+msgid "Margin on sales with a cost"
+msgstr "Margen sobre lo vendido con costo"
+
+msgid "Aside"
+msgstr "Aparte"
+
+msgid "Summary"
+msgstr "Resumen"
+
+msgid "Sold"
+msgstr "Vendido"
+
+msgid "Collected"
+msgstr "Cobrado"
+
+msgid "To collect (cash on delivery)"
+msgstr "Por cobrar (contraentrega)"
+
+msgid "Unpaid layaway"
+msgstr "Apartado sin pagar"
+
+msgid "What"
+msgstr "Qué"
+
+msgid "Cash on delivery on its way"
+msgstr "Contraentrega en camino"
+
+msgid "Unpaid"
+msgstr "Sin pagar"
+
+msgid "Cash"
+msgstr "Caja"
+
+msgid "To collect"
+msgstr "Por cobrar"
+
+msgid "When"
+msgstr "Cuándo"
+
+msgid "SKU"
+msgstr "Código"
+
+msgid "Product"
+msgstr "Producto"
+
+msgid "Before"
+msgstr "Había"
+
+msgid "Change"
+msgstr "Cambio"
+
+msgid "After"
+msgstr "Quedan"
+
+msgid "Unit cost"
+msgstr "Costo unit."
+
+msgid "Value"
+msgstr "Valor"
+
+msgid "Reason"
+msgstr "Motivo"
+
+msgid "Who"
+msgstr "Quién"
+
+msgid "Note"
+msgstr "Nota"
+
+msgid "Movements"
+msgstr "Movimientos"
+
+msgid "In"
+msgstr "Entraron"
+
+msgid "Out"
+msgstr "Salieron"
+
+msgid "The full history is for administrators and shop managers."
+msgstr "El historial completo es cosa de administradores y gerentes."
+
+msgid "Published"
+msgstr "Publicado"
+
+msgid "Hidden"
+msgstr "Oculto"
+
+msgid "Draft"
+msgstr "Borrador"
+
+msgid "Pending"
+msgstr "Pendiente"
+
+msgid "Disabled"
+msgstr "Desactivada"
+
+msgid "Out of stock"
+msgstr "Agotado"
+
+msgid "(no SKU)"
+msgstr "(sin código)"
+
+msgid "Shares stock"
+msgstr "Comparte existencias"
+
+msgid "Size"
+msgstr "Talla"
+
+msgid "Other attributes"
+msgstr "Otros atributos"
+
+msgid "Category"
+msgstr "Categoría"
+
+msgid "Price"
+msgstr "Precio"
+
+msgid "Stock"
+msgstr "Existencias"
+
+msgid "Value at cost"
+msgstr "Valor al costo"
+
+msgid "Distinct products"
+msgstr "Referencias"
+
+msgid "Inventory"
+msgstr "Inventario"
+
+msgid "By category"
+msgstr "Por categoría"
+
+msgid "Register"
+msgstr "Caja"
+
+msgid "Website"
+msgstr "Página web"
+
+msgid "Other"
+msgstr "Otro"
+
+msgid "Shipped"
+msgstr "Enviado"
+
+msgid "%s is no longer for sale."
+msgstr "%s ya no está a la venta."
+
+msgid "The order has no products."
+msgstr "El pedido no tiene productos."
+
+msgid "Discount"
+msgstr "Descuento"
+
+msgid "Recorded from the register by %1$s. Channel: %2$s."
+msgstr "Registrado desde la caja por %1$s. Canal: %2$s."
+
+msgid "On layaway. If it is not paid within %d hours it cancels itself. "
+msgstr "Apartado. Si no paga en %d horas se cancela solo. "
+
+msgid "Cash on delivery. "
+msgstr "Paga al recibir. "
+
+msgid "%s is out of stock."
+msgstr "%s está agotado."
+
+msgid "There are %2$d of %1$s left, not %3$d."
+msgstr "De %1$s quedan %2$d, no %3$d."
+
+msgid "There are %2$d of %1$s left, not %3$d: it was just sold somewhere else."
+msgstr "De %1$s quedan %2$d, no %3$d: se acaba de vender por otro lado."
+
+msgid "One of the products was just sold somewhere else. Check the stock and try again."
+msgstr "Uno de los productos se acaba de vender por otro lado. Revisa las existencias y vuelve a intentarlo."
+
+msgid "The deadline passed"
+msgstr "Venció el plazo"
+
+msgid "Layaway expired: the stock is released."
+msgstr "Apartado vencido: se libera el inventario."
+
+msgid "That order does not exist."
+msgstr "Ese pedido no existe."
+
+msgid "That order is not from the register."
+msgstr "Ese pedido no es de la caja."
+
+msgid "That order is no longer on layaway."
+msgstr "Ese pedido ya no está apartado."
+
+msgid "That order is no longer awaiting payment."
+msgstr "Ese pedido ya no está pendiente de pago."
+
+msgid "Payment confirmed from the register by %s."
+msgstr "Pago confirmado desde la caja por %s."
+
+msgid "Layaway released from the register by %s."
+msgstr "Apartado liberado desde la caja por %s."
+
+msgid "Only an order that is ready to ship can be marked as shipped."
+msgstr "Solo se puede enviar un pedido que esté por enviar."
+
+msgid "Shipped. %1$s Marked by %2$s."
+msgstr "Enviado. %1$s Marcado por %2$s."
+
+msgid "That order is not on its way."
+msgstr "Ese pedido no está en camino."
+
+msgid "Delivered. Marked by %s."
+msgstr "Entregado. Marcado por %s."
+
+msgid "That order was already cancelled."
+msgstr "Ese pedido ya estaba anulado."
+
+msgid "Cancelled from the register by %s. The stock goes back."
+msgstr "Anulado desde la caja por %s. El inventario vuelve."
+
+msgid "Unknown action."
+msgstr "Acción desconocida."
+
+msgid "To ship"
+msgstr "Por enviar"
+
+msgid "Delivered"
+msgstr "Entregado"
+
+msgid "Cancelled"
+msgstr "Anulado"
+
+msgid "Refunded"
+msgstr "Reembolsado"
+
+msgid "Layaway"
+msgstr "Apartado"
+
+msgid "Payment to confirm"
+msgstr "Pago por confirmar"
+
+msgid "Payment failed"
+msgstr "Pago fallido"
+
+msgid "Hi %1$s, I am writing from %2$s about your order #%3$s."
+msgstr "Hola %1$s, te escribo de %2$s por tu pedido #%3$s."
+
+msgid "the carrier"
+msgstr "la transportadora"
+
+msgid "Shipping notice emailed to %s."
+msgstr "Aviso de envío mandado por correo a %s."
+
+msgid "The shipping notice could not be emailed to %s."
+msgstr "No se pudo mandar el aviso de envío por correo a %s."
+
+msgid "Hi %s,"
+msgstr "Hola %s,"
+
+msgid "Hi,"
+msgstr "Hola,"
+
+msgid "Your order #%1$s has shipped with %2$s."
+msgstr "Tu pedido #%1$s ya salió con %2$s."
+
+msgid "Your order #%s has shipped."
+msgstr "Tu pedido #%s ya salió."
+
+msgid "Tracking number: %s."
+msgstr "Número de guía: %s."
+
+msgid "Track the shipment"
+msgstr "Seguir el envío"
+
+msgid "On that page, enter the tracking number to see where it is."
+msgstr "En esa página escribe el número de guía para ver dónde va."
+
+msgid "What is in the parcel"
+msgstr "Lo que va en el paquete"
+
+msgid "Shipping to"
+msgstr "Va a"
+
+msgid "If you have any questions, just reply to this email."
+msgstr "Si tienes cualquier duda, responde a este correo."
+
+msgid "Thanks for your order,"
+msgstr "Gracias por tu compra,"
+
+msgid "Your order #%s is on its way"
+msgstr "Tu pedido #%s va en camino"
+
+msgid "%1$s: your order #%2$s is on its way"
+msgstr "%1$s: tu pedido #%2$s va en camino"
+
+msgid "The register needs WooCommerce to be active."
+msgstr "La caja necesita WooCommerce activo."
+
+msgid "The page expired. Please try again."
+msgstr "La página caducó. Vuelve a intentarlo."
+
+msgid "Wrong username or password."
+msgstr "Usuario o clave incorrectos."
+
+msgid "That user does not have access to the register."
+msgstr "Ese usuario no tiene acceso a la caja."
+
+msgid "Enter a SKU."
+msgstr "Escribe un código."
+
+msgid "Only letters, numbers, dots and hyphens."
+msgstr "Solo letras, números, puntos y guiones."
+
+msgid "SKU %1$s is already used by %2$s."
+msgstr "El código %1$s ya lo usa %2$s."
+
+msgid "The photo is larger than the server allows (%s)."
+msgstr "La foto pesa más de lo que admite el servidor (%s)."
+
+msgid "The photo did not upload completely. Please try again."
+msgstr "La foto no llegó completa. Vuelve a intentarlo."
+
+msgid "The store cannot read that file as a photo. JPG, PNG, WebP and HEIC work."
+msgstr "Ese archivo no es una foto que la tienda sepa leer. Valen JPG, PNG, WebP y HEIC."
+
+msgid "The photo could not be added to the media library."
+msgstr "No se pudo registrar la foto en la biblioteca."
+
+msgid "This server cannot read HEIC photos. Send the photo as a JPG."
+msgstr "Este servidor no sabe leer fotos HEIC. Manda la foto como JPG."
+
+msgid "The photo could not be read."
+msgstr "No se pudo leer la foto."
+
+msgid "The photo could not be resized."
+msgstr "No se pudo reducir la foto."
+
+msgid "The photo could not be saved as WebP."
+msgstr "No se pudo guardar la foto como WebP."
+
+msgid "That photo is not pending."
+msgstr "Esa foto no está pendiente."
+
+msgid "Give the product a name."
+msgstr "Ponle nombre al producto."
+
+msgid "Set a price."
+msgstr "Ponle precio."
+
+msgid "Choose at least one category."
+msgstr "Elige al menos una categoría."
+
+msgid "The product SKU is missing."
+msgstr "Falta el código del producto."
+
+msgid "WooCommerce would not create the product: %s"
+msgstr "WooCommerce no dejó crear el producto: %s"
+
+msgid "WooCommerce would not create the product."
+msgstr "WooCommerce no dejó crear el producto."
+
+msgid "The color %1$s could not be created: %2$s"
+msgstr "No se pudo crear el color %1$s: %2$s"
+
+msgid "This product varies by \"%s\", which the register does not handle: edit it in WooCommerce."
+msgstr "Este producto varía por \"%s\", que la caja no maneja: edítalo en WooCommerce."
+
+msgid "This product has variations for \"any\" size or color, or with values that no longer exist: edit it in WooCommerce."
+msgstr "Este producto tiene variaciones para \"cualquier\" talla o color, o con valores que ya no existen: edítalo en WooCommerce."
+
+msgid "That product cannot be edited from the register (only simple products and those with sizes and colors)."
+msgstr "Ese producto no se puede editar desde la caja (solo los simples y los de tallas y colores)."
+
+msgid "That product cannot be edited from the register."
+msgstr "Ese producto no se puede editar desde la caja."
+
+msgid "The price has to be greater than zero."
+msgstr "El precio tiene que ser mayor que cero."
+
+msgid "WooCommerce would not save the product: %s"
+msgstr "WooCommerce no dejó guardar el producto: %s"
+
+msgid "Cashier"
+msgstr "Caja"
+
+msgid "In person"
+msgstr "En persona"
+
+msgid "Bank transfer"
+msgstr "Transferencia"
+
+msgid "Cash on delivery"
+msgstr "Contraentrega"
+
+msgid "Cash payment"
+msgstr "Efectivo"
+
+msgid "Card"
+msgstr "Tarjeta"
+
+msgid "State"
+msgstr "Departamento"
+
+msgid "Settings"
+msgstr "Ajustes"
+
+msgid "Quality goes from 50 to 100. It was left at 88."
+msgstr "La calidad va de 50 a 100. Se dejó en 88."
+
+msgid "The longest side goes from 800 to 4000 px. It was left at 1600."
+msgstr "El lado mayor va de 800 a 4000 px. Se dejó en 1600."
+
+msgid "The WooCommerce cost field was turned on (Settings > Advanced > Features), which is where each product's cost is stored."
+msgstr "Se encendió el campo de costo de WooCommerce (Ajustes > Avanzado > Funciones), que es donde se guarda el costo de cada producto."
+
+msgid "Google Fonts does not know the font \"%s\". Copy the name exactly as it appears on fonts.google.com. The previous one was kept."
+msgstr "Google Fonts no conoce la fuente \"%s\". Copia el nombre tal como aparece en fonts.google.com. Se dejó la anterior."
+
+msgid "Enter a path: letters, numbers and hyphens."
+msgstr "Escribe una ruta: letras, números y guiones."
+
+msgid "The path /%s/ is already used by another page."
+msgstr "La ruta /%s/ ya la usa otra página."
+
+msgid "The previous one was kept."
+msgstr "Se dejó la anterior."
+
+msgid "At least one sales channel is needed. The default ones were restored."
+msgstr "Hace falta al menos un canal de venta. Se pusieron los de fábrica."
+
+msgid "At least one payment method is needed. All of them were turned on."
+msgstr "Hace falta al menos una forma de pago. Se activaron todas."
+
+msgid "The %s link is not valid: it has to start with https://"
+msgstr "El enlace de %s no vale: tiene que empezar por https://"
+
+msgid "Ella dress (M · Pink)"
+msgstr "Vestido Ella (M · Rosa)"
+
+msgid "Register logo"
+msgstr "Logo de la caja"
+
+msgid "Use this image"
+msgstr "Usar esta imagen"
+
+msgid "Channel name"
+msgstr "Nombre del canal"
+
+msgid "Pickup"
+msgstr "En mano"
+
+msgid "Handed over in person, no shipping"
+msgstr "Se entrega en mano, sin envío"
+
+msgid "Remove"
+msgstr "Quitar"
+
+msgid "Drag to reorder, or use the arrow keys"
+msgstr "Arrastra para ordenar, o usa las flechas del teclado"
+
+msgid "Checking…"
+msgstr "Comprobando…"
+
+msgid "Carrier"
+msgstr "Transportadora"
+
+msgid "Tracking link"
+msgstr "Enlace de rastreo"
+
+msgid "Available."
+msgstr "Disponible."
+
+msgid "That is the current path."
+msgstr "Es la ruta actual."
+
+msgid "Google Fonts has it."
+msgstr "Google Fonts la tiene."
+
+msgid "Google Fonts does not know that font. Copy the name exactly as it appears on fonts.google.com."
+msgstr "Google Fonts no conoce esa fuente. Copia el nombre tal como sale en fonts.google.com."
+
+msgid "Saving…"
+msgstr "Guardando…"
+
+msgid "There are unsaved changes."
+msgstr "Hay cambios sin guardar."
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Remove %s"
+msgstr "Quitar %s"
+
+msgid "Brand"
+msgstr "Marca"
+
+msgid "Screen"
+msgstr "Pantalla"
+
+msgid "Layaways"
+msgstr "Apartados"
+
+msgid "Shipments"
+msgstr "Envíos"
+
+msgid "Like the store: parent + size + color"
+msgstr "Como la tienda: padre + talla + color"
+
+msgid "Two digits for the size and two for the color, learned from the products that already exist (VE83 + 01 + 13 = VE830113). With no color, a 0."
+msgstr "Dos dígitos por talla y dos por color, aprendidos de los productos que ya existen (VE83 + 01 + 13 = VE830113). Sin color, un 0."
+
+msgid "Parent, size and color with hyphens"
+msgstr "Padre, talla y color con guiones"
+
+msgid "VE83-6-12-months-pink. Easy to read at a glance; longer."
+msgstr "VE83-6-12-meses-rosa. Se lee de un vistazo; más largo."
+
+msgid "No SKU on the variations"
+msgstr "Sin código en las variaciones"
+
+msgid "Only the product carries a SKU; the variations carry none."
+msgstr "Solo el producto lleva código; las variaciones, ninguno."
+
+msgid "Background"
+msgstr "Fondo"
+
+msgid "Bar"
+msgstr "Barra"
+
+msgid "Primary"
+msgstr "Principal"
+
+msgid "Soft"
+msgstr "Suave"
+
+msgid "Text"
+msgstr "Texto"
+
+msgid "The whole screen"
+msgstr "Toda la pantalla"
+
+msgid "Logo and tabs"
+msgstr "Logo y pestañas"
+
+msgid "Buttons and selection"
+msgstr "Botones y elegido"
+
+msgid "Tags and bubble"
+msgstr "Etiquetas y burbuja"
+
+msgid "The lettering"
+msgstr "Las letras"
+
+msgid "Discard"
+msgstr "Descartar"
+
+msgid "Save changes"
+msgstr "Guardar cambios"
+
+msgid "Settings sections"
+msgstr "Secciones de los ajustes"
+
+msgid "Identity"
+msgstr "Identidad"
+
+msgid "What whoever opens the register sees: the name in the browser tab and on the sign-in screen, and the logo on the bar."
+msgstr "Lo que ve quien abre la caja: el nombre en la pestaña del navegador y en la entrada, y el logo sobre la barra."
+
+msgid "Brand name"
+msgstr "Nombre de la marca"
+
+msgid "Empty: the site name, without the tagline."
+msgstr "Vacío: el nombre del sitio, sin el lema."
+
+msgid "No logo: the name shows"
+msgstr "Sin logo: sale el nombre"
+
+msgid "Choose from the library"
+msgstr "Elegir de la biblioteca"
+
+msgid "Use the site's one"
+msgstr "Usar el del sitio"
+
+msgid "It sits on the bar: if the bar is dark, a light version works better. Empty: the logo from Appearance > Customize."
+msgstr "Va sobre la barra: si la barra es oscura, conviene una versión clara. Vacío: el logo de Apariencia > Personalizar."
+
+msgid "Colors"
+msgstr "Colores"
+
+msgid "Five colors dress the whole register; the border and background shades come from them. The text on the bar and on the buttons is decided on its own, from how dark the background is."
+msgstr "Cinco colores visten toda la caja; los tonos de bordes y fondos se derivan de ellos. El texto sobre la barra y los botones se decide solo según lo oscuro que sea el fondo."
+
+msgid "Back to the site's colors"
+msgstr "Volver a los del sitio"
+
+msgid "Pick the color: %s"
+msgstr "Elegir el color: %s"
+
+msgid "Fonts"
+msgstr "Fuentes"
+
+msgid "Two fonts for the register: one for the interface and one for the total and the headings. They are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com). If you would rather nothing left the site, turn the switch off and the fonts of the phone or the computer are used."
+msgstr "Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com). Si prefieres que no salga nada del sitio, apaga el interruptor y se usan las fuentes del teléfono o del computador."
+
+msgid "Load the fonts from Google Fonts"
+msgstr "Cargar las fuentes desde Google Fonts"
+
+msgid "Interface"
+msgstr "Interfaz"
+
+msgid "Empty: %s."
+msgstr "Vacío: %s."
+
+msgid "Totals and headings"
+msgstr "Totales y títulos"
+
+msgid "Name and address"
+msgstr "Nombre y dirección"
+
+msgid "What the screen is called and at what address it opens. The address can be changed; if you change it, tell whoever has it saved on their phone."
+msgstr "Cómo se llama la pantalla y en qué dirección se abre. La dirección se puede cambiar; si la cambias, avisa a quien la tenga guardada en el teléfono."
+
+msgid "Screen name"
+msgstr "Nombre de la pantalla"
+
+msgid "The word next to the logo and in the tab title. Empty: Register."
+msgstr "La palabra junto al logo y en el título de la pestaña. Vacío: Caja."
+
+msgid "Register address"
+msgstr "Dirección de la caja"
+
+msgid "Only letters, numbers and hyphens. It is checked right away that no other page uses it; the change applies when you save."
+msgstr "Solo letras, números y guiones. Se comprueba al momento que no la use otra página; el cambio se aplica al guardar."
+
+msgid "Right now the register is at"
+msgstr "Ahora mismo la caja está en"
+
+msgid "On a phone: open it in the browser and choose \"Add to Home Screen\". It looks like an app."
+msgstr "En el teléfono: abrirla en el navegador y \"Añadir a pantalla de inicio\". Queda como una app."
+
+msgid "Who signs in"
+msgstr "Quién entra"
+
+msgid "Administrators, shop managers and users with the \"Cashier\" role can sign in. Someone who only has the Cashier role never sees the WordPress dashboard: they sign in and go straight to the register."
+msgstr "Entran los administradores, los gerentes de tienda y los usuarios con el rol \"Caja\". Quien solo tiene el rol Caja no ve el escritorio de WordPress: entra y va directo a la caja."
+
+msgid "New user"
+msgstr "Nuevo usuario"
+
+msgid "Where the sale comes in"
+msgstr "Por dónde entra la venta"
+
+msgid "The first one is selected by default. \"Pickup\" channels do not ask for a city or for shipping. Drag to reorder."
+msgstr "El primero es el que sale marcado. Los canales \"en mano\" no preguntan ciudad ni envío. Arrastra para ordenar."
+
+msgid "Add channel"
+msgstr "Añadir canal"
+
+msgid "Payment methods"
+msgstr "Formas de pago"
+
+msgid "Turn off the ones you do not use and name them however you want. The one marked \"default\" comes selected when the register opens."
+msgstr "Apaga las que no uses y ponles el nombre que quieras. La marcada \"por defecto\" sale elegida al abrir la caja."
+
+msgid "Name of %s"
+msgstr "Nombre de %s"
+
+msgid "It is marked as paid when recorded."
+msgstr "Queda pagado al registrar."
+
+msgid "It stays \"to ship\" and is collected on delivery."
+msgstr "Queda \"por enviar\" y se cobra al entregar."
+
+msgid "Default"
+msgstr "Por defecto"
+
+msgid "Make default"
+msgstr "Hacer por defecto"
+
+msgid "Orders from the website"
+msgstr "Pedidos de la página web"
+
+msgid "The Orders tab also shows what people buy in the online store, tagged \"Website\" and with where the customer came from, so you can mark it shipped or delivered from your phone just like a register sale."
+msgstr "La pestaña Pedidos enseña también lo que compran en la tienda en línea, con la etiqueta \"Página web\" y de dónde llegó el cliente, para marcarlo enviado o entregado desde el teléfono igual que una venta de la caja."
+
+msgid "Show website orders in the register"
+msgstr "Mostrar los pedidos de la web en la caja"
+
+msgid "Deadline"
+msgstr "Plazo"
+
+msgid "A layaway keeps the product reserved. If it is not paid within the deadline, it cancels itself and the product goes back to stock."
+msgstr "Un apartado deja el producto reservado. Si no paga en el plazo, se cancela solo y el producto vuelve al inventario."
+
+msgid "Held for"
+msgstr "Se guarda durante"
+
+msgid "hours"
+msgstr "horas"
+
+msgid "WhatsApp message"
+msgstr "Mensaje de WhatsApp"
+
+msgid "It opens already written in WhatsApp when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is."
+msgstr "Se abre ya escrito en WhatsApp al apartar; solo hay que enviarlo. Toca un comodín para insertarlo donde está el cursor."
+
+msgid "Default message"
+msgstr "Mensaje de fábrica"
+
+msgid "Placeholders"
+msgstr "Comodines"
+
+msgid "<code>{link}</code> is the order's payment link and <code>{tienda}</code> is the brand name."
+msgstr "<code>{link}</code> es el enlace de pago del pedido y <code>{tienda}</code>, el nombre de la marca."
+
+msgid "How to pay outside the link"
+msgstr "Cómo pagar por fuera del link"
+
+msgid "Or by bank transfer to 000-123456"
+msgstr "O por Nequi al 300 123 4567"
+
+msgid "It is added at the end of the message, as is. Empty: only the link goes."
+msgstr "Se añade al final del mensaje, tal cual. Vacío: solo va el link."
+
+msgid "Carriers"
+msgstr "Transportadoras"
+
+msgid "They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {guia} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately."
+msgstr "Se sugieren al marcar un pedido como enviado (también se puede escribir otra en el momento). El enlace de rastreo va en el correo y en el WhatsApp a la clienta: pon {guia} donde la transportadora espera el número; si su página no lo admite, deja el enlace de la página de rastreo y el número va aparte."
+
+msgid "Add a known carrier"
+msgstr "Añadir una transportadora conocida"
+
+msgid "Add a known one…"
+msgstr "Añadir una conocida…"
+
+msgid "Another carrier"
+msgstr "Otra transportadora"
+
+msgid "Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {guia}."
+msgstr "Coordinadora acepta la guía en el enlace. Servientrega, Interrapidísimo y TCC la piden en su página: el enlace lleva allí. Cualquier otra: su nombre y, si la tiene, su enlace con {guia}."
+
+msgid "Notice to the customer"
+msgstr "Aviso a la clienta"
+
+msgid "When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store's email design and sender. If it has a phone number, the register gets the WhatsApp message ready."
+msgstr "Al marcar un pedido como enviado, si tiene correo le llega uno con la transportadora, la guía y el enlace de rastreo, con el diseño de los correos de la tienda y desde su remitente. Si tiene teléfono, la caja deja listo el mensaje de WhatsApp."
+
+msgid "Email the customer when marking as shipped"
+msgstr "Correo a la clienta al marcar enviado"
+
+msgid "Shipping WhatsApp message"
+msgstr "Mensaje de WhatsApp del envío"
+
+msgid "A line whose placeholder ends up empty (no tracking number, no link) removes itself."
+msgstr "Una línea cuyo comodín quede vacío (sin guía, sin enlace) se quita sola."
+
+msgid "Costs and zones"
+msgstr "Costos y zonas"
+
+msgid "The register has no rates of its own: it charges shipping just like the checkout, with WooCommerce zones. The country, the states and the cities come from the store settings."
+msgstr "La caja no tiene tarifas propias: cobra el envío igual que el checkout, con las zonas de WooCommerce. Y el país, los departamentos y las ciudades salen de los ajustes de la tienda."
+
+msgid "Shipping zones"
+msgstr "Zonas de envío"
+
+msgid "Country"
+msgstr "País"
+
+msgid "Currency"
+msgstr "Moneda"
+
+msgid "written as %s"
+msgstr "se escribe %s"
+
+msgid "Zones"
+msgstr "Zonas"
+
+msgid "Cities"
+msgstr "Ciudades"
+
+msgid "With a list to choose from (Colciudades)"
+msgstr "Con lista para elegir (Colciudades)"
+
+msgid "Typed by hand"
+msgstr "Se escriben a mano"
+
+msgid "Photos"
+msgstr "Fotos"
+
+msgid "Photos uploaded from the register are resized and stored as WebP on the server, with their sizes; the original (JPG, PNG or iPhone HEIC) is not kept."
+msgstr "Las fotos que se suben desde la caja se reducen y se guardan como WebP en el servidor, con sus tamaños; la original (JPG, PNG o HEIC del iPhone) no se guarda."
+
+msgid "WebP quality"
+msgstr "Calidad del WebP"
+
+msgid "Default is 88: a 12 MP iPhone photo ends up around 300 KB (at 82, around 210). Above 92 it is barely noticeable and weighs much more."
+msgstr "De fábrica, 88: una foto de 12 MP del iPhone queda en unos 300 KB (a 82, en 210). Por encima de 92 casi no se nota y pesa mucho más."
+
+msgid "Longest side"
+msgstr "Lado mayor"
+
+msgid "Default is 1600: plenty for the product page and the zoom. Smaller photos are left as they are."
+msgstr "De fábrica, 1600: de sobra para la ficha y el zoom. Las fotos más pequeñas se dejan como están."
+
+msgid "This server reads HEIC photos"
+msgstr "Este servidor lee fotos HEIC"
+
+msgid "This server does not read HEIC photos"
+msgstr "Este servidor no lee fotos HEIC"
+
+msgid "iPhone photos go in as they are and come out as WebP."
+msgstr "Las del iPhone entran tal cual y salen en WebP."
+
+msgid "ImageMagick with libheif is needed. In the meantime, the iPhone sends JPG if you choose \"Most Compatible\" in Settings > Camera > Formats."
+msgstr "Hace falta ImageMagick con libheif. Mientras tanto, el iPhone manda JPG si se elige \"Más compatible\" en Ajustes > Cámara > Formatos."
+
+msgid "Sizes and colors"
+msgstr "Tallas y colores"
+
+msgid "The WooCommerce attributes the register builds the variations with. They are detected by name; change them if the store calls them something else."
+msgstr "Los atributos de WooCommerce con los que la caja arma las variaciones. Se detectan solos por el nombre; cámbialos si la tienda los llama de otra forma."
+
+msgid "The store has no global attributes yet (Products > Attributes). Without them, the register creates one-size products."
+msgstr "La tienda no tiene atributos globales todavía (Productos > Atributos). Sin ellos, la caja crea productos de talla única."
+
+msgid "Automatic: %s"
+msgstr "Automático: %s"
+
+msgid "Automatic: none"
+msgstr "Automático: ninguno"
+
+msgid "The SKU"
+msgstr "El código (SKU)"
+
+msgid "The register suggests the next free SKU for the prefix the category uses (if the last dress is VE82, it suggests VE83) and builds each variation's SKU like this:"
+msgstr "La caja propone el siguiente código libre del prefijo que usa la categoría (si el último vestido es VE82, propone VE83) y arma el de cada variación así:"
+
+msgid "Costs and profit"
+msgstr "Costos y ganancia"
+
+msgid "What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Stock in, every purchase with its cost recalculates the product's average cost."
+msgstr "Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Entró mercancía, cada compra con su costo recalcula el costo promedio del producto."
+
+msgid "This version of WooCommerce does not have the cost field"
+msgstr "Esta versión de WooCommerce no trae el campo de costo"
+
+msgid "WooCommerce 9.5 or newer is needed. Once you update it, costs turn on by themselves."
+msgstr "Hace falta WooCommerce 9.5 o más nuevo. Al actualizarlo, los costos se encienden solos."
+
+msgid "The WooCommerce cost field still has to be turned on"
+msgstr "Falta encender el campo de costo en WooCommerce"
+
+msgid "Save these settings with the switch on and it turns on (WooCommerce > Settings > Advanced > Features > Cost of Goods Sold). Until then, the register does not ask for costs."
+msgstr "Guarda estos ajustes con el interruptor puesto y se enciende (WooCommerce > Ajustes > Avanzado > Funciones > Cost of Goods Sold). Mientras tanto, la caja no pide costos."
+
+msgid "Track product costs and see the profit (turns on the WooCommerce cost field)"
+msgstr "Llevar el costo de los productos y ver la ganancia (enciende el campo de costo de WooCommerce)"
+
+msgid "Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with \"Upload costs from Excel\" in Stock in."
+msgstr "Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con \"Subir costos desde Excel\" en Entró mercancía."
+
+msgid "Who creates products"
+msgstr "Quién crea productos"
+
+msgid "The \"Products\" tab (create a new one or edit one) is for administrators and shop managers. Someone with only the Cashier role sells and records stock, but does not touch products."
+msgstr "La pestaña \"Productos\" (crear uno nuevo o editar uno) la ven los administradores y los gerentes de tienda. Quien solo tiene el rol Caja vende y registra mercancía, pero no toca los productos."
+
+msgid "Users"
+msgstr "Usuarios"
+
+msgid "Preview"
+msgstr "Vista previa"
+
+msgid "Live"
+msgstr "En vivo"
+
+msgid "Sell"
+msgstr "Vender"
+
+msgid "Orders"
+msgstr "Pedidos"
+
+msgid "How the sale came in"
+msgstr "Cómo entró la venta"
+
+msgid "Ella dress"
+msgstr "Vestido Ella"
+
+msgid "How they pay"
+msgstr "Cómo paga"
+
+msgid "Paid: record the sale"
+msgstr "Ya pagó: registrar la venta"
+
+msgid "Not paid yet: put on layaway"
+msgstr "Todavía no paga: apartar"
+
+msgid "online"
+msgstr "en línea"
+
+msgid "Mark as shipped"
+msgstr "Marcar como enviado"
+
+msgid "Tracking number"
+msgstr "Número de guía"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Sizes"
+msgstr "Tallas"
+
+msgid "Create product"
+msgstr "Crear producto"
+
+msgid "What you change shows up here right away. In the register, when you save."
+msgstr "Lo que cambies se ve aquí al momento. En la caja, al guardar."
+
+msgid "Newly created product"
+msgstr "Producto nuevo"
+
+msgid "Scheduled task"
+msgstr "Tarea programada"
+
+msgid "Sale"
+msgstr "Venta"
+
+msgid "Online order"
+msgstr "Pedido web"
+
+msgid "released"
+msgstr "liberado"
+
+msgid "Refund"
+msgstr "Devolución"
+
+msgid "Stock entry"
+msgstr "Entrada"
+
+msgid "voided"
+msgstr "anulada"
+
+msgid "Created in the register"
+msgstr "Creado en la caja"
+
+msgid "Edited in the register"
+msgstr "Editado en la caja"
+
+msgid "Changed in WooCommerce"
+msgstr "Cambiado en WooCommerce"
+
+msgid "Import"
+msgstr "Importación"
+
+msgid "Via the API"
+msgstr "Por la API"
+
+msgid "Via the command line"
+msgstr "Por consola"
+
+msgid "Stock in"
+msgstr "Entró mercancía"
+
+msgid "History"
+msgstr "Historial"
+
+msgid "My day"
+msgstr "Mi día"
+
+msgid "Sign out"
+msgstr "Salir"
+
+msgid "Search products"
+msgstr "Buscar producto"
+
+msgid "The order"
+msgstr "El pedido"
+
+msgid "Search by name or SKU"
+msgstr "Buscar por nombre o código"
+
+msgid "Name"
+msgstr "Nombre"
+
+msgid "Address"
+msgstr "Dirección"
+
+msgid "Shipping"
+msgstr "Envío"
+
+msgid "Shipping cost"
+msgstr "Costo del envío"
+
+msgid "What arrived"
+msgstr "Lo que llegó"
+
+msgid "Search what arrived"
+msgstr "Buscar lo que llegó"
+
+msgid "Where it comes from"
+msgstr "De dónde viene"
+
+msgid "Supplier"
+msgstr "Proveedor"
+
+msgid "Invoice or delivery note"
+msgstr "Factura o remisión"
+
+msgid "Latest stock entries"
+msgstr "Últimas entradas"
+
+msgid "Full inventory"
+msgstr "Inventario completo"
+
+msgid "Download as Excel"
+msgstr "Descargar en Excel"
+
+msgid "Every product with size, color, price, cost, stock and its value (at price and at cost), plus a summary by category. Opens in Excel, Numbers or Google Sheets."
+msgstr "Todas las referencias con talla, color, precio, costo, existencias y su valor (a precio y al costo), y un resumen por categoría. Abre en Excel, Numbers o Google Sheets."
+
+msgid "Every product with size, color, price, stock and its value, plus a summary by category. Opens in Excel, Numbers or Google Sheets."
+msgstr "Todas las referencias con talla, color, precio, existencias y su valor, y un resumen por categoría. Abre en Excel, Numbers o Google Sheets."
+
+msgid "Upload costs"
+msgstr "Cargar costos"
+
+msgid "Upload costs from Excel"
+msgstr "Subir costos desde Excel"
+
+msgid "Download the inventory, fill in the Cost column (on each size row, or on the product row to set it for all of them) and upload it here. It only changes costs: it does not touch stock or prices."
+msgstr "Descarga el inventario, llena la columna Costo (en la fila de cada talla, o en la fila del producto para ponérselo a todas) y súbelo aquí. Solo cambia los costos: no toca existencias ni precios."
+
+msgid "Save the entry and add the stock"
+msgstr "Guardar entrada y sumar"
+
+msgid "Orders from the register and from the website will show up here."
+msgstr "Los pedidos de la caja y de la página web aparecerán aquí."
+
+msgid "The orders you record from the register will show up here."
+msgstr "Los pedidos que registres desde la caja aparecerán aquí."
+
+msgid "New product"
+msgstr "Nuevo producto"
+
+msgid "Edit one"
+msgstr "Editar uno"
+
+msgid "Which product"
+msgstr "Qué producto"
+
+msgid "Name or SKU"
+msgstr "Nombre o código"
+
+msgid "Search for the product"
+msgstr "Buscar el producto"
+
+msgid "Previous"
+msgstr "Anteriores"
+
+msgid "Next"
+msgstr "Siguientes"
+
+msgid "Here you can change the name, the category, the price, the photos, the description, the units and whether it is published, and add new sizes or colors. To remove a size or a color, or to change the SKU, you have to go into WooCommerce."
+msgstr "Aquí puedes cambiar el nombre, la categoría, el precio, las fotos, la descripción, las unidades y si está publicado, y añadir tallas o colores nuevos. Para quitar una talla o un color, o para cambiar el código, hay que entrar a WooCommerce."
+
+msgid "View in the store"
+msgstr "Ver en la tienda"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Fill in what you know; before creating you will see a summary to review. What you type is kept on this phone until you create it."
+msgstr "Rellena lo que sepas; antes de crear verás un resumen para revisarlo. Lo escrito se guarda en este teléfono hasta que lo crees."
+
+msgid "Start over"
+msgstr "Empezar de cero"
+
+msgid "The first one is the main photo. iPhone photos (HEIC) work: the store keeps them as WebP and the original is not stored."
+msgstr "La primera es la principal. Valen las del iPhone (HEIC): en la tienda quedan como WebP y la original no se guarda."
+
+msgid "The product"
+msgstr "El producto"
+
+msgid "Luna dress"
+msgstr "Vestido Luna"
+
+msgid "Cost per unit"
+msgstr "Costo por unidad"
+
+msgid "Enter a price and a cost."
+msgstr "Escribe precio y costo."
+
+msgid "What you paid for each unit, including the supplier's shipping if there was any. Only people who administer the store can see it, and the profit is kept with every sale. A product with sizes carries one cost for all of them; if one costs something different, set it in WooCommerce."
+msgstr "Lo que pagaste por cada unidad, con el envío del proveedor si lo hubo. Solo lo ven quienes administran; en cada venta queda la ganancia. Un producto de tallas lleva un costo para todas; si alguna cuesta distinto, se pone en WooCommerce."
+
+msgid "Pick the shade"
+msgstr "Elegir el tono"
+
+msgid "Shade of the new color"
+msgstr "Tono del color nuevo"
+
+msgid "Color name"
+msgstr "Nombre del color"
+
+msgid "Name of the new color"
+msgstr "Nombre del color nuevo"
+
+msgid "Add"
+msgstr "Añadir"
+
+msgid "No colors: the product only varies by size."
+msgstr "Sin colores: el producto solo varía por talla."
+
+msgid "Choose the category and its sizes appear."
+msgstr "Elige la categoría y salen sus tallas."
+
+msgid "All to 1"
+msgstr "Todas en 1"
+
+msgid "All to 0"
+msgstr "Todas en 0"
+
+msgid "Description"
+msgstr "Descripción"
+
+msgid "optional"
+msgstr "opcional"
+
+msgid "Fabric, details, how to wash it…"
+msgstr "Tela, detalles, cómo se lava…"
+
+msgid "Publish in the store now"
+msgstr "Publicar en la tienda ahora"
+
+msgid "Off: it is saved but hidden; you publish it later from Edit one."
+msgstr "Apagado: queda guardado pero oculto; lo publicas después desde Editar uno."
+
+msgid "Today"
+msgstr "Hoy"
+
+msgid "This week"
+msgstr "Esta semana"
+
+msgid "This month"
+msgstr "Este mes"
+
+msgid "Dates"
+msgstr "Fechas"
+
+msgid "From"
+msgstr "Desde"
+
+msgid "to"
+msgstr "a"
+
+msgid "To"
+msgstr "Hasta"
+
+msgid "Daily cash"
+msgstr "Caja del día"
+
+msgid "Product or SKU"
+msgstr "Producto o código"
+
+msgid "Search the movements"
+msgstr "Buscar en los movimientos"
+
+msgid "Sign in with your %s account."
+msgstr "Entra con tu usuario de %s."
+
+msgid "Your user does not have access to the register. Sign in with another one."
+msgstr "Tu usuario no tiene acceso a la caja. Entra con otro."
+
+msgid "Username or email"
+msgstr "Usuario o correo"
+
+msgid "Password"
+msgstr "Clave"
+
+msgid "Sign in"
+msgstr "Entrar"
+
+msgid "Sign out of this account"
+msgstr "Salir de este usuario"
+
+msgid "The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant."
+msgstr "La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y mercancía desde el frontend (/caja), sin entrar a wp-admin, con pedidos, productos, historial, kardex y Excel. Cada venta es un pedido de WooCommerce y el inventario baja solo. Con Dox POS Pro, el asistente de negocio."
+
+msgid "with %d unit"
+msgid_plural "with %d units"
+msgstr[0] "con %d unidad"
+msgstr[1] "con %d unidades"
+
+msgid "%d size"
+msgid_plural "%d sizes"
+msgstr[0] "%d talla"
+msgstr[1] "%d tallas"
+
+msgid "%d color"
+msgid_plural "%d colors"
+msgstr[0] "%d color"
+msgstr[1] "%d colores"
+
+msgid "%d is in a payment in progress."
+msgid_plural "%d are in payments in progress."
+msgstr[0] "%d está en un pago en curso."
+msgstr[1] "%d están en pagos en curso."
+
+msgid "See the remaining user"
+msgid_plural "See all %d users"
+msgstr[0] "Ver el usuario que falta"
+msgstr[1] "Ver los %d usuarios"
+
+msgid "%d shipping zone"
+msgid_plural "%d shipping zones"
+msgstr[0] "%d zona de envío"
+msgstr[1] "%d zonas de envío"

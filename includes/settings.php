@@ -42,7 +42,7 @@ function dox_pos_default_channels() {
 	return array(
 		array( 'name' => 'WhatsApp', 'pickup' => false ),
 		array( 'name' => 'Instagram', 'pickup' => false ),
-		array( 'name' => __( 'En persona', 'dox-pos' ), 'pickup' => true ),
+		array( 'name' => __( 'In person', 'dox-pos' ), 'pickup' => true ),
 	);
 }
 
@@ -53,10 +53,10 @@ function dox_pos_default_channels() {
 function dox_pos_builtin_payments() {
 	return array(
 		'nequi'         => array( 'id' => 'dox_pos_nequi', 'title' => 'Nequi', 'paid' => true ),
-		'transferencia' => array( 'id' => 'dox_pos_transfer', 'title' => __( 'Transferencia', 'dox-pos' ), 'paid' => true ),
-		'contraentrega' => array( 'id' => 'cod', 'title' => __( 'Contraentrega', 'dox-pos' ), 'paid' => false ),
-		'efectivo'      => array( 'id' => 'dox_pos_cash', 'title' => __( 'Efectivo', 'dox-pos' ), 'paid' => true ),
-		'tarjeta'       => array( 'id' => 'dox_pos_card', 'title' => __( 'Tarjeta', 'dox-pos' ), 'paid' => true ),
+		'transferencia' => array( 'id' => 'dox_pos_transfer', 'title' => __( 'Bank transfer', 'dox-pos' ), 'paid' => true ),
+		'contraentrega' => array( 'id' => 'cod', 'title' => __( 'Cash on delivery', 'dox-pos' ), 'paid' => false ),
+		'efectivo'      => array( 'id' => 'dox_pos_cash', 'title' => __( 'Cash payment', 'dox-pos' ), 'paid' => true ),
+		'tarjeta'       => array( 'id' => 'dox_pos_card', 'title' => __( 'Card', 'dox-pos' ), 'paid' => true ),
 	);
 }
 
@@ -137,7 +137,7 @@ function dox_pos_screen() {
  */
 function dox_pos_screen_name() {
 	$s = dox_pos_screen();
-	return ! empty( $s['name'] ) ? (string) $s['name'] : __( 'Caja', 'dox-pos' );
+	return ! empty( $s['name'] ) ? (string) $s['name'] : __( 'Register', 'dox-pos' );
 }
 
 /**
@@ -370,7 +370,7 @@ function dox_pos_state_label() {
 			return (string) $locale[ $c ]['state']['label'];
 		}
 	}
-	return __( 'Departamento', 'dox-pos' );
+	return __( 'State', 'dox-pos' );
 }
 
 /**
@@ -525,7 +525,7 @@ function dox_pos_option_page_capability() {
 // El enlace "Ajustes" en la lista de plugins.
 add_filter( 'plugin_action_links_' . plugin_basename( DOX_POS_FILE ), 'dox_pos_action_links' );
 function dox_pos_action_links( $links ) {
-	array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos' ) ) . '">' . esc_html__( 'Ajustes', 'dox-pos' ) . '</a>' );
+	array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos' ) ) . '">' . esc_html__( 'Settings', 'dox-pos' ) . '</a>' );
 	return $links;
 }
 
@@ -555,11 +555,11 @@ function dox_pos_sanitize_products( $in ) {
 	$size = (string) ( $in['size_attr'] ?? '' );
 	$col  = (string) ( $in['color_attr'] ?? '' );
 	if ( $q < 50 || $q > 100 ) {
-		add_settings_error( 'dox_pos', 'quality', __( 'La calidad va de 50 a 100. Se dejó en 88.', 'dox-pos' ) );
+		add_settings_error( 'dox_pos', 'quality', __( 'Quality goes from 50 to 100. It was left at 88.', 'dox-pos' ) );
 		$q = 88;
 	}
 	if ( $px < 800 || $px > 4000 ) {
-		add_settings_error( 'dox_pos', 'max_px', __( 'El lado mayor va de 800 a 4000 px. Se dejó en 1600.', 'dox-pos' ) );
+		add_settings_error( 'dox_pos', 'max_px', __( 'The longest side goes from 800 to 4000 px. It was left at 1600.', 'dox-pos' ) );
 		$px = 1600;
 	}
 	delete_transient( 'dox_pos_product_form' );
@@ -567,7 +567,7 @@ function dox_pos_sanitize_products( $in ) {
 	// puesto, que es una decisión de quien administra. La instalación del plugin no toca nada suyo.
 	if ( ! empty( $in['costs'] ) && method_exists( 'WC_Product', 'get_cogs_value' ) && ! dox_pos_wc_cogs_enabled() ) {
 		dox_pos_costs_enable();
-		add_settings_error( 'dox_pos', 'costs_on', __( 'Se encendió el campo de costo de WooCommerce (Ajustes > Avanzado > Funciones), que es donde se guarda el costo de cada producto.', 'dox-pos' ), 'info' );
+		add_settings_error( 'dox_pos', 'costs_on', __( 'The WooCommerce cost field was turned on (Settings > Advanced > Features), which is where each product\'s cost is stored.', 'dox-pos' ), 'info' );
 	}
 	return array(
 		'quality'    => $q,
@@ -596,7 +596,7 @@ function dox_pos_sanitize_brand( $in ) {
 		$was = (string) ( $old[ 'font_' . $k ] ?? '' );
 		// Solo se le pregunta a Google si las fuentes se cargan de ahí.
 		if ( $out['fonts_google'] && $font !== $was && ! dox_pos_google_font_exists( $font ) ) {
-			add_settings_error( 'dox_pos', 'font_' . $k, sprintf( /* translators: %s: nombre de la fuente */ __( 'Google Fonts no conoce la fuente "%s". Copia el nombre tal como aparece en fonts.google.com. Se dejó la anterior.', 'dox-pos' ), $font ) );
+			add_settings_error( 'dox_pos', 'font_' . $k, sprintf( /* translators: %s: nombre de la fuente */ __( 'Google Fonts does not know the font "%s". Copy the name exactly as it appears on fonts.google.com. The previous one was kept.', 'dox-pos' ), $font ) );
 			$font = $was;
 		}
 		$out[ 'font_' . $k ] = $font;
@@ -614,7 +614,7 @@ function dox_pos_sanitize_brand( $in ) {
 function dox_pos_slug_problem( $slug ) {
 	$slug = sanitize_title( $slug );
 	if ( '' === $slug ) {
-		return __( 'Escribe una ruta: letras, números y guiones.', 'dox-pos' );
+		return __( 'Enter a path: letters, numbers and hyphens.', 'dox-pos' );
 	}
 	$taken = in_array( $slug, array( 'wp-admin', 'wp-login', 'wp-json', 'wp-content', 'wp-includes', 'feed', 'shop', 'tienda', 'cart', 'carrito', 'checkout', 'finalizar-compra', 'my-account', 'mi-cuenta' ), true );
 	if ( ! $taken ) {
@@ -629,7 +629,7 @@ function dox_pos_slug_problem( $slug ) {
 		$taken = true;
 	}
 	if ( $taken ) {
-		return sprintf( /* translators: %s: ruta */ __( 'La ruta /%s/ ya la usa otra página.', 'dox-pos' ), $slug );
+		return sprintf( /* translators: %s: ruta */ __( 'The path /%s/ is already used by another page.', 'dox-pos' ), $slug );
 	}
 	return '';
 }
@@ -645,7 +645,7 @@ function dox_pos_sanitize_screen( $in ) {
 	if ( $slug !== $prev ) {
 		$problem = dox_pos_slug_problem( $slug );
 		if ( $problem ) {
-			add_settings_error( 'dox_pos', 'slug', $problem . ' ' . __( 'Se dejó la anterior.', 'dox-pos' ) );
+			add_settings_error( 'dox_pos', 'slug', $problem . ' ' . __( 'The previous one was kept.', 'dox-pos' ) );
 			$slug = $prev;
 		} else {
 			update_option( 'dox_pos_flush', 1 ); // En la próxima carga se reescriben las rutas con la nueva.
@@ -669,7 +669,7 @@ function dox_pos_sanitize_sales( $in ) {
 		$out['channels'][] = array( 'name' => $name, 'pickup' => ! empty( $ch['pickup'] ) );
 	}
 	if ( ! $out['channels'] ) {
-		add_settings_error( 'dox_pos', 'channels', __( 'Hace falta al menos un canal de venta. Se pusieron los de fábrica.', 'dox-pos' ) );
+		add_settings_error( 'dox_pos', 'channels', __( 'At least one sales channel is needed. The default ones were restored.', 'dox-pos' ) );
 		$out['channels'] = dox_pos_default_channels();
 	}
 
@@ -684,7 +684,7 @@ function dox_pos_sanitize_sales( $in ) {
 		);
 	}
 	if ( ! $any ) {
-		add_settings_error( 'dox_pos', 'payments', __( 'Hace falta al menos una forma de pago. Se activaron todas.', 'dox-pos' ) );
+		add_settings_error( 'dox_pos', 'payments', __( 'At least one payment method is needed. All of them were turned on.', 'dox-pos' ) );
 		foreach ( $out['payments'] as &$p ) {
 			$p['on'] = true;
 		}
@@ -720,7 +720,7 @@ function dox_pos_sanitize_sales( $in ) {
 			$url = str_replace( '__GUIA__', '{guia}', esc_url_raw( str_replace( array( '{guia}', '%7Bguia%7D' ), '__GUIA__', $url ) ) );
 			if ( ! preg_match( '#^https://#i', $url ) ) {
 				/* translators: %s: transportadora */
-				add_settings_error( 'dox_pos', 'carrier_url', sprintf( __( 'El enlace de %s no vale: tiene que empezar por https://', 'dox-pos' ), $name ) );
+				add_settings_error( 'dox_pos', 'carrier_url', sprintf( __( 'The %s link is not valid: it has to start with https://', 'dox-pos' ), $name ) );
 				$url = '';
 			}
 		}
@@ -935,7 +935,7 @@ function dox_pos_admin_assets( $hook ) {
 				'fonts'   => dox_pos_default_fonts(),
 				'message' => dox_pos_default_hold_message(),
 				'shipMessage' => dox_pos_default_ship_message(),
-				'screen'  => __( 'Caja', 'dox-pos' ),
+				'screen'  => __( 'Register', 'dox-pos' ),
 				'slug'    => DOX_POS_SLUG,
 				'hours'   => 48,
 			),
@@ -943,30 +943,30 @@ function dox_pos_admin_assets( $hook ) {
 			'siteName' => dox_pos_brand_name(),
 			'sample'   => array(
 				'name'     => __( 'Ana', 'dox-pos' ),
-				'products' => __( 'Vestido Ella (M · Rosa)', 'dox-pos' ),
+				'products' => __( 'Ella dress (M · Pink)', 'dox-pos' ),
 				'total'    => dox_pos_money( 189000 ),
 				'link'     => add_query_arg( array( 'pay_for_order' => 'true', 'key' => 'wc_order_ejemplo' ), wc_get_endpoint_url( 'order-pay', 1234, wc_get_checkout_url() ) ),
 			),
 			'notices'  => dox_pos_settings_notices(),
 			'i18n'     => array(
-				'pickLogo'  => __( 'Logo de la caja', 'dox-pos' ),
-				'use'       => __( 'Usar esta imagen', 'dox-pos' ),
-				'channel'   => __( 'Nombre del canal', 'dox-pos' ),
-				'pickup'    => __( 'En mano', 'dox-pos' ),
-				'pickupLong' => __( 'Se entrega en mano, sin envío', 'dox-pos' ),
-				'remove'    => __( 'Quitar', 'dox-pos' ),
-				'reorder'   => __( 'Arrastra para ordenar, o usa las flechas del teclado', 'dox-pos' ),
-				'checking'  => __( 'Comprobando…', 'dox-pos' ),
-				'carrierName' => __( 'Transportadora', 'dox-pos' ),
-				'carrierUrl' => __( 'Enlace de rastreo', 'dox-pos' ),
-				'slugOk'    => __( 'Disponible.', 'dox-pos' ),
-				'slugSame'  => __( 'Es la ruta actual.', 'dox-pos' ),
-				'fontOk'    => __( 'Google Fonts la tiene.', 'dox-pos' ),
-				'fontBad'   => __( 'Google Fonts no conoce esa fuente. Copia el nombre tal como sale en fonts.google.com.', 'dox-pos' ),
-				'saving'    => __( 'Guardando…', 'dox-pos' ),
-				'unsaved'   => __( 'Hay cambios sin guardar.', 'dox-pos' ),
-				'close'     => __( 'Cerrar', 'dox-pos' ),
-				'removeTag' => __( 'Quitar %s', 'dox-pos' ),
+				'pickLogo'  => __( 'Register logo', 'dox-pos' ),
+				'use'       => __( 'Use this image', 'dox-pos' ),
+				'channel'   => __( 'Channel name', 'dox-pos' ),
+				'pickup'    => __( 'Pickup', 'dox-pos' ),
+				'pickupLong' => __( 'Handed over in person, no shipping', 'dox-pos' ),
+				'remove'    => __( 'Remove', 'dox-pos' ),
+				'reorder'   => __( 'Drag to reorder, or use the arrow keys', 'dox-pos' ),
+				'checking'  => __( 'Checking…', 'dox-pos' ),
+				'carrierName' => __( 'Carrier', 'dox-pos' ),
+				'carrierUrl' => __( 'Tracking link', 'dox-pos' ),
+				'slugOk'    => __( 'Available.', 'dox-pos' ),
+				'slugSame'  => __( 'That is the current path.', 'dox-pos' ),
+				'fontOk'    => __( 'Google Fonts has it.', 'dox-pos' ),
+				'fontBad'   => __( 'Google Fonts does not know that font. Copy the name exactly as it appears on fonts.google.com.', 'dox-pos' ),
+				'saving'    => __( 'Saving…', 'dox-pos' ),
+				'unsaved'   => __( 'There are unsaved changes.', 'dox-pos' ),
+				'close'     => __( 'Close', 'dox-pos' ),
+				'removeTag' => __( 'Remove %s', 'dox-pos' ),
 			),
 		)
 	);
@@ -1004,32 +1004,32 @@ function dox_pos_settings_page() {
 	$tabs     = apply_filters(
 		'dox_pos_settings_tabs',
 		array(
-			'marca'     => array( __( 'Marca', 'dox-pos' ), 'palette', 'caja' ),
-			'pantalla'  => array( __( 'Pantalla', 'dox-pos' ), 'screen', 'caja' ),
-			'ventas'    => array( __( 'Ventas', 'dox-pos' ), 'bag', 'caja' ),
-			'apartados' => array( __( 'Apartados', 'dox-pos' ), 'clock', 'whatsapp' ),
-			'envios'    => array( __( 'Envíos', 'dox-pos' ), 'truck', 'envio' ),
-			'productos' => array( __( 'Productos', 'dox-pos' ), 'tag', 'producto' ),
+			'marca'     => array( __( 'Brand', 'dox-pos' ), 'palette', 'caja' ),
+			'pantalla'  => array( __( 'Screen', 'dox-pos' ), 'screen', 'caja' ),
+			'ventas'    => array( __( 'Sales', 'dox-pos' ), 'bag', 'caja' ),
+			'apartados' => array( __( 'Layaways', 'dox-pos' ), 'clock', 'whatsapp' ),
+			'envios'    => array( __( 'Shipments', 'dox-pos' ), 'truck', 'envio' ),
+			'productos' => array( __( 'Products', 'dox-pos' ), 'tag', 'producto' ),
 		)
 	);
 	$skufmt   = array(
-		'codes' => array( __( 'Como la tienda: padre + talla + color', 'dox-pos' ), __( 'Dos dígitos por talla y dos por color, aprendidos de los productos que ya existen (VE83 + 01 + 13 = VE830113). Sin color, un 0.', 'dox-pos' ) ),
-		'slugs' => array( __( 'Padre, talla y color con guiones', 'dox-pos' ), __( 'VE83-6-12-meses-rosa. Se lee de un vistazo; más largo.', 'dox-pos' ) ),
-		'none'  => array( __( 'Sin código en las variaciones', 'dox-pos' ), __( 'Solo el producto lleva código; las variaciones, ninguno.', 'dox-pos' ) ),
+		'codes' => array( __( 'Like the store: parent + size + color', 'dox-pos' ), __( 'Two digits for the size and two for the color, learned from the products that already exist (VE83 + 01 + 13 = VE830113). With no color, a 0.', 'dox-pos' ) ),
+		'slugs' => array( __( 'Parent, size and color with hyphens', 'dox-pos' ), __( 'VE83-6-12-months-pink. Easy to read at a glance; longer.', 'dox-pos' ) ),
+		'none'  => array( __( 'No SKU on the variations', 'dox-pos' ), __( 'Only the product carries a SKU; the variations carry none.', 'dox-pos' ) ),
 	);
 	$labels   = array(
-		'bg'      => __( 'Fondo', 'dox-pos' ),
-		'bar'     => __( 'Barra', 'dox-pos' ),
-		'primary' => __( 'Principal', 'dox-pos' ),
-		'soft'    => __( 'Suave', 'dox-pos' ),
-		'ink'     => __( 'Texto', 'dox-pos' ),
+		'bg'      => __( 'Background', 'dox-pos' ),
+		'bar'     => __( 'Bar', 'dox-pos' ),
+		'primary' => __( 'Primary', 'dox-pos' ),
+		'soft'    => __( 'Soft', 'dox-pos' ),
+		'ink'     => __( 'Text', 'dox-pos' ),
 	);
 	$hints    = array(
-		'bg'      => __( 'Toda la pantalla', 'dox-pos' ),
-		'bar'     => __( 'Logo y pestañas', 'dox-pos' ),
-		'primary' => __( 'Botones y elegido', 'dox-pos' ),
-		'soft'    => __( 'Etiquetas y burbuja', 'dox-pos' ),
-		'ink'     => __( 'Las letras', 'dox-pos' ),
+		'bg'      => __( 'The whole screen', 'dox-pos' ),
+		'bar'     => __( 'Logo and tabs', 'dox-pos' ),
+		'primary' => __( 'Buttons and selection', 'dox-pos' ),
+		'soft'    => __( 'Tags and bubble', 'dox-pos' ),
+		'ink'     => __( 'The lettering', 'dox-pos' ),
 	);
 	$kses_a   = array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ), 'code' => array(), 'b' => array() );
 	?>
@@ -1042,11 +1042,11 @@ function dox_pos_settings_page() {
 				</div>
 				<div class="dp-head-actions">
 					<a class="dp-btn dp-btn-ghost dp-urlchip" href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( dox_pos_icon( 'external' ), dox_pos_svg_tags() ); ?><span><?php echo esc_html( $host . '/' . $slug ); ?></span></a>
-					<button type="button" class="dp-btn dp-btn-ghost dp-discard" id="dp-discard"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Descartar', 'dox-pos' ); ?></button>
-					<button type="submit" form="dp-form" class="dp-btn dp-btn-primary" id="dp-save"><span class="dp-dot" aria-hidden="true"></span><span class="dp-save-text"><?php esc_html_e( 'Guardar cambios', 'dox-pos' ); ?></span></button>
+					<button type="button" class="dp-btn dp-btn-ghost dp-discard" id="dp-discard"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Discard', 'dox-pos' ); ?></button>
+					<button type="submit" form="dp-form" class="dp-btn dp-btn-primary" id="dp-save"><span class="dp-dot" aria-hidden="true"></span><span class="dp-save-text"><?php esc_html_e( 'Save changes', 'dox-pos' ); ?></span></button>
 				</div>
 			</div>
-			<nav class="dp-tabbar" role="tablist" aria-label="<?php esc_attr_e( 'Secciones de los ajustes', 'dox-pos' ); ?>">
+			<nav class="dp-tabbar" role="tablist" aria-label="<?php esc_attr_e( 'Settings sections', 'dox-pos' ); ?>">
 				<?php foreach ( $tabs as $id => $t ) : ?>
 				<button type="button" role="tab" class="dp-tab-btn" id="dp-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" data-view="<?php echo esc_attr( $t[2] ?? 'caja' ); ?>" aria-selected="false" aria-controls="dp-panel-<?php echo esc_attr( $id ); ?>" tabindex="-1"><?php echo wp_kses( dox_pos_icon( $t[1] ), dox_pos_svg_tags() ); ?><span><?php echo esc_html( $t[0] ); ?></span></button>
 				<?php endforeach; ?>
@@ -1065,26 +1065,26 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-marca" data-panel="marca" role="tabpanel" aria-labelledby="dp-tab-marca" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Identidad', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Lo que ve quien abre la caja: el nombre en la pestaña del navegador y en la entrada, y el logo sobre la barra.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Identity', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'What whoever opens the register sees: the name in the browser tab and on the sign-in screen, and the logo on the bar.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dp-name"><?php esc_html_e( 'Nombre de la marca', 'dox-pos' ); ?></label>
+							<label class="dp-label" for="dp-name"><?php esc_html_e( 'Brand name', 'dox-pos' ); ?></label>
 							<input type="text" id="dp-name" name="dox_pos_brand[name]" value="<?php echo esc_attr( $brand['name'] ?? '' ); ?>" class="dp-input" placeholder="<?php echo esc_attr( dox_pos_brand_name() ); ?>" autocomplete="off">
-							<p class="dp-hint"><?php esc_html_e( 'Vacío: el nombre del sitio, sin el lema.', 'dox-pos' ); ?></p>
+							<p class="dp-hint"><?php esc_html_e( 'Empty: the site name, without the tagline.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field">
 							<span class="dp-label" id="dp-logo-label"><?php esc_html_e( 'Logo', 'dox-pos' ); ?></span>
 							<div class="dp-logo" role="group" aria-labelledby="dp-logo-label">
 								<div class="dp-logo-tile" id="dp-logo-tile">
 									<img id="dp-logo-img" src="<?php echo esc_url( $logo ); ?>" alt="" <?php echo $logo ? '' : 'hidden'; ?>>
-									<span class="dp-logo-empty" id="dp-logo-empty" <?php echo $logo ? 'hidden' : ''; ?>><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Sin logo: sale el nombre', 'dox-pos' ); ?></span>
+									<span class="dp-logo-empty" id="dp-logo-empty" <?php echo $logo ? 'hidden' : ''; ?>><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'No logo: the name shows', 'dox-pos' ); ?></span>
 								</div>
 								<div class="dp-logo-actions">
 									<input type="hidden" id="dox_pos_logo" name="dox_pos_logo" value="<?php echo esc_attr( get_option( 'dox_pos_logo', '' ) ); ?>">
-									<button type="button" class="dp-btn dp-btn-soft" id="dp-logo-pick"><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Elegir de la biblioteca', 'dox-pos' ); ?></button>
-									<button type="button" class="dp-btn dp-btn-link" id="dp-logo-clear"><?php esc_html_e( 'Usar el del sitio', 'dox-pos' ); ?></button>
-									<p class="dp-hint"><?php esc_html_e( 'Va sobre la barra: si la barra es oscura, conviene una versión clara. Vacío: el logo de Apariencia > Personalizar.', 'dox-pos' ); ?></p>
+									<button type="button" class="dp-btn dp-btn-soft" id="dp-logo-pick"><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Choose from the library', 'dox-pos' ); ?></button>
+									<button type="button" class="dp-btn dp-btn-link" id="dp-logo-clear"><?php esc_html_e( 'Use the site\'s one', 'dox-pos' ); ?></button>
+									<p class="dp-hint"><?php esc_html_e( 'It sits on the bar: if the bar is dark, a light version works better. Empty: the logo from Appearance > Customize.', 'dox-pos' ); ?></p>
 								</div>
 							</div>
 						</div>
@@ -1092,15 +1092,15 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Colores', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Cinco colores visten toda la caja; los tonos de bordes y fondos se derivan de ellos. El texto sobre la barra y los botones se decide solo según lo oscuro que sea el fondo.', 'dox-pos' ); ?></p>
-							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-colors-reset" disabled><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Volver a los del sitio', 'dox-pos' ); ?></button>
+							<h2><?php esc_html_e( 'Colors', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Five colors dress the whole register; the border and background shades come from them. The text on the bar and on the buttons is decided on its own, from how dark the background is.', 'dox-pos' ); ?></p>
+							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-colors-reset" disabled><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Back to the site\'s colors', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-swatches">
 							<?php foreach ( $labels as $k => $label ) : ?>
 							<div class="dp-swatch" data-key="<?php echo esc_attr( $k ); ?>" data-default="<?php echo esc_attr( $defaults[ $k ] ); ?>" style="--sw:<?php echo esc_attr( $colors[ $k ] ); ?>">
 								<label class="dp-swatch-well" for="dp-pick-<?php echo esc_attr( $k ); ?>">
-									<input type="color" id="dp-pick-<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $colors[ $k ] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: nombre del color */ __( 'Elegir el color: %s', 'dox-pos' ), $label ) ); ?>">
+									<input type="color" id="dp-pick-<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $colors[ $k ] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: nombre del color */ __( 'Pick the color: %s', 'dox-pos' ), $label ) ); ?>">
 								</label>
 								<div class="dp-swatch-meta">
 									<label class="dp-swatch-name" for="dp-color-<?php echo esc_attr( $k ); ?>"><?php echo esc_html( $label ); ?></label>
@@ -1114,23 +1114,23 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Fuentes', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com). Si prefieres que no salga nada del sitio, apaga el interruptor y se usan las fuentes del teléfono o del computador.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Fonts', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the total and the headings. They are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com). If you would rather nothing left the site, turn the switch off and the fonts of the phone or the computer are used.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Cargar las fuentes desde Google Fonts', 'dox-pos' ); ?></span></label>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Load the fonts from Google Fonts', 'dox-pos' ); ?></span></label>
 						<div class="dp-mt">
 						<div class="dp-grid-2">
 							<div class="dp-field">
-								<label class="dp-label" for="dp-font-ui"><?php esc_html_e( 'Interfaz', 'dox-pos' ); ?></label>
+								<label class="dp-label" for="dp-font-ui"><?php esc_html_e( 'Interface', 'dox-pos' ); ?></label>
 								<input type="text" id="dp-font-ui" name="dox_pos_brand[font_ui]" value="<?php echo esc_attr( $brand['font_ui'] ?? '' ); ?>" class="dp-input" placeholder="<?php echo esc_attr( dox_pos_default_fonts()['ui'] ); ?>" list="dp-font-list" autocomplete="off">
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Vacío: %s.', 'dox-pos' ), dox_pos_default_fonts()['ui'] ) ); ?></p>
+								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['ui'] ) ); ?></p>
 							</div>
 							<div class="dp-field">
-								<label class="dp-label" for="dp-font-serif"><?php esc_html_e( 'Totales y títulos', 'dox-pos' ); ?></label>
+								<label class="dp-label" for="dp-font-serif"><?php esc_html_e( 'Totals and headings', 'dox-pos' ); ?></label>
 								<input type="text" id="dp-font-serif" name="dox_pos_brand[font_serif]" value="<?php echo esc_attr( $brand['font_serif'] ?? '' ); ?>" class="dp-input" placeholder="<?php echo esc_attr( dox_pos_default_fonts()['serif'] ); ?>" list="dp-font-list" autocomplete="off">
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Vacío: %s.', 'dox-pos' ), dox_pos_default_fonts()['serif'] ) ); ?></p>
+								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['serif'] ) ); ?></p>
 							</div>
 						</div>
 						<datalist id="dp-font-list">
@@ -1146,38 +1146,38 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-pantalla" data-panel="pantalla" role="tabpanel" aria-labelledby="dp-tab-pantalla" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Nombre y dirección', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Cómo se llama la pantalla y en qué dirección se abre. La dirección se puede cambiar; si la cambias, avisa a quien la tenga guardada en el teléfono.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Name and address', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'What the screen is called and at what address it opens. The address can be changed; if you change it, tell whoever has it saved on their phone.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dp-screen"><?php esc_html_e( 'Nombre de la pantalla', 'dox-pos' ); ?></label>
-							<input type="text" id="dp-screen" name="dox_pos_screen[name]" value="<?php echo esc_attr( $screen['name'] ?? '' ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Caja', 'dox-pos' ); ?>" autocomplete="off">
-							<p class="dp-hint"><?php esc_html_e( 'La palabra junto al logo y en el título de la pestaña. Vacío: Caja.', 'dox-pos' ); ?></p>
+							<label class="dp-label" for="dp-screen"><?php esc_html_e( 'Screen name', 'dox-pos' ); ?></label>
+							<input type="text" id="dp-screen" name="dox_pos_screen[name]" value="<?php echo esc_attr( $screen['name'] ?? '' ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Register', 'dox-pos' ); ?>" autocomplete="off">
+							<p class="dp-hint"><?php esc_html_e( 'The word next to the logo and in the tab title. Empty: Register.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dp-slug"><?php esc_html_e( 'Dirección de la caja', 'dox-pos' ); ?></label>
+							<label class="dp-label" for="dp-slug"><?php esc_html_e( 'Register address', 'dox-pos' ); ?></label>
 							<div class="dp-urlfield">
 								<span class="dp-urlfield-pre"><?php echo esc_html( $host ); ?>/</span>
 								<input type="text" id="dp-slug" name="dox_pos_screen[slug]" value="<?php echo esc_attr( $slug ); ?>" class="dp-input" spellcheck="false" autocomplete="off" autocapitalize="off" pattern="[a-z0-9-]+">
 								<span class="dp-urlfield-post">/</span>
 							</div>
 							<p class="dp-status" id="dp-slug-status" aria-live="polite"></p>
-							<p class="dp-hint"><?php esc_html_e( 'Solo letras, números y guiones. Se comprueba al momento que no la use otra página; el cambio se aplica al guardar.', 'dox-pos' ); ?></p>
+							<p class="dp-hint"><?php esc_html_e( 'Only letters, numbers and hyphens. It is checked right away that no other page uses it; the change applies when you save.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-callout">
 							<?php echo wp_kses( dox_pos_icon( 'link' ), dox_pos_svg_tags() ); ?>
 							<div>
-								<b><?php esc_html_e( 'Ahora mismo la caja está en', 'dox-pos' ); ?> <a href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host . '/' . $slug . '/' ); ?></a></b>
-								<span><?php esc_html_e( 'En el teléfono: abrirla en el navegador y "Añadir a pantalla de inicio". Queda como una app.', 'dox-pos' ); ?></span>
+								<b><?php esc_html_e( 'Right now the register is at', 'dox-pos' ); ?> <a href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host . '/' . $slug . '/' ); ?></a></b>
+								<span><?php esc_html_e( 'On a phone: open it in the browser and choose "Add to Home Screen". It looks like an app.', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Quién entra', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Entran los administradores, los gerentes de tienda y los usuarios con el rol "Caja". Quien solo tiene el rol Caja no ve el escritorio de WordPress: entra y va directo a la caja.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'user-new.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Nuevo usuario', 'dox-pos' ); ?></a>
+							<h2><?php esc_html_e( 'Who signs in', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Administrators, shop managers and users with the "Cashier" role can sign in. Someone who only has the Cashier role never sees the WordPress dashboard: they sign in and go straight to the register.', 'dox-pos' ); ?></p>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'user-new.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'New user', 'dox-pos' ); ?></a>
 						</div>
 						<ul class="dp-people">
 							<?php foreach ( $access['users'] as $u ) : ?>
@@ -1185,7 +1185,7 @@ function dox_pos_settings_page() {
 							<?php endforeach; ?>
 						</ul>
 						<?php if ( $access['total'] > count( $access['users'] ) ) : ?>
-						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: usuarios */ _n( 'Ver el usuario que falta', 'Ver los %d usuarios', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
+						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: usuarios */ _n( 'See the remaining user', 'See all %d users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
 						<?php endif; ?>
 					</div>
 				</section>
@@ -1194,36 +1194,36 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-ventas" data-panel="ventas" role="tabpanel" aria-labelledby="dp-tab-ventas" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Por dónde entra la venta', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'El primero es el que sale marcado. Los canales "en mano" no preguntan ciudad ni envío. Arrastra para ordenar.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Where the sale comes in', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The first one is selected by default. "Pickup" channels do not ask for a city or for shipping. Drag to reorder.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-rows" id="dp-canales">
 							<?php foreach ( $channels as $i => $ch ) : ?>
 							<div class="dp-row">
-								<button type="button" class="dp-grip" aria-label="<?php esc_attr_e( 'Arrastra para ordenar, o usa las flechas del teclado', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'grip' ), dox_pos_svg_tags() ); ?></button>
-								<input type="text" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $ch['name'] ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Nombre del canal', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Nombre del canal', 'dox-pos' ); ?>">
-								<label class="dp-switch" title="<?php esc_attr_e( 'Se entrega en mano, sin envío', 'dox-pos' ); ?>"><input type="checkbox" role="switch" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][pickup]" value="1" <?php checked( $ch['pickup'] ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'En mano', 'dox-pos' ); ?></span></label>
-								<button type="button" class="dp-iconbtn dp-quitar" aria-label="<?php esc_attr_e( 'Quitar', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'trash' ), dox_pos_svg_tags() ); ?></button>
+								<button type="button" class="dp-grip" aria-label="<?php esc_attr_e( 'Drag to reorder, or use the arrow keys', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'grip' ), dox_pos_svg_tags() ); ?></button>
+								<input type="text" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $ch['name'] ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Channel name', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Channel name', 'dox-pos' ); ?>">
+								<label class="dp-switch" title="<?php esc_attr_e( 'Handed over in person, no shipping', 'dox-pos' ); ?>"><input type="checkbox" role="switch" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][pickup]" value="1" <?php checked( $ch['pickup'] ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Pickup', 'dox-pos' ); ?></span></label>
+								<button type="button" class="dp-iconbtn dp-quitar" aria-label="<?php esc_attr_e( 'Remove', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'trash' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
 						</div>
-						<button type="button" class="dp-btn dp-btn-soft" id="dp-canal-add"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Añadir canal', 'dox-pos' ); ?></button>
+						<button type="button" class="dp-btn dp-btn-soft" id="dp-canal-add"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Add channel', 'dox-pos' ); ?></button>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Formas de pago', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Apaga las que no uses y ponles el nombre que quieras. La marcada "por defecto" sale elegida al abrir la caja.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Payment methods', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Turn off the ones you do not use and name them however you want. The one marked "default" comes selected when the register opens.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-pays" id="dp-pagos">
 							<?php foreach ( $payments as $key => $m ) : ?>
 							<div class="dp-pay<?php echo isset( $active[ $key ] ) ? '' : ' off'; ?>" data-key="<?php echo esc_attr( $key ); ?>">
 								<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][on]" value="1" <?php checked( isset( $active[ $key ] ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $m['title'] ); ?></span></label>
 								<div class="dp-pay-main">
-									<input type="text" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][title]" value="<?php echo esc_attr( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) ); ?>" class="dp-input" placeholder="<?php echo esc_attr( $m['title'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: forma de pago */ __( 'Nombre de %s', 'dox-pos' ), $m['title'] ) ); ?>">
-									<span class="dp-hint"><?php echo $m['paid'] ? esc_html__( 'Queda pagado al registrar.', 'dox-pos' ) : esc_html__( 'Queda "por enviar" y se cobra al entregar.', 'dox-pos' ); ?></span>
+									<input type="text" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][title]" value="<?php echo esc_attr( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) ); ?>" class="dp-input" placeholder="<?php echo esc_attr( $m['title'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: forma de pago */ __( 'Name of %s', 'dox-pos' ), $m['title'] ) ); ?>">
+									<span class="dp-hint"><?php echo $m['paid'] ? esc_html__( 'It is marked as paid when recorded.', 'dox-pos' ) : esc_html__( 'It stays "to ship" and is collected on delivery.', 'dox-pos' ); ?></span>
 								</div>
-								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Por defecto', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Hacer por defecto', 'dox-pos' ); ?></span></label>
+								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Make default', 'dox-pos' ); ?></span></label>
 							</div>
 							<?php endforeach; ?>
 						</div>
@@ -1231,10 +1231,10 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Pedidos de la página web', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'La pestaña Pedidos enseña también lo que compran en la tienda en línea, con la etiqueta "Página web" y de dónde llegó el cliente, para marcarlo enviado o entregado desde el teléfono igual que una venta de la caja.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Orders from the website', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The Orders tab also shows what people buy in the online store, tagged "Website" and with where the customer came from, so you can mark it shipped or delivered from your phone just like a register sale.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[web_orders]" value="1" <?php checked( dox_pos_show_web_orders() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Mostrar los pedidos de la web en la caja', 'dox-pos' ); ?></span></label>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[web_orders]" value="1" <?php checked( dox_pos_show_web_orders() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Show website orders in the register', 'dox-pos' ); ?></span></label>
 					</div>
 				</section>
 
@@ -1242,38 +1242,38 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-apartados" data-panel="apartados" role="tabpanel" aria-labelledby="dp-tab-apartados" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Plazo', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Un apartado deja el producto reservado. Si no paga en el plazo, se cancela solo y el producto vuelve al inventario.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Deadline', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'A layaway keeps the product reserved. If it is not paid within the deadline, it cancels itself and the product goes back to stock.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field dp-field-short">
-							<label class="dp-label" for="dox_pos_hold_hours"><?php esc_html_e( 'Se guarda durante', 'dox-pos' ); ?></label>
+							<label class="dp-label" for="dox_pos_hold_hours"><?php esc_html_e( 'Held for', 'dox-pos' ); ?></label>
 							<div class="dp-unitfield">
 								<input type="number" min="1" max="720" step="1" id="dox_pos_hold_hours" name="dox_pos_hold_hours" value="<?php echo esc_attr( dox_pos_hold_hours() ); ?>" class="dp-input" inputmode="numeric">
-								<span class="dp-unit"><?php esc_html_e( 'horas', 'dox-pos' ); ?></span>
+								<span class="dp-unit"><?php esc_html_e( 'hours', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Mensaje de WhatsApp', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Se abre ya escrito en WhatsApp al apartar; solo hay que enviarlo. Toca un comodín para insertarlo donde está el cursor.', 'dox-pos' ); ?></p>
-							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-message-reset"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Mensaje de fábrica', 'dox-pos' ); ?></button>
+							<h2><?php esc_html_e( 'WhatsApp message', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'It opens already written in WhatsApp when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is.', 'dox-pos' ); ?></p>
+							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-message-reset"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default message', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dox_pos_hold_message"><?php esc_html_e( 'Texto', 'dox-pos' ); ?></label>
-							<div class="dp-chips" id="dp-placeholders" aria-label="<?php esc_attr_e( 'Comodines', 'dox-pos' ); ?>">
+							<label class="dp-label" for="dox_pos_hold_message"><?php esc_html_e( 'Text', 'dox-pos' ); ?></label>
+							<div class="dp-chips" id="dp-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
 								<?php foreach ( array( 'nombre', 'productos', 'total', 'horas', 'link', 'tienda' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
 								<?php endforeach; ?>
 							</div>
 							<textarea id="dox_pos_hold_message" name="dox_pos_hold_message" rows="5" class="dp-input dp-textarea"><?php echo esc_textarea( dox_pos_hold_message_template() ); ?></textarea>
-							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> es el enlace de pago del pedido y <code>{tienda}</code>, el nombre de la marca.', 'dox-pos' ), $kses_a ); ?></p>
+							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> is the order\'s payment link and <code>{tienda}</code> is the brand name.', 'dox-pos' ), $kses_a ); ?></p>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dox_pos_payment_note"><?php esc_html_e( 'Cómo pagar por fuera del link', 'dox-pos' ); ?></label>
-							<textarea id="dox_pos_payment_note" name="dox_pos_payment_note" rows="2" class="dp-input dp-textarea" placeholder="<?php esc_attr_e( 'O por Nequi al 300 123 4567', 'dox-pos' ); ?>"><?php echo esc_textarea( dox_pos_payment_note() ); ?></textarea>
-							<p class="dp-hint"><?php esc_html_e( 'Se añade al final del mensaje, tal cual. Vacío: solo va el link.', 'dox-pos' ); ?></p>
+							<label class="dp-label" for="dox_pos_payment_note"><?php esc_html_e( 'How to pay outside the link', 'dox-pos' ); ?></label>
+							<textarea id="dox_pos_payment_note" name="dox_pos_payment_note" rows="2" class="dp-input dp-textarea" placeholder="<?php esc_attr_e( 'Or by bank transfer to 000-123456', 'dox-pos' ); ?>"><?php echo esc_textarea( dox_pos_payment_note() ); ?></textarea>
+							<p class="dp-hint"><?php esc_html_e( 'It is added at the end of the message, as is. Empty: only the link goes.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
 				</section>
@@ -1282,59 +1282,59 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-envios" data-panel="envios" role="tabpanel" aria-labelledby="dp-tab-envios" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Transportadoras', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Se sugieren al marcar un pedido como enviado (también se puede escribir otra en el momento). El enlace de rastreo va en el correo y en el WhatsApp a la clienta: pon {guia} donde la transportadora espera el número; si su página no lo admite, deja el enlace de la página de rastreo y el número va aparte.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Carriers', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {guia} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-rows dp-carriers" id="dp-carriers">
 							<?php foreach ( $carriers as $i => $c ) : ?>
 							<div class="dp-carrier dp-row">
-								<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $c['name'] ); ?>" placeholder="<?php esc_attr_e( 'Transportadora', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Transportadora', 'dox-pos' ); ?>">
-								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {guia}" aria-label="<?php esc_attr_e( 'Enlace de rastreo', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
-								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Quitar %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
+								<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $c['name'] ); ?>" placeholder="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>">
+								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {guia}" aria-label="<?php esc_attr_e( 'Tracking link', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
+								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Remove %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
 						</div>
 						<div class="dp-carrier-add">
-							<select id="dp-carrier-preset" class="dp-input" aria-label="<?php esc_attr_e( 'Añadir una transportadora conocida', 'dox-pos' ); ?>">
-								<option value=""><?php esc_html_e( 'Añadir una conocida…', 'dox-pos' ); ?></option>
+							<select id="dp-carrier-preset" class="dp-input" aria-label="<?php esc_attr_e( 'Add a known carrier', 'dox-pos' ); ?>">
+								<option value=""><?php esc_html_e( 'Add a known one…', 'dox-pos' ); ?></option>
 								<?php foreach ( dox_pos_carrier_presets() as $key => $p ) : ?>
 								<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $p['name'] ); ?></option>
 								<?php endforeach; ?>
 							</select>
-							<button type="button" class="dp-btn dp-btn-ghost" id="dp-carrier-add"><?php esc_html_e( 'Otra transportadora', 'dox-pos' ); ?></button>
+							<button type="button" class="dp-btn dp-btn-ghost" id="dp-carrier-add"><?php esc_html_e( 'Another carrier', 'dox-pos' ); ?></button>
 						</div>
-						<p class="dp-hint"><?php esc_html_e( 'Coordinadora acepta la guía en el enlace. Servientrega, Interrapidísimo y TCC la piden en su página: el enlace lleva allí. Cualquier otra: su nombre y, si la tiene, su enlace con {guia}.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {guia}.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Aviso a la clienta', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Al marcar un pedido como enviado, si tiene correo le llega uno con la transportadora, la guía y el enlace de rastreo, con el diseño de los correos de la tienda y desde su remitente. Si tiene teléfono, la caja deja listo el mensaje de WhatsApp.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Notice to the customer', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store\'s email design and sender. If it has a phone number, the register gets the WhatsApp message ready.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[ship_email]" value="1" <?php checked( dox_pos_ship_email_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Correo a la clienta al marcar enviado', 'dox-pos' ); ?></span></label>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[ship_email]" value="1" <?php checked( dox_pos_ship_email_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Email the customer when marking as shipped', 'dox-pos' ); ?></span></label>
 						<div class="dp-field dp-mt">
-							<label class="dp-label" for="dox_pos_ship_message"><?php esc_html_e( 'Mensaje de WhatsApp del envío', 'dox-pos' ); ?></label>
-							<div class="dp-chips" id="dp-ship-placeholders" aria-label="<?php esc_attr_e( 'Comodines', 'dox-pos' ); ?>">
+							<label class="dp-label" for="dox_pos_ship_message"><?php esc_html_e( 'Shipping WhatsApp message', 'dox-pos' ); ?></label>
+							<div class="dp-chips" id="dp-ship-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
 								<?php foreach ( array( 'nombre', 'pedido', 'transportadora', 'guia', 'link', 'productos', 'tienda' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
 								<?php endforeach; ?>
 							</div>
 							<textarea id="dox_pos_ship_message" name="dox_pos_ship_message" rows="4" class="dp-input dp-textarea"><?php echo esc_textarea( dox_pos_ship_message_template() ); ?></textarea>
-							<p class="dp-hint"><?php esc_html_e( 'Una línea cuyo comodín quede vacío (sin guía, sin enlace) se quita sola.', 'dox-pos' ); ?> <button type="button" class="dp-btn dp-btn-link" id="dp-ship-reset"><?php esc_html_e( 'Mensaje de fábrica', 'dox-pos' ); ?></button></p>
+							<p class="dp-hint"><?php esc_html_e( 'A line whose placeholder ends up empty (no tracking number, no link) removes itself.', 'dox-pos' ); ?> <button type="button" class="dp-btn dp-btn-link" id="dp-ship-reset"><?php esc_html_e( 'Default message', 'dox-pos' ); ?></button></p>
 						</div>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Costos y zonas', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'La caja no tiene tarifas propias: cobra el envío igual que el checkout, con las zonas de WooCommerce. Y el país, los departamentos y las ciudades salen de los ajustes de la tienda.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zonas de envío', 'dox-pos' ); ?></a>
+							<h2><?php esc_html_e( 'Costs and zones', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The register has no rates of its own: it charges shipping just like the checkout, with WooCommerce zones. The country, the states and the cities come from the store settings.', 'dox-pos' ); ?></p>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Shipping zones', 'dox-pos' ); ?></a>
 						</div>
 						<dl class="dp-facts">
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'País', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: etiqueta (Departamento), 2: cuántos */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Moneda', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: importe de ejemplo */ __( 'se escribe %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zonas', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: zonas */ _n( '%d zona de envío', '%d zonas de envío', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'chat' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Ciudades', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'Con lista para elegir (Colciudades)', 'dox-pos' ) : esc_html__( 'Se escriben a mano', 'dox-pos' ); ?></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Country', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: etiqueta (Departamento), 2: cuántos */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Currency', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: importe de ejemplo */ __( 'written as %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zones', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: zonas */ _n( '%d shipping zone', '%d shipping zones', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'chat' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Cities', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'With a list to choose from (Colciudades)', 'dox-pos' ) : esc_html__( 'Typed by hand', 'dox-pos' ); ?></dd></div>
 						</dl>
 					</div>
 				</section>
@@ -1343,52 +1343,52 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-productos" data-panel="productos" role="tabpanel" aria-labelledby="dp-tab-productos" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Fotos', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Las fotos que se suben desde la caja se reducen y se guardan como WebP en el servidor, con sus tamaños; la original (JPG, PNG o HEIC del iPhone) no se guarda.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Photos', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Photos uploaded from the register are resized and stored as WebP on the server, with their sizes; the original (JPG, PNG or iPhone HEIC) is not kept.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-grid-2">
 							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-quality"><?php esc_html_e( 'Calidad del WebP', 'dox-pos' ); ?></label>
+								<label class="dp-label" for="dp-quality"><?php esc_html_e( 'WebP quality', 'dox-pos' ); ?></label>
 								<div class="dp-unitfield">
 									<input type="number" min="50" max="100" step="1" id="dp-quality" name="dox_pos_products[quality]" value="<?php echo esc_attr( $products['quality'] ); ?>" class="dp-input" inputmode="numeric">
 									<span class="dp-unit">%</span>
 								</div>
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php esc_html_e( 'De fábrica, 88: una foto de 12 MP del iPhone queda en unos 300 KB (a 82, en 210). Por encima de 92 casi no se nota y pesa mucho más.', 'dox-pos' ); ?></p>
+								<p class="dp-hint"><?php esc_html_e( 'Default is 88: a 12 MP iPhone photo ends up around 300 KB (at 82, around 210). Above 92 it is barely noticeable and weighs much more.', 'dox-pos' ); ?></p>
 							</div>
 							<div class="dp-field dp-field-short">
-								<label class="dp-label" for="dp-maxpx"><?php esc_html_e( 'Lado mayor', 'dox-pos' ); ?></label>
+								<label class="dp-label" for="dp-maxpx"><?php esc_html_e( 'Longest side', 'dox-pos' ); ?></label>
 								<div class="dp-unitfield">
 									<input type="number" min="800" max="4000" step="100" id="dp-maxpx" name="dox_pos_products[max_px]" value="<?php echo esc_attr( $products['max_px'] ); ?>" class="dp-input" inputmode="numeric">
 									<span class="dp-unit">px</span>
 								</div>
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php esc_html_e( 'De fábrica, 1600: de sobra para la ficha y el zoom. Las fotos más pequeñas se dejan como están.', 'dox-pos' ); ?></p>
+								<p class="dp-hint"><?php esc_html_e( 'Default is 1600: plenty for the product page and the zoom. Smaller photos are left as they are.', 'dox-pos' ); ?></p>
 							</div>
 						</div>
 						<div class="dp-callout">
 							<?php echo wp_kses( dox_pos_icon( $heic ? 'check' : 'alert' ), dox_pos_svg_tags() ); ?>
 							<div>
-								<b><?php echo $heic ? esc_html__( 'Este servidor lee fotos HEIC', 'dox-pos' ) : esc_html__( 'Este servidor no lee fotos HEIC', 'dox-pos' ); ?></b>
-								<span><?php echo $heic ? esc_html__( 'Las del iPhone entran tal cual y salen en WebP.', 'dox-pos' ) : esc_html__( 'Hace falta ImageMagick con libheif. Mientras tanto, el iPhone manda JPG si se elige "Más compatible" en Ajustes > Cámara > Formatos.', 'dox-pos' ); ?></span>
+								<b><?php echo $heic ? esc_html__( 'This server reads HEIC photos', 'dox-pos' ) : esc_html__( 'This server does not read HEIC photos', 'dox-pos' ); ?></b>
+								<span><?php echo $heic ? esc_html__( 'iPhone photos go in as they are and come out as WebP.', 'dox-pos' ) : esc_html__( 'ImageMagick with libheif is needed. In the meantime, the iPhone sends JPG if you choose "Most Compatible" in Settings > Camera > Formats.', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Tallas y colores', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Los atributos de WooCommerce con los que la caja arma las variaciones. Se detectan solos por el nombre; cámbialos si la tienda los llama de otra forma.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Sizes and colors', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The WooCommerce attributes the register builds the variations with. They are detected by name; change them if the store calls them something else.', 'dox-pos' ); ?></p>
 						</div>
 						<?php if ( ! $attrs ) : ?>
-						<p class="dp-hint"><?php esc_html_e( 'La tienda no tiene atributos globales todavía (Productos > Atributos). Sin ellos, la caja crea productos de talla única.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'The store has no global attributes yet (Products > Attributes). Without them, the register creates one-size products.', 'dox-pos' ); ?></p>
 						<?php else : ?>
 						<div class="dp-grid-2">
-							<?php foreach ( array( 'size_attr' => __( 'Talla', 'dox-pos' ), 'color_attr' => __( 'Color', 'dox-pos' ) ) as $k => $label ) : ?>
+							<?php foreach ( array( 'size_attr' => __( 'Size', 'dox-pos' ), 'color_attr' => __( 'Color', 'dox-pos' ) ) as $k => $label ) : ?>
 							<div class="dp-field">
 								<label class="dp-label" for="dp-<?php echo esc_attr( $k ); ?>"><?php echo esc_html( $label ); ?></label>
 								<select id="dp-<?php echo esc_attr( $k ); ?>" name="dox_pos_products[<?php echo esc_attr( $k ); ?>]" class="dp-input">
-									<option value=""><?php echo esc_html( $products[ $k ] ? sprintf( /* translators: %s: atributo detectado */ __( 'Automático: %s', 'dox-pos' ), $attrs[ $products[ $k ] ] ) : __( 'Automático: ninguno', 'dox-pos' ) ); ?></option>
+									<option value=""><?php echo esc_html( $products[ $k ] ? sprintf( /* translators: %s: atributo detectado */ __( 'Automatic: %s', 'dox-pos' ), $attrs[ $products[ $k ] ] ) : __( 'Automatic: none', 'dox-pos' ) ); ?></option>
 									<?php foreach ( $attrs as $tax => $alabel ) : ?>
 									<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $praw[ $k ] ?? '', $tax ); ?>><?php echo esc_html( $alabel . ' (' . $tax . ')' ); ?></option>
 									<?php endforeach; ?>
@@ -1401,8 +1401,8 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'El código (SKU)', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'La caja propone el siguiente código libre del prefijo que usa la categoría (si el último vestido es VE82, propone VE83) y arma el de cada variación así:', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'The SKU', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The register suggests the next free SKU for the prefix the category uses (if the last dress is VE82, it suggests VE83) and builds each variation\'s SKU like this:', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-pays" id="dp-skufmt">
 							<?php foreach ( $skufmt as $key => $t ) : ?>
@@ -1417,15 +1417,15 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Costos y ganancia', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Entró mercancía, cada compra con su costo recalcula el costo promedio del producto.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Costs and profit', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Stock in, every purchase with its cost recalculates the product\'s average cost.', 'dox-pos' ); ?></p>
 						</div>
 						<?php if ( ! method_exists( 'WC_Product', 'get_cogs_value' ) ) : ?>
 						<div class="dp-callout">
 							<?php echo wp_kses( dox_pos_icon( 'alert' ), dox_pos_svg_tags() ); ?>
 							<div>
-								<b><?php esc_html_e( 'Esta versión de WooCommerce no trae el campo de costo', 'dox-pos' ); ?></b>
-								<span><?php esc_html_e( 'Hace falta WooCommerce 9.5 o más nuevo. Al actualizarlo, los costos se encienden solos.', 'dox-pos' ); ?></span>
+								<b><?php esc_html_e( 'This version of WooCommerce does not have the cost field', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'WooCommerce 9.5 or newer is needed. Once you update it, costs turn on by themselves.', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 						<?php endif; ?>
@@ -1433,20 +1433,20 @@ function dox_pos_settings_page() {
 						<div class="dp-callout">
 							<?php echo wp_kses( dox_pos_icon( 'info' ), dox_pos_svg_tags() ); ?>
 							<div>
-								<b><?php esc_html_e( 'Falta encender el campo de costo en WooCommerce', 'dox-pos' ); ?></b>
-								<span><?php esc_html_e( 'Guarda estos ajustes con el interruptor puesto y se enciende (WooCommerce > Ajustes > Avanzado > Funciones > Cost of Goods Sold). Mientras tanto, la caja no pide costos.', 'dox-pos' ); ?></span>
+								<b><?php esc_html_e( 'The WooCommerce cost field still has to be turned on', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'Save these settings with the switch on and it turns on (WooCommerce > Settings > Advanced > Features > Cost of Goods Sold). Until then, the register does not ask for costs.', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 						<?php endif; ?>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Llevar el costo de los productos y ver la ganancia (enciende el campo de costo de WooCommerce)', 'dox-pos' ); ?></span></label>
-						<p class="dp-hint"><?php esc_html_e( 'Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con "Subir costos desde Excel" en Entró mercancía.', 'dox-pos' ); ?></p>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Track product costs and see the profit (turns on the WooCommerce cost field)', 'dox-pos' ); ?></span></label>
+						<p class="dp-hint"><?php esc_html_e( 'Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with "Upload costs from Excel" in Stock in.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Quién crea productos', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'La pestaña "Productos" (crear uno nuevo o editar uno) la ven los administradores y los gerentes de tienda. Quien solo tiene el rol Caja vende y registra mercancía, pero no toca los productos.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'users' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Usuarios', 'dox-pos' ); ?></a>
+							<h2><?php esc_html_e( 'Who creates products', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The "Products" tab (create a new one or edit one) is for administrators and shop managers. Someone with only the Cashier role sells and records stock, but does not touch products.', 'dox-pos' ); ?></p>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'users' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Users', 'dox-pos' ); ?></a>
 						</div>
 					</div>
 				</section>
@@ -1454,10 +1454,10 @@ function dox_pos_settings_page() {
 				<?php do_action( 'dox_pos_settings_panels' ); // Las pestañas de los añadidos (el Pro pone Asistente). ?>
 			</form>
 
-			<aside class="dp-side" aria-label="<?php esc_attr_e( 'Vista previa', 'dox-pos' ); ?>">
+			<aside class="dp-side" aria-label="<?php esc_attr_e( 'Preview', 'dox-pos' ); ?>">
 				<div class="dp-side-head">
-					<span class="dp-side-title"><?php esc_html_e( 'Vista previa', 'dox-pos' ); ?></span>
-					<span class="dp-live"><i aria-hidden="true"></i><?php esc_html_e( 'En vivo', 'dox-pos' ); ?></span>
+					<span class="dp-side-title"><?php esc_html_e( 'Preview', 'dox-pos' ); ?></span>
+					<span class="dp-live"><i aria-hidden="true"></i><?php esc_html_e( 'Live', 'dox-pos' ); ?></span>
 				</div>
 				<div class="dp-device" id="dp-preview" style="--ui:<?php echo esc_attr( '"' . $fonts['ui'] . '",sans-serif' ); ?>;--serif:<?php echo esc_attr( '"' . $fonts['serif'] . '",serif' ); ?>">
 					<div class="dp-chrome"><span class="dp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="dp-url" id="dp-preview-url"><?php echo esc_html( $host . '/' . $slug ); ?></span></div>
@@ -1467,63 +1467,63 @@ function dox_pos_settings_page() {
 							<img class="dp-logo-prev" id="dp-preview-logo" src="<?php echo esc_url( $logo ); ?>" alt="" <?php echo $logo ? '' : 'hidden'; ?>>
 							<span class="dp-brand" id="dp-preview-brand" <?php echo $logo ? 'hidden' : ''; ?>><?php echo esc_html( dox_pos_brand_name() ); ?></span>
 							<span class="dp-cajita" id="dp-preview-screen"><?php echo esc_html( dox_pos_screen_name() ); ?></span>
-							<span class="dp-tabs"><span class="dp-tab on"><?php esc_html_e( 'Vender', 'dox-pos' ); ?></span><span class="dp-tab"><?php esc_html_e( 'Pedidos', 'dox-pos' ); ?></span></span>
+							<span class="dp-tabs"><span class="dp-tab on"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></span><span class="dp-tab"><?php esc_html_e( 'Orders', 'dox-pos' ); ?></span></span>
 						</div>
 						<div class="dp-body-prev">
 							<div class="dp-card-prev">
-								<p class="dp-lbl"><?php esc_html_e( 'Cómo entró la venta', 'dox-pos' ); ?></p>
+								<p class="dp-lbl"><?php esc_html_e( 'How the sale came in', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev" id="dp-preview-channels"></p>
-								<p class="dp-line"><span class="dp-thumb">VE</span><span><?php esc_html_e( 'Vestido Ella', 'dox-pos' ); ?><i>M · Rosa</i></span><span class="dp-tag-prev"><?php esc_html_e( 'Apartado', 'dox-pos' ); ?></span></p>
-								<p class="dp-lbl"><?php esc_html_e( 'Cómo paga', 'dox-pos' ); ?></p>
+								<p class="dp-line"><span class="dp-thumb">VE</span><span><?php esc_html_e( 'Ella dress', 'dox-pos' ); ?><i>M · Rosa</i></span><span class="dp-tag-prev"><?php esc_html_e( 'Layaway', 'dox-pos' ); ?></span></p>
+								<p class="dp-lbl"><?php esc_html_e( 'How they pay', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev" id="dp-preview-payments"></p>
 								<p class="dp-total"><span><?php esc_html_e( 'Total', 'dox-pos' ); ?></span><b><?php echo esc_html( dox_pos_money( 189000 ) ); ?></b></p>
-								<span class="dp-go"><?php esc_html_e( 'Ya pagó: registrar la venta', 'dox-pos' ); ?></span>
-								<span class="dp-go alt"><?php esc_html_e( 'Todavía no paga: apartar', 'dox-pos' ); ?></span>
+								<span class="dp-go"><?php esc_html_e( 'Paid: record the sale', 'dox-pos' ); ?></span>
+								<span class="dp-go alt"><?php esc_html_e( 'Not paid yet: put on layaway', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<div class="dp-mock dp-wa" data-view="whatsapp" hidden>
-						<div class="dp-wa-head"><span class="dp-wa-avatar">A</span><span class="dp-wa-who"><b><?php esc_html_e( 'Ana', 'dox-pos' ); ?></b><i><?php esc_html_e( 'en línea', 'dox-pos' ); ?></i></span></div>
+						<div class="dp-wa-head"><span class="dp-wa-avatar">A</span><span class="dp-wa-who"><b><?php esc_html_e( 'Ana', 'dox-pos' ); ?></b><i><?php esc_html_e( 'online', 'dox-pos' ); ?></i></span></div>
 						<div class="dp-wa-body"><div class="dp-wa-bubble"><p id="dp-preview-message"></p><span class="dp-wa-time">10:42</span></div></div>
 					</div>
 
 					<div class="dp-mock dp-envio" data-view="envio" hidden>
 						<div class="dp-modal-prev">
-							<p class="dp-modal-title"><?php esc_html_e( 'Marcar como enviado', 'dox-pos' ); ?></p>
-							<p class="dp-lbl"><?php esc_html_e( 'Transportadora', 'dox-pos' ); ?></p>
+							<p class="dp-modal-title"><?php esc_html_e( 'Mark as shipped', 'dox-pos' ); ?></p>
+							<p class="dp-lbl"><?php esc_html_e( 'Carrier', 'dox-pos' ); ?></p>
 							<p class="dp-chips-prev" id="dp-preview-carriers"></p>
-							<p class="dp-lbl"><?php esc_html_e( 'Número de guía', 'dox-pos' ); ?></p>
+							<p class="dp-lbl"><?php esc_html_e( 'Tracking number', 'dox-pos' ); ?></p>
 							<span class="dp-fake-input"></span>
-							<span class="dp-go"><?php esc_html_e( 'Guardar', 'dox-pos' ); ?></span>
+							<span class="dp-go"><?php esc_html_e( 'Save', 'dox-pos' ); ?></span>
 						</div>
 					</div>
 
 					<div class="dp-mock" data-view="producto" hidden>
 						<div class="dp-bar">
 							<span class="dp-cajita" style="border-left:0;padding-left:0"><?php echo esc_html( dox_pos_screen_name() ); ?></span>
-							<span class="dp-tabs"><span class="dp-tab"><?php esc_html_e( 'Vender', 'dox-pos' ); ?></span><span class="dp-tab on"><?php esc_html_e( 'Productos', 'dox-pos' ); ?></span></span>
+							<span class="dp-tabs"><span class="dp-tab"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></span><span class="dp-tab on"><?php esc_html_e( 'Products', 'dox-pos' ); ?></span></span>
 						</div>
 						<div class="dp-body-prev">
 							<div class="dp-card-prev">
-								<p class="dp-lbl"><?php esc_html_e( 'Fotos', 'dox-pos' ); ?></p>
+								<p class="dp-lbl"><?php esc_html_e( 'Photos', 'dox-pos' ); ?></p>
 								<div class="dp-photos">
 									<span class="dp-photo"><i>WebP · <b id="dp-preview-quality"><?php echo esc_html( $products['quality'] ); ?></b> %</i></span>
 									<span class="dp-photo"><i><b id="dp-preview-px"><?php echo esc_html( $products['max_px'] ); ?></b> px</i></span>
 									<span class="dp-photo add"><?php echo wp_kses( dox_pos_icon( 'camera' ), dox_pos_svg_tags() ); ?></span>
 								</div>
-								<p class="dp-lbl"><?php esc_html_e( 'Tallas', 'dox-pos' ); ?></p>
+								<p class="dp-lbl"><?php esc_html_e( 'Sizes', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev"><span class="on">0-6 M</span><span class="on">6-12 M</span><span class="on">12-18 M</span><span>18-24 M</span></p>
-								<p class="dp-lbl"><?php esc_html_e( 'Código', 'dox-pos' ); ?></p>
+								<p class="dp-lbl"><?php esc_html_e( 'SKU', 'dox-pos' ); ?></p>
 								<span class="dp-fake-input dp-mono" id="dp-preview-sku">VE83</span>
-								<span class="dp-go"><?php esc_html_e( 'Crear producto', 'dox-pos' ); ?></span>
+								<span class="dp-go"><?php esc_html_e( 'Create product', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 					</div>
 
 					<?php do_action( 'dox_pos_settings_mocks' ); // Las vistas previas de los añadidos. ?>
 				</div>
-				<p class="dp-side-note"><?php esc_html_e( 'Lo que cambies se ve aquí al momento. En la caja, al guardar.', 'dox-pos' ); ?></p>
+				<p class="dp-side-note"><?php esc_html_e( 'What you change shows up here right away. In the register, when you save.', 'dox-pos' ); ?></p>
 			</aside>
 		</div>
 	</div>

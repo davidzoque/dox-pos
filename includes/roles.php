@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function dox_pos_install_roles() {
 	$role = get_role( 'caja' );
 	if ( ! $role ) {
-		$role = add_role( 'caja', __( 'Caja', 'dox-pos' ), array( 'read' => true ) );
+		$role = add_role( 'caja', __( 'Cashier', 'dox-pos' ), array( 'read' => true ) );
 	}
 	if ( $role ) {
 		$role->add_cap( DOX_POS_CAP );

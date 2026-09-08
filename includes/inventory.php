@@ -137,10 +137,10 @@ function dox_pos_inventory_data() {
 		}
 	}
 	$estado = array(
-		'publish' => __( 'Publicado', 'dox-pos' ),
-		'private' => __( 'Oculto', 'dox-pos' ),
-		'draft'   => __( 'Borrador', 'dox-pos' ),
-		'pending' => __( 'Pendiente', 'dox-pos' ),
+		'publish' => __( 'Published', 'dox-pos' ),
+		'private' => __( 'Hidden', 'dox-pos' ),
+		'draft'   => __( 'Draft', 'dox-pos' ),
+		'pending' => __( 'Pending', 'dox-pos' ),
 	);
 	$rows   = array();
 	$others = false;
@@ -191,9 +191,9 @@ function dox_pos_inventory_data() {
 		if ( 'publish' !== $main['post_status'] ) {
 			$st = $estado[ $main['post_status'] ] ?? $main['post_status'];
 		} elseif ( $parent && 'publish' !== $r['post_status'] ) {
-			$st = __( 'Desactivada', 'dox-pos' );
+			$st = __( 'Disabled', 'dox-pos' );
 		} elseif ( null === $stock && 'outofstock' === $r['stock_status'] ) {
-			$st = __( 'Agotado', 'dox-pos' );
+			$st = __( 'Out of stock', 'dox-pos' );
 		} else {
 			$st = $estado['publish'];
 		}
@@ -202,7 +202,7 @@ function dox_pos_inventory_data() {
 			'ref'    => (string) $main['sku'],
 			// Sin código va "(sin código)": el total del Excel suma las filas cuya casilla de código no está vacía
 			// (las de producto la llevan vacía), así que una fila sin nada se quedaría fuera de la cuenta.
-			'sku'    => '' !== (string) $r['sku'] ? (string) $r['sku'] : ( '' !== (string) $main['sku'] ? (string) $main['sku'] : __( '(sin código)', 'dox-pos' ) ),
+			'sku'    => '' !== (string) $r['sku'] ? (string) $r['sku'] : ( '' !== (string) $main['sku'] ? (string) $main['sku'] : __( '(no SKU)', 'dox-pos' ) ),
 			'name'   => html_entity_decode( $main['post_title'], ENT_QUOTES, 'UTF-8' ),
 			'size'   => $size,
 			'color'  => $color,
@@ -240,7 +240,7 @@ function dox_pos_inventory_data() {
 			$row['value']      = null;
 			$row['cost_value'] = null;
 			if ( $estado['publish'] === $row['status'] ) {
-				$row['status'] = __( 'Comparte existencias', 'dox-pos' );
+				$row['status'] = __( 'Shares stock', 'dox-pos' );
 			}
 		}
 		$seen[ $row['pid'] ] = true;
@@ -275,7 +275,7 @@ function dox_pos_inventory_data() {
 	return array(
 		'rows'        => $rows,
 		'cats'        => $summary,
-		'size_label'  => $size_tax && isset( $taxes[ $size_tax ] ) ? $taxes[ $size_tax ] : __( 'Talla', 'dox-pos' ),
+		'size_label'  => $size_tax && isset( $taxes[ $size_tax ] ) ? $taxes[ $size_tax ] : __( 'Size', 'dox-pos' ),
 		'color_label' => $color_tax && isset( $taxes[ $color_tax ] ) ? $taxes[ $color_tax ] : __( 'Color', 'dox-pos' ),
 		'others'      => $others,
 		'costs'       => $see,
@@ -315,25 +315,25 @@ function dox_pos_inventory_xlsx( $d ) {
 	// subtotales) y debajo una fila por talla y color, agrupadas para poder plegarlas con el +/- de Excel.
 	$cols = array(
 		array( __( 'Ref.', 'dox-pos' ), 'ref', 'text', 10 ),
-		array( __( 'Código', 'dox-pos' ), 'sku', 'text', 13 ),
-		array( __( 'Producto', 'dox-pos' ), 'name', 'text', 36 ),
+		array( __( 'SKU', 'dox-pos' ), 'sku', 'text', 13 ),
+		array( __( 'Product', 'dox-pos' ), 'name', 'text', 36 ),
 		array( $d['size_label'], 'size', 'text', 15 ),
 		array( $d['color_label'], 'color', 'text', 15 ),
 	);
 	if ( $d['others'] ) {
-		$cols[] = array( __( 'Otros atributos', 'dox-pos' ), 'others', 'text', 18 );
+		$cols[] = array( __( 'Other attributes', 'dox-pos' ), 'others', 'text', 18 );
 	}
-	$cols[] = array( __( 'Categoría', 'dox-pos' ), 'cat', 'text', 30 );
-	$cols[] = array( __( 'Precio', 'dox-pos' ), 'price', 'money', 12 );
+	$cols[] = array( __( 'Category', 'dox-pos' ), 'cat', 'text', 30 );
+	$cols[] = array( __( 'Price', 'dox-pos' ), 'price', 'money', 12 );
 	if ( $costs ) {
-		$cols[] = array( __( 'Costo', 'dox-pos' ), 'cost', 'cost', 12 ); // Se llena y se sube de vuelta desde la caja para cargar los costos.
+		$cols[] = array( __( 'Cost', 'dox-pos' ), 'cost', 'cost', 12 ); // Se llena y se sube de vuelta desde la caja para cargar los costos.
 	}
-	$cols[] = array( __( 'Existencias', 'dox-pos' ), 'stock', 'int', 12 );
-	$cols[] = array( __( 'Valor', 'dox-pos' ), 'value', 'value', 14 );
+	$cols[] = array( __( 'Stock', 'dox-pos' ), 'stock', 'int', 12 );
+	$cols[] = array( __( 'Value', 'dox-pos' ), 'value', 'value', 14 );
 	if ( $costs ) {
-		$cols[] = array( __( 'Valor al costo', 'dox-pos' ), 'cost_value', 'cvalue', 14 );
+		$cols[] = array( __( 'Value at cost', 'dox-pos' ), 'cost_value', 'cvalue', 14 );
 	}
-	$cols[] = array( __( 'Estado', 'dox-pos' ), 'status', 'text', 20 );
+	$cols[] = array( __( 'Status', 'dox-pos' ), 'status', 'text', 20 );
 
 	$ci = array();
 	foreach ( $cols as $i => $c ) {
@@ -443,11 +443,11 @@ function dox_pos_inventory_xlsx( $d ) {
 					break;
 				case 'size':
 					/* translators: %d: cuántas tallas */
-					$cells .= dox_pos_xlsx_cell( $ref, $ns ? sprintf( _n( '%d talla', '%d tallas', $ns, 'dox-pos' ), $ns ) : '', 8 );
+					$cells .= dox_pos_xlsx_cell( $ref, $ns ? sprintf( _n( '%d size', '%d sizes', $ns, 'dox-pos' ), $ns ) : '', 8 );
 					break;
 				case 'color':
 					/* translators: %d: cuántos colores */
-					$cells .= dox_pos_xlsx_cell( $ref, $nc ? sprintf( _n( '%d color', '%d colores', $nc, 'dox-pos' ), $nc ) : '', 8 );
+					$cells .= dox_pos_xlsx_cell( $ref, $nc ? sprintf( _n( '%d color', '%d colors', $nc, 'dox-pos' ), $nc ) : '', 8 );
 					break;
 				case 'price':
 					$cells .= dox_pos_xlsx_cell( $ref, 1 === count( $prices ) ? (float) array_key_first( $prices ) : null, 9 );
@@ -524,13 +524,13 @@ function dox_pos_inventory_xlsx( $d ) {
 
 	// Hoja 2: por categoría.
 	$cols2 = array(
-		array( __( 'Categoría', 'dox-pos' ), 'cat', 'text', 34 ),
-		array( __( 'Referencias', 'dox-pos' ), 'refs', 'int', 13 ),
-		array( __( 'Existencias', 'dox-pos' ), 'units', 'int', 13 ),
-		array( __( 'Valor', 'dox-pos' ), 'value', 'money', 15 ),
+		array( __( 'Category', 'dox-pos' ), 'cat', 'text', 34 ),
+		array( __( 'Distinct products', 'dox-pos' ), 'refs', 'int', 13 ),
+		array( __( 'Stock', 'dox-pos' ), 'units', 'int', 13 ),
+		array( __( 'Value', 'dox-pos' ), 'value', 'money', 15 ),
 	);
 	if ( $costs ) {
-		$cols2[] = array( __( 'Valor al costo', 'dox-pos' ), 'cost_value', 'money', 15 );
+		$cols2[] = array( __( 'Value at cost', 'dox-pos' ), 'cost_value', 'money', 15 );
 	}
 	$lines2 = array();
 	$n      = 1;
@@ -552,8 +552,8 @@ function dox_pos_inventory_xlsx( $d ) {
 
 	return dox_pos_xlsx_workbook(
 		array(
-			array( 'name' => __( 'Inventario', 'dox-pos' ), 'xml' => $sheet1, 'links' => $links ),
-			array( 'name' => __( 'Por categoría', 'dox-pos' ), 'xml' => $sheet2 ),
+			array( 'name' => __( 'Inventory', 'dox-pos' ), 'xml' => $sheet1, 'links' => $links ),
+			array( 'name' => __( 'By category', 'dox-pos' ), 'xml' => $sheet2 ),
 		)
 	);
 }

@@ -34,7 +34,7 @@ function dox_pos_render() {
 	dox_pos_no_cache();
 
 	if ( ! function_exists( 'wc_get_product' ) ) {
-		wp_die( esc_html__( 'La caja necesita WooCommerce activo.', 'dox-pos' ) );
+		wp_die( esc_html__( 'The register needs WooCommerce to be active.', 'dox-pos' ) );
 	}
 
 	// Salir: /caja/?salir=1&_wpnonce=...
@@ -96,15 +96,15 @@ function dox_pos_no_cache() {
  */
 function dox_pos_handle_login() {
 	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'dox_pos_login' ) ) {
-		return __( 'La página caducó. Vuelve a intentarlo.', 'dox-pos' );
+		return __( 'The page expired. Please try again.', 'dox-pos' );
 	}
 	$user = wp_signon( array(), is_ssl() );
 	if ( is_wp_error( $user ) ) {
-		return __( 'Usuario o clave incorrectos.', 'dox-pos' );
+		return __( 'Wrong username or password.', 'dox-pos' );
 	}
 	if ( ! user_can( $user, DOX_POS_CAP ) ) {
 		wp_logout();
-		return __( 'Ese usuario no tiene acceso a la caja.', 'dox-pos' );
+		return __( 'That user does not have access to the register.', 'dox-pos' );
 	}
 	wp_safe_redirect( dox_pos_url() );
 	exit;

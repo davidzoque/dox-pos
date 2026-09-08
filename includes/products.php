@@ -522,15 +522,15 @@ function dox_pos_next_sku( $prefix ) {
 function dox_pos_sku_problem( $sku ) {
 	$sku = trim( (string) $sku );
 	if ( '' === $sku ) {
-		return __( 'Escribe un código.', 'dox-pos' );
+		return __( 'Enter a SKU.', 'dox-pos' );
 	}
 	if ( ! preg_match( '/^[A-Za-z0-9._-]{2,40}$/', $sku ) ) {
-		return __( 'Solo letras, números, puntos y guiones.', 'dox-pos' );
+		return __( 'Only letters, numbers, dots and hyphens.', 'dox-pos' );
 	}
 	$id = wc_get_product_id_by_sku( $sku );
 	if ( $id ) {
 		$p = wc_get_product( $id );
-		return sprintf( /* translators: 1: código, 2: producto */ __( 'El código %1$s ya lo usa %2$s.', 'dox-pos' ), $sku, $p ? dox_pos_item_name( $p ) : '#' . $id );
+		return sprintf( /* translators: 1: código, 2: producto */ __( 'SKU %1$s is already used by %2$s.', 'dox-pos' ), $sku, $p ? dox_pos_item_name( $p ) : '#' . $id );
 	}
 	return '';
 }
@@ -552,16 +552,16 @@ function dox_pos_sku_problem( $sku ) {
 function dox_pos_upload_image( $file, $title = '' ) {
 	if ( ! empty( $file['error'] ) ) {
 		$msg = in_array( (int) $file['error'], array( UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE ), true )
-			? sprintf( /* translators: %s: tamaño */ __( 'La foto pesa más de lo que admite el servidor (%s).', 'dox-pos' ), size_format( wp_max_upload_size() ) )
-			: __( 'La foto no llegó completa. Vuelve a intentarlo.', 'dox-pos' );
+			? sprintf( /* translators: %s: tamaño */ __( 'The photo is larger than the server allows (%s).', 'dox-pos' ), size_format( wp_max_upload_size() ) )
+			: __( 'The photo did not upload completely. Please try again.', 'dox-pos' );
 		return new WP_Error( 'dox_pos_foto', $msg );
 	}
 	if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-		return new WP_Error( 'dox_pos_foto', __( 'No llegó ninguna foto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', __( 'No photo was received.', 'dox-pos' ) );
 	}
 	$type = wp_get_image_mime( $file['tmp_name'] );
 	if ( ! in_array( $type, array( 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/avif', 'image/bmp', 'image/tiff' ), true ) ) {
-		return new WP_Error( 'dox_pos_foto', __( 'Ese archivo no es una foto que la tienda sepa leer. Valen JPG, PNG, WebP y HEIC.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', __( 'The store cannot read that file as a photo. JPG, PNG, WebP and HEIC work.', 'dox-pos' ) );
 	}
 	$s = dox_pos_products_settings();
 	dox_pos_limit_imagick();
@@ -593,7 +593,7 @@ function dox_pos_upload_image( $file, $title = '' ) {
 	if ( ! $id || is_wp_error( $id ) ) {
 		remove_filter( 'wp_editor_set_quality', $quality, 99 );
 		wp_delete_file( $saved['path'] );
-		return new WP_Error( 'dox_pos_foto', __( 'No se pudo registrar la foto en la biblioteca.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', __( 'The photo could not be added to the media library.', 'dox-pos' ) );
 	}
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $saved['path'] ) ); // Los tamaños, también en WebP y con la misma calidad.
@@ -627,13 +627,13 @@ function dox_pos_upload_image( $file, $title = '' ) {
 function dox_pos_convert_to_webp( $path, $type, $max_px, $title ) {
 	$editor = wp_get_image_editor( $path, array( 'mime_type' => $type ) );
 	if ( is_wp_error( $editor ) ) {
-		return new WP_Error( 'dox_pos_foto', in_array( $type, array( 'image/heic', 'image/heif' ), true ) ? __( 'Este servidor no sabe leer fotos HEIC. Manda la foto como JPG.', 'dox-pos' ) : __( 'No se pudo leer la foto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', in_array( $type, array( 'image/heic', 'image/heif' ), true ) ? __( 'This server cannot read HEIC photos. Send the photo as a JPG.', 'dox-pos' ) : __( 'The photo could not be read.', 'dox-pos' ) );
 	}
 	$size = $editor->get_size();
 	if ( max( (int) $size['width'], (int) $size['height'] ) > $max_px ) {
 		$r = $editor->resize( $max_px, $max_px, false );
 		if ( is_wp_error( $r ) ) {
-			return new WP_Error( 'dox_pos_foto', __( 'No se pudo reducir la foto.', 'dox-pos' ) );
+			return new WP_Error( 'dox_pos_foto', __( 'The photo could not be resized.', 'dox-pos' ) );
 		}
 	}
 	$editor->set_quality(); // La del filtro.
@@ -647,7 +647,7 @@ function dox_pos_convert_to_webp( $path, $type, $max_px, $title ) {
 	$saved = $editor->save( trailingslashit( $uploads['path'] ) . $name, 'image/webp' );
 	unset( $editor );
 	if ( is_wp_error( $saved ) ) {
-		return new WP_Error( 'dox_pos_foto', __( 'No se pudo guardar la foto como WebP.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', __( 'The photo could not be saved as WebP.', 'dox-pos' ) );
 	}
 	$saved['guid'] = trailingslashit( $uploads['url'] ) . $name;
 	return $saved;
@@ -677,7 +677,7 @@ function dox_pos_limit_imagick() {
  */
 function dox_pos_delete_pending_image( $id ) {
 	if ( 'attachment' !== get_post_type( $id ) || ! get_post_meta( $id, '_dox_pos_pending', true ) ) {
-		return new WP_Error( 'dox_pos_foto', __( 'Esa foto no está pendiente.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_foto', __( 'That photo is not pending.', 'dox-pos' ) );
 	}
 	wp_delete_attachment( $id, true );
 	return array( 'deleted' => (int) $id );
@@ -733,11 +733,11 @@ function dox_pos_create_product( $data ) {
 	}
 	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
 	if ( '' === $name ) {
-		return new WP_Error( 'dox_pos_sin_nombre', __( 'Ponle nombre al producto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_nombre', __( 'Give the product a name.', 'dox-pos' ) );
 	}
 	$price = wc_format_decimal( (string) ( $data['price'] ?? '' ) );
 	if ( '' === $price || (float) $price <= 0 ) {
-		return new WP_Error( 'dox_pos_sin_precio', __( 'Ponle precio.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_precio', __( 'Set a price.', 'dox-pos' ) );
 	}
 	$cats = array();
 	foreach ( (array) ( $data['categories'] ?? array() ) as $cid ) {
@@ -746,7 +746,7 @@ function dox_pos_create_product( $data ) {
 		}
 	}
 	if ( ! $cats ) {
-		return new WP_Error( 'dox_pos_sin_categoria', __( 'Elige al menos una categoría.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
 	$size_tax  = $s['size_attr'];
 	$color_tax = $s['color_attr'];
@@ -789,7 +789,7 @@ function dox_pos_create_product( $data ) {
 			return new WP_Error( 'dox_pos_codigo_ocupado', $problem );
 		}
 	} elseif ( 'none' !== $s['sku'] ) {
-		return new WP_Error( 'dox_pos_sin_codigo', __( 'Falta el código del producto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_codigo', __( 'The product SKU is missing.', 'dox-pos' ) );
 	}
 	$images = array();
 	foreach ( (array) ( $data['images'] ?? array() ) as $im ) {
@@ -861,11 +861,11 @@ function dox_pos_create_product( $data ) {
 		$pid = $product->save();
 	} catch ( Exception $e ) {
 		dox_pos_stock_context_end( $ctx );
-		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( /* translators: %s: motivo */ __( 'WooCommerce no dejó crear el producto: %s', 'dox-pos' ), $e->getMessage() ) );
+		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( /* translators: %s: motivo */ __( 'WooCommerce would not create the product: %s', 'dox-pos' ), $e->getMessage() ) );
 	}
 	if ( ! $pid ) {
 		dox_pos_stock_context_end( $ctx );
-		return new WP_Error( 'dox_pos_no_se_pudo', __( 'WooCommerce no dejó crear el producto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_se_pudo', __( 'WooCommerce would not create the product.', 'dox-pos' ) );
 	}
 	update_post_meta( $pid, '_dox_pos_ref', $ref );
 	update_post_meta( $pid, '_dox_pos_created_by', get_current_user_id() );
@@ -962,7 +962,7 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	$r = wp_insert_term( $name, $tax );
 	if ( is_wp_error( $r ) ) {
-		return new WP_Error( 'dox_pos_color', sprintf( /* translators: 1: color, 2: motivo */ __( 'No se pudo crear el color %1$s: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
+		return new WP_Error( 'dox_pos_color', sprintf( /* translators: 1: color, 2: motivo */ __( 'The color %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
 	}
 	$hex = dox_pos_hex( $hex );
 	if ( $hex ) {
@@ -1114,7 +1114,7 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 		$name = $a->get_name();
 		if ( $name !== $size_tax && $name !== $color_tax ) {
 			/* translators: %s: nombre del atributo */
-			return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'Este producto varía por "%s", que la caja no maneja: edítalo en WooCommerce.', 'dox-pos' ), wc_attribute_label( $name ) ) );
+			return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'This product varies by "%s", which the register does not handle: edit it in WooCommerce.', 'dox-pos' ), wc_attribute_label( $name ) ) );
 		}
 		if ( $name === $size_tax ) {
 			$out['sizes'] = array_map( 'intval', $a->get_options() );
@@ -1152,7 +1152,7 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 		$sslug = (string) ( $va[ $size_tax ] ?? '' );
 		$cslug = (string) ( $va[ $color_tax ] ?? '' );
 		if ( ( $out['sizes'] && ! isset( $size_by_slug[ $sslug ] ) ) || ( $out['colors'] && ! isset( $color_by_slug[ $cslug ] ) ) ) {
-			return new WP_Error( 'dox_pos_no_editable', __( 'Este producto tiene variaciones para "cualquier" talla o color, o con valores que ya no existen: edítalo en WooCommerce.', 'dox-pos' ) );
+			return new WP_Error( 'dox_pos_no_editable', __( 'This product has variations for "any" size or color, or with values that no longer exist: edit it in WooCommerce.', 'dox-pos' ) );
 		}
 		$own = true === $v->get_manage_stock(); // 'parent' = hereda las del producto.
 		if ( ! $own && null !== $parent_stock ) {
@@ -1198,7 +1198,7 @@ function dox_pos_plain_text( $html ) {
 function dox_pos_product_edit_data( $id ) {
 	$p = wc_get_product( (int) $id );
 	if ( ! $p || ! in_array( $p->get_type(), array( 'simple', 'variable' ), true ) ) {
-		return new WP_Error( 'dox_pos_no_editable', __( 'Ese producto no se puede editar desde la caja (solo los simples y los de tallas y colores).', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_editable', __( 'That product cannot be edited from the register (only simple products and those with sizes and colors).', 'dox-pos' ) );
 	}
 	$s     = dox_pos_products_settings();
 	$model = dox_pos_product_model( $p, $s['size_attr'], $s['color_attr'] );
@@ -1308,7 +1308,7 @@ function dox_pos_common_price( $variations ) {
 function dox_pos_update_product( $id, $data ) {
 	$p = wc_get_product( (int) $id );
 	if ( ! $p || ! in_array( $p->get_type(), array( 'simple', 'variable' ), true ) ) {
-		return new WP_Error( 'dox_pos_no_editable', __( 'Ese producto no se puede editar desde la caja.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_editable', __( 'That product cannot be edited from the register.', 'dox-pos' ) );
 	}
 	$s         = dox_pos_products_settings();
 	$size_tax  = $s['size_attr'];
@@ -1319,11 +1319,11 @@ function dox_pos_update_product( $id, $data ) {
 	}
 	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
 	if ( '' === $name ) {
-		return new WP_Error( 'dox_pos_sin_nombre', __( 'Ponle nombre al producto.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_nombre', __( 'Give the product a name.', 'dox-pos' ) );
 	}
 	$price = wc_format_decimal( (string) ( $data['price'] ?? '' ) );
 	if ( '' !== $price && (float) $price <= 0 ) {
-		return new WP_Error( 'dox_pos_sin_precio', __( 'El precio tiene que ser mayor que cero.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_precio', __( 'The price has to be greater than zero.', 'dox-pos' ) );
 	}
 	// El costo: '' o ausente = no tocar; 0 = quitarlo; más = ponerlo a todo el producto (a todas las tallas).
 	$cost = null;
@@ -1338,7 +1338,7 @@ function dox_pos_update_product( $id, $data ) {
 		}
 	}
 	if ( ! $cats ) {
-		return new WP_Error( 'dox_pos_sin_categoria', __( 'Elige al menos una categoría.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
 	$variable = $p->is_type( 'variable' );
 
@@ -1464,7 +1464,7 @@ function dox_pos_update_product( $id, $data ) {
 	} catch ( Exception $e ) {
 		dox_pos_stock_context_end( $ctx );
 		/* translators: %s: motivo */
-		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( __( 'WooCommerce no dejó guardar el producto: %s', 'dox-pos' ), $e->getMessage() ) );
+		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( __( 'WooCommerce would not save the product: %s', 'dox-pos' ), $e->getMessage() ) );
 	}
 
 	$nvars = count( $model['variations'] );

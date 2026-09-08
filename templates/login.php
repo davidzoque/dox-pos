@@ -35,9 +35,9 @@ dox_pos_enqueue_caja();
 <main class="login">
 	<form class="login-card" method="post" action="<?php echo esc_url( dox_pos_url() ); ?>">
 		<h1><?php echo esc_html( dox_pos_screen_name() ); ?></h1>
-		<p class="login-sub"><?php echo esc_html( sprintf( /* translators: %s: nombre de la marca */ __( 'Entra con tu usuario de %s.', 'dox-pos' ), $brand ) ); ?></p>
+		<p class="login-sub"><?php echo esc_html( sprintf( /* translators: %s: nombre de la marca */ __( 'Sign in with your %s account.', 'dox-pos' ), $brand ) ); ?></p>
 		<?php if ( ! empty( $sin_permiso ) ) : ?>
-			<p class="login-err" role="alert"><?php esc_html_e( 'Tu usuario no tiene acceso a la caja. Entra con otro.', 'dox-pos' ); ?></p>
+			<p class="login-err" role="alert"><?php esc_html_e( 'Your user does not have access to the register. Sign in with another one.', 'dox-pos' ); ?></p>
 		<?php elseif ( ! empty( $error ) ) : ?>
 			<p class="login-err" role="alert"><?php echo esc_html( $error ); ?></p>
 		<?php endif; ?>
@@ -45,16 +45,16 @@ dox_pos_enqueue_caja();
 		<input type="hidden" name="dox_pos_login" value="1">
 		<input type="hidden" name="rememberme" value="forever">
 		<div class="field">
-			<label for="log"><?php esc_html_e( 'Usuario o correo', 'dox-pos' ); ?></label>
+			<label for="log"><?php esc_html_e( 'Username or email', 'dox-pos' ); ?></label>
 			<input id="log" name="log" type="text" autocomplete="username" required autofocus>
 		</div>
 		<div class="field">
-			<label for="pwd"><?php esc_html_e( 'Clave', 'dox-pos' ); ?></label>
+			<label for="pwd"><?php esc_html_e( 'Password', 'dox-pos' ); ?></label>
 			<input id="pwd" name="pwd" type="password" autocomplete="current-password" required>
 		</div>
-		<button class="go" type="submit"><?php esc_html_e( 'Entrar', 'dox-pos' ); ?></button>
+		<button class="go" type="submit"><?php esc_html_e( 'Sign in', 'dox-pos' ); ?></button>
 		<?php if ( ! empty( $sin_permiso ) ) : ?>
-			<a class="login-alt" href="<?php echo esc_url( dox_pos_logout_url() ); ?>"><?php esc_html_e( 'Salir de este usuario', 'dox-pos' ); ?></a>
+			<a class="login-alt" href="<?php echo esc_url( dox_pos_logout_url() ); ?>"><?php esc_html_e( 'Sign out of this account', 'dox-pos' ); ?></a>
 		<?php endif; ?>
 	</form>
 </main>

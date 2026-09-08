@@ -205,7 +205,7 @@ function dox_pos_format_variation( $v, $simple = false ) {
 	return array(
 		'id'     => (int) $v->get_id(),
 		'sku'    => $v->get_sku( 'edit' ),
-		'label'  => $label ? $label : __( 'Talla única', 'dox-pos' ),
+		'label'  => $label ? $label : __( 'One size', 'dox-pos' ),
 		'talla'  => $talla,
 		'color'  => $color,
 		'price'  => (float) $v->get_price(),
@@ -224,7 +224,7 @@ function dox_pos_format_variation( $v, $simple = false ) {
  */
 function dox_pos_attribute_label( $tax, $slug ) {
 	if ( '' === $slug ) {
-		return __( 'Cualquiera', 'dox-pos' );
+		return __( 'Any', 'dox-pos' );
 	}
 	if ( taxonomy_exists( $tax ) ) {
 		$term = get_term_by( 'slug', $slug, $tax );

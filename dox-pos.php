@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Dox POS
  * Plugin URI:        https://doxstudio.com
- * Description:       La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y mercancía desde el frontend (/caja), sin entrar a wp-admin, con pedidos, productos, historial, kardex y Excel. Cada venta es un pedido de WooCommerce y el inventario baja solo. Con Dox POS Pro, el asistente de negocio.
- * Version:           0.21.1
+ * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
+ * Version:           0.22.0
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.21.1' );
+define( 'DOX_POS_VERSION', '0.22.0' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -38,6 +38,16 @@ if ( file_exists( $dox_pos_puc ) ) {
 	$dox_pos_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 'https://github.com/davidzoque/dox-pos/', __FILE__, 'dox-pos' );
 	$dox_pos_updater->setBranch( 'main' );
 	$dox_pos_updater->getVcsApi()->enableReleaseAssets();
+}
+
+/**
+ * Las traducciones del plugin. El código va en inglés (es lo que espera WordPress.org) y los
+ * idiomas salen de languages/: el español viene en el paquete y el resto llega de
+ * translate.wordpress.org cuando el plugin esté publicado.
+ */
+add_action( 'init', 'dox_pos_textdomain', 1 );
+function dox_pos_textdomain() {
+	load_plugin_textdomain( 'dox-pos', false, dirname( plugin_basename( DOX_POS_FILE ) ) . '/languages' );
 }
 
 require_once DOX_POS_PATH . 'includes/roles.php';

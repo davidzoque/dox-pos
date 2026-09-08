@@ -379,11 +379,11 @@ function dox_pos_margin( $profit, $revenue ) {
  */
 function dox_pos_xlsx_read( $path, $max = 20000 ) {
 	if ( ! class_exists( 'ZipArchive' ) ) {
-		return new WP_Error( 'dox_pos_sin_zip', __( 'Este servidor no puede leer archivos de Excel: le falta la extensión zip de PHP.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_zip', __( 'This server cannot read Excel files: the PHP zip extension is missing.', 'dox-pos' ) );
 	}
 	$zip = new ZipArchive();
 	if ( true !== $zip->open( $path ) ) {
-		return new WP_Error( 'dox_pos_no_excel', __( 'Ese archivo no es un Excel (.xlsx).', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_excel', __( 'That file is not an Excel file (.xlsx).', 'dox-pos' ) );
 	}
 	$prev_errors = libxml_use_internal_errors( true ); // Un XML roto no suelta avisos: devuelve false y se avisa aquí.
 	$ns    = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -411,7 +411,7 @@ function dox_pos_xlsx_read( $path, $max = 20000 ) {
 	$zip->close();
 	if ( ! $xml ) {
 		libxml_use_internal_errors( $prev_errors );
-		return new WP_Error( 'dox_pos_no_excel', __( 'No se encontró la hoja dentro del Excel.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_excel', __( 'The sheet was not found inside the Excel file.', 'dox-pos' ) );
 	}
 	$strings = array();
 	if ( $ss ) {
@@ -426,7 +426,7 @@ function dox_pos_xlsx_read( $path, $max = 20000 ) {
 	libxml_clear_errors();
 	libxml_use_internal_errors( $prev_errors );
 	if ( ! $dx || ! isset( $dx->sheetData ) ) {
-		return new WP_Error( 'dox_pos_no_excel', __( 'No se pudo leer la hoja del Excel.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_excel', __( 'The Excel sheet could not be read.', 'dox-pos' ) );
 	}
 	$rows = array();
 	foreach ( $dx->sheetData->row as $row ) {
@@ -496,20 +496,20 @@ function dox_pos_parse_money( $v ) {
  */
 function dox_pos_costs_import( $file ) {
 	if ( ! dox_pos_can_see_costs() ) {
-		return new WP_Error( 'dox_pos_sin_permiso', __( 'Los costos los cargan administradores y gerentes.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_permiso', __( 'Only administrators and shop managers can upload costs.', 'dox-pos' ) );
 	}
 	if ( ! is_array( $file ) || empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-		return new WP_Error( 'dox_pos_sin_archivo', __( 'No llegó ningún archivo.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_archivo', __( 'No file was received.', 'dox-pos' ) );
 	}
 	if ( ! preg_match( '/\.xlsx$/i', (string) ( $file['name'] ?? '' ) ) ) {
-		return new WP_Error( 'dox_pos_no_excel', __( 'Sube el archivo de Excel (.xlsx) que descargaste de la caja.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_no_excel', __( 'Upload the Excel file (.xlsx) you downloaded from the register.', 'dox-pos' ) );
 	}
 	$rows = dox_pos_xlsx_read( $file['tmp_name'] );
 	if ( is_wp_error( $rows ) ) {
 		return $rows;
 	}
 	if ( count( $rows ) < 2 ) {
-		return new WP_Error( 'dox_pos_excel_vacio', __( 'El Excel no tiene filas.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_excel_vacio', __( 'The Excel file has no rows.', 'dox-pos' ) );
 	}
 	// Las columnas, por el título de la primera fila.
 	$fold = fn( $s ) => strtolower( trim( remove_accents( (string) $s ) ) );
@@ -525,10 +525,10 @@ function dox_pos_costs_import( $file ) {
 		}
 	}
 	if ( null === $cols['cost'] ) {
-		return new WP_Error( 'dox_pos_sin_columna', __( 'El Excel no tiene una columna "Costo". Descarga el inventario desde la caja, llena esa columna y súbelo.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_columna', __( 'The Excel file has no "Cost" column. Download the inventory from the register, fill in that column and upload it.', 'dox-pos' ) );
 	}
 	if ( null === $cols['sku'] && null === $cols['ref'] ) {
-		return new WP_Error( 'dox_pos_sin_columna', __( 'El Excel no tiene la columna "Código" ni "Ref.": no se sabe a qué producto va cada costo.', 'dox-pos' ) );
+		return new WP_Error( 'dox_pos_sin_columna', __( 'The Excel file has neither a "SKU" nor a "Ref." column, so there is no way to tell which product each cost belongs to.', 'dox-pos' ) );
 	}
 	$out = array( 'updated' => 0, 'same' => 0, 'skipped' => 0, 'missing' => 0, 'missing_list' => array(), 'rows' => count( $rows ) - 1 );
 	$did = array(); // Un producto no se toca dos veces en la misma carga.

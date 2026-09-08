@@ -253,7 +253,7 @@ function dox_pos_stock_guess_context( $creating ) {
 	if ( is_array( $o ) ) {
 		return $o;
 	}
-	$note = $creating ? __( 'Producto nuevo', 'dox-pos' ) : '';
+	$note = $creating ? __( 'Newly created product', 'dox-pos' ) : '';
 	if ( defined( 'WP_CLI' ) && WP_CLI ) {
 		return array( 'reason' => 'cli', 'ref_id' => 0, 'note' => $note );
 	}
@@ -270,7 +270,7 @@ function dox_pos_stock_guess_context( $creating ) {
 		return array( 'reason' => 'api', 'ref_id' => 0, 'note' => $note );
 	}
 	if ( wp_doing_cron() || did_action( 'action_scheduler_before_execute' ) > did_action( 'action_scheduler_after_execute' ) ) {
-		return array( 'reason' => 'other', 'ref_id' => 0, 'note' => __( 'Tarea programada', 'dox-pos' ) );
+		return array( 'reason' => 'other', 'ref_id' => 0, 'note' => __( 'Scheduled task', 'dox-pos' ) );
 	}
 	if ( is_admin() ) {
 		return array( 'reason' => 'admin', 'ref_id' => 0, 'note' => $note );
@@ -293,35 +293,35 @@ function dox_pos_stock_reason_label( $reason, $ref = 0 ) {
 	$n = (int) $ref ? ' #' . (int) $ref : '';
 	switch ( $reason ) {
 		case 'sale':
-			return __( 'Venta', 'dox-pos' ) . $n;
+			return __( 'Sale', 'dox-pos' ) . $n;
 		case 'hold':
-			return __( 'Apartado', 'dox-pos' ) . $n;
+			return __( 'Layaway', 'dox-pos' ) . $n;
 		case 'web':
-			return __( 'Pedido web', 'dox-pos' ) . $n;
+			return __( 'Online order', 'dox-pos' ) . $n;
 		case 'cancel':
-			return __( 'Anulado', 'dox-pos' ) . $n;
+			return __( 'Cancelled', 'dox-pos' ) . $n;
 		case 'release':
-			return __( 'Apartado', 'dox-pos' ) . $n . ' ' . __( 'liberado', 'dox-pos' );
+			return __( 'Layaway', 'dox-pos' ) . $n . ' ' . __( 'released', 'dox-pos' );
 		case 'refund':
-			return __( 'Devolución', 'dox-pos' ) . $n;
+			return __( 'Refund', 'dox-pos' ) . $n;
 		case 'entry':
-			return __( 'Entrada', 'dox-pos' ) . $n;
+			return __( 'Stock entry', 'dox-pos' ) . $n;
 		case 'entry_undo':
-			return __( 'Entrada', 'dox-pos' ) . $n . ' ' . __( 'anulada', 'dox-pos' );
+			return __( 'Stock entry', 'dox-pos' ) . $n . ' ' . __( 'voided', 'dox-pos' );
 		case 'create':
-			return __( 'Creado en la caja', 'dox-pos' );
+			return __( 'Created in the register', 'dox-pos' );
 		case 'edit':
-			return __( 'Editado en la caja', 'dox-pos' );
+			return __( 'Edited in the register', 'dox-pos' );
 		case 'admin':
-			return __( 'Cambiado en WooCommerce', 'dox-pos' );
+			return __( 'Changed in WooCommerce', 'dox-pos' );
 		case 'import':
-			return __( 'Importación', 'dox-pos' );
+			return __( 'Import', 'dox-pos' );
 		case 'api':
-			return __( 'Por la API', 'dox-pos' );
+			return __( 'Via the API', 'dox-pos' );
 		case 'cli':
-			return __( 'Por consola', 'dox-pos' );
+			return __( 'Via the command line', 'dox-pos' );
 		default:
-			return __( 'Otro', 'dox-pos' );
+			return __( 'Other', 'dox-pos' );
 	}
 }
 
