@@ -107,6 +107,15 @@ function dox_pos_colors() {
  *
  * @return array{ui:string,serif:string}
  */
+/**
+ * ¿Se cargan las fuentes desde Google Fonts? De fábrica sí; apagado, la caja y la página de
+ * ajustes usan las fuentes del sistema y el plugin no habla con ningún servidor de fuera.
+ */
+function dox_pos_fonts_on() {
+	$b = dox_pos_brand();
+	return ! isset( $b['fonts_google'] ) || ! empty( $b['fonts_google'] );
+}
+
 function dox_pos_fonts() {
 	$b   = dox_pos_brand();
 	$out = dox_pos_default_fonts();
@@ -422,9 +431,10 @@ function dox_pos_is_dark( $hex ) {
 function dox_pos_theme_css() {
 	$c    = dox_pos_colors();
 	$f    = dox_pos_fonts();
+	$on   = dox_pos_fonts_on();
 	$vars = array(
-		'--ui'    => '"' . $f['ui'] . '",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
-		'--serif' => '"' . $f['serif'] . '",Georgia,serif',
+		'--ui'    => ( $on ? '"' . $f['ui'] . '",' : '' ) . '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+		'--serif' => ( $on ? '"' . $f['serif'] . '",' : '' ) . 'Georgia,serif',
 	);
 	if ( $c !== dox_pos_default_colors() ) {
 		$dark_bar   = dox_pos_is_dark( $c['bar'] );
@@ -459,9 +469,12 @@ function dox_pos_theme_css() {
 }
 
 /**
- * La hoja de Google Fonts con las dos fuentes.
+ * La hoja de Google Fonts con las dos fuentes, o vacío si el ajuste dice que no se carguen.
  */
 function dox_pos_fonts_url() {
+	if ( ! dox_pos_fonts_on() ) {
+		return '';
+	}
 	$f = dox_pos_fonts();
 	return 'https://fonts.googleapis.com/css2?family=' . str_replace( ' ', '+', $f['ui'] ) . ':wght@400;500;600;700&family=' . str_replace( ' ', '+', $f['serif'] ) . ':wght@400;700&display=swap';
 }
@@ -550,8 +563,11 @@ function dox_pos_sanitize_products( $in ) {
 		$px = 1600;
 	}
 	delete_transient( 'dox_pos_product_form' );
-	if ( ! empty( $in['costs'] ) ) {
-		dox_pos_costs_enable(); // Con los costos encendidos, WooCommerce tiene que tener su campo de costo activo.
+	// El campo de costo de WooCommerce se enciende aquí y solo aquí: al guardar con el interruptor
+	// puesto, que es una decisión de quien administra. La instalación del plugin no toca nada suyo.
+	if ( ! empty( $in['costs'] ) && method_exists( 'WC_Product', 'get_cogs_value' ) && ! dox_pos_wc_cogs_enabled() ) {
+		dox_pos_costs_enable();
+		add_settings_error( 'dox_pos', 'costs_on', __( 'Se encendió el campo de costo de WooCommerce (Ajustes > Avanzado > Funciones), que es donde se guarda el costo de cada producto.', 'dox-pos' ), 'info' );
 	}
 	return array(
 		'quality'    => $q,
@@ -566,7 +582,7 @@ function dox_pos_sanitize_products( $in ) {
 function dox_pos_sanitize_brand( $in ) {
 	$in  = is_array( $in ) ? $in : array();
 	$old = dox_pos_brand();
-	$out = array( 'name' => sanitize_text_field( $in['name'] ?? '' ), 'colors' => array() );
+	$out = array( 'name' => sanitize_text_field( $in['name'] ?? '' ), 'colors' => array(), 'fonts_google' => empty( $in['fonts_google'] ) ? 0 : 1 );
 	foreach ( dox_pos_default_colors() as $k => $default ) {
 		$out['colors'][ $k ] = dox_pos_hex( $in['colors'][ $k ] ?? '' ) ?: $default;
 	}
@@ -578,7 +594,8 @@ function dox_pos_sanitize_brand( $in ) {
 			continue;
 		}
 		$was = (string) ( $old[ 'font_' . $k ] ?? '' );
-		if ( $font !== $was && ! dox_pos_google_font_exists( $font ) ) {
+		// Solo se le pregunta a Google si las fuentes se cargan de ahí.
+		if ( $out['fonts_google'] && $font !== $was && ! dox_pos_google_font_exists( $font ) ) {
 			add_settings_error( 'dox_pos', 'font_' . $k, sprintf( /* translators: %s: nombre de la fuente */ __( 'Google Fonts no conoce la fuente "%s". Copia el nombre tal como aparece en fonts.google.com. Se dejó la anterior.', 'dox-pos' ), $font ) );
 			$font = $was;
 		}
@@ -835,6 +852,26 @@ function dox_pos_users_with_access( $limit = 6 ) {
  * @param string $class Clases extra.
  * @return string
  */
+/**
+ * Las etiquetas de un icono para wp_kses: así el SVG se imprime escapado, sin silenciar el aviso.
+ * El navegador corrige "viewbox" a "viewBox" al leer un SVG dentro del HTML.
+ *
+ * @return array
+ */
+function dox_pos_svg_tags() {
+	$shape = array( 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true );
+	return array(
+		'svg'      => array_merge( $shape, array( 'class' => true, 'viewbox' => true, 'width' => true, 'height' => true, 'xmlns' => true, 'aria-hidden' => true, 'focusable' => true, 'role' => true ) ),
+		'g'        => $shape,
+		'path'     => array_merge( $shape, array( 'd' => true ) ),
+		'circle'   => array_merge( $shape, array( 'cx' => true, 'cy' => true, 'r' => true ) ),
+		'rect'     => array_merge( $shape, array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true ) ),
+		'line'     => array_merge( $shape, array( 'x1' => true, 'y1' => true, 'x2' => true, 'y2' => true ) ),
+		'polyline' => array_merge( $shape, array( 'points' => true ) ),
+		'polygon'  => array_merge( $shape, array( 'points' => true ) ),
+	);
+}
+
 function dox_pos_icon( $name, $class = '' ) {
 	$paths = array(
 		'palette'  => '<circle cx="13.5" cy="6.5" r=".9"/><circle cx="17.5" cy="10.5" r=".9"/><circle cx="8.5" cy="7.5" r=".9"/><circle cx="6.5" cy="12.5" r=".9"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16c3.3 0 6-2.7 6-6 0-4.9-4.5-8.6-10-8.6z"/>',
@@ -874,8 +911,10 @@ function dox_pos_admin_assets( $hook ) {
 		return;
 	}
 	wp_enqueue_media();
-	wp_enqueue_style( 'dox-pos-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap', array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-	wp_enqueue_style( 'dox-pos-fonts', dox_pos_fonts_url(), array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+	if ( dox_pos_fonts_on() ) { // Con el ajuste apagado, ni la caja ni esta página piden nada a Google.
+		wp_enqueue_style( 'dox-pos-inter', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap', array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- La hoja de Google lleva su propia versión.
+		wp_enqueue_style( 'dox-pos-fonts', dox_pos_fonts_url(), array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- Igual.
+	}
 	$ver = DOX_POS_VERSION . '.' . (int) filemtime( DOX_POS_PATH . 'assets/css/ajustes.css' ) . (int) filemtime( DOX_POS_PATH . 'assets/js/ajustes.js' ); // Con la fecha: un cambio nunca se queda en la caché.
 	wp_enqueue_style( 'dox-pos-ajustes', DOX_POS_URL . 'assets/css/ajustes.css', array(), $ver );
 	wp_enqueue_script( 'dox-pos-ajustes', DOX_POS_URL . 'assets/js/ajustes.js', array( 'jquery' ), $ver, true );
@@ -1002,14 +1041,14 @@ function dox_pos_settings_page() {
 					<h1 class="dp-title">Dox POS <span class="dp-pill"><?php echo esc_html( DOX_POS_VERSION ); ?></span></h1>
 				</div>
 				<div class="dp-head-actions">
-					<a class="dp-btn dp-btn-ghost dp-urlchip" href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo dox_pos_icon( 'external' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php echo esc_html( $host . '/' . $slug ); ?></span></a>
-					<button type="button" class="dp-btn dp-btn-ghost dp-discard" id="dp-discard"><?php echo dox_pos_icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Descartar', 'dox-pos' ); ?></button>
+					<a class="dp-btn dp-btn-ghost dp-urlchip" href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( dox_pos_icon( 'external' ), dox_pos_svg_tags() ); ?><span><?php echo esc_html( $host . '/' . $slug ); ?></span></a>
+					<button type="button" class="dp-btn dp-btn-ghost dp-discard" id="dp-discard"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Descartar', 'dox-pos' ); ?></button>
 					<button type="submit" form="dp-form" class="dp-btn dp-btn-primary" id="dp-save"><span class="dp-dot" aria-hidden="true"></span><span class="dp-save-text"><?php esc_html_e( 'Guardar cambios', 'dox-pos' ); ?></span></button>
 				</div>
 			</div>
 			<nav class="dp-tabbar" role="tablist" aria-label="<?php esc_attr_e( 'Secciones de los ajustes', 'dox-pos' ); ?>">
 				<?php foreach ( $tabs as $id => $t ) : ?>
-				<button type="button" role="tab" class="dp-tab-btn" id="dp-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" data-view="<?php echo esc_attr( $t[2] ?? 'caja' ); ?>" aria-selected="false" aria-controls="dp-panel-<?php echo esc_attr( $id ); ?>" tabindex="-1"><?php echo dox_pos_icon( $t[1] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><span><?php echo esc_html( $t[0] ); ?></span></button>
+				<button type="button" role="tab" class="dp-tab-btn" id="dp-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" data-view="<?php echo esc_attr( $t[2] ?? 'caja' ); ?>" aria-selected="false" aria-controls="dp-panel-<?php echo esc_attr( $id ); ?>" tabindex="-1"><?php echo wp_kses( dox_pos_icon( $t[1] ), dox_pos_svg_tags() ); ?><span><?php echo esc_html( $t[0] ); ?></span></button>
 				<?php endforeach; ?>
 				<i class="dp-ind" aria-hidden="true"></i>
 			</nav>
@@ -1039,11 +1078,11 @@ function dox_pos_settings_page() {
 							<div class="dp-logo" role="group" aria-labelledby="dp-logo-label">
 								<div class="dp-logo-tile" id="dp-logo-tile">
 									<img id="dp-logo-img" src="<?php echo esc_url( $logo ); ?>" alt="" <?php echo $logo ? '' : 'hidden'; ?>>
-									<span class="dp-logo-empty" id="dp-logo-empty" <?php echo $logo ? 'hidden' : ''; ?>><?php echo dox_pos_icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Sin logo: sale el nombre', 'dox-pos' ); ?></span>
+									<span class="dp-logo-empty" id="dp-logo-empty" <?php echo $logo ? 'hidden' : ''; ?>><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Sin logo: sale el nombre', 'dox-pos' ); ?></span>
 								</div>
 								<div class="dp-logo-actions">
 									<input type="hidden" id="dox_pos_logo" name="dox_pos_logo" value="<?php echo esc_attr( get_option( 'dox_pos_logo', '' ) ); ?>">
-									<button type="button" class="dp-btn dp-btn-soft" id="dp-logo-pick"><?php echo dox_pos_icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Elegir de la biblioteca', 'dox-pos' ); ?></button>
+									<button type="button" class="dp-btn dp-btn-soft" id="dp-logo-pick"><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Elegir de la biblioteca', 'dox-pos' ); ?></button>
 									<button type="button" class="dp-btn dp-btn-link" id="dp-logo-clear"><?php esc_html_e( 'Usar el del sitio', 'dox-pos' ); ?></button>
 									<p class="dp-hint"><?php esc_html_e( 'Va sobre la barra: si la barra es oscura, conviene una versión clara. Vacío: el logo de Apariencia > Personalizar.', 'dox-pos' ); ?></p>
 								</div>
@@ -1055,7 +1094,7 @@ function dox_pos_settings_page() {
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Colores', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Cinco colores visten toda la caja; los tonos de bordes y fondos se derivan de ellos. El texto sobre la barra y los botones se decide solo según lo oscuro que sea el fondo.', 'dox-pos' ); ?></p>
-							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-colors-reset" disabled><?php echo dox_pos_icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Volver a los del sitio', 'dox-pos' ); ?></button>
+							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-colors-reset" disabled><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Volver a los del sitio', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-swatches">
 							<?php foreach ( $labels as $k => $label ) : ?>
@@ -1076,8 +1115,10 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Fuentes', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Dos fuentes de Google Fonts: una para la interfaz y otra para el total y los títulos. Escribe el nombre tal como sale en fonts.google.com; la vista previa la carga al momento.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com). Si prefieres que no salga nada del sitio, apaga el interruptor y se usan las fuentes del teléfono o del computador.', 'dox-pos' ); ?></p>
 						</div>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Cargar las fuentes desde Google Fonts', 'dox-pos' ); ?></span></label>
+						<div class="dp-mt">
 						<div class="dp-grid-2">
 							<div class="dp-field">
 								<label class="dp-label" for="dp-font-ui"><?php esc_html_e( 'Interfaz', 'dox-pos' ); ?></label>
@@ -1097,6 +1138,7 @@ function dox_pos_settings_page() {
 							<option value="<?php echo esc_attr( $f ); ?>"></option>
 							<?php endforeach; ?>
 						</datalist>
+						</div>
 					</div>
 				</section>
 
@@ -1123,7 +1165,7 @@ function dox_pos_settings_page() {
 							<p class="dp-hint"><?php esc_html_e( 'Solo letras, números y guiones. Se comprueba al momento que no la use otra página; el cambio se aplica al guardar.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-callout">
-							<?php echo dox_pos_icon( 'link' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<?php echo wp_kses( dox_pos_icon( 'link' ), dox_pos_svg_tags() ); ?>
 							<div>
 								<b><?php esc_html_e( 'Ahora mismo la caja está en', 'dox-pos' ); ?> <a href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $host . '/' . $slug . '/' ); ?></a></b>
 								<span><?php esc_html_e( 'En el teléfono: abrirla en el navegador y "Añadir a pantalla de inicio". Queda como una app.', 'dox-pos' ); ?></span>
@@ -1135,7 +1177,7 @@ function dox_pos_settings_page() {
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Quién entra', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Entran los administradores, los gerentes de tienda y los usuarios con el rol "Caja". Quien solo tiene el rol Caja no ve el escritorio de WordPress: entra y va directo a la caja.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'user-new.php' ) ); ?>"><?php echo dox_pos_icon( 'plus' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Nuevo usuario', 'dox-pos' ); ?></a>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'user-new.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Nuevo usuario', 'dox-pos' ); ?></a>
 						</div>
 						<ul class="dp-people">
 							<?php foreach ( $access['users'] as $u ) : ?>
@@ -1158,14 +1200,14 @@ function dox_pos_settings_page() {
 						<div class="dp-rows" id="dp-canales">
 							<?php foreach ( $channels as $i => $ch ) : ?>
 							<div class="dp-row">
-								<button type="button" class="dp-grip" aria-label="<?php esc_attr_e( 'Arrastra para ordenar, o usa las flechas del teclado', 'dox-pos' ); ?>"><?php echo dox_pos_icon( 'grip' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="dp-grip" aria-label="<?php esc_attr_e( 'Arrastra para ordenar, o usa las flechas del teclado', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'grip' ), dox_pos_svg_tags() ); ?></button>
 								<input type="text" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $ch['name'] ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Nombre del canal', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Nombre del canal', 'dox-pos' ); ?>">
 								<label class="dp-switch" title="<?php esc_attr_e( 'Se entrega en mano, sin envío', 'dox-pos' ); ?>"><input type="checkbox" role="switch" name="dox_pos_sales[channels][<?php echo (int) $i; ?>][pickup]" value="1" <?php checked( $ch['pickup'] ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'En mano', 'dox-pos' ); ?></span></label>
-								<button type="button" class="dp-iconbtn dp-quitar" aria-label="<?php esc_attr_e( 'Quitar', 'dox-pos' ); ?>"><?php echo dox_pos_icon( 'trash' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="dp-iconbtn dp-quitar" aria-label="<?php esc_attr_e( 'Quitar', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'trash' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
 						</div>
-						<button type="button" class="dp-btn dp-btn-soft" id="dp-canal-add"><?php echo dox_pos_icon( 'plus' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Añadir canal', 'dox-pos' ); ?></button>
+						<button type="button" class="dp-btn dp-btn-soft" id="dp-canal-add"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Añadir canal', 'dox-pos' ); ?></button>
 					</div>
 
 					<div class="dp-card">
@@ -1181,7 +1223,7 @@ function dox_pos_settings_page() {
 									<input type="text" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][title]" value="<?php echo esc_attr( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) ); ?>" class="dp-input" placeholder="<?php echo esc_attr( $m['title'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: forma de pago */ __( 'Nombre de %s', 'dox-pos' ), $m['title'] ) ); ?>">
 									<span class="dp-hint"><?php echo $m['paid'] ? esc_html__( 'Queda pagado al registrar.', 'dox-pos' ) : esc_html__( 'Queda "por enviar" y se cobra al entregar.', 'dox-pos' ); ?></span>
 								</div>
-								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo dox_pos_icon( 'check' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Por defecto', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Hacer por defecto', 'dox-pos' ); ?></span></label>
+								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Por defecto', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Hacer por defecto', 'dox-pos' ); ?></span></label>
 							</div>
 							<?php endforeach; ?>
 						</div>
@@ -1216,7 +1258,7 @@ function dox_pos_settings_page() {
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Mensaje de WhatsApp', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Se abre ya escrito en WhatsApp al apartar; solo hay que enviarlo. Toca un comodín para insertarlo donde está el cursor.', 'dox-pos' ); ?></p>
-							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-message-reset"><?php echo dox_pos_icon( 'undo' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Mensaje de fábrica', 'dox-pos' ); ?></button>
+							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-message-reset"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Mensaje de fábrica', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-field">
 							<label class="dp-label" for="dox_pos_hold_message"><?php esc_html_e( 'Texto', 'dox-pos' ); ?></label>
@@ -1248,7 +1290,7 @@ function dox_pos_settings_page() {
 							<div class="dp-carrier dp-row">
 								<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $c['name'] ); ?>" placeholder="<?php esc_attr_e( 'Transportadora', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Transportadora', 'dox-pos' ); ?>">
 								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {guia}" aria-label="<?php esc_attr_e( 'Enlace de rastreo', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
-								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Quitar %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo dox_pos_icon( 'x' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></button>
+								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Quitar %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
 						</div>
@@ -1286,13 +1328,13 @@ function dox_pos_settings_page() {
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Costos y zonas', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'La caja no tiene tarifas propias: cobra el envío igual que el checkout, con las zonas de WooCommerce. Y el país, los departamentos y las ciudades salen de los ajustes de la tienda.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo dox_pos_icon( 'truck' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Zonas de envío', 'dox-pos' ); ?></a>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zonas de envío', 'dox-pos' ); ?></a>
 						</div>
 						<dl class="dp-facts">
-							<div><dt><?php echo dox_pos_icon( 'pin' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'País', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: etiqueta (Departamento), 2: cuántos */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
-							<div><dt><?php echo dox_pos_icon( 'coins' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Moneda', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: importe de ejemplo */ __( 'se escribe %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
-							<div><dt><?php echo dox_pos_icon( 'truck' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Zonas', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: zonas */ _n( '%d zona de envío', '%d zonas de envío', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
-							<div><dt><?php echo dox_pos_icon( 'chat' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Ciudades', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'Con lista para elegir (Colciudades)', 'dox-pos' ) : esc_html__( 'Se escriben a mano', 'dox-pos' ); ?></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'País', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: etiqueta (Departamento), 2: cuántos */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Moneda', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: importe de ejemplo */ __( 'se escribe %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zonas', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: zonas */ _n( '%d zona de envío', '%d zonas de envío', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'chat' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Ciudades', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'Con lista para elegir (Colciudades)', 'dox-pos' ) : esc_html__( 'Se escriben a mano', 'dox-pos' ); ?></dd></div>
 						</dl>
 					</div>
 				</section>
@@ -1325,7 +1367,7 @@ function dox_pos_settings_page() {
 							</div>
 						</div>
 						<div class="dp-callout">
-							<?php echo dox_pos_icon( $heic ? 'check' : 'alert' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<?php echo wp_kses( dox_pos_icon( $heic ? 'check' : 'alert' ), dox_pos_svg_tags() ); ?>
 							<div>
 								<b><?php echo $heic ? esc_html__( 'Este servidor lee fotos HEIC', 'dox-pos' ) : esc_html__( 'Este servidor no lee fotos HEIC', 'dox-pos' ); ?></b>
 								<span><?php echo $heic ? esc_html__( 'Las del iPhone entran tal cual y salen en WebP.', 'dox-pos' ) : esc_html__( 'Hace falta ImageMagick con libheif. Mientras tanto, el iPhone manda JPG si se elige "Más compatible" en Ajustes > Cámara > Formatos.', 'dox-pos' ); ?></span>
@@ -1380,14 +1422,23 @@ function dox_pos_settings_page() {
 						</div>
 						<?php if ( ! method_exists( 'WC_Product', 'get_cogs_value' ) ) : ?>
 						<div class="dp-callout">
-							<?php echo dox_pos_icon( 'alert' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+							<?php echo wp_kses( dox_pos_icon( 'alert' ), dox_pos_svg_tags() ); ?>
 							<div>
 								<b><?php esc_html_e( 'Esta versión de WooCommerce no trae el campo de costo', 'dox-pos' ); ?></b>
 								<span><?php esc_html_e( 'Hace falta WooCommerce 9.5 o más nuevo. Al actualizarlo, los costos se encienden solos.', 'dox-pos' ); ?></span>
 							</div>
 						</div>
 						<?php endif; ?>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Llevar el costo de los productos y ver la ganancia', 'dox-pos' ); ?></span></label>
+						<?php if ( method_exists( 'WC_Product', 'get_cogs_value' ) && dox_pos_costs_setting() && ! dox_pos_wc_cogs_enabled() ) : ?>
+						<div class="dp-callout">
+							<?php echo wp_kses( dox_pos_icon( 'info' ), dox_pos_svg_tags() ); ?>
+							<div>
+								<b><?php esc_html_e( 'Falta encender el campo de costo en WooCommerce', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'Guarda estos ajustes con el interruptor puesto y se enciende (WooCommerce > Ajustes > Avanzado > Funciones > Cost of Goods Sold). Mientras tanto, la caja no pide costos.', 'dox-pos' ); ?></span>
+							</div>
+						</div>
+						<?php endif; ?>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Llevar el costo de los productos y ver la ganancia (enciende el campo de costo de WooCommerce)', 'dox-pos' ); ?></span></label>
 						<p class="dp-hint"><?php esc_html_e( 'Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con "Subir costos desde Excel" en Entró mercancía.', 'dox-pos' ); ?></p>
 					</div>
 
@@ -1395,7 +1446,7 @@ function dox_pos_settings_page() {
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Quién crea productos', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'La pestaña "Productos" (crear uno nuevo o editar uno) la ven los administradores y los gerentes de tienda. Quien solo tiene el rol Caja vende y registra mercancía, pero no toca los productos.', 'dox-pos' ); ?></p>
-							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo dox_pos_icon( 'users' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?><?php esc_html_e( 'Usuarios', 'dox-pos' ); ?></a>
+							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'users' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Usuarios', 'dox-pos' ); ?></a>
 						</div>
 					</div>
 				</section>
@@ -1459,7 +1510,7 @@ function dox_pos_settings_page() {
 								<div class="dp-photos">
 									<span class="dp-photo"><i>WebP · <b id="dp-preview-quality"><?php echo esc_html( $products['quality'] ); ?></b> %</i></span>
 									<span class="dp-photo"><i><b id="dp-preview-px"><?php echo esc_html( $products['max_px'] ); ?></b> px</i></span>
-									<span class="dp-photo add"><?php echo dox_pos_icon( 'camera' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></span>
+									<span class="dp-photo add"><?php echo wp_kses( dox_pos_icon( 'camera' ), dox_pos_svg_tags() ); ?></span>
 								</div>
 								<p class="dp-lbl"><?php esc_html_e( 'Tallas', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev"><span class="on">0-6 M</span><span class="on">6-12 M</span><span class="on">12-18 M</span><span>18-24 M</span></p>

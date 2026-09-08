@@ -1,19 +1,40 @@
 === Dox POS ===
 Contributors: davidzoque
-Tags: woocommerce, pos, inventario, whatsapp
+Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.21.0
+Stable tag: 0.21.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Registro de pedidos y de mercancía desde el frontend (/caja), sin entrar a wp-admin, con el historial de ventas, la caja del día, el kardex y un asistente de negocio con la API de OpenAI.
+La caja para la tienda que vende por WhatsApp e Instagram: ventas, apartados, mercancía, historial y kardex, sin entrar a wp-admin.
 
 == Description ==
 
 Añade la página /caja con su propio login. Desde ahí se buscan los productos con foto y existencias, se registran las ventas de WhatsApp o Instagram (cada una es un pedido de WooCommerce, así que el inventario baja solo), se apartan productos mientras el cliente paga, se registra la mercancía que llega y se lleva la lista de lo que hay que enviar. La marca, los colores, las fuentes, la ruta, los canales, las formas de pago y el mensaje de WhatsApp se ajustan en WooCommerce > Dox POS.
+
+= Qué trae =
+
+* Vender y apartar, con canal, cliente, ciudad, envío, descuento y forma de pago. Cada venta es un pedido de WooCommerce.
+* Entradas de mercancía con proveedor, factura y costo, que suman al inventario.
+* Pedidos de la caja y de la página web, con sus estados y el mensaje de WhatsApp preparado.
+* Crear y editar productos con fotos (las del iPhone también), tallas, colores y código automático.
+* Historial: ventas, la caja del día, el kardex de existencias y el rendimiento, todo descargable en Excel.
+* Costos y ganancia: el costo por unidad de cada producto (en el campo de costo de WooCommerce), promedio ponderado al comprar y la ganancia de cada venta.
+* Rol "Caja" para quien vende: entra a la caja y no a wp-admin.
+
+El asistente de negocio (pendientes del día, revisión de la tienda, chat, pronóstico y resumen diario por correo) va en un añadido aparte, Dox POS Pro, que no hace falta para usar la caja.
+
+== External services ==
+
+Este plugin carga las dos fuentes de la caja desde **Google Fonts** (fonts.googleapis.com y fonts.gstatic.com), de fábrica encendido. Al abrir la caja, el navegador de quien la usa pide esas fuentes a Google, que recibe su dirección IP y los datos propios de una petición web. La página de ajustes hace lo mismo mientras se elige la fuente, y comprueba con Google si el nombre escrito existe. No se envía ningún dato de la tienda, de los pedidos ni de los clientes.
+
+Se apaga en WooCommerce > Dox POS > Marca, con el interruptor "Cargar las fuentes desde Google Fonts": entonces se usan las fuentes del teléfono o del computador y el plugin no se conecta a ningún servicio de fuera.
+
+Condiciones de Google: https://policies.google.com/terms
+Privacidad de Google: https://policies.google.com/privacy
 
 == Installation ==
 
@@ -21,12 +42,14 @@ Sube la carpeta `dox-pos` a `/wp-content/plugins/` y activa el plugin. Entra a `
 
 == Changelog ==
 
+= 0.21.1 =
+* El campo de costo de WooCommerce ya no se enciende al instalar el plugin: se enciende al guardar los ajustes con el interruptor de costos puesto, que lo dice, y la tarjeta avisa mientras falte.
+* Las fuentes de la caja se pueden dejar de cargar desde Google Fonts (WooCommerce > Dox POS > Marca): con el interruptor apagado se usan las del sistema y el plugin no habla con ningún servicio de fuera.
+* Por dentro: la hoja de estilo y el JS de la caja se encolan con el sistema de WordPress en vez de escribirse en la plantilla, y los iconos de la página de ajustes se imprimen filtrados con wp_kses.
+
 = 0.21.0 =
 * Costos y ganancia. Cada producto lleva su costo por unidad en el campo de costo de WooCommerce (la función "Cost of Goods Sold", que el plugin enciende solo): se pone al crear o editar en la caja, y de golpe desde el Excel del inventario con la columna Costo llena (Entró mercancía > Subir costos desde Excel). Cada compra registrada en Entró mercancía lleva lo que costó cada unidad y recalcula el costo promedio ponderado del producto. Cada venta deja el costo congelado en su pedido, así que subir el costo después no cambia la historia. El historial enseña la ganancia y el margen (Ventas, Caja del día por día, el detalle de cada pedido) y el kardex el costo por unidad de cada movimiento; los Excel llevan las columnas de costo, ganancia y valor al costo. Todo esto solo lo ven administradores y gerentes; el rol Caja no. Se apaga en Ajustes > Productos.
 * Para los añadidos: las acciones dox_pos_history_views y dox_pos_history_panels (vistas nuevas en Historial), dox_pos_download (Excel propios) y DoxPOS.vistaHistorial en el JS.
-
-= 0.20.0 =
-* Las actualizaciones llegan desde GitHub mientras el plugin no esté en WordPress.org: cada versión etiquetada arma su zip y WordPress avisa de la actualización como siempre (Plugin Update Checker sobre las releases de github.com/davidzoque/dox-pos). La compilación para WordPress.org se arma sin esa pieza.
 
 = 0.20.0 =
 * Mientras el plugin no esté en WordPress.org, se actualiza solo desde las releases de GitHub (Plugin Update Checker): cada etiqueta v* arma dos zips, el de GitHub con el actualizador y el de WordPress.org sin él. En Plugins aparece "hay una actualización" como con cualquier otro.

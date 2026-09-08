@@ -137,8 +137,11 @@
 	});
 
 	// ---------- fuentes: se cargan de Google al momento para verlas en la vista previa ----------
+	// Con el interruptor apagado no se pide nada a Google: la vista previa usa las del sistema.
+	const googleOn = () => { const c = $('input[name="dox_pos_brand[fonts_google]"]'); return !c || c.checked; };
 	const cargadas = {};
 	function cargarFuente(fam, cb) {
+		if (!googleOn()) return cb(false);
 		if (cargadas[fam]) return cb(cargadas[fam] === "ok");
 		const l = document.createElement("link");
 		l.rel = "stylesheet";

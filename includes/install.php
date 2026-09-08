@@ -32,7 +32,6 @@ function dox_pos_maybe_install() {
 function dox_pos_install() {
 	dox_pos_install_roles();
 	dox_pos_install_tables();
-	dox_pos_costs_install(); // Enciende el campo de costo de WooCommerce si la caja lleva costos.
 	dox_pos_add_rewrite();
 	dox_pos_schedule_cleanup();
 	flush_rewrite_rules();

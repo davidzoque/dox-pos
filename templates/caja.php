@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $logo  = dox_pos_logo_url();
 $brand = dox_pos_brand_name();
 $cfg   = dox_pos_js_config();
+dox_pos_enqueue_caja( $cfg );
 ?>
 <!doctype html>
 <html lang="es">
@@ -291,9 +292,10 @@ $cfg   = dox_pos_js_config();
 	<div class="toasts" id="toasts" aria-live="polite"></div>
 	<div class="modal" id="modal" hidden><div class="card" id="modal-card" role="dialog" aria-modal="true"></div></div>
 </div>
-<script>window.DOX_POS = <?php echo wp_json_encode( $cfg ); ?>;</script>
-<script src="<?php echo esc_url( DOX_POS_URL . 'assets/js/caja.js?ver=' . DOX_POS_VERSION ); ?>"></script>
-<?php do_action( 'dox_pos_scripts', $cfg ); // Los scripts de los añadidos, antes de arrancar. ?>
+<?php
+do_action( 'dox_pos_scripts', $cfg ); // Los añadidos encolan los suyos, con dependencia de dox-pos-caja.
+wp_print_scripts( dox_pos_assets( 'script' ) ); // caja.js con su configuración delante, y detrás los de los añadidos.
+?>
 <script>window.DoxPOS && window.DoxPOS.arrancar();</script>
 </body>
 </html>

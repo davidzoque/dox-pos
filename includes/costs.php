@@ -57,16 +57,11 @@ function dox_pos_can_see_costs() {
 }
 
 /**
- * Enciende la función de costos de WooCommerce (Ajustes > Avanzado > Funciones) si el ajuste de
- * la caja la pide. Se llama al instalar o actualizar el plugin y al guardar los ajustes. Apagar
- * el ajuste de la caja no apaga la de WooCommerce: otros plugins pueden estar usándola.
+ * Enciende la función de costos de WooCommerce (Ajustes > Avanzado > Funciones), que es donde se
+ * guarda el costo de cada producto. Solo se llama al guardar los ajustes con el interruptor de
+ * costos puesto: instalar el plugin no cambia nada de WooCommerce. Apagar el interruptor tampoco
+ * la apaga, porque otros plugins pueden estar usándola.
  */
-function dox_pos_costs_install() {
-	if ( dox_pos_costs_setting() ) {
-		dox_pos_costs_enable();
-	}
-}
-
 function dox_pos_costs_enable() {
 	if ( method_exists( 'WC_Product', 'get_cogs_value' ) && 'yes' !== get_option( 'woocommerce_feature_cost_of_goods_sold_enabled' ) ) {
 		update_option( 'woocommerce_feature_cost_of_goods_sold_enabled', 'yes' );

@@ -140,8 +140,51 @@ function dox_pos_logo_url() {
 }
 
 /**
- * El <head> común de la caja y del login: título, fuentes, hoja de estilo, los
- * colores del ajuste, el icono del sitio y el color de la barra del navegador.
+ * Encola lo que usa la pantalla: la hoja de estilo con los colores de la marca como CSS en línea,
+ * las fuentes (si el ajuste dice que se carguen) y, con $cfg, el JS de la caja con su configuración
+ * delante. La caja es una página completa fuera del tema, así que no llama a wp_head() ni a
+ * wp_footer() (arrastrarían todo lo del tema y de los demás plugins): imprime solo esta cola, con
+ * wp_print_styles() en la cabecera y wp_print_scripts() al final de la plantilla.
+ *
+ * @param array|null $cfg Lo que va al navegador, o null en el login (que no lleva JS).
+ */
+function dox_pos_enqueue_caja( $cfg = null ) {
+	$ver = DOX_POS_VERSION;
+	if ( dox_pos_fonts_on() ) {
+		wp_enqueue_style( 'dox-pos-fonts', dox_pos_fonts_url(), array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- La hoja de Google lleva su propia versión.
+	}
+	wp_enqueue_style( 'dox-pos-caja', DOX_POS_URL . 'assets/css/caja.css', array(), $ver );
+	wp_add_inline_style( 'dox-pos-caja', dox_pos_theme_css() );
+	if ( null === $cfg ) {
+		return;
+	}
+	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array(), $ver, true );
+	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
+}
+
+/**
+ * Qué se imprime en la caja: lo encolado por el plugin y por sus añadidos (todo lo que empieza por
+ * "dox-pos"), y nada más. La cola trae también lo de la barra de administración y lo de otros
+ * plugins que encolan pronto, y esta pantalla es una página aparte: no tiene por qué cargarlo.
+ * Un añadido con otro prefijo se apunta con el filtro dox_pos_assets.
+ *
+ * @param string $type style | script.
+ * @return string[]
+ */
+function dox_pos_assets( $type ) {
+	$q   = 'style' === $type ? wp_styles() : wp_scripts();
+	$out = array();
+	foreach ( (array) $q->queue as $handle ) {
+		if ( 0 === strpos( $handle, 'dox-pos' ) ) {
+			$out[] = $handle;
+		}
+	}
+	return (array) apply_filters( 'dox_pos_assets', $out, $type );
+}
+
+/**
+ * El <head> común de la caja y del login: título, el icono del sitio, el color de la barra del
+ * navegador y las hojas de estilo ya encoladas.
  */
 function dox_pos_head() {
 	$colors = dox_pos_colors();
@@ -151,12 +194,12 @@ function dox_pos_head() {
 	<meta name="robots" content="noindex,nofollow,noarchive">
 	<meta name="theme-color" content="<?php echo esc_attr( $colors['bar'] ); ?>">
 	<title><?php echo esc_html( dox_pos_screen_name() . ' · ' . dox_pos_brand_name() ); ?></title>
-	<?php wp_site_icon(); ?>
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link rel="stylesheet" href="<?php echo esc_url( dox_pos_fonts_url() ); ?>">
-	<link rel="stylesheet" href="<?php echo esc_url( DOX_POS_URL . 'assets/css/caja.css?ver=' . DOX_POS_VERSION ); ?>">
-	<style><?php echo dox_pos_theme_css(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Solo colores validados y nombres de fuente. ?></style>
 	<?php
+	wp_site_icon();
+	if ( dox_pos_fonts_on() ) {
+		echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
+	}
+	wp_print_styles( dox_pos_assets( 'style' ) ); // Solo lo de la caja.
 	do_action( 'dox_pos_head' ); // Hojas de estilo de los añadidos.
 }
 

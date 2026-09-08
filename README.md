@@ -28,6 +28,14 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 | `templates/` | `login.php` y `caja.php`, páginas completas fuera del tema. |
 | `assets/` | `caja.css` y `caja.js` (la caja y el asistente, sin dependencias) y `ajustes.css` y `ajustes.js` (la página de ajustes: pestañas, vista previa en vivo, comprobación de la dirección, canales ordenables, etiquetas de transportadoras y la prueba de conexión con OpenAI; sin jQuery salvo la biblioteca de medios). |
 
+## Cómo se cargan los archivos de la caja
+
+La caja es una página completa fuera del tema, así que no llama a `wp_head()` ni a `wp_footer()`: arrastrarían todo lo del tema y de los demás plugins. Aun así, la hoja de estilo y el JS se encolan con el sistema de WordPress (`dox_pos_enqueue_caja()`, en `page.php`): `dox-pos-caja` (con los colores de la marca como CSS en línea, `wp_add_inline_style`), `dox-pos-fonts` si las fuentes vienen de Google, y `dox-pos-caja` en JS con `window.DOX_POS` delante (`wp_add_inline_script`, posición `before`). Lo que se imprime se acota a los archivos del plugin: `dox_pos_assets( 'style' | 'script' )` filtra la cola por el prefijo `dox-pos` (con el filtro `dox_pos_assets` para un añadido que use otro), la cabecera hace `wp_print_styles()` con esa lista y la plantilla `wp_print_scripts()` al final, después del gancho `dox_pos_scripts`. Sin eso se colaban en la caja la barra de administración y lo que otros plugins encolen pronto. Un añadido solo tiene que encolar en `dox_pos_scripts` con dependencia de `dox-pos-caja`.
+
+## Las fuentes y los servicios de fuera
+
+De fábrica la caja carga dos fuentes de Google Fonts. El interruptor "Cargar las fuentes desde Google Fonts" (Ajustes > Marca, `dox_pos_fonts_on()`) las apaga: entonces `dox_pos_fonts_url()` devuelve vacío, el CSS usa las del sistema, la página de ajustes tampoco carga Inter y el sanitizador no le pregunta a Google si la fuente existe. Con el interruptor apagado el plugin no habla con ningún servidor de fuera, que es lo que hace falta para WordPress.org y para una tienda que no quiera mandar la IP de sus clientas a Google.
+
 ## Otra marca
 
 Todo se cambia en WooCommerce > Dox POS, una página con cinco pestañas y una vista previa que cambia al momento (colores, logo, nombre, dirección, canales, formas de pago, el mensaje de WhatsApp y la ventana de envío). La dirección se comprueba mientras se escribe por `/wp-json/dox-pos/v1/settings/slug`, y al guardar se vuelve a la misma pestaña (`?tab=`).
@@ -77,7 +85,7 @@ Las vistas son registrables: la plantilla lanza `dox_pos_history_views` dentro d
 
 ## Costos y ganancia
 
-`costs.php`. El costo de cada producto vive en el campo propio de WooCommerce ("Cost of Goods Sold", desde la 9.5; `_cogs_total_value`, con `get_cogs_value` y `set_cogs_value`). El plugin enciende esa función al instalar y al guardar los ajustes si el interruptor de Ajustes > Productos está puesto (`dox_pos_costs_install`); así el costo sale también en el editor de productos de wp-admin y lo entienden otros plugins. El costo va en el producto y cada talla lo hereda, salvo que tenga uno propio (`dox_pos_product_cost` resuelve el efectivo; `dox_pos_set_cost_all` pone uno a todo el producto y suelta los propios de las tallas, que es lo que hace la caja al editar).
+`costs.php`. El costo de cada producto vive en el campo propio de WooCommerce ("Cost of Goods Sold", desde la 9.5; `_cogs_total_value`, con `get_cogs_value` y `set_cogs_value`). El plugin enciende esa función al guardar los ajustes con el interruptor de Ajustes > Productos puesto, nunca al instalarse (`dox_pos_costs_enable`, desde `dox_pos_sanitize_products`, que además lo avisa; la tarjeta enseña un aviso mientras falte). Cambiar un ajuste de otro plugin sin que nadie lo pida es de las cosas que WordPress.org no admite. Así el costo sale también en el editor de productos de wp-admin y lo entienden otros plugins. El costo va en el producto y cada talla lo hereda, salvo que tenga uno propio (`dox_pos_product_cost` resuelve el efectivo; `dox_pos_set_cost_all` pone uno a todo el producto y suelta los propios de las tallas, que es lo que hace la caja al editar).
 
 Lo que WooCommerce no hace y aquí sí:
 

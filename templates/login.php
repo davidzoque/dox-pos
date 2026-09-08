@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 $logo  = dox_pos_logo_url();
 $brand = dox_pos_brand_name();
+dox_pos_enqueue_caja();
 ?>
 <!doctype html>
 <html lang="es">
