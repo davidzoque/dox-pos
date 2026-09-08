@@ -3,7 +3,7 @@
  * Plugin Name:       Dox POS
  * Plugin URI:        https://github.com/davidzoque/dox-pos
  * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
- * Version:           0.24.1
+ * Version:           0.24.2
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,22 +22,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.24.1' );
+define( 'DOX_POS_VERSION', '0.24.2' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
 define( 'DOX_POS_SLUG', 'caja' );        // La ruta de fábrica: dominio.com/caja (se cambia en los ajustes)
 define( 'DOX_POS_CAP', 'dox_pos_use' ); // El permiso que abre la puerta.
 
-// Mientras no esté en WordPress.org, las actualizaciones llegan desde las releases del repositorio de
-// GitHub: el workflow arma el zip limpio con cada etiqueta v* y Plugin Update Checker lo sirve. La
-// compilación para WordPress.org va sin esta carpeta vendor y sin la cabecera Update URI.
-$dox_pos_puc = DOX_POS_PATH . 'vendor/plugin-update-checker/plugin-update-checker.php';
-if ( file_exists( $dox_pos_puc ) ) {
-	require_once $dox_pos_puc;
-	$dox_pos_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 'https://github.com/davidzoque/dox-pos/', __FILE__, 'dox-pos' );
-	$dox_pos_updater->setBranch( 'main' );
-	$dox_pos_updater->getVcsApi()->enableReleaseAssets();
+// La copia que se reparte desde el repositorio se actualiza sola desde sus releases. Ese código vive
+// aparte en includes/updater.php, y el zip de WordPress.org va sin él: allí las actualizaciones las
+// sirve el directorio.
+if ( file_exists( DOX_POS_PATH . 'includes/updater.php' ) ) {
+	require_once DOX_POS_PATH . 'includes/updater.php';
 }
 
 /**

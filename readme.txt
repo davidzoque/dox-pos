@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.24.1
+Stable tag: 0.24.2
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.24.2 =
+* Housekeeping: the code that updates the plugin outside the WordPress.org directory now lives in its own file, which the directory build does not carry.
 
 = 0.24.1 =
 * The plugin page and the author page are now two different addresses, as WordPress.org requires.
