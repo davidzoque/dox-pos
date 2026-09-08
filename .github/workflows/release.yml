@@ -34,7 +34,7 @@ jobs:
           rsync -a --exclude='.git*' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' ./ build/dox-pos/
           cd build
           zip -rq dox-pos.zip dox-pos
-          rm -rf dox-pos/vendor/plugin-update-checker
+          rm -rf dox-pos/vendor
           sed -i '/^ \* Update URI:/d' dox-pos/dox-pos.php
           zip -rq dox-pos-wordpress-org.zip dox-pos
 
