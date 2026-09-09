@@ -46,9 +46,88 @@ function dox_pos_pool_key( $v ) {
  * @return string
  */
 function dox_pos_pool_name( $v ) {
-	$tax  = dox_pos_color_attribute();
-	$slug = (string) ( $v->get_attributes()[ $tax ] ?? '' );
-	return '' === $slug ? '' : dox_pos_attribute_label( $tax, $slug );
+	$tax   = dox_pos_color_attribute();
+	$slug  = (string) ( $v->get_attributes()[ $tax ] ?? '' );
+	$color = '' === $slug ? '' : dox_pos_attribute_label( $tax, $slug );
+	$key   = dox_pos_pool_key( $v );
+	if ( '' === $key ) {
+		return $color;
+	}
+	// Con más de un grupo en el mismo color, cada uno lleva su número: "Coral (grupo 2)".
+	$g    = dox_pos_pool_group( $key );
+	$base = preg_replace( '/#\d+$/', '', $key );
+	$more = $g > 1;
+	foreach ( dox_pos_pool_keys( $v->get_parent_id() ) as $k ) {
+		if ( $k !== $key && ( $k === $base || 0 === strpos( $k, $base . '#' ) ) ) {
+			$more = true;
+		}
+	}
+	if ( ! $more ) {
+		return $color;
+	}
+	if ( '' === $color ) {
+		/* translators: %d: número del grupo de tallas */
+		return sprintf( __( 'group %d', 'dox-pos' ), $g );
+	}
+	/* translators: 1: color, 2: número del grupo de tallas */
+	return sprintf( __( '%1$s (group %2$d)', 'dox-pos' ), $color, $g );
+}
+
+/**
+ * La clave de una bolsa: el slug del color (o "g" sin colores) y, del segundo grupo de tallas en adelante,
+ * "#2", "#3"... Un color puede tener varios grupos que comparten entre sí (0-6 y 6-12 por un lado, 2-3 y
+ * 3-4 años por otro).
+ *
+ * @param string $slug  Slug del color ('' si el producto no tiene colores).
+ * @param int    $group Grupo (1, 2...).
+ * @return string
+ */
+function dox_pos_pool_key_for( $slug, $group ) {
+	$group = max( 1, (int) $group );
+	return ( '' === (string) $slug ? 'g' : (string) $slug ) . ( $group > 1 ? '#' . $group : '' );
+}
+
+/**
+ * El número de grupo de una clave de bolsa (1 si no lleva "#N").
+ *
+ * @param string $key Clave.
+ * @return int
+ */
+function dox_pos_pool_group( $key ) {
+	return preg_match( '/#(\d+)$/', (string) $key, $m ) ? (int) $m[1] : 1;
+}
+
+/**
+ * Todas las claves de bolsa de un producto (las de sus tallas activas). Se recuerdan en la petición.
+ *
+ * @param int  $parent_id Producto.
+ * @param bool $forget    Solo vaciar lo recordado.
+ * @return string[]
+ */
+function dox_pos_pool_keys( $parent_id, $forget = false ) {
+	static $cache = array();
+	if ( $forget ) {
+		$cache = array();
+		return array();
+	}
+	$parent_id = (int) $parent_id;
+	if ( ! isset( $cache[ $parent_id ] ) ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$cache[ $parent_id ] = array_map(
+			'strval',
+			(array) $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT b.meta_value FROM {$wpdb->posts} p
+					 JOIN {$wpdb->postmeta} b ON b.post_id = p.ID AND b.meta_key = %s AND b.meta_value <> ''
+					 WHERE p.post_parent = %d AND p.post_type = 'product_variation' AND p.post_status = 'publish'",
+					DOX_POS_POOL_META,
+					$parent_id
+				)
+			)
+		);
+	}
+	return $cache[ $parent_id ];
 }
 
 /**
@@ -70,6 +149,7 @@ function dox_pos_pool_title( $v ) {
 function dox_pos_pool_forget() {
 	dox_pos_pool_members( 0, '', true );
 	dox_pos_pool_stock( 0, '', true );
+	dox_pos_pool_keys( 0, true );
 }
 
 /**

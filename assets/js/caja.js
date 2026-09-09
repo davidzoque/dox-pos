@@ -1023,7 +1023,7 @@
 	// por si la página se recarga o se cae la sesión.
 	const pr = {
 		cargado: false, abriendo: null, form: null,
-		compartidas: new Set(), totales: {}, legacy: false, legacyTotal: 0, // Las tallas que comparten unidades (clave color|talla) y las unidades compartidas por columna de color.
+		grupos: {}, totales: {}, legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
 		fotos: [],          // [{uid, file, estado: cola|subiendo|ok|error, id, url, color, kb, error}]
 		cats: [],           // ids de categoría elegidos
 		colores: [],        // [{key, id, name, hex}]; id 0 = color nuevo (key "n:nombre")
@@ -1557,50 +1557,82 @@
 	// Todas las casillas talla × color que hay ahora mismo en el formulario.
 	const celdas = () => { const out = []; filas().forEach((r) => columnas().forEach((c) => out.push(qKey(c.key, r.id)))); return out; };
 	// Las que salen del total del producto, sin las de tallas o colores que ya se quitaron.
-	const compartidasVivas = () => { const keys = celdas(); return [...pr.compartidas].filter((k) => keys.includes(k)); };
-	// Las unidades compartidas de cada columna de color que tiene tallas compartiendo: {clave: n}.
-	const totalesVivos = () => { const vivas = new Set(compartidasVivas()); const out = {}; columnas().forEach((c) => { if (filas().some((r) => vivas.has(qKey(c.key, r.id)))) out[c.key] = pr.totales[c.key] || 0; }); return out; };
+	// Los grupos de tallas que comparten unidades: clave color|talla => grupo (1, 2...). Con un color y un grupo es el
+	// total del producto; con varios colores o varios grupos, una bolsa por grupo (includes/pools.php).
+	const grupoDe = (k) => pr.grupos[k] || 0;
+	const compartidasVivas = () => { const keys = celdas(); return Object.keys(pr.grupos).filter((k) => keys.includes(k) && pr.grupos[k] > 0); };
+	const gruposVivos = () => { const out = {}; compartidasVivas().forEach((k) => { out[k] = pr.grupos[k]; }); return out; };
+	const pk = (ckey, g) => (g > 1 ? ckey + "#" + g : ckey); // La clave de la bolsa: la columna de color y, del segundo grupo en adelante, "#2"...
+	const gruposDe = (ckey, rows) => [...new Set(rows.map((r) => grupoDe(qKey(ckey, r.id))).filter(Boolean))].sort((a, b) => a - b);
+	// Las unidades compartidas de cada bolsa viva: {clave: n}.
+	const totalesVivos = () => { const out = {}; const rows = filas(); columnas().forEach((c) => gruposDe(c.key, rows).forEach((g) => { out[pk(c.key, g)] = pr.totales[pk(c.key, g)] || 0; })); return out; };
+	// Los grupos de una columna van seguidos (1, 2...): si uno se queda vacío, los demás se corren y sus unidades con ellos.
+	function ordenarGrupos(ckey) {
+		const rows = filas();
+		const viejos = gruposDe(ckey, rows);
+		if (viejos.every((g, i) => g === i + 1)) return;
+		const mapa = {};
+		viejos.forEach((g, i) => { mapa[g] = i + 1; });
+		const totales = {};
+		viejos.forEach((g) => { totales[pk(ckey, mapa[g])] = pr.totales[pk(ckey, g)] || 0; delete pr.totales[pk(ckey, g)]; });
+		Object.assign(pr.totales, totales);
+		rows.forEach((r) => { const k = qKey(ckey, r.id); if (pr.grupos[k]) pr.grupos[k] = mapa[pr.grupos[k]]; });
+	}
 	// Cada talla sale del total del producto o lleva las suyas, y se cambia con un toque. Vale al crear y al
 	// editar: es como están la mayoría de los productos de una tienda que creció con el tiempo (unas tallas
 	// del total, otras con las suyas), y WooCommerce lo permite talla por talla.
 	function pintarCantidades() {
 		const box = $("#p-qty");
 		const keys = celdas();
-		pr.compartidas = new Set(compartidasVivas());
+		Object.keys(pr.grupos).forEach((k) => { if (!keys.includes(k)) delete pr.grupos[k]; });
 		const variable = pr.edit ? pr.edit.type === "variable" : (pr.tallas.length > 0 || pr.colores.length > 0);
 		const cols = columnas();
 		const rows = filas();
 		const multi = cols.length > 1; // Con varios colores, cada color lleva sus propias unidades compartidas (una bolsa por color).
-		const pool = (ckey) => (pr.totales[ckey] ? miles(pr.totales[ckey]) : "\u2013");
-		let algunas = 0;
-		// Una tarjeta por color (una sola si el producto no tiene colores): sus tallas en filas, y debajo las unidades que comparten.
-		// En el teléfono se apilan; en pantalla grande van en rejilla. Nada se desplaza a lo ancho.
+		const pool = (key) => (pr.totales[key] ? miles(pr.totales[key]) : "\u2013");
+		let algunas = 0, conGrupos = false;
+		// Una tarjeta por color (una sola si el producto no tiene colores): sus tallas en filas, y debajo las unidades que
+		// comparten, una caja por grupo. En el teléfono se apilan; en pantalla grande van en rejilla. Nada se desplaza a lo ancho.
 		box.innerHTML = cols.map((c) => {
-			const comparten = rows.filter((r) => pr.compartidas.has(qKey(c.key, r.id)));
+			ordenarGrupos(c.key);
+			const gs = gruposDe(c.key, rows);
+			const varios = gs.length > 1;
+			if (varios) conGrupos = true;
+			const comparten = rows.filter((r) => grupoDe(qKey(c.key, r.id)) > 0);
 			algunas += comparten.length;
 			let h = '<div class="qcard">';
-			if (pr.colores.length) h += '<div class="qcard-h"><span class="qcard-n">' + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</span>" + (variable && rows.length > 1 ? '<label class="qshare qall"><input type="checkbox" data-all="' + esc(c.key) + '"' + (comparten.length === rows.length ? " checked" : "") + ">" + esc(__("All sizes share", "dox-pos")) + "</label>" : "") + "</div>";
+			if (pr.colores.length) h += '<div class="qcard-h"><span class="qcard-n">' + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</span>" + (variable && rows.length > 1 ? '<label class="qshare qall"><input type="checkbox" data-all="' + esc(c.key) + '"' + (comparten.length === rows.length && !varios ? " checked" : "") + ">" + esc(__("All sizes share", "dox-pos")) + "</label>" : "") + "</div>";
 			rows.forEach((r) => {
 				const k = qKey(c.key, r.id);
-				const sale = variable && pr.compartidas.has(k);
-				// Cada talla lleva su casilla "Comparte": marcada, sale de las unidades compartidas de su color y no se le escribe nada.
-				const chk = variable ? '<label class="qshare"><input type="checkbox" data-k="' + esc(k) + '"' + (sale ? " checked" : "") + ">" + esc(__("Shares", "dox-pos")) + "</label>" : "";
+				const g = grupoDe(k);
+				let ctrl = "";
+				if (variable) {
+					// El menú de cada talla: lleva las suyas, comparte (en el grupo 1, 2...), o abre otro grupo que comparte aparte.
+					const lista = gs.length ? gs : [1];
+					let opts = '<option value="0"' + (g === 0 ? " selected" : "") + ">" + esc(__("Does not share", "dox-pos")) + "</option>";
+					lista.forEach((x) => { opts += '<option value="' + x + '"' + (g === x ? " selected" : "") + ">" + esc(varios ? sprintf(__("Shares (group %d)", "dox-pos"), x) : __("Shares", "dox-pos")) + "</option>"; });
+					if (gs.length) opts += '<option value="new">' + esc(__("Shares, another group", "dox-pos")) + "</option>";
+					ctrl = '<select class="qsel" data-k="' + esc(k) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + opts + "</select>";
+				}
 				const v = pr.qty[k];
 				h += '<div class="qrow"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + '</span><span class="qcell">' +
-					(sale ? '<span class="qpool" data-pool="' + esc(c.key) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(c.key) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
-					chk + "</span></div>";
+					(g ? '<span class="qpool" data-pool="' + esc(pk(c.key, g)) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(pk(c.key, g)) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
+					ctrl + "</span></div>";
 			});
-			if (comparten.length) {
-				h += '<div class="qpoolbox"><label for="p-junto-' + esc(c.key) + '">' + esc(__("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(c.key) + '" data-pool="' + esc(c.key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[c.key] ? miles(pr.totales[c.key]) : "") + '"></div>';
-				h += '<p class="qhint">' + esc(sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", comparten.length, "dox-pos"), nombresCompartidas(rows, [c]))) + "</p>";
-			}
+			gs.forEach((x) => {
+				const key = pk(c.key, x);
+				const n = rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).length;
+				h += '<div class="qpoolbox"><label for="p-junto-' + esc(key) + '">' + esc(varios ? sprintf(__("Shared units · group %d", "dox-pos"), x) : __("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(key) + '" data-pool="' + esc(key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[key] ? miles(pr.totales[key]) : "") + '"></div>';
+				h += '<p class="qhint">' + esc(sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", n, "dox-pos"), nombresCompartidas(rows, [c], x))) + "</p>";
+			});
 			return h + "</div>";
 		}).join("");
-		// Debajo de las tarjetas: cómo hacer que compartan, o que cada color va por su cuenta.
+		// Debajo de las tarjetas: cómo hacer que compartan, o que cada color (y cada grupo) va por su cuenta.
 		const hint = $("#p-qty-shared");
 		const partes = [];
-		if (variable && keys.length > 1 && !algunas) partes.push(__("Do several sizes sell from the same units? Tick \u201cShares\u201d on each one and write how many there are for all of them.", "dox-pos"));
+		if (variable && keys.length > 1 && !algunas) partes.push(__("Do several sizes sell from the same units? Choose \u201cShares\u201d on each one and write how many there are for all of them.", "dox-pos"));
 		if (multi && algunas) partes.push(__("Each colour keeps its own shared units: selling a size only lowers the units of its colour.", "dox-pos"));
+		if (conGrupos) partes.push(__("Each group keeps its own units too: selling a size only lowers the units of its group.", "dox-pos"));
 		if (multi && algunas && pr.legacy) partes.push(sprintf(__("These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving.", "dox-pos"), pr.legacyTotal));
 		hint.hidden = !partes.length;
 		hint.textContent = partes.join(" ");
@@ -1612,27 +1644,30 @@
 			inp.oninput = () => { pr.totales[inp.dataset.pool] = num(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
 			inp.onfocus = () => inp.select();
 		});
-		box.querySelectorAll(".qshare input[data-k]").forEach((cb) => {
-			cb.onchange = () => { // Marcada: la talla pasa a las unidades compartidas de su color; desmarcada, vuelve a las suyas.
-				if (cb.checked) pr.compartidas.add(cb.dataset.k); else pr.compartidas.delete(cb.dataset.k);
+		box.querySelectorAll(".qsel").forEach((sel) => {
+			sel.onchange = () => { // Lleva las suyas, comparte en un grupo, o abre otro grupo nuevo.
+				const k = sel.dataset.k, ckey = k.slice(0, k.lastIndexOf("|"));
+				if (sel.value === "new") pr.grupos[k] = Math.max(0, ...gruposDe(ckey, rows)) + 1;
+				else if (sel.value === "0") delete pr.grupos[k];
+				else pr.grupos[k] = +sel.value;
 				pintarCantidades();
 				pintarResumenProducto();
 			};
 		});
 		box.querySelectorAll(".qshare input[data-all]").forEach((cb) => {
-			const cnt = rows.filter((r) => pr.compartidas.has(qKey(cb.dataset.all, r.id))).length;
-			cb.indeterminate = cnt > 0 && cnt < rows.length; // Unas sí y otras no: la casilla lo enseña a medias.
-			cb.onchange = () => { // Todas las tallas de ese color comparten, o ninguna.
-				rows.forEach((r) => { const k = qKey(cb.dataset.all, r.id); if (cb.checked) pr.compartidas.add(k); else pr.compartidas.delete(k); });
+			const cnt = rows.filter((r) => grupoDe(qKey(cb.dataset.all, r.id)) > 0).length;
+			cb.indeterminate = cnt > 0 && (cnt < rows.length || gruposDe(cb.dataset.all, rows).length > 1); // Unas sí y otras no, o varios grupos: a medias.
+			cb.onchange = () => { // Todas las tallas de ese color comparten en un solo grupo, o ninguna.
+				rows.forEach((r) => { const k = qKey(cb.dataset.all, r.id); if (cb.checked) pr.grupos[k] = 1; else delete pr.grupos[k]; });
 				pintarCantidades();
 				pintarResumenProducto();
 			};
 		});
 	}
 	// Las tallas (y el color, si hay más de uno) que comparten unidades, con nombre: "2-3 años, 3-4 años y 4-5 años".
-	function nombresCompartidas(rows, cols) {
+	function nombresCompartidas(rows, cols, g) {
 		const names = [];
-		rows.forEach((r) => cols.forEach((c) => { if (pr.compartidas.has(qKey(c.key, r.id))) names.push((r.label || r.name) + (cols.length > 1 ? " " + c.name : "")); }));
+		rows.forEach((r) => cols.forEach((c) => { const x = grupoDe(qKey(c.key, r.id)); if (x > 0 && (!g || x === g)) names.push((r.label || r.name) + (cols.length > 1 ? " " + c.name : "")); }));
 		const first = names.slice(0, 4);
 		const rest = names.length - first.length;
 		if (rest > 0) return first.join(", ") + " " + sprintf(__("and %d more", "dox-pos"), rest);
@@ -1640,13 +1675,12 @@
 		return sprintf(__("%1$s and %2$s", "dox-pos"), first.slice(0, -1).join(", "), first[first.length - 1]);
 	}
 	function unidadesTotales() {
-		// Las unidades compartidas de cada columna de color, una vez, si alguna de sus tallas las usa; más lo que lleve cada talla suya.
-		const vivas = new Set(compartidasVivas());
+		// Las unidades de cada bolsa (por color y grupo), una vez; más lo que lleve cada talla suya.
 		let u = 0;
+		const rows = filas();
 		columnas().forEach((c) => {
-			let comparten = false;
-			filas().forEach((r) => { if (vivas.has(qKey(c.key, r.id))) comparten = true; else u += cantidad(c.key, r.id); });
-			if (comparten) u += pr.totales[c.key] || 0;
+			rows.forEach((r) => { if (!grupoDe(qKey(c.key, r.id))) u += cantidad(c.key, r.id); });
+			gruposDe(c.key, rows).forEach((g) => { u += pr.totales[pk(c.key, g)] || 0; });
 		});
 		return u;
 	}
@@ -1724,9 +1758,12 @@
 			let tabla = "";
 			const vivas = new Set(compartidasVivas());
 			if (pr.tallas.length || pr.colores.length) {
-				if (vivas.size) tabla = ' <span class="sub">' + cols.filter((c) => rows.some((r) => vivas.has(qKey(c.key, r.id)))).map((c) => { const k = rows.filter((r) => vivas.has(qKey(c.key, r.id))).length, tot = pr.totales[c.key] || 0; return esc((cols.length > 1 ? c.name + ": " : "") + sprintf(_n("%1$d shared unit between %2$d sizes", "%1$d shared units between %2$d sizes", tot, "dox-pos"), tot, k)); }).join(" · ") + "</span>";
+				// Cada bolsa: "Coral (grupo 2): 3 unidades compartidas entre 2 tallas".
+				const bolsas = [];
+				cols.forEach((c) => { const gs = gruposDe(c.key, rows); gs.forEach((g) => { const n = rows.filter((r) => grupoDe(qKey(c.key, r.id)) === g).length, tot = pr.totales[pk(c.key, g)] || 0; const quien = (cols.length > 1 ? c.name : "") + (gs.length > 1 ? (cols.length > 1 ? " " : "") + sprintf(__("(group %d)", "dox-pos"), g) : ""); bolsas.push(esc((quien ? quien + ": " : "") + sprintf(_n("%1$d shared unit between %2$d sizes", "%1$d shared units between %2$d sizes", tot, "dox-pos"), tot, n))); }); });
+				if (bolsas.length) tabla = ' <span class="sub">' + bolsas.join(" · ") + "</span>";
 				tabla += '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
-					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => (vivas.has(qKey(c.key, r.id)) ? '<td class="zero">' + esc(__("shared", "dox-pos")) + "</td>" : '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>")).join("") + "</tr>").join("") + "</tbody></table>";
+					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => { const k = qKey(c.key, r.id); return vivas.has(k) ? '<td class="zero">' + esc(gruposDe(c.key, rows).length > 1 ? sprintf(__("shared (group %d)", "dox-pos"), grupoDe(k)) : __("shared", "dox-pos")) + "</td>" : '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>"; }).join("") + "</tr>").join("") + "</tbody></table>";
 			}
 			const li = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
 			modal("<h3>" + esc(__("Check before creating", "dox-pos")) + '</h3><dl class="rev">' +
@@ -1778,7 +1815,8 @@
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
 			qty: qty,
 			shared_cells: compartidasVivas(), // Las tallas que comparten unidades (clave color|talla)...
-			pool_stock: totalesVivos(),       // ...y las unidades compartidas de cada columna de color (con varios colores, una bolsa por color).
+			shared_groups: gruposVivos(),     // ...en qué grupo está cada una (1, 2...)...
+			pool_stock: totalesVivos(),       // ...y las unidades de cada bolsa (columna de color, y "#2" del segundo grupo en adelante).
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
@@ -1803,7 +1841,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.compartidas = new Set(); pr.totales = {}; pr.legacy = false; pr.legacyTotal = 0;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		$("#p-pub").checked = true;
@@ -1960,7 +1998,8 @@
 		if (pr.edit || pr.fotos.length) limpiarProducto();
 		pr.modo = "editar";
 		pr.edit = d;
-		pr.compartidas = new Set(d.shared_cells || []); // Las tallas que hoy comparten unidades (del producto, o de su color).
+		pr.grupos = Object.assign({}, d.shared_groups || {}); // Las tallas que hoy comparten unidades, con su grupo.
+		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
 		pr.totales = Object.assign({}, d.pool_stock || {}); // Las unidades compartidas por columna de color.
 		pr.legacy = !!d.legacy_pool; // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : num(d.shared);

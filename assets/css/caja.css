@@ -309,6 +309,7 @@ tr.off,li.off{opacity:.5}
 .qshare{display:inline-flex;align-items:center;gap:5px;min-height:34px;font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer}
 .qshare input{width:15px;height:15px;padding:0;margin:0;border:0;border-radius:3px;box-shadow:none;accent-color:var(--primary);flex:none}
 .qshare.qall{font-weight:500;min-height:0}
+.qsel{width:auto;flex:none;min-height:0;font-size:12px;font-weight:500;color:var(--muted);padding:6px 24px 6px 10px;border-radius:999px;background-position:calc(100% - 13px) 50%,calc(100% - 8px) 50%}
 .qpoolbox{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
 .qpoolbox label{font-size:12px;font-weight:600;color:var(--muted)}
 .qpoolbox input{width:84px;flex:none;text-align:center;font-variant-numeric:tabular-nums}

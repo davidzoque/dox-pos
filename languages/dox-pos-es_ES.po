@@ -2527,5 +2527,41 @@ msgid "All sizes share"
 msgstr "Todas las tallas comparten"
 
 #: assets/js/caja.js
-msgid "Do several sizes sell from the same units? Tick “Shares” on each one and write how many there are for all of them."
-msgstr "¿Varias tallas se venden de las mismas unidades? Marca «Comparte» en cada una y escribe cuántas hay entre todas."
+msgid "Do several sizes sell from the same units? Choose “Shares” on each one and write how many there are for all of them."
+msgstr "¿Varias tallas se venden de las mismas unidades? Elige «Comparte» en cada una y escribe cuántas hay entre todas."
+
+#: assets/js/caja.js
+msgid "Does not share"
+msgstr "No comparte"
+
+#: assets/js/caja.js
+msgid "Shares (group %d)"
+msgstr "Comparte (grupo %d)"
+
+#: assets/js/caja.js
+msgid "Shares, another group"
+msgstr "Comparte, otro grupo"
+
+#: assets/js/caja.js
+msgid "Shared units · group %d"
+msgstr "Unidades compartidas · grupo %d"
+
+#: assets/js/caja.js
+msgid "(group %d)"
+msgstr "(grupo %d)"
+
+#: assets/js/caja.js
+msgid "shared (group %d)"
+msgstr "compartidas (grupo %d)"
+
+#: assets/js/caja.js
+msgid "Each group keeps its own units too: selling a size only lowers the units of its group."
+msgstr "Cada grupo lleva también sus propias unidades: vender una talla solo baja las de su grupo."
+
+#: includes/pools.php
+msgid "group %d"
+msgstr "grupo %d"
+
+#: includes/pools.php
+msgid "%1$s (group %2$d)"
+msgstr "%1$s (grupo %2$d)"

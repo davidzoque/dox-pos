@@ -220,7 +220,7 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'status'    => $v->get_stock_status(),
 		'shared'    => 'parent' === $manage || '' !== $pool, // Comparte unidades: con todas las tallas del producto, o con las de su color.
 		'pool'      => '' !== $pool ? $pool : ( 'parent' === $manage ? '*' : '' ), // Con quién: '*' todas las tallas, la clave del color, o '' (lleva las suyas).
-		'pool_name' => '' !== $pool ? $color : '',
+		'pool_name' => '' !== $pool ? dox_pos_pool_name( $v ) : '', // "Coral", o "Coral (grupo 2)" si el color tiene varios grupos.
 		'parent'    => $simple ? 0 : (int) $v->get_parent_id(),
 	);
 }

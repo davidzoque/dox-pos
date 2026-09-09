@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.32.1
+Stable tag: 0.33.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.33.0 =
+* Several groups of sizes can share units within the same colour: 0-6 and 6-12 months from one pool, 2-3 and 3-4 years from another. The "Shares" box on each size is now a small menu (does not share, shares, or shares in another group), the colour card gets one "Shared units" box per group, and the register, the website checkout, the kardex and the Excel treat each group as its own pool. With one colour and one group everything stays exactly as before.
 
 = 0.32.1 =
 * The Units block of the product form is now one card per colour: its sizes in rows, each with its number and a small "Shares" box, and under them the colour's shared units with a line saying which sizes share them. Cards stack on a phone and sit in a grid on a wide screen, so a product with six colours no longer turns into a table that scrolls sideways. "All sizes share" in the card header ticks every size of that colour at once.

@@ -885,8 +885,9 @@ function dox_pos_create_product( $data ) {
 	// Con varios colores, las unidades compartidas van por color (una bolsa por color, includes/pools.php);
 	// con uno o ninguno, el total del producto de siempre. pool_stock trae las de cada columna de color.
 	$pool_stock = dox_pos_pool_stock_from( $data );
-	$multi      = count( $colors ) > 1;
-	$shared     = $cells && ! $multi ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : 0 ) ) : null;
+	$groups     = dox_pos_pool_groups_from( $data, $cells ); // El grupo de cada celda que comparte (1, 2...).
+	$sync       = count( $colors ) > 1 || ( $groups && max( $groups ) > 1 ); // Bolsas propias: varios colores, o más de un grupo.
+	$shared     = $cells && ! $sync ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : 0 ) ) : null;
 	$pools_seen = array();
 	$ctx      = dox_pos_stock_context( 'create' ); // El kardex: las unidades iniciales quedan como "Creado en la caja".
 	$product  = $variable ? new WC_Product_Variable() : new WC_Product_Simple();
@@ -978,20 +979,22 @@ function dox_pos_create_product( $data ) {
 					}
 				}
 				$v->set_regular_price( $price );
-				$inherit = null !== $shared && ( in_array( '*', $cells, true ) || in_array( $ckey . '|' . $sid, $cells, true ) );
-				$inpool  = $multi && $cells && $cterm && in_array( $ckey . '|' . $sid, $cells, true ); // La bolsa de su color.
+				$g       = (int) ( $groups[ $ckey . '|' . $sid ] ?? ( $cells && in_array( '*', $cells, true ) ? 1 : 0 ) ); // Su grupo (0 = lleva las suyas).
+				$inherit = null !== $shared && $g > 0;
+				$inpool  = $sync && $g > 0; // Una bolsa propia: la de su color y grupo.
 				$quiet   = false;
 				if ( $inpool ) {
-					$n = (int) ( $pool_stock[ (string) $ckey ] ?? 0 );
+					$pk = (string) $ckey . ( $g > 1 ? '#' . $g : '' );
+					$n  = (int) ( $pool_stock[ $pk ] ?? 0 );
 					$v->set_manage_stock( true );
 					$v->set_stock_quantity( $n );
 					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
-					$v->update_meta_data( DOX_POS_POOL_META, $cterm->slug );
-					if ( isset( $pools_seen[ $ckey ] ) ) {
+					$v->update_meta_data( DOX_POS_POOL_META, dox_pos_pool_key_for( $cterm ? $cterm->slug : '', $g ) );
+					if ( isset( $pools_seen[ $pk ] ) ) {
 						$quiet = true; // El kardex apunta la bolsa una sola vez, en su primera talla.
 					} else {
-						$pools_seen[ $ckey ] = true;
-						$units              += $n;
+						$pools_seen[ $pk ] = true;
+						$units            += $n;
 					}
 				} elseif ( ! $inherit ) {
 					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
@@ -1255,13 +1258,14 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 			return new WP_Error( 'dox_pos_no_editable', __( 'This product has variations for "any" size or color, or with values that no longer exist: edit it in WooCommerce.', 'dox-pos' ) );
 		}
 		$own  = true === $v->get_manage_stock(); // 'parent' = hereda las del producto.
-		$pool = $own ? dox_pos_pool_key( $v ) : ''; // O comparte la bolsa de su color (includes/pools.php).
+		$pool = $own ? dox_pos_pool_key( $v ) : ''; // O comparte una bolsa: la de su color y grupo (includes/pools.php).
+		$g    = '' !== $pool ? dox_pos_pool_group( $pool ) : 0;
 		$ckey = $out['colors'] ? (string) $color_by_slug[ $cslug ] : '';
 		if ( ! $own && null !== $parent_stock ) {
 			$inherits = true;
 		}
 		if ( '' !== $pool ) {
-			$out['pools'][ $ckey ] = dox_pos_pool_stock( $p->get_id(), $pool );
+			$out['pools'][ $ckey . ( $g > 1 ? '#' . $g : '' ) ] = dox_pos_pool_stock( $p->get_id(), $pool ); // Clave del formulario: columna de color y "#2"...
 		}
 		$out['variations'][] = array(
 			'id'     => (int) $vid,
@@ -1269,6 +1273,7 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 			'color'  => $ckey,
 			'stock'  => $own ? (int) $v->get_stock_quantity() : null,
 			'pool'   => $pool,
+			'group'  => $g,
 			'price'  => (float) $v->get_regular_price( 'edit' ),
 			'image'  => (int) $v->get_image_id( 'edit' ), // Sin 'edit' devolvería la del padre.
 			'status' => $v->get_status(),
@@ -1336,8 +1341,9 @@ function dox_pos_product_edit_data( $id ) {
 	$prices = array();
 	$qty    = array();
 	$units  = 0;
-	$shared_cells = array(); // Las tallas que no llevan las suyas: salen del total del producto, o de la bolsa de su color.
-	$pool_stock   = array(); // Las unidades compartidas por columna de color ('' sin colores): el total del producto, o la bolsa.
+	$shared_cells  = array(); // Las tallas que no llevan las suyas: salen del total del producto, o de una bolsa.
+	$shared_groups = array(); // Y en qué grupo está cada una (1, 2...): un color puede tener varios grupos.
+	$pool_stock    = array(); // Las unidades compartidas por bolsa (clave: columna de color y "#2" del segundo grupo en adelante).
 	if ( $p->is_type( 'variable' ) ) {
 		foreach ( $model['variations'] as $v ) {
 			$prices[] = (float) $v['price'];
@@ -1345,7 +1351,9 @@ function dox_pos_product_edit_data( $id ) {
 				$qty[ $v['color'] ][ (string) $v['size'] ] = $v['stock'];
 				$units += $v['stock'];
 			} else {
-				$shared_cells[] = $v['color'] . '|' . $v['size'];
+				$cell                   = $v['color'] . '|' . $v['size'];
+				$shared_cells[]         = $cell;
+				$shared_groups[ $cell ] = '' !== $v['pool'] ? (int) $v['group'] : 1;
 				if ( null === $v['stock'] && null !== $model['shared'] ) {
 					$pool_stock[ $v['color'] ] = (int) $model['shared'];
 				}
@@ -1386,8 +1394,9 @@ function dox_pos_product_edit_data( $id ) {
 		'colors'      => $model['colors'],
 		'qty'         => (object) $qty,
 		'shared'      => $model['shared'],  // El total del producto (null si cada talla lleva las suyas).
-		'shared_cells' => $shared_cells,    // Qué tallas comparten unidades (del producto, o de su color); el resto llevan las suyas y se editan.
-		'pool_stock'  => (object) $pool_stock,             // Las unidades compartidas por columna de color ('' sin colores).
+		'shared_cells' => $shared_cells,    // Qué tallas comparten unidades (del producto, o de una bolsa); el resto llevan las suyas y se editan.
+		'shared_groups' => (object) $shared_groups,        // En qué grupo está cada una (1, 2...).
+		'pool_stock'  => (object) $pool_stock,             // Las unidades compartidas por bolsa (columna de color, y "#2" del segundo grupo en adelante).
 		'legacy_pool' => ! empty( $model['legacy_pool'] ), // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		'images'      => $images,
 		'variations'  => count( $model['variations'] ),
@@ -1636,8 +1645,9 @@ function dox_pos_update_product( $id, $data ) {
 	// Con varios colores las unidades compartidas van por color (una bolsa por color, includes/pools.php); con
 	// uno o ninguno, el total del producto. pool_stock trae las de cada columna de color.
 	$pool_stock   = dox_pos_pool_stock_from( $data );
-	$multi        = $variable && count( $colors ) > 1;
-	$pool         = null !== $cells && $cells && ! $multi ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : ( $model['shared'] ?? 0 ) ) ) : null;
+	$groups       = dox_pos_pool_groups_from( $data, $cells ); // El grupo de cada celda que comparte (1, 2...); vacío si el formulario no lo manda.
+	$sync         = null !== $cells && $variable && ( count( $colors ) > 1 || ( $groups && max( $groups ) > 1 ) ); // Bolsas propias: varios colores, o más de un grupo.
+	$pool         = null !== $cells && $cells && ! $sync ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : ( $model['shared'] ?? 0 ) ) ) : null;
 	$pools_logged = array(); // Las bolsas que el kardex ya apuntó en este guardado (una talla por bolsa).
 	// El slug del color, que es la marca de la bolsa; y las unidades de la bolsa de ese color: las del formulario, o las de hoy.
 	$slug_of      = function ( $ckey ) use ( $colors, $color_tax ) {
@@ -1647,8 +1657,9 @@ function dox_pos_update_product( $id, $data ) {
 		$t = get_term( (int) $ckey, $color_tax );
 		return $t && ! is_wp_error( $t ) ? $t->slug : (string) $ckey;
 	};
-	$pool_of      = function ( $ckey ) use ( $pool_stock, $model ) {
-		return max( 0, (int) ( $pool_stock[ (string) $ckey ] ?? ( $model['pools'][ (string) $ckey ] ?? ( $model['shared'] ?? 0 ) ) ) );
+	// Las unidades de una bolsa ($pk: la columna de color y "#2" del segundo grupo en adelante): las del formulario, o las de hoy.
+	$pool_of      = function ( $pk ) use ( $pool_stock, $model ) {
+		return max( 0, (int) ( $pool_stock[ (string) $pk ] ?? ( $model['pools'][ (string) $pk ] ?? ( $model['shared'] ?? 0 ) ) ) );
 	};
 	$ctx = dox_pos_stock_context( 'edit' ); // El kardex: "Editado en la caja".
 
@@ -1665,7 +1676,7 @@ function dox_pos_update_product( $id, $data ) {
 		}
 	} else {
 		if ( null !== $cells ) {
-			if ( $cells && ! $multi ) { // Alguna talla sale del total: lo lleva el producto.
+			if ( $cells && ! $sync ) { // Alguna talla sale del total: lo lleva el producto.
 				$p->set_manage_stock( true );
 				$p->set_stock_quantity( $pool );
 				$p->set_stock_status( $pool > 0 ? 'instock' : 'outofstock' );
@@ -1720,26 +1731,31 @@ function dox_pos_update_product( $id, $data ) {
 			}
 			// Comparte unidades (el total del producto, o la bolsa de su color) o lleva las suyas: lo que diga el
 			// formulario (shared_cells); si no lo manda, cada talla se queda como está y solo se escriben las suyas.
+			$cell     = $vr['color'] . '|' . $vr['size'];
 			$was_pool = '' !== $vr['pool'];
-			$inherit  = null !== $cells ? in_array( $vr['color'] . '|' . $vr['size'], $cells, true ) : ( null === $vr['stock'] || $was_pool );
-			$quiet    = false; // Cambiar de sitio no es un movimiento: el kardex no lo apunta.
-			if ( $inherit && $multi && null !== $cells ) { // La bolsa de su color.
-				$n = $pool_of( $vr['color'] );
-				if ( ! $was_pool ) {
+			// Qué quiere el formulario para esta talla: un grupo (1, 2...) o las suyas (0). Sin formulario, como está.
+			$g       = null !== $cells ? (int) ( $groups[ $cell ] ?? 0 ) : ( $was_pool ? (int) $vr['group'] : ( null === $vr['stock'] ? 1 : 0 ) );
+			$inherit = $g > 0;
+			$quiet   = false; // Cambiar de sitio no es un movimiento: el kardex no lo apunta.
+			if ( $inherit && $sync ) { // Una bolsa propia: la de su color y grupo.
+				$pk   = $vr['color'] . ( $g > 1 ? '#' . $g : '' );
+				$want = dox_pos_pool_key_for( $slug_of( $vr['color'] ), $g );
+				$n    = $pool_of( $pk );
+				if ( $vr['pool'] !== $want ) { // Entra en la bolsa, o cambia de grupo.
 					$quiet = true;
 					$v->set_manage_stock( true );
-					$v->update_meta_data( DOX_POS_POOL_META, $slug_of( $vr['color'] ) );
+					$v->update_meta_data( DOX_POS_POOL_META, $want );
 					$changed = true;
-				} elseif ( isset( $pools_logged[ $vr['color'] ] ) ) {
+				} elseif ( isset( $pools_logged[ $pk ] ) ) {
 					$quiet = true; // La bolsa ya se apuntó en su primera talla; las demás la siguen calladas.
 				}
-				if ( $n !== (int) $v->get_stock_quantity() || ! $was_pool ) {
+				if ( $n !== (int) $v->get_stock_quantity() || $vr['pool'] !== $want ) {
 					$v->set_stock_quantity( $n );
 					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
 					$changed = true;
 				}
-				$pools_logged[ $vr['color'] ] = true;
-			} elseif ( $inherit ) {
+				$pools_logged[ $pk ] = true;
+			} elseif ( $inherit && null !== $cells ) { // El total del producto (un color, un grupo).
 				if ( null !== $vr['stock'] ) {
 					$quiet = true;
 					$v->set_manage_stock( false ); // Pasa a salir del total del producto; sus unidades sueltas se olvidan.
@@ -1747,7 +1763,7 @@ function dox_pos_update_product( $id, $data ) {
 					$v->delete_meta_data( DOX_POS_POOL_META );
 					$changed = true;
 				}
-			} else {
+			} elseif ( ! $inherit ) {
 				$row = $qty[ $vr['color'] ] ?? null;
 				if ( is_array( $row ) && array_key_exists( (string) $vr['size'], $row ) ) {
 					$n = max( 0, (int) $row[ (string) $vr['size'] ] );
@@ -1821,17 +1837,19 @@ function dox_pos_update_product( $id, $data ) {
 				if ( '' !== $base_price ) {
 					$v->set_regular_price( $base_price );
 				}
-				$inherit = null !== $cells ? in_array( $ckey . '|' . $sid, $cells, true ) : null !== $model['shared'];
+				$g       = null !== $cells ? (int) ( $groups[ $ckey . '|' . $sid ] ?? 0 ) : ( null !== $model['shared'] ? 1 : 0 );
+				$inherit = $g > 0;
 				$quiet   = false;
-				if ( $inherit && $multi && $cterm ) { // Entra en la bolsa de su color.
-					$n = $pool_of( $ckey );
+				if ( $inherit && $sync ) { // Entra en una bolsa propia: la de su color y grupo.
+					$pk = (string) $ckey . ( $g > 1 ? '#' . $g : '' );
+					$n  = $pool_of( $pk );
 					$v->set_manage_stock( true );
 					$v->set_stock_quantity( $n );
 					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
-					$v->update_meta_data( DOX_POS_POOL_META, $cterm->slug );
+					$v->update_meta_data( DOX_POS_POOL_META, dox_pos_pool_key_for( $cterm ? $cterm->slug : '', $g ) );
 					// El kardex apunta la bolsa una vez: si ya existía o ya se apuntó, esta talla entra callada.
-					$quiet                            = isset( $model['pools'][ (string) $ckey ] ) || isset( $pools_logged[ (string) $ckey ] );
-					$pools_logged[ (string) $ckey ] = true;
+					$quiet               = isset( $model['pools'][ $pk ] ) || isset( $pools_logged[ $pk ] );
+					$pools_logged[ $pk ] = true;
 				} elseif ( ! $inherit ) {
 					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
 					$v->set_manage_stock( true );
@@ -1894,6 +1912,33 @@ function dox_pos_pool_stock_from( $data ) {
 	}
 	if ( ! $out && isset( $data['shared_stock'] ) && '' !== $data['shared_stock'] && null !== $data['shared_stock'] ) {
 		$out['*'] = max( 0, (int) $data['shared_stock'] );
+	}
+	return $out;
+}
+
+/**
+ * En qué grupo comparte cada talla, según el formulario: shared_groups {celda: grupo}; los formularios que solo
+ * mandan shared_cells ponen todas en el grupo 1.
+ *
+ * @param array      $data  Lo que llegó.
+ * @param array|null $cells Las celdas que comparten (shared_cells), ya leídas.
+ * @return array celda => grupo (1, 2...)
+ */
+function dox_pos_pool_groups_from( $data, $cells ) {
+	$out = array();
+	if ( isset( $data['shared_groups'] ) && is_array( $data['shared_groups'] ) ) {
+		foreach ( $data['shared_groups'] as $cell => $g ) {
+			if ( (int) $g > 0 ) {
+				$out[ (string) $cell ] = min( 9, (int) $g );
+			}
+		}
+	}
+	if ( ! $out && is_array( $cells ) ) {
+		foreach ( $cells as $cell ) {
+			if ( '*' !== $cell ) {
+				$out[ (string) $cell ] = 1;
+			}
+		}
 	}
 	return $out;
 }

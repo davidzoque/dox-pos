@@ -200,6 +200,8 @@ WooCommerce solo sabe llevar las existencias de un producto de tallas de dos for
 
 `dox_pos_format_variation` da `shared`, `pool` (`'*'` todas las tallas del producto, la clave del color, o `''`) y `pool_name`; el JS cuenta cada bolsa una vez (`bolsa(v)`) y lo dice ("quedan 3 para todas las tallas Coral"). `dox_pos_shared_stock_problem` agrupa por bolsa, `dox_pos_stock_free` lee la bolsa, `dox_pos_product_units` y `dox_pos_cost_stock` la cuentan una vez, y el inventario en Excel y el Panel también. El formulario manda `shared_cells` y `pool_stock` (`{clave de columna de color: unidades}`); con un color o ninguno el servidor lo guarda como total del producto, con varios como bolsas por color, y mover tallas de sitio no apunta movimientos en el kardex (cambiar el número de una bolsa sí, una vez). Un producto de varios colores que todavía tenga un total único (`legacy_pool`) pasa a bolsas por color al guardarlo desde la caja, y el formulario avisa.
 
+Dentro de un color puede haber varios grupos que comparten entre sí (0-6 y 6-12 meses por un lado, 2-3 y 3-4 años por otro): la clave de la bolsa es `slug` para el grupo 1 y `slug#2`, `slug#3`... a partir del segundo (`dox_pos_pool_key_for`, `dox_pos_pool_group`), y `dox_pos_pool_name` dice "Coral (grupo 2)" cuando el color tiene más de un grupo. El formulario manda `shared_groups` (`{celda: grupo}`) además de `shared_cells`, y `pool_stock` va por bolsa (`{"171": 5, "171#2": 3}`); con un solo color y un solo grupo sigue siendo el total del producto. Un producto sin colores con dos grupos usa las claves `g` y `g#2`.
+
 ## A prueba de errores
 
 La pantalla de producto nuevo está pensada para alguien que no lee los avisos:
