@@ -201,19 +201,27 @@ function dox_pos_format_variation( $v, $simple = false ) {
 
 	// get_manage_stock() devuelve 'parent' cuando la variación hereda el stock del producto: también cuenta.
 	$manage = $v->get_manage_stock();
+	// La bolsa de su color (unidades compartidas por color, includes/pools.php): lo que queda es lo de la bolsa.
+	$pool  = $simple ? '' : dox_pos_pool_key( $v );
+	$stock = $manage ? (int) $v->get_stock_quantity() : null;
+	if ( '' !== $pool ) {
+		$stock = dox_pos_pool_stock( (int) $v->get_parent_id(), $pool );
+	}
 
 	return array(
-		'id'     => (int) $v->get_id(),
-		'sku'    => $v->get_sku( 'edit' ),
-		'label'  => $label ? $label : __( 'One size', 'dox-pos' ),
-		'talla'  => $talla,
-		'color'  => $color,
-		'price'  => (float) $v->get_price(),
-		'cost'   => dox_pos_can_see_costs() ? dox_pos_product_cost( $v ) : null, // Solo para quien administra: la entrada lo propone como costo de compra.
-		'stock'  => $manage ? (int) $v->get_stock_quantity() : null,
-		'status' => $v->get_stock_status(),
-		'shared' => 'parent' === $manage, // Comparte el total del producto con las otras tallas.
-		'parent' => $simple ? 0 : (int) $v->get_parent_id(),
+		'id'        => (int) $v->get_id(),
+		'sku'       => $v->get_sku( 'edit' ),
+		'label'     => $label ? $label : __( 'One size', 'dox-pos' ),
+		'talla'     => $talla,
+		'color'     => $color,
+		'price'     => (float) $v->get_price(),
+		'cost'      => dox_pos_can_see_costs() ? dox_pos_product_cost( $v ) : null, // Solo para quien administra: la entrada lo propone como costo de compra.
+		'stock'     => $stock,
+		'status'    => $v->get_stock_status(),
+		'shared'    => 'parent' === $manage || '' !== $pool, // Comparte unidades: con todas las tallas del producto, o con las de su color.
+		'pool'      => '' !== $pool ? $pool : ( 'parent' === $manage ? '*' : '' ), // Con quién: '*' todas las tallas, la clave del color, o '' (lleva las suyas).
+		'pool_name' => '' !== $pool ? $color : '',
+		'parent'    => $simple ? 0 : (int) $v->get_parent_id(),
 	);
 }
 

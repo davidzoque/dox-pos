@@ -239,7 +239,7 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp">
 							<h4><?php esc_html_e( 'Units', 'dox-pos' ); ?></h4>
 							<div class="wrapx qtywrap"><table class="qtyt" id="p-qty"></table></div>
-							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Shared units', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
+							<div class="qjuntos" id="p-junto-box" hidden></div><?php // Las unidades compartidas: una caja por color con tallas que comparten (las pinta el JS). ?>
 							<p class="hint" id="p-qty-shared" hidden></p>
 						</div>
 						<div class="grp">

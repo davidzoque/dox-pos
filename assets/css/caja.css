@@ -307,7 +307,8 @@ tr.off,li.off{opacity:.5}
 .qpool{display:block;width:64px;padding:8px 4px;border:1px dashed var(--line);border-radius:10px;background:var(--sunk);font-size:14px;text-align:center;font-variant-numeric:tabular-nums}
 .qshare{display:inline-flex;align-items:center;gap:5px;min-height:34px;font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer}
 .qshare input{width:15px;height:15px;padding:0;margin:0;border:0;border-radius:3px;box-shadow:none;accent-color:var(--primary);flex:none}
-.qjunto{max-width:220px}
+.qjuntos{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px}
+.qjunto{flex:1 1 160px;max-width:220px}
 .qjunto input{text-align:center;font-variant-numeric:tabular-nums}
 .switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13.5px;font-weight:500;position:relative}
 .switch input{position:absolute;opacity:0;width:1px;height:1px;margin:0}

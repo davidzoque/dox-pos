@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.31.2
+Stable tag: 0.32.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.32.0 =
+* Shared units by colour. In a product with several colours, "Shares units" now works per colour: the Coral sizes share Coral's units and the Rosa sizes share Rosa's, each with its own box under the table. Selling a size only lowers the units of its colour, the register warns with the colour's figure ("Romper Marian · Coral has 3 left for all its sizes together"), and the website checkout counts the whole colour while it holds stock during a payment, so two customers cannot take two sizes when one unit is left. The inventory Excel, the Dashboard, the product card and the cost average count each colour's units once. A product with one colour keeps the plain product total, as before.
 
 = 0.31.2 =
 * A Dashboard tab for administrators and shop managers, before Sell: sold today with yesterday next to it, today's profit, what is owed (cash on delivery on the way and layaways), the week and the month against the previous ones at the same point, the last fourteen days as bars, what came in today by payment method, the best sellers of the last thirty days, the orders to handle and the stock. Every card opens the tab it comes from. The register opens on it for whoever manages the shop (a switch in Settings > Register turns that off); salespeople keep landing on Sell.

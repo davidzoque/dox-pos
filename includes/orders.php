@@ -251,8 +251,11 @@ function dox_pos_create_order( $data, $hold ) {
  * @return int[] [ libres, retenidas ].
  */
 function dox_pos_stock_free( $p, $exclude = 0 ) {
-	$held = function_exists( 'wc_get_held_stock_quantity' ) ? (int) wc_get_held_stock_quantity( $p, $exclude ) : 0;
-	return array( (int) $p->get_stock_quantity() - $held, $held );
+	// Con una bolsa por color, lo retenido es el de toda la bolsa (dox_pos_pool_reserved_query) y lo que queda, lo de la bolsa.
+	$held  = function_exists( 'wc_get_held_stock_quantity' ) ? (int) wc_get_held_stock_quantity( $p, $exclude ) : 0;
+	$key   = dox_pos_pool_key( $p );
+	$stock = '' !== $key ? dox_pos_pool_stock( (int) $p->get_parent_id(), $key ) : (int) $p->get_stock_quantity();
+	return array( $stock - $held, $held );
 }
 
 /**
@@ -300,14 +303,23 @@ function dox_pos_shared_stock_problem( $lines, $exclude = 0 ) {
 		if ( ! $p->managing_stock() || $p->backorders_allowed() ) {
 			continue;
 		}
+		$key = dox_pos_pool_key( $p );
+		if ( '' !== $key ) { // La bolsa de su color: se suma con sus hermanas del mismo color.
+			$g        = 'pool:' . (int) $p->get_parent_id() . ':' . $key;
+			$by[ $g ] = array( 'qty' => ( $by[ $g ]['qty'] ?? 0 ) + (int) $l['qty'], 'n' => ( $by[ $g ]['n'] ?? 0 ) + 1, 'holder' => $p );
+			continue;
+		}
 		$hid = (int) $p->get_stock_managed_by_id();
 		if ( $hid === (int) $p->get_id() ) {
 			continue; // Lleva las suyas: ya se comprobó sola.
 		}
-		$by[ $hid ] = array( 'qty' => ( $by[ $hid ]['qty'] ?? 0 ) + (int) $l['qty'], 'n' => ( $by[ $hid ]['n'] ?? 0 ) + 1 );
+		$by[ $hid ] = array( 'qty' => ( $by[ $hid ]['qty'] ?? 0 ) + (int) $l['qty'], 'n' => ( $by[ $hid ]['n'] ?? 0 ) + 1, 'holder' => null );
 	}
 	foreach ( $by as $hid => $g ) {
-		$holder = $g['n'] > 1 ? wc_get_product( $hid ) : null;
+		if ( $g['n'] < 2 ) {
+			continue;
+		}
+		$holder = $g['holder'] ? $g['holder'] : wc_get_product( $hid );
 		if ( ! $holder ) {
 			continue;
 		}
@@ -315,7 +327,8 @@ function dox_pos_shared_stock_problem( $lines, $exclude = 0 ) {
 		if ( $free >= $g['qty'] ) {
 			continue;
 		}
-		$msg = sprintf( /* translators: 1: producto, 2: cuántas quedan, 3: cuántas pide el pedido */ __( '%1$s has %2$d left for all its sizes together, and the order takes %3$d.', 'dox-pos' ), $holder->get_name(), max( 0, $free ), $g['qty'] );
+		$name = $g['holder'] ? dox_pos_pool_title( $holder ) : $holder->get_name(); // "Romper Marian · Coral", o el producto.
+		$msg  = sprintf( /* translators: 1: producto, 2: cuántas quedan, 3: cuántas pide el pedido */ __( '%1$s has %2$d left for all its sizes together, and the order takes %3$d.', 'dox-pos' ), $name, max( 0, $free ), $g['qty'] );
 		if ( $held > 0 ) {
 			/* translators: %d: unidades retenidas */
 			$msg .= ' ' . sprintf( _n( '%d is in a payment in progress.', '%d are in payments in progress.', $held, 'dox-pos' ), $held );
@@ -866,8 +879,12 @@ function dox_pos_order_detail( $id ) {
 		}
 		$qty   = (int) $it->get_quantity();
 		$stock = null;
+		$pool  = $p ? dox_pos_pool_key( $p ) : ''; // La bolsa de su color, si comparte por color.
 		if ( $p && $p->managing_stock() ) {
 			$stock = 'parent' === $p->get_manage_stock() && $parent ? (int) $parent->get_stock_quantity() : (int) $p->get_stock_quantity();
+			if ( '' !== $pool ) {
+				$stock = dox_pos_pool_stock( (int) $p->get_parent_id(), $pool );
+			}
 		}
 		$items[] = array(
 			'id'           => $vid ? $vid : $pid,
@@ -883,7 +900,8 @@ function dox_pos_order_detail( $id ) {
 			'stock'        => $stock,
 			'exists'       => (bool) $p,
 			'editable'     => (bool) $parent && in_array( $parent->get_type(), array( 'simple', 'variable' ), true ),
-			'shared'       => (bool) $p && 'parent' === $p->get_manage_stock(), // Comparte el total del producto con las otras tallas.
+			'shared'       => (bool) $p && ( 'parent' === $p->get_manage_stock() || '' !== $pool ), // Comparte unidades con las otras tallas (del producto, o de su color).
+			'pool_name'    => '' !== $pool ? dox_pos_pool_name( $p ) : '',
 			'unit_cost'    => $see ? dox_pos_line_unit_cost( $it ) : null, // El costo congelado al venderse.
 		);
 	}

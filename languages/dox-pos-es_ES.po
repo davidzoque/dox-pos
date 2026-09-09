@@ -2501,3 +2501,31 @@ msgstr[1] "%1$d unidades compartidas entre %2$d tallas"
 #: assets/js/caja.js
 msgid "shared"
 msgstr "compartidas"
+
+#: assets/js/caja.js
+msgid "%1$s left for all %2$s sizes"
+msgstr "quedan %1$s para todas las tallas %2$s"
+
+#: assets/js/caja.js
+msgid "%1$d left for all %2$s sizes"
+msgstr "quedan %1$d para todas las tallas %2$s"
+
+#: assets/js/caja.js
+msgid "%1$d for all %2$s sizes"
+msgstr "%1$d para todas las tallas %2$s"
+
+#: assets/js/caja.js
+msgid "%s: units shared among their sizes"
+msgstr "%s: unidades compartidas entre sus tallas"
+
+#: assets/js/caja.js
+msgid "Shared units · %s"
+msgstr "Unidades compartidas · %s"
+
+#: assets/js/caja.js
+msgid "Each colour keeps its own shared units: selling a size only lowers the units of its colour."
+msgstr "Cada color lleva sus propias unidades compartidas: vender una talla solo baja las de su color."
+
+#: assets/js/caja.js
+msgid "These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving."
+msgstr "Estas tallas compartían un solo total para todos los colores (%d). Desde ahora cada color lleva el suyo: revisa las cifras antes de guardar."

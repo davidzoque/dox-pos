@@ -173,6 +173,10 @@ function dox_pos_stock_changed( $product ) {
 		if ( ! $id ) {
 			return;
 		}
+		if ( dox_pos_stock_quiet() ) { // Se están igualando las tallas de una bolsa, o moviendo tallas de sitio: no es un movimiento.
+			unset( $GLOBALS['dox_pos_stock_before'][ $id ] );
+			return;
+		}
 		if ( $product->is_type( 'variation' ) && 'parent' === $product->get_manage_stock() ) {
 			return; // Sale del total del producto: no tiene existencias propias que apuntar (las del producto se apuntan aparte).
 		}

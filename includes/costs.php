@@ -193,14 +193,20 @@ function dox_pos_cost_stock( $holder ) {
 	if ( ! $holder->is_type( 'variable' ) ) {
 		return $holder->managing_stock() ? max( 0, (int) $holder->get_stock_quantity() ) : 0;
 	}
-	$n = true === $holder->get_manage_stock() ? max( 0, (int) $holder->get_stock_quantity() ) : 0;
+	$n     = true === $holder->get_manage_stock() ? max( 0, (int) $holder->get_stock_quantity() ) : 0;
+	$pools = array(); // Las bolsas de color cuentan una sola vez.
 	foreach ( $holder->get_children() as $vid ) {
 		$v = wc_get_product( $vid );
 		if ( $v && null === $v->get_cogs_value() && true === $v->get_manage_stock() ) {
-			$n += max( 0, (int) $v->get_stock_quantity() );
+			$key = dox_pos_pool_key( $v );
+			if ( '' !== $key ) {
+				$pools[ $key ] = max( 0, dox_pos_pool_stock( $holder->get_id(), $key ) );
+			} else {
+				$n += max( 0, (int) $v->get_stock_quantity() );
+			}
 		}
 	}
-	return $n;
+	return $n + array_sum( $pools );
 }
 
 /**

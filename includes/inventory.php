@@ -62,9 +62,10 @@ function dox_pos_inventory_data() {
 			MAX( CASE WHEN m.meta_key = '_manage_stock' THEN m.meta_value END ) AS manage,
 			MAX( CASE WHEN m.meta_key = '_stock_status' THEN m.meta_value END ) AS stock_status,
 			MAX( CASE WHEN m.meta_key = '_price' THEN m.meta_value END ) AS price,
-			MAX( CASE WHEN m.meta_key = '_cogs_total_value' THEN m.meta_value END ) AS cost
+			MAX( CASE WHEN m.meta_key = '_cogs_total_value' THEN m.meta_value END ) AS cost,
+			MAX( CASE WHEN m.meta_key = '_dox_pos_pool' THEN m.meta_value END ) AS pool
 		FROM {$wpdb->posts} p
-		LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key IN ( '_sku', '_stock', '_manage_stock', '_stock_status', '_price', '_cogs_total_value' )
+		LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key IN ( '_sku', '_stock', '_manage_stock', '_stock_status', '_price', '_cogs_total_value', '_dox_pos_pool' )
 		WHERE p.post_type IN ( 'product', 'product_variation' ) AND p.post_status IN ( 'publish', 'private', 'draft', 'pending' )
 		GROUP BY p.ID",
 		ARRAY_A
@@ -216,6 +217,7 @@ function dox_pos_inventory_data() {
 			'status' => $st,
 			'pid'    => (int) $main['ID'],
 			'shared' => $parent && 'yes' !== $r['manage'] && 'yes' === $parent['manage'], // Hereda las existencias del padre.
+			'pool'   => $parent && 'yes' === $r['manage'] ? (string) $r['pool'] : '',        // O comparte la bolsa de su color.
 			'variable' => (bool) $parent,
 			'pstatus'  => $estado[ $main['post_status'] ] ?? $main['post_status'],
 			'sort'   => array( implode( ' › ', $cpath ), $main['post_title'], (int) $main['ID'], dox_pos_size_sort_key( $size ), $color, (string) $r['sku'] ),
@@ -228,14 +230,15 @@ function dox_pos_inventory_data() {
 		}
 	);
 
-	// Las variaciones que comparten las existencias del padre llevan la cifra una sola vez (en la
-	// primera talla); si no, el total las contaría tantas veces como tallas tenga el producto.
+	// Las variaciones que comparten existencias (las del padre, o la bolsa de su color) llevan la cifra una
+	// sola vez (en la primera talla); si no, el total las contaría tantas veces como tallas tenga el producto.
 	$seen = array();
 	foreach ( $rows as &$row ) {
-		if ( empty( $row['shared'] ) ) {
+		$k = ! empty( $row['shared'] ) ? 'p' . $row['pid'] : ( '' !== $row['pool'] ? 'b' . $row['pid'] . ':' . $row['pool'] : '' );
+		if ( '' === $k ) {
 			continue;
 		}
-		if ( isset( $seen[ $row['pid'] ] ) ) {
+		if ( isset( $seen[ $k ] ) ) {
 			$row['stock']      = null;
 			$row['value']      = null;
 			$row['cost_value'] = null;
@@ -243,7 +246,7 @@ function dox_pos_inventory_data() {
 				$row['status'] = __( 'Shares stock', 'dox-pos' );
 			}
 		}
-		$seen[ $row['pid'] ] = true;
+		$seen[ $k ] = true;
 	}
 	unset( $row );
 
