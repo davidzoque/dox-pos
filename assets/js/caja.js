@@ -2309,7 +2309,12 @@
 	// ---------- el Panel ----------
 	// Las cifras del día como cuadro de mando, para quien administra. Se piden al abrir la pestaña (de nuevo
 	// si pasó medio minuto, o hubo una venta o un pedido tocado); "Actualizar" las pide ya mismo.
-	const pa = { at: 0, data: null };
+	const PDIAS = [7, 14, 30, 90];             // los tramos de la gráfica; el que no cabe en lo que trae el Panel se pide aparte
+	const PDIAS_MEM = "dox-pos-panel-dias";    // el tramo elegido, que se recuerda en este navegador
+	const pa = { at: 0, data: null, dias: 14, largo: null };
+	try { const n = parseInt(localStorage.getItem(PDIAS_MEM), 10); if (PDIAS.indexOf(n) >= 0) pa.dias = n; } catch (e) { /* sin memoria: catorce días */ }
+	const ventasN = (n) => sprintf(_n("%d sale", "%d sales", n, "dox-pos"), n);
+	const unidadesN = (n) => sprintf(_n("%d unit", "%d units", n, "dox-pos"), n);
 	async function cargarPanel(fuerza) {
 		const box = $("#panel");
 		if (!box) return;
@@ -2319,6 +2324,7 @@
 		try {
 			pa.data = await api("dashboard");
 			pa.at = Date.now();
+			pa.largo = null; // el tramo largo se vuelve a pedir con las cifras nuevas
 			pintarPanel(pa.data);
 		} catch (e) {
 			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? __("No signal: the dashboard reads from the shop.", "dox-pos") : e.message) + "</p>";
@@ -2329,35 +2335,37 @@
 	function pintarPanel(d) {
 		const t = d.today, y = d.yesterday, w = d.week, m = d.month, p = d.pending;
 		const conCosto = !!d.costs;
-		const ventas = (n) => sprintf(_n("%d sale", "%d sales", n, "dox-pos"), n);
-		const unidades = (n) => sprintf(_n("%d unit", "%d units", n, "dox-pos"), n);
 		// Una tarjeta: la cifra, el rótulo y una línea pequeña debajo; con "go", tocarla abre esa pestaña.
-		const card = (v, l, sub, go) => '<div class="kpi"' + (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "") + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + sub + "</i>" : "") + "</div>";
-		const dif = (a, b) => { if (!(b > 0)) return ""; const pc = Math.round((a - b) / b * 100); return '<em class="' + (pc >= 0 ? "up" : "down") + '">' + (pc >= 0 ? "+" : "\u2212") + Math.abs(pc) + "\u00a0%</em> · "; };
+		const abre = (go) => (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "");
+		const card = (v, l, sub, go) => '<div class="kpi"' + abre(go) + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + sub + "</i>" : "") + "</div>";
+		// Una casilla de la franja: lo mismo en pequeño, con el rótulo arriba y la diferencia al lado de la cifra.
+		const ks = (v, l, dif, sub, go) => '<div class="ks"' + abre(go) + "><span>" + esc(l) + "</span><b>" + v + (dif || "") + "</b>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
+		const dif = (a, b) => { if (!(b > 0)) return ""; const pc = Math.round((a - b) / b * 100); return ' <em class="' + (pc >= 0 ? "up" : "down") + '">' + (pc >= 0 ? "+" : "\u2212") + Math.abs(pc) + "\u00a0%</em>"; };
 		const cobrar = (p.cod || 0) + (p.holds || 0);
 		let h = '<div class="pnl-head"><p class="hsub">' + esc(d.date_label) + '</p><button type="button" class="mini" id="pnl-ref">' + esc(__("Refresh", "dox-pos")) + "</button></div>";
+		// Lo de hoy, en grande: lo que se vendió, lo que dejó y lo que falta por cobrar.
 		h += '<div class="kpis big">' +
-			card(dinero(t.sold), __("Sold today", "dox-pos"), esc(ventas(t.orders) + " · " + unidades(t.units) + " · " + sprintf(__("yesterday %s", "dox-pos"), dinero(y.sold))), "historial/ventas/hoy") +
+			card(dinero(t.sold), __("Sold today", "dox-pos"), esc(ventasN(t.orders) + " · " + unidadesN(t.units) + " · " + sprintf(__("yesterday %s", "dox-pos"), dinero(y.sold))), "historial/ventas/hoy") +
 			(conCosto ? card(dinero(t.profit || 0), __("Profit today", "dox-pos"), esc([t.margin !== null && t.margin !== undefined ? sprintf(__("%d %% margin", "dox-pos"), t.margin) : "", t.no_cost_n ? sprintf(_n("%d sale with no cost", "%d sales with no cost", t.no_cost_n, "dox-pos"), t.no_cost_n) : "", d.losses && t.loss > 0 ? sprintf(__("losses %s", "dox-pos"), dinero(t.loss)) : ""].filter(Boolean).join(" · ")), "historial/caja") : "") +
 			card(dinero(cobrar), __("To collect", "dox-pos"), esc(sprintf(__("cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)", "dox-pos"), dinero(p.cod || 0), p.cod_n || 0, dinero(p.holds || 0), p.holds_n || 0)), "pedidos") +
-			card(dinero(w.sold), __("This week", "dox-pos"), dif(w.sold, w.prev) + esc(ventas(w.orders) + " · " + sprintf(__("last week at this point: %s", "dox-pos"), dinero(w.prev))), "historial/ventas/semana") +
-			card(dinero(m.sold), __("This month", "dox-pos"), dif(m.sold, m.prev) + esc(ventas(m.orders) + " · " + sprintf(__("last month at this point: %s", "dox-pos"), dinero(m.prev))), "historial/ventas/mes") +
-			(d.extra || []).map((x) => card(x.money !== undefined && x.money !== null ? dinero(x.money) : esc(x.text || ""), x.label || "", esc(x.sub || ""), x.go || "")).join("") +
 			"</div>";
-		// Los últimos catorce días en barras; hoy, en color.
-		const max = Math.max(1, ...d.series.map((x) => x.total));
-		h += '<div class="pgrid">';
-		h += '<div class="pcard pwide"><h4>' + esc(__("Last 14 days", "dox-pos")) + '<span class="cnt">' + dinero(d.series.reduce((a, x) => a + x.total, 0)) + '</span></h4><div class="pbars">' +
-			d.series.map((x, i) => '<div class="pbar' + (i === d.series.length - 1 ? " now" : "") + '" title="' + esc(diaBonito(x.day) + ": " + dinero(x.total) + " · " + ventas(x.n)) + '"><i style="--h:' + Math.round(x.total / max * 100) + '%"></i><span>' + parseInt(x.day.slice(8), 10) + "</span></div>").join("") + "</div></div>";
-		h += '<div class="pcard"><h4>' + esc(__("Best sellers", "dox-pos")) + '<span class="cnt">' + esc(__("last 30 days", "dox-pos")) + "</span></h4>" +
-			(d.top.length ? '<ul class="bl ptop">' + d.top.map((x) => "<li>" + thumbHtml(x) + '<button type="button" class="lnk n" data-prod="' + x.id + '">' + esc(x.name) + "</button><span>" + esc(unidades(x.units)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("No sales in the last 30 days.", "dox-pos")) + "</p>") + "</div>";
-		h += '<div class="pcard"><h4>' + esc(__("Collected today", "dox-pos")) + '<span class="cnt">' + dinero(t.cashed) + "</span></h4>" +
-			(d.methods.length ? '<ul class="bl">' + d.methods.map((x) => "<li><span>" + esc(x.name) + "</span><span>" + esc(ventas(x.n)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing collected yet today.", "dox-pos")) + "</p>") + "</div>";
+		// La semana, el mes y lo que añadan los módulos: una franja seguida, que no deja huecos aunque cambie el número de casillas.
+		h += '<div class="kstrip">' +
+			ks(dinero(w.sold), __("This week", "dox-pos"), dif(w.sold, w.prev), ventasN(w.orders) + " · " + sprintf(__("last week at this point: %s", "dox-pos"), dinero(w.prev)), "historial/ventas/semana") +
+			ks(dinero(m.sold), __("This month", "dox-pos"), dif(m.sold, m.prev), ventasN(m.orders) + " · " + sprintf(__("last month at this point: %s", "dox-pos"), dinero(m.prev)), "historial/ventas/mes") +
+			(d.extra || []).map((x) => ks(x.money !== undefined && x.money !== null ? dinero(x.money) : esc(x.text || ""), x.label || "", "", x.sub || "", x.go || "")).join("") +
+			"</div>";
+		// La gráfica va aparte, que se repinta sola al cambiar de tramo.
+		h += '<div class="pcard pchart" id="pnl-graf"></div>';
+		h += '<div class="pgrid"><div class="pcard pmain"><h4>' + esc(__("Best sellers", "dox-pos")) + '<span class="cnt">' + esc(__("last 30 days", "dox-pos")) + "</span></h4>" +
+			(d.top.length ? '<ul class="bl ptop">' + d.top.map((x) => "<li>" + thumbHtml(x) + '<button type="button" class="lnk n" data-prod="' + x.id + '">' + esc(x.name) + "</button><span>" + esc(unidadesN(x.units)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("No sales in the last 30 days.", "dox-pos")) + "</p>") + "</div>";
+		h += '<div class="pside"><div class="pcard"><h4>' + esc(__("Collected today", "dox-pos")) + '<span class="cnt">' + dinero(t.cashed) + "</span></h4>" +
+			(d.methods.length ? '<ul class="bl">' + d.methods.map((x) => "<li><span>" + esc(x.name) + "</span><span>" + esc(ventasN(x.n)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing collected yet today.", "dox-pos")) + "</p>") + "</div>";
 		const pend = [[__("To ship", "dox-pos"), p.por_enviar], [__("On the way", "dox-pos"), p.enviado], [__("Layaways", "dox-pos"), p.apartado], [__("Payments to confirm", "dox-pos"), p.por_confirmar], [__("Website orders unpaid", "dox-pos"), p.sin_pagar]].filter((f) => f[1] > 0);
 		h += '<div class="pcard"><h4>' + esc(__("Orders to handle", "dox-pos")) + "</h4>" +
 			(pend.length ? '<ul class="bl">' + pend.map((f) => '<li><button type="button" class="lnk" data-go="pedidos">' + esc(f[0]) + "</button><span><b>" + f[1] + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing pending.", "dox-pos")) + "</p>") + "</div>";
 		h += '<div class="pcard"><h4>' + esc(__("Stock", "dox-pos")) + '</h4><ul class="bl"><li><button type="button" class="lnk" data-go="entrada">' + esc(__("Units in stock", "dox-pos")) + "</button><span><b>" + (miles(d.stock.units) || "0") + "</b></span></li><li><span>" + esc(__("Products out of stock", "dox-pos")) + "</span><span><b>" + (miles(d.stock.out) || "0") + "</b></span></li></ul></div>";
-		h += "</div>";
+		h += "</div></div>";
 		const box = $("#panel");
 		box.innerHTML = h;
 		$("#pnl-ref").onclick = () => cargarPanel(true);
@@ -2365,6 +2373,59 @@
 			el.onclick = () => ir(el.dataset.go);
 			el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(el.dataset.go); } };
 		});
+		pintarGrafica();
+		if (pa.dias > (pa.data.series || []).length && !pa.largo) verDias(pa.dias); // el tramo largo que se quedó recordado
+	}
+	// Los días que se están viendo: del tramo largo si hace falta y ya está pedido, y si no de lo que trajo el Panel.
+	function serieDias() {
+		const s = (pa.largo && pa.largo.length >= pa.dias) ? pa.largo : ((pa.data && pa.data.series) || []);
+		return s.slice(Math.max(0, s.length - pa.dias));
+	}
+	// La gráfica: la cifra del tramo con su rótulo, los botones de los días y las barras.
+	function graficaHtml() {
+		const s = serieDias();
+		const n = s.length;
+		if (!n) return "";
+		const total = s.reduce((a, x) => a + x.total, 0);
+		const nv = s.reduce((a, x) => a + x.n, 0);
+		const max = Math.max(1, ...s.map((x) => x.total));
+		// Con muchas barras: más finas, más juntas y con el día debajo solo cada tantas, que si no se pisan.
+		const paso = n <= 14 ? 1 : (n <= 31 ? 3 : 7);
+		const ancho = n <= 7 ? 72 : (n <= 14 ? 34 : (n <= 31 ? 22 : 12));
+		const sep = n <= 14 ? 5 : (n <= 31 ? 4 : 2);
+		const dia = (iso) => (n <= 31 ? parseInt(iso.slice(8), 10) : parseInt(iso.slice(8), 10) + "/" + parseInt(iso.slice(5, 7), 10));
+		// El botón marcado es el del tramo que se ve de verdad, no el que se pidió: si la tienda no contesta, no miente.
+		let h = '<div class="pch"><div class="pchn"><b>' + dinero(total) + "</b><span>" + esc(sprintf(__("sold in the last %d days", "dox-pos"), n)) + "</span><i>" +
+			esc(ventasN(nv) + " · " + sprintf(__("%s a day", "dox-pos"), dinero(total / n))) + "</i></div>" +
+			'<div class="seg pdays">' + PDIAS.map((x) => '<button type="button" data-d="' + x + '" aria-pressed="' + (x === n) + '" aria-label="' + esc(sprintf(_n("%d day", "%d days", x, "dox-pos"), x)) + '">' + x + "</button>").join("") + "</div></div>";
+		h += '<div class="pbars" style="--sep:' + sep + "px;--bw:" + ancho + 'px">' + s.map((x, i) => '<div class="pbar' + (i === n - 1 ? " now" : "") + '" title="' + esc(diaBonito(x.day) + ": " + dinero(x.total) + " · " + ventasN(x.n)) + '"><i style="--h:' + Math.round(x.total / max * 100) + '%"></i><span>' + ((n - 1 - i) % paso === 0 ? esc(String(dia(x.day))) : "") + "</span></div>").join("") + "</div>";
+		return h;
+	}
+	function pintarGrafica() {
+		const caja = $("#pnl-graf");
+		if (!caja) return;
+		caja.innerHTML = graficaHtml();
+		caja.querySelectorAll(".pdays button").forEach((b) => { b.onclick = () => verDias(parseInt(b.dataset.d, 10)); });
+	}
+	// Cambiar de tramo: los cortos ya vienen con el Panel; el largo se pide una vez y se guarda.
+	async function verDias(n) {
+		if (!pa.data) return;
+		if (n > (pa.data.series || []).length && !pa.largo) {
+			const caja = $("#pnl-graf");
+			if (caja) caja.style.opacity = ".6";
+			try {
+				const r = await api("dashboard/series?days=" + n);
+				pa.largo = r.series || [];
+			} catch (e) {
+				if (e.message !== "sesion") toast(e.red ? __("No signal: the dashboard reads from the shop.", "dox-pos") : e.message);
+				if (caja) caja.style.opacity = "";
+				return;
+			}
+			if (caja) caja.style.opacity = "";
+		}
+		pa.dias = n;
+		try { localStorage.setItem(PDIAS_MEM, String(n)); } catch (e) { /* sin memoria: no se recuerda el tramo */ }
+		pintarGrafica();
 	}
 	// Abre una pestaña como lo haría el #: "pedidos", "historial/ventas/semana"...
 	function ir(donde) {

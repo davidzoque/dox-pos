@@ -2411,8 +2411,18 @@ msgid "last month at this point: %s"
 msgstr "el mes pasado a esta altura: %s"
 
 #: assets/js/caja.js
-msgid "Last 14 days"
-msgstr "Últimos 14 días"
+msgid "sold in the last %d days"
+msgstr "vendido en los últimos %d días"
+
+#: assets/js/caja.js
+msgid "%s a day"
+msgstr "%s al día"
+
+#: assets/js/caja.js
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d día"
+msgstr[1] "%d días"
 
 #: assets/js/caja.js
 msgid "Best sellers"

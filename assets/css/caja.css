@@ -210,6 +210,7 @@ tr.off,li.off{opacity:.5}
   .mini:hover{background:var(--sunk);border-color:var(--line)}
   .go:not(:disabled):hover{filter:brightness(1.07)}
   .go.alt:not(:disabled):hover{filter:none;background:var(--sunk)}
+  .ks[data-go]:hover{background:var(--sunk)}
 }
 
 /* ---------- ventanas: entran en 200 ms desde el centro, salen en 140 ---------- */
@@ -374,32 +375,54 @@ tr.off,li.off{opacity:.5}
 .hsolo-l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
 .hsolo b{font-weight:600;color:var(--ink)}
 .hsolo .chip{margin-left:auto;background:var(--surface);border-color:transparent;font-weight:600;min-height:32px;padding:4px 12px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.kpis{display:flex;flex-wrap:wrap;gap:10px} /* en flex la última fila se reparte lo que queda: nunca deja el hueco de una rejilla */
+.kpi{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
 .kpi b{display:block;font-family:var(--serif);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-/* ---- el Panel: las tarjetas grandes, las barras de los últimos días y las listas ---- */
+/* ---- el Panel: lo de hoy en grande, la franja de los periodos, la gráfica y las listas ---- */
 .pnl{padding-bottom:24px}
 .pnl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.kpis.big{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.kpis.big .kpi{flex:1 1 230px;padding:14px 16px}
 .kpis.big .kpi b{font-size:26px}
 .kpi i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.35}
 .kpi em{font-style:normal;font-weight:600}
-.kpi em.up{color:var(--ok)}
-.kpi em.down{color:var(--warn)}
+.kpi em.up,.ks em.up{color:var(--ok)}
+.kpi em.down,.ks em.down{color:var(--warn)}
 .kpi[data-go]{cursor:pointer;transition:border-color 150ms ease,box-shadow 150ms ease}
 .kpi[data-go]:hover,.kpi[data-go]:focus-visible{border-color:var(--primary);outline:0;box-shadow:0 0 0 3px var(--soft)}
-.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:12px}
+/* La franja de los periodos: una sola tarjeta con las casillas separadas por la línea del fondo,
+   así no quedan huecos aunque los módulos añadan o quiten casillas. */
+.kstrip{display:flex;flex-wrap:wrap;gap:1px;margin-top:10px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ks{flex:1 1 210px;min-width:0;background:var(--surface);padding:11px 14px;transition:background-color 150ms ease}
+.ks span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ks b{display:block;margin-top:1px;font-family:var(--serif);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks em{font-style:normal;font-weight:600;font-size:12.5px}
+.ks i{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+.ks[data-go]{cursor:pointer}
+.ks[data-go]:focus-visible{outline:0;background:var(--sunk)}
+/* La gráfica: la cifra del tramo manda en la tarjeta, con su rótulo debajo, y los días a la derecha. */
+.pchart{margin-top:12px}
+.pch{display:flex;justify-content:space-between;align-items:flex-start;gap:10px 16px;flex-wrap:wrap;margin-bottom:2px}
+.pchn{min-width:0}
+.pchn b{display:block;font-family:var(--serif);font-weight:600;font-size:27px;line-height:1.15;font-variant-numeric:tabular-nums}
+.pchn span{display:block;margin-top:3px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pchn i{display:block;font-style:normal;font-size:12px;color:var(--faint);margin-top:3px}
+.pdays{flex:none}
+.pdays button{flex:none;min-width:48px;padding:7px 10px;font-variant-numeric:tabular-nums}
+.pbars{display:flex;align-items:flex-end;gap:var(--sep,5px);height:132px;padding-top:10px}
+.pbar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.pbar i{display:block;width:100%;max-width:min(var(--bw,34px),70%);height:var(--h,0%);min-height:3px;background:var(--soft);border-radius:5px 5px 2px 2px;transition:height 300ms ease}
+.pbar.now i{background:var(--primary)}
+.pbar span{height:14px;line-height:14px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums} /* alto fijo: las barras sin día debajo apoyan a la misma altura */
+/* Las listas: lo más vendido a un lado y las tres cuentas cortas al otro, cada tarjeta con su alto. */
+.pgrid{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;margin-top:12px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
-.pcard.pwide{grid-column:1/-1}
+.pcard.pwide{flex:1 1 100%}
+.pmain{flex:3 1 330px}
+.pside{flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:12px}
 .pcard h4{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 8px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .pcard h4 .cnt{font-family:var(--serif);font-size:15px;color:var(--ink)}
 .pcard .empty{padding:8px 0 2px}
-.pbars{display:flex;align-items:flex-end;gap:5px;height:130px;padding-top:6px}
-.pbar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
-.pbar i{display:block;width:100%;max-width:34px;height:var(--h,0%);min-height:3px;background:var(--soft);border-radius:5px 5px 2px 2px;transition:height 300ms ease}
-.pbar.now i{background:var(--primary)}
-.pbar span{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .ptop li{align-items:center;gap:10px}
 .ptop .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .brk{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 28px}

@@ -2,8 +2,9 @@
 /**
  * El Panel: las cifras del día para quien administra, en una pestaña que luce como un cuadro de
  * mando. Vendido hoy con ayer al lado, la semana y el mes contra los anteriores a esta misma
- * altura, los últimos catorce días en barras, lo cobrado hoy por forma de pago, lo que hay por
- * cobrar, los pedidos por atender, lo más vendido y el inventario. Los días anteriores se
+ * altura, los últimos días en barras, lo cobrado hoy por forma de pago, lo que hay por
+ * cobrar, los pedidos por atender, lo más vendido y el inventario. La gráfica enseña 7, 14 o 30
+ * días de los que ya vienen con el Panel, y 90 pidiéndolos aparte. Los días anteriores se
  * calculan una vez por hora; lo de hoy, cada vez que se abre.
  *
  * También lo más vendido de los últimos treinta días, que Vender enseña antes de buscar nada.
@@ -14,6 +15,11 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+// Los días que trae la gráfica sin pedir nada más: los tres tramos cortos salen de aquí.
+const DOX_POS_DASH_DAYS = 30;
+// Los tramos que ofrece la gráfica; el que pasa de DOX_POS_DASH_DAYS se pide aparte.
+const DOX_POS_DASH_RANGES = array( 7, 14, 30, 90 );
 
 /**
  * Todo lo que pinta el Panel. Los añadidos meten sus tarjetas en 'extra' con el filtro
@@ -35,7 +41,7 @@ function dox_pos_dashboard() {
 	$tc    = $cash['totals'];
 
 	// Los días anteriores, guardados una hora, más hoy.
-	$days           = dox_pos_dashboard_past( $today );
+	$days           = dox_pos_dashboard_past( $today, DOX_POS_DASH_DAYS );
 	$days[ $today ] = array( 'day' => $today, 'n' => $ts['orders'], 'units' => $ts['units'], 'total' => $ts['sold'], 'profit' => $see ? $ts['profit'] : 0.0 );
 	$sum            = function ( $from, $to ) use ( $days, $see ) {
 		$t = array( 'sold' => 0.0, 'orders' => 0, 'units' => 0, 'profit' => $see ? 0.0 : null );
@@ -63,15 +69,11 @@ function dox_pos_dashboard() {
 	$lsame  = $lm1->format( 'Y-m-' ) . str_pad( (string) min( (int) $t0->format( 'j' ), (int) $lm1->format( 't' ) ), 2, '0', STR_PAD_LEFT );
 	$lmonth = $sum( $lm1->format( 'Y-m-d' ), $lsame );
 
-	$series = array();
-	for ( $i = 13; $i >= 0; $i-- ) {
-		$d        = ( clone $t0 )->modify( '-' . $i . ' days' )->format( 'Y-m-d' );
-		$r        = $days[ $d ] ?? null;
-		$series[] = array( 'day' => $d, 'total' => $r ? round( (float) $r['total'], 2 ) : 0.0, 'n' => $r ? (int) $r['n'] : 0 );
-	}
-
 	$top = array();
-	foreach ( array_slice( dox_pos_top_products( 30 ), 0, 5 ) as $x ) {
+	foreach ( dox_pos_top_products( 30 ) as $x ) {
+		if ( count( $top ) >= 6 ) { // Seis: los que llenan la columna sin dejarla más corta que la de al lado.
+			break;
+		}
 		$p = wc_get_product( $x['id'] );
 		if ( ! $p || 'trash' === $p->get_status() ) {
 			continue;
@@ -102,7 +104,7 @@ function dox_pos_dashboard() {
 		'yesterday'  => $sum( $yday, $yday ),
 		'week'       => $week + array( 'prev' => $lweek['sold'] ),
 		'month'      => $month + array( 'prev' => $lmonth['sold'] ),
-		'series'     => $series,
+		'series'     => dox_pos_dashboard_series( DOX_POS_DASH_DAYS, $today, $days ),
 		'methods'    => $cash['method_totals'],
 		'pending'    => dox_pos_dashboard_pending(),
 		'top'        => $top,
@@ -115,26 +117,68 @@ function dox_pos_dashboard() {
 }
 
 /**
- * Las ventas por día desde el 1 del mes pasado hasta ayer, guardadas una hora. Se rehacen
- * al cambiar de día, que ayer ya es otro.
+ * Las ventas por día desde el 1 del mes pasado (o desde hace $back días, lo que caiga antes)
+ * hasta ayer, guardadas una hora. Se rehacen al cambiar de día, que ayer ya es otro.
  *
  * @param string $today AAAA-MM-DD.
+ * @param int    $back  Días atrás que tienen que entrar como mínimo, hoy incluido.
  * @return array día => {day, n, units, total, profit}
  */
-function dox_pos_dashboard_past( $today ) {
-	$c = get_transient( 'dox_pos_dash_past' );
+function dox_pos_dashboard_past( $today, $back = 0 ) {
+	$back = max( 0, (int) $back );
+	$key  = 'dox_pos_dash_past_' . $back;
+	$c    = get_transient( $key );
 	if ( is_array( $c ) && ( $c['day'] ?? '' ) === $today && isset( $c['days'] ) ) {
 		return $c['days'];
 	}
 	$t0   = new DateTime( $today . ' 12:00:00', wp_timezone() );
 	$from = ( clone $t0 )->modify( 'first day of last month' )->format( 'Y-m-d' );
+	if ( $back > 1 ) {
+		$from = min( $from, ( clone $t0 )->modify( '-' . ( $back - 1 ) . ' days' )->format( 'Y-m-d' ) );
+	}
 	$to   = ( clone $t0 )->modify( '-1 day' )->format( 'Y-m-d' );
 	$days = array();
 	foreach ( dox_pos_history_sales( $from, $to, 0, 0 )['by_day'] as $r ) {
 		$days[ $r['name'] ] = array( 'day' => $r['name'], 'n' => (int) $r['n'], 'units' => (int) $r['units'], 'total' => (float) $r['total'], 'profit' => (float) $r['profit'] );
 	}
-	set_transient( 'dox_pos_dash_past', array( 'day' => $today, 'days' => $days ), HOUR_IN_SECONDS );
+	set_transient( $key, array( 'day' => $today, 'days' => $days ), HOUR_IN_SECONDS );
 	return $days;
+}
+
+/**
+ * Los últimos días en barras, del más viejo a hoy. Los días sin ventas también van, con un cero,
+ * para que la gráfica no se salte huecos.
+ *
+ * @param int    $days   Cuántos días, hoy incluido.
+ * @param string $today  AAAA-MM-DD.
+ * @param array  $by_day día => {n, total}, como lo deja dox_pos_dashboard_past.
+ * @return array [{day, total, n}]
+ */
+function dox_pos_dashboard_series( $days, $today, $by_day ) {
+	$t0  = new DateTime( $today . ' 12:00:00', wp_timezone() );
+	$out = array();
+	for ( $i = (int) $days - 1; $i >= 0; $i-- ) {
+		$d     = ( clone $t0 )->modify( '-' . $i . ' days' )->format( 'Y-m-d' );
+		$r     = $by_day[ $d ] ?? null;
+		$out[] = array( 'day' => $d, 'total' => $r ? round( (float) $r['total'], 2 ) : 0.0, 'n' => $r ? (int) $r['n'] : 0 );
+	}
+	return $out;
+}
+
+/**
+ * La gráfica de un tramo más largo del que trae el Panel: los días anteriores guardados una hora
+ * y hoy en vivo, que es lo que se está mirando.
+ *
+ * @param int $days Cuántos días, hoy incluido.
+ * @return array [{day, total, n}]
+ */
+function dox_pos_dashboard_long( $days ) {
+	$days           = max( 2, min( 366, (int) $days ) );
+	$today          = wp_date( 'Y-m-d' );
+	$by_day         = dox_pos_dashboard_past( $today, $days );
+	$ts             = dox_pos_history_sales( $today, $today, 0, 0 )['totals'];
+	$by_day[ $today ] = array( 'day' => $today, 'n' => $ts['orders'], 'total' => $ts['sold'] );
+	return dox_pos_dashboard_series( $days, $today, $by_day );
 }
 
 /**

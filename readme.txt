@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.34.0
+Stable tag: 0.35.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.35.0 =
+* The Dashboard is laid out again: today's figures in three big cards, then one strip with the week, the month and whatever the add-ons contribute, and the lists in two columns. No more half-empty rows or cards stretched to fill a gap.
+* The chart of the last days switches between 7, 14, 30 and 90 days, and remembers the choice on that device. Its total is now the headline of the card, saying what it covers and what it averages a day.
+* Best sellers lists six products.
 
 = 0.34.0 =
 * Hardening after a full code review. A sale only takes the channels set in Sales, a discount larger than the products is rejected, and the sales, entries and shipping routes skip malformed lines instead of failing.

@@ -119,6 +119,7 @@ function dox_pos_register_routes() {
 	$date = array( 'type' => 'string', 'required' => false, 'default' => '', 'sanitize_callback' => 'sanitize_text_field' );
 	register_rest_route( $ns, '/history/sales', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_sales', 'permission_callback' => $perm, 'args' => array( 'from' => $date, 'to' => $date ) ) );
 	register_rest_route( $ns, '/dashboard', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_dashboard', 'permission_callback' => 'dox_pos_rest_history_permission' ) ); // El Panel: quien administra.
+	register_rest_route( $ns, '/dashboard/series', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_dashboard_series', 'permission_callback' => 'dox_pos_rest_history_permission', 'args' => array( 'days' => array( 'type' => 'integer', 'default' => 90 ) ) ) ); // La gráfica del Panel cuando pide un tramo más largo.
 	register_rest_route( $ns, '/top', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_top', 'permission_callback' => $perm ) ); // Lo más vendido, para Vender antes de buscar.
 	register_rest_route( $ns, '/catalog', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_catalog', 'permission_callback' => $perm, 'args' => array( 'page' => array( 'type' => 'integer', 'default' => 1 ) ) ) ); // El catálogo de la A a la Z, para Inventario antes de buscar.
 	register_rest_route( $ns, '/history/cash', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_cash', 'permission_callback' => 'dox_pos_rest_history_permission', 'args' => array( 'from' => $date, 'to' => $date ) ) );
@@ -201,6 +202,20 @@ function dox_pos_rest_catalog( WP_REST_Request $request ) {
 
 function dox_pos_rest_dashboard() {
 	return rest_ensure_response( dox_pos_dashboard() );
+}
+
+/**
+ * La gráfica del Panel para un tramo que no viene con él (90 días). Solo los tramos que ofrece.
+ *
+ * @param WP_REST_Request $request La petición.
+ * @return WP_REST_Response
+ */
+function dox_pos_rest_dashboard_series( WP_REST_Request $request ) {
+	$days = (int) $request->get_param( 'days' );
+	if ( ! in_array( $days, DOX_POS_DASH_RANGES, true ) ) {
+		$days = max( DOX_POS_DASH_RANGES );
+	}
+	return rest_ensure_response( array( 'days' => $days, 'series' => dox_pos_dashboard_long( $days ) ) );
 }
 
 function dox_pos_rest_shipping( WP_REST_Request $request ) {
