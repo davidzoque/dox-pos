@@ -106,10 +106,14 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 	$range  = dox_pos_history_range( $from, $to );
 	$orders = dox_pos_history_orders( $range, $seller );
 	$see    = dox_pos_can_see_costs(); // El costo y la ganancia: solo para quien administra.
+	$losses = dox_pos_can_see_losses(); // Las pérdidas anotadas en los pedidos: también solo para quien administra.
 	$t      = array( 'orders' => 0, 'units' => 0, 'sold' => 0.0, 'avg' => 0.0, 'pending_n' => 0, 'pending' => 0.0, 'cancelled_n' => 0 );
 	if ( $see ) {
 		// La ganancia suma solo las ventas con el costo de todas sus líneas; las que no lo tienen se cuentan aparte.
 		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'revenue' => 0.0, 'margin' => null, 'profit_n' => 0, 'no_cost_n' => 0 );
+	}
+	if ( $losses ) {
+		$t += array( 'loss' => 0.0, 'loss_n' => 0 );
 	}
 	$by  = array( 'channel' => array(), 'payment' => array(), 'seller' => array(), 'day' => array() );
 	$add = function ( &$arr, $key, $total, $units, $profit = null ) {
@@ -138,10 +142,18 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 			$f['margin']       = null === $pr['profit'] ? null : dox_pos_margin( $pr['profit'], $pr['revenue'] );
 			$f['cost_missing'] = $pr['missing']; // Líneas sin costo: con alguna, la ganancia de esa venta no se sabe.
 		}
+		if ( $losses ) {
+			$f['loss']      = dox_pos_order_loss( $o );
+			$f['loss_note'] = (string) $o->get_meta( '_dox_pos_loss_note' );
+		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$t['orders']++;
 			$t['units'] += $f['units'];
 			$t['sold']  += $f['total'];
+			if ( $losses && $f['loss'] > 0 ) {
+				$t['loss'] += $f['loss'];
+				$t['loss_n']++;
+			}
 			$profit      = null;
 			if ( $pr ) {
 				if ( null !== $pr['profit'] ) {
@@ -188,6 +200,7 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 		'items'      => $items,
 		'count'      => count( $orders ),
 		'costs'      => $see,
+		'losses'     => $losses,
 	);
 }
 
@@ -203,11 +216,15 @@ function dox_pos_history_cash( $from, $to ) {
 	$range   = dox_pos_history_range( $from, $to );
 	$orders  = dox_pos_history_orders( $range );
 	$see     = dox_pos_can_see_costs();
+	$losses  = dox_pos_can_see_losses();
 	$days    = array();
 	$methods = array();
 	$t       = array( 'orders' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'cod' => 0.0, 'cod_n' => 0, 'holds' => 0.0, 'holds_n' => 0 );
 	if ( $see ) {
 		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'no_cost_n' => 0 ); // La ganancia del día, con las ventas que tienen costo completo.
+	}
+	if ( $losses ) {
+		$t += array( 'loss' => 0.0 ); // Las pérdidas anotadas en las ventas del periodo.
 	}
 	$pending = array();
 	foreach ( $orders as $o ) {
@@ -215,7 +232,7 @@ function dox_pos_history_cash( $from, $to ) {
 		$day    = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status = $o->get_status();
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0 );
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0 );
 		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$days[ $day ]['n']++;
@@ -232,6 +249,11 @@ function dox_pos_history_cash( $from, $to ) {
 				} else {
 					$t['no_cost_n']++;
 				}
+			}
+			if ( $losses ) {
+				$loss                  = dox_pos_order_loss( $o );
+				$days[ $day ]['loss'] += $loss;
+				$t['loss']            += $loss;
 			}
 			if ( $f['cod'] && 'completed' !== $status ) {
 				$days[ $day ]['cod'] += $f['total'];
@@ -270,6 +292,7 @@ function dox_pos_history_cash( $from, $to ) {
 		'days'          => array_values( $days ),
 		'pending'       => array_slice( $pending, 0, 200 ),
 		'costs'         => $see,
+		'losses'        => $losses,
 	);
 }
 
@@ -408,6 +431,9 @@ function dox_pos_sales_xlsx( $d ) {
 		array( __( 'Payment', 'dox-pos' ), 'payment', 'text', 16 ),
 		array( __( 'Total', 'dox-pos' ), 'total', 'money', 13 ),
 	);
+	if ( ! empty( $d['losses'] ) ) { // La pérdida anotada en el pedido, si la hay.
+		$cols[] = array( __( 'Loss', 'dox-pos' ), 'loss', 'money', 13 );
+	}
 	if ( $see ) { // El costo congelado al venderse y lo que dejó; vacío en las ventas sin costo.
 		$cols[] = array( __( 'Cost', 'dox-pos' ), 'cost', 'money', 13 );
 		$cols[] = array( __( 'Profit', 'dox-pos' ), 'profit', 'money', 13 );
@@ -465,6 +491,9 @@ function dox_pos_sales_xlsx( $d ) {
 		$extra[] = array( 'name' => __( 'Sales without a complete cost (not counted in the profit)', 'dox-pos' ), 'n' => $t['no_cost_n'], 'units' => null, 'total' => null, 'profit' => null );
 		$extra[] = array( 'name' => __( 'Margin on sales with a cost', 'dox-pos' ), 'n' => null, 'units' => null, 'total' => null, 'profit' => null === $t['margin'] ? null : $t['margin'] . ' %' );
 	}
+	if ( ! empty( $d['losses'] ) && $t['loss'] > 0 ) {
+		$extra[] = array( 'name' => __( 'Losses noted on the sales', 'dox-pos' ), 'n' => $t['loss_n'], 'units' => null, 'total' => $t['loss'], 'profit' => null );
+	}
 	$c       = $cols2;
 	$c[0][0] = __( 'Aside', 'dox-pos' );
 	if ( $see ) {
@@ -500,6 +529,10 @@ function dox_pos_cash_xlsx( $d ) {
 		$sum[]  = 'cost';
 		$sum[]  = 'profit';
 	}
+	if ( ! empty( $d['losses'] ) ) {
+		$cols[] = array( __( 'Losses', 'dox-pos' ), 'loss', 'money', 14 );
+		$sum[]  = 'loss';
+	}
 	$cols[] = array( __( 'Collected', 'dox-pos' ), 'cashed', 'money', 14 );
 	$sum[]  = 'cashed';
 	foreach ( $d['methods'] as $i => $m ) {
@@ -512,7 +545,7 @@ function dox_pos_cash_xlsx( $d ) {
 	$sum[]  = 'holds';
 	$rows   = array();
 	foreach ( $d['days'] as $r ) {
-		$row = array( 'day' => mysql2date( 'D d/m/Y', $r['day'] . ' 12:00:00' ), 'n' => $r['n'], 'sold' => $r['sold'], 'cashed' => $r['cashed'], 'cod' => $r['cod'] ? $r['cod'] : null, 'holds' => $r['holds'] ? $r['holds'] : null, 'cost' => $r['cost'] ?? null, 'profit' => $r['profit'] ?? null );
+		$row = array( 'day' => mysql2date( 'D d/m/Y', $r['day'] . ' 12:00:00' ), 'n' => $r['n'], 'sold' => $r['sold'], 'cashed' => $r['cashed'], 'cod' => $r['cod'] ? $r['cod'] : null, 'holds' => $r['holds'] ? $r['holds'] : null, 'cost' => $r['cost'] ?? null, 'profit' => $r['profit'] ?? null, 'loss' => ! empty( $r['loss'] ) ? $r['loss'] : null );
 		foreach ( $d['methods'] as $i => $m ) {
 			$row[ 'm' . $i ] = isset( $r['methods'][ $m ] ) ? $r['methods'][ $m ] : null;
 		}

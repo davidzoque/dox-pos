@@ -192,6 +192,9 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 .dp-pay-main{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dp-app .dp-pay-main .dp-input{max-width:320px;height:36px}
 .dp-pay-main .dp-hint{margin:0}
+.dp-pay-own{grid-template-columns:auto minmax(0,1fr) auto auto}
+.dp-pay.is-new{animation:dp-flash 700ms}
+.dp-pay.out{opacity:0;transform:scale(.98);transition:opacity 140ms ease,transform 140ms ease}
 .dp-def{position:relative;display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--dp-line-2);font-size:12.5px;font-weight:500;color:var(--dp-muted);cursor:pointer;white-space:nowrap;margin:0;transition:var(--dp-press)}
 .dp-app .dp-def input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
 .dp-def .dp-def-on{display:none;align-items:center;gap:6px}
@@ -203,7 +206,7 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 .dp-def:has(input:focus-visible){box-shadow:0 0 0 3px var(--dp-ring)}
 .dp-def:hover:not(:has(input:checked)):not(:has(input:disabled)){border-color:var(--dp-ink);color:var(--dp-ink)}
 .dp-def:active{transform:scale(.97)}
-@media screen and (max-width:640px){.dp-pay{grid-template-columns:auto minmax(0,1fr)}.dp-pay .dp-def{grid-column:2}}
+@media screen and (max-width:640px){.dp-pay{grid-template-columns:auto minmax(0,1fr)}.dp-pay .dp-def{grid-column:2}.dp-pay-own{grid-template-columns:auto minmax(0,1fr) auto}.dp-pay-own .dp-quitar{grid-row:1}}
 
 /* ---------- horas ---------- */
 .dp-unitfield{display:inline-flex;align-items:stretch;height:40px;border:1px solid var(--dp-line-2);border-radius:var(--dp-r-sm);overflow:hidden;background:#fff;transition:border-color 150ms ease,box-shadow 150ms ease}

@@ -58,7 +58,7 @@ function dox_pos_register_routes() {
 		)
 	);
 	register_rest_route( $ns, '/orders/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_order_detail', 'permission_callback' => $perm ) );
-	register_rest_route( $ns, '/orders/(?P<id>\d+)/(?P<action>paid|release|shipped|delivered|cancel)', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_order_action', 'permission_callback' => $perm ) );
+	register_rest_route( $ns, '/orders/(?P<id>\d+)/(?P<action>paid|release|shipped|delivered|cancel|loss)', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_order_action', 'permission_callback' => $perm ) );
 	register_rest_route(
 		$ns,
 		'/entries',

@@ -321,13 +321,33 @@ function dox_pos_line_unit_cost( $item ) {
 }
 
 /**
- * El costo y la ganancia de un pedido. La ganancia es lo que pagó la clienta por los productos
- * (con el descuento ya aplicado, sin el envío, que se le paga a la transportadora, y sin
- * impuestos) menos el costo de lo vendido. Si a alguna línea le falta el costo, la ganancia no
- * se sabe (null) y se dice cuántas faltan.
+ * La pérdida anotada en un pedido: lo que costó de más (un envío más caro de lo cobrado, un flete
+ * devuelto, un arreglo). Se guarda en el pedido (_dox_pos_loss, con el motivo en _dox_pos_loss_note)
+ * y se resta de la ganancia de esa venta.
  *
  * @param WC_Order $order El pedido.
- * @return array{cost: float|null, profit: float|null, revenue: float, complete: bool, missing: int}
+ * @return float 0 si no tiene.
+ */
+function dox_pos_order_loss( $order ) {
+	$v = $order->get_meta( '_dox_pos_loss', true, 'edit' );
+	return '' === (string) $v ? 0.0 : max( 0.0, (float) $v );
+}
+
+/**
+ * ¿Este usuario anota y ve las pérdidas de los pedidos? Quien administra la tienda, lleve costos o no.
+ */
+function dox_pos_can_see_losses() {
+	return current_user_can( 'manage_woocommerce' );
+}
+
+/**
+ * El costo y la ganancia de un pedido. La ganancia es lo que pagó la clienta por los productos
+ * (con el descuento ya aplicado, sin el envío, que se le paga a la transportadora, y sin
+ * impuestos) menos el costo de lo vendido y menos la pérdida anotada, si la hay. Si a alguna
+ * línea le falta el costo, la ganancia no se sabe (null) y se dice cuántas faltan.
+ *
+ * @param WC_Order $order El pedido.
+ * @return array{cost: float|null, profit: float|null, revenue: float, loss: float, complete: bool, missing: int}
  */
 function dox_pos_order_profit( $order ) {
 	$cost    = 0.0;
@@ -343,14 +363,16 @@ function dox_pos_order_profit( $order ) {
 		$cost += $u * (int) $it->get_quantity();
 	}
 	$revenue = round( (float) $order->get_total() - (float) $order->get_shipping_total() - (float) $order->get_total_tax(), 2 );
+	$loss    = dox_pos_order_loss( $order );
 	if ( ! $n || $missing === $n ) {
-		return array( 'cost' => null, 'profit' => null, 'revenue' => $revenue, 'complete' => false, 'missing' => $missing );
+		return array( 'cost' => null, 'profit' => null, 'revenue' => $revenue, 'loss' => $loss, 'complete' => false, 'missing' => $missing );
 	}
 	$cost = round( $cost, 2 );
 	return array(
 		'cost'     => $cost,
-		'profit'   => $missing ? null : round( $revenue - $cost, 2 ),
+		'profit'   => $missing ? null : round( $revenue - $cost - $loss, 2 ),
 		'revenue'  => $revenue,
+		'loss'     => $loss,
 		'complete' => 0 === $missing,
 		'missing'  => $missing,
 	);

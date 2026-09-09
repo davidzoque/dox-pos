@@ -159,9 +159,11 @@ def main():
         used.add(js_unesc(m.group(1)[1:-1]))
     data = {'': {'domain': 'messages', 'lang': LOCALE, 'plural-forms': plural}}
     for k, v, pl in items:
-        clean = k.split('\x04')[-1]
+        clean = k.split('\x04')[-1]  # sin el contexto, para ver si el .js usa ese texto
         if clean.split('\0')[0] in used:
-            data[clean.split('\0')[0]] = v.split('\0')
+            # La clave lleva el contexto ("contexto\u0004texto"), que es lo que busca wp.i18n: si se
+            # quitara, una entrada con contexto pisaria a la que no lo tiene (le paso a "Sale").
+            data[k.split('\0')[0]] = v.split('\0')
     out = {'translation-revision-date': '2026-09-08 00:00:00+0000', 'generator': 'Dox POS',
            'source': JS, 'domain': 'messages', 'locale_data': {'messages': data}}
     name = 'dox-pos-%s-%s.json' % (LOCALE, hashlib.md5(JS.encode()).hexdigest())

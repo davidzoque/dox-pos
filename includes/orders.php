@@ -141,6 +141,11 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( ! $lines ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'The order has no products.', 'dox-pos' ) );
 	}
+	// Varias tallas que comparten un mismo total pasan una a una la comprobación de arriba: se suman.
+	$falta = dox_pos_shared_stock_problem( $lines );
+	if ( $falta ) {
+		return $falta;
+	}
 
 	$methods = dox_pos_payment_methods();
 	$pay_key = sanitize_key( $data['payment'] ?? 'transferencia' );
@@ -280,6 +285,47 @@ function dox_pos_stock_problem( $p, $qty ) {
 }
 
 /**
+ * Cuando varias líneas del pedido salen del mismo total (tallas que no llevan las suyas sino las
+ * del producto, "en conjunto"), comprobarlas de a una no basta: cinco de una talla y cinco de otra
+ * pasan las dos con cinco en total. Se suman por el producto que lleva las existencias.
+ *
+ * @param array $lines   [ [product, qty] ].
+ * @param int   $exclude Pedido cuya reserva no cuenta (el que se está creando).
+ * @return WP_Error|null Null si alcanza.
+ */
+function dox_pos_shared_stock_problem( $lines, $exclude = 0 ) {
+	$by = array();
+	foreach ( $lines as $l ) {
+		$p = $l['product'];
+		if ( ! $p->managing_stock() || $p->backorders_allowed() ) {
+			continue;
+		}
+		$hid = (int) $p->get_stock_managed_by_id();
+		if ( $hid === (int) $p->get_id() ) {
+			continue; // Lleva las suyas: ya se comprobó sola.
+		}
+		$by[ $hid ] = array( 'qty' => ( $by[ $hid ]['qty'] ?? 0 ) + (int) $l['qty'], 'n' => ( $by[ $hid ]['n'] ?? 0 ) + 1 );
+	}
+	foreach ( $by as $hid => $g ) {
+		$holder = $g['n'] > 1 ? wc_get_product( $hid ) : null;
+		if ( ! $holder ) {
+			continue;
+		}
+		list( $free, $held ) = dox_pos_stock_free( $holder, $exclude );
+		if ( $free >= $g['qty'] ) {
+			continue;
+		}
+		$msg = sprintf( /* translators: 1: producto, 2: cuántas quedan, 3: cuántas pide el pedido */ __( '%1$s has %2$d left for all its sizes together, and the order takes %3$d.', 'dox-pos' ), $holder->get_name(), max( 0, $free ), $g['qty'] );
+		if ( $held > 0 ) {
+			/* translators: %d: unidades retenidas */
+			$msg .= ' ' . sprintf( _n( '%d is in a payment in progress.', '%d are in payments in progress.', $held, 'dox-pos' ), $held );
+		}
+		return new WP_Error( 'dox_pos_sin_stock', $msg );
+	}
+	return null;
+}
+
+/**
  * Reserva las unidades del pedido con el mecanismo del checkout de WooCommerce
  * (wc_reserve_stock_for_order): un INSERT condicionado que bloquea la fila del
  * inventario mientras compara, así que de dos pedidos simultáneos solo uno la consigue.
@@ -308,6 +354,10 @@ function dox_pos_reserve_stock( $order, $lines ) {
 			if ( $free < $l['qty'] ) {
 				return new WP_Error( 'dox_pos_sin_stock', sprintf( /* translators: 1: producto, 2: cuántos quedan, 3: cuántos pidió */ __( 'There are %2$d of %1$s left, not %3$d: it was just sold somewhere else.', 'dox-pos' ), dox_pos_item_name( $p ), max( 0, $free ), $l['qty'] ) );
 			}
+		}
+		$shared = dox_pos_shared_stock_problem( $lines, $order->get_id() );
+		if ( $shared ) {
+			return $shared;
 		}
 		return new WP_Error( 'dox_pos_sin_stock', __( 'One of the products was just sold somewhere else. Check the stock and try again.', 'dox-pos' ) );
 	}
@@ -365,8 +415,8 @@ function dox_pos_get_own_order( $id ) {
  * Cambios de estado desde la lista de pedidos.
  *
  * @param int    $id     Pedido.
- * @param string $action paid | release | shipped | delivered | cancel.
- * @param array  $extra  carrier, tracking.
+ * @param string $action paid | release | shipped | delivered | cancel | loss.
+ * @param array  $extra  carrier, tracking (shipped); amount, note (loss).
  * @return array|WP_Error
  */
 function dox_pos_order_action( $id, $action, $extra = array() ) {
@@ -435,6 +485,30 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->update_status( 'cancelled', sprintf( /* translators: %s: quién lo anuló */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
+			break;
+		case 'loss':
+			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un flete
+			// devuelto, un arreglo). En cualquier estado, que a veces se sabe después de entregar. Con
+			// 0 se quita. Solo quien administra la tienda.
+			if ( ! dox_pos_can_see_losses() ) {
+				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can note a loss.', 'dox-pos' ) );
+			}
+			$amount = dox_pos_parse_money( $extra['amount'] ?? '' );
+			$amount = null === $amount ? 0.0 : max( 0.0, $amount );
+			$note   = sanitize_text_field( $extra['note'] ?? '' );
+			$was    = dox_pos_order_loss( $order );
+			if ( $amount > 0 ) {
+				$order->update_meta_data( '_dox_pos_loss', wc_format_decimal( $amount, 2 ) );
+				$order->update_meta_data( '_dox_pos_loss_note', $note );
+				$order->add_order_note( trim( sprintf( /* translators: 1: monto, 2: quién lo anotó, 3: motivo */ __( 'Loss of %1$s noted from the register by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $amount ), $who, $note ) ) );
+			} else {
+				$order->delete_meta_data( '_dox_pos_loss' );
+				$order->delete_meta_data( '_dox_pos_loss_note' );
+				if ( $was > 0 ) {
+					$order->add_order_note( sprintf( /* translators: %s: quién la quitó */ __( 'Loss removed from the register by %s.', 'dox-pos' ), $who ) );
+				}
+			}
+			$order->save();
 			break;
 		default:
 			return new WP_Error( 'dox_pos_accion', __( 'Unknown action.', 'dox-pos' ) );
@@ -808,6 +882,7 @@ function dox_pos_order_detail( $id ) {
 			'stock'        => $stock,
 			'exists'       => (bool) $p,
 			'editable'     => (bool) $parent && in_array( $parent->get_type(), array( 'simple', 'variable' ), true ),
+			'shared'       => (bool) $p && 'parent' === $p->get_manage_stock(), // Comparte el total del producto con las otras tallas.
 			'unit_cost'    => $see ? dox_pos_line_unit_cost( $it ) : null, // El costo congelado al venderse.
 		);
 	}
@@ -850,7 +925,9 @@ function dox_pos_order_detail( $id ) {
 			'edit_url'        => current_user_can( 'manage_woocommerce' ) ? $order->get_edit_order_url() : '',
 			'demo'            => (bool) $order->get_meta( '_dox_pos_demo' ),
 		),
-		$see ? dox_pos_order_profit_fields( $order ) : array()
+		$see ? dox_pos_order_profit_fields( $order ) : array(),
+		// La pérdida anotada y su motivo, para quien administra (lleve costos o no).
+		dox_pos_can_see_losses() ? array( 'loss' => dox_pos_order_loss( $order ), 'loss_note' => (string) $order->get_meta( '_dox_pos_loss_note' ) ) : array()
 	);
 }
 

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.24.6
+Stable tag: 0.27.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,29 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.27.0 =
+* Losses. From the order detail, an administrator or shop manager can note what an order cost beyond the goods (a shipment that cost more than what was charged, a freight refunded, a repair), with the reason. It comes off the profit of that sale, shows in the history, the cash report and their Excel files, and the order keeps a note of who wrote it.
+* Your own payment methods. Settings > Sales has "Add payment method": a second Nequi account, Daviplata, Addi, whatever the shop takes. They can be turned off, renamed and removed, and a sale recorded with one counts as paid.
+* Sizes that share one stock total. When a product keeps one total for all its sizes (the parent manages the stock and the sizes inherit it), the register says so ("5 left for all sizes") instead of repeating the number on every size and adding them up, the order cannot take more than that total across sizes, and the message when it does not fit names the product and what is really left. Recording stock on one of those sizes says it goes to the shared total, and the product editor can spread that total by size so each one carries its own units from then on.
+
+= 0.26.0 =
+* The stock tab is called Inventory, and the latest entries show each garment with its photo, name and quantity; tapping one opens its product card.
+
+= 0.25.4 =
+* The "View" button of each check in the assistant's review no longer opens a "That order does not exist" window: the register only opens an order when there is a real order number.
+
+= 0.25.3 =
+* A refund in the shop left the Orders tab blank: the list asked for orders without saying which type and got the refunds too. And the settings cards no longer leave an empty column.
+
+= 0.25.1 =
+* Photos are reduced on the phone before uploading (to the size the shop keeps), so a 48-megapixel photo goes up as about 100 KB and works on any hosting.
+
+= 0.25.0 =
+* Photos from new phones (24 and 48 megapixels) no longer take minutes to convert: the memory given to ImageMagick fits the photo and the reduction happens in two steps.
+
+= 0.24.8 =
+* The sales card in the history said "Sales" in English on a Spanish site: the plural form was missing from the translation.
 
 = 0.24.6 =
 * The total, the figures in the history and the headings are set in Manrope instead of Libre Baskerville: the register reads as a tool, not as a book. If your shop already picked its own fonts in Settings, nothing changes.

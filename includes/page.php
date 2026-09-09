@@ -241,6 +241,7 @@ function dox_pos_js_config() {
 		'hold_hours'      => dox_pos_hold_hours(),
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
+		'losses'          => dox_pos_can_see_losses(),                    // ¿Anota y ve las pérdidas de los pedidos? (administradores y gerentes)
 		'costs'           => dox_pos_can_see_costs(),                     // ¿Ve costos y ganancia? (administradores y gerentes, con los costos encendidos)
 		'url'             => dox_pos_url(),
 		'today'           => wp_date( 'Y-m-d' ),                          // El día de la tienda, para los periodos.

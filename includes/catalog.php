@@ -212,6 +212,8 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'cost'   => dox_pos_can_see_costs() ? dox_pos_product_cost( $v ) : null, // Solo para quien administra: la entrada lo propone como costo de compra.
 		'stock'  => $manage ? (int) $v->get_stock_quantity() : null,
 		'status' => $v->get_stock_status(),
+		'shared' => 'parent' === $manage, // Comparte el total del producto con las otras tallas.
+		'parent' => $simple ? 0 : (int) $v->get_parent_id(),
 	);
 }
 

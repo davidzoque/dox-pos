@@ -144,15 +144,22 @@
 		const l = (modo === "venta" ? st.lineas : st.entrada).find((x) => x.vid === vid);
 		return l ? l.n : 0;
 	}
+	// Las tallas que comparten un total (las existencias van en el producto, no en cada talla): lo que
+	// este pedido ya lleva de cualquiera de ellas sale del mismo total.
+	function enPedidoCompartido(v, modo) {
+		return (modo === "venta" ? st.lineas : st.entrada).reduce((a, l) => { const d = st.vars[l.vid]; return a + (d && d.v.shared && d.v.parent === v.parent ? l.n : 0); }, 0);
+	}
 	// Lo que queda libre: las existencias de la tienda menos lo que ya está en este pedido.
-	const libres = (v) => (v.stock === null ? null : v.stock - enPedido(v.id, "venta"));
+	const libres = (v) => (v.stock === null ? null : v.stock - (v.shared ? enPedidoCompartido(v, "venta") : enPedido(v.id, "venta")));
 	function disponible(v) {
 		return v.stock === null ? v.status !== "outofstock" : libres(v) > 0;
 	}
 	function textoStock(v, modo) {
 		if (v.stock === null) return v.status === "outofstock" ? __("out of stock", "dox-pos") : __("no limit", "dox-pos");
 		const n = modo === "venta" ? libres(v) : v.stock;
-		return n > 0 ? sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>") : __("none left", "dox-pos");
+		if (n <= 0) return __("none left", "dox-pos");
+		if (v.shared) return sprintf(v.talla ? __("%s left for all sizes", "dox-pos") : __("%s left for all options", "dox-pos"), "<b>" + n + "</b>");
+		return sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>");
 	}
 	function pintarResultados(modo) {
 		const ul = listaDe(modo);
@@ -163,7 +170,9 @@
 			return;
 		}
 		items.forEach((p) => {
-			const hay = p.variations.reduce((a, v) => a + (v.stock || 0), 0);
+			// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
+			const compartido = p.variations.find((v) => v.shared && v.stock);
+			const hay = p.variations.reduce((a, v) => a + (v.shared ? 0 : (v.stock || 0)), 0) + (compartido ? compartido.stock : 0);
 			const sinLimite = p.variations.some((v) => v.stock === null && v.status !== "outofstock");
 			const conTalla = p.variations.some((v) => v.talla);
 			const que = conTalla ? _n("size", "sizes", p.variations.length, "dox-pos") : _n("option", "options", p.variations.length, "dox-pos");
@@ -230,7 +239,7 @@
 			li.className = "lin" + (conCosto ? " cost" : "") + (st.flash === modo + ":" + l.vid ? " flash" : "");
 			li.dataset.vid = String(l.vid);
 			li.innerHTML =
-				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + "</i></span>" +
+				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i></span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
 					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="numeric" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
@@ -502,7 +511,7 @@
 		const items = (d.items_list || []).map((it) => "<li>" +
 			'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
 			'<div class="odi"><b>' + esc(it.name) + "</b>" +
-			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(sprintf(__("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
+			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(sprintf(it.shared ? __("%d left for all sizes", "dox-pos") : __("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
 			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
 			"</div>" +
 			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
@@ -515,7 +524,9 @@
 			(d.discount ? "<tr><td>" + esc(__("Discount", "dox-pos")) + "</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
 			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
 			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
-			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse.
+			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un imprevisto). Solo quien administra.
+			(d.loss !== undefined ? '<tr class="loss"><td>' + esc(__("Loss", "dox-pos")) + (d.loss_note ? ' <span class="sub">· ' + esc(d.loss_note) + "</span>" : "") + "</td><td>" + (d.loss ? "−" + dinero(d.loss) + " " : "") + '<button type="button" class="lnk" id="m-loss">' + esc(d.loss ? __("Edit", "dox-pos") : __("Note a loss", "dox-pos")) + "</button></td></tr>" : "") +
+			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse (y la pérdida ya restada).
 			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + dinero(d.profit) + (d.margin !== null ? ' <span class="sub">' + d.margin + " %</span>" : "") + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
 			"</tbody></table></section>";
 		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
@@ -537,6 +548,7 @@
 		modal(h, "wide");
 		botonesPedido(d, $("#modal-card .oda"), true);
 		$("#m-no").onclick = cerrarModal;
+		if ($("#m-loss")) $("#m-loss").onclick = () => modalPerdida(d);
 		$("#modal-card").querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { cerrarModal(); editarDesdeLista(+b.dataset.edit); }; });
 	}
 	function pintarPedidos() {
@@ -591,7 +603,10 @@
 				return;
 			}
 			const msgs = { paid: __("Payment confirmed. It is now ready to ship.", "dox-pos"), release: __("Layaway released. The product goes back to stock.", "dox-pos"), shipped: __("Marked as shipped.", "dox-pos"), delivered: __("Delivered. The order is closed.", "dox-pos"), cancel: __("Order cancelled. The stock goes back.", "dox-pos") };
-			toast(act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido") ? __("Order cancelled.", "dox-pos") : msgs[act]);
+			let msg = msgs[act];
+			if (act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido")) msg = __("Order cancelled.", "dox-pos");
+			else if (act === "loss") msg = extra && extra.amount > 0 ? __("Loss noted.", "dox-pos") : __("Loss removed.", "dox-pos");
+			toast(msg);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.message);
 		}
@@ -889,6 +904,25 @@
 			accion(p, "shipped", extra);
 		};
 		$("#m-no").onclick = cerrarModal;
+	}
+	// La pérdida de un pedido: se anota desde su detalle con el motivo, y se puede cambiar o quitar.
+	function modalPerdida(d) {
+		modal("<h3>" + esc(sprintf(__("Loss on order #%s", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale.", "dox-pos")) + '</p><div class="field"><label for="m-lamt">' + esc(__("How much", "dox-pos")) + '</label><input id="m-lamt" inputmode="numeric" placeholder="0" value="' + (d.loss ? esc(miles(Math.round(d.loss))) : "") + '"></div><div class="field mt"><label for="m-lnote">' + esc(__("Why", "dox-pos")) + '</label><input id="m-lnote" value="' + esc(d.loss_note || "") + '" placeholder="' + esc(__("The shipping cost more than what was charged", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + "</button>" + (d.loss ? '<button type="button" class="go alt" id="m-del">' + esc(__("Remove the loss", "dox-pos")) + "</button>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		const amt = $("#m-lamt");
+		amt.addEventListener("input", () => formatearMiles(amt));
+		const guardar = async (amount, note) => {
+			cerrarModal();
+			await accion(d, "loss", { amount: amount, note: note });
+			verPedido(d.id); // De vuelta al detalle, ya con la pérdida.
+		};
+		$("#m-ok").onclick = () => {
+			const n = num(amt.value);
+			if (n <= 0) { amt.focus(); return; }
+			guardar(n, $("#m-lnote").value.trim());
+		};
+		if ($("#m-del")) $("#m-del").onclick = () => guardar(0, "");
+		$("#m-no").onclick = () => { cerrarModal(); verPedido(d.id); };
+		amt.focus();
 	}
 	function uuid() {
 		return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "r" + Date.now().toString(16) + Math.random().toString(16).slice(2);
@@ -1435,13 +1469,15 @@
 	const filas = () => { const r = tallasOrdenadas(); return r.length ? r : [{ id: 0, name: __("One size", "dox-pos"), label: "" }]; };
 	function pintarCantidades() {
 		const t = $("#p-qty");
-		const shared = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined);
+		const conjunto = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined); // Un total para todas las tallas.
+		const shared = conjunto && !pr.split;
 		$("#p-qty-shared").hidden = !shared;
 		$("#p-todo1").hidden = shared;
 		$("#p-todo0").hidden = shared;
-		if (shared) { // Existencias en conjunto para todas las tallas: se cambian por mercancía o en WooCommerce.
+		if (shared) { // Existencias en conjunto para todas las tallas: se cambian por mercancía, en WooCommerce, o repartiéndolas aquí.
 			t.innerHTML = "";
-			$("#p-qty-shared").textContent = sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared) + " " + __("To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total.", "dox-pos");
+			$("#p-qty-shared").innerHTML = esc(sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared)) + " " + esc(__("To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total.", "dox-pos")) + ' <button type="button" class="lnk" id="p-split">' + esc(__("Spread them by size", "dox-pos")) + "</button>";
+			$("#p-split").onclick = () => { pr.split = true; pintarCantidades(); pintarResumenProducto(); };
 			return;
 		}
 		const cols = columnas();
@@ -1455,6 +1491,10 @@
 			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
+		if (conjunto) { // Repartiendo: se dice cuántas hay que colocar.
+			$("#p-qty-shared").hidden = false;
+			$("#p-qty-shared").textContent = sprintf(_n("There is %d unit in total: write how many go to each size. Once saved, every size carries its own units.", "There are %d units in total: write how many go to each size. Once saved, every size carries its own units.", pr.edit.shared, "dox-pos"), pr.edit.shared);
+		}
 	}
 	function ponerTodas(n) {
 		filas().forEach((r) => columnas().forEach((c) => { pr.qty[qKey(c.key, r.id)] = n; }));
@@ -1462,7 +1502,7 @@
 		pintarResumenProducto();
 	}
 	function unidadesTotales() {
-		if (pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined) return pr.edit.shared;
+		if (pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined && !pr.split) return pr.edit.shared;
 		let u = 0;
 		filas().forEach((r) => columnas().forEach((c) => { u += cantidad(c.key, r.id); }));
 		return u;
@@ -1592,6 +1632,7 @@
 			sizes: rows.map((t) => t.id),
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
 			qty: qty,
+			split_stock: !!pr.split, // Un total en conjunto que se reparte por tallas.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
@@ -1616,7 +1657,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.split = false;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		$("#p-pub").checked = true;
@@ -1773,6 +1814,7 @@
 		if (pr.edit || pr.fotos.length) limpiarProducto();
 		pr.modo = "editar";
 		pr.edit = d;
+		pr.split = false;
 		pr.cats = (d.categories || []).slice();
 		pr.tallas = (d.sizes || []).slice();
 		pr.colores = (d.colors || []).map((c) => ({ key: String(c.key), id: c.id, name: c.name, hex: c.hex }));
@@ -1893,7 +1935,7 @@
 			'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
 			'<td class="items">' + esc(p.items) + "</td><td>" + canal + "</td>" +
 			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">' + esc(__("pays on delivery", "dox-pos")) + "</span>" : "") + "</td>" +
-			'<td class="num">' + dinero(p.total) + "</td>" +
+			'<td class="num">' + dinero(p.total) + (p.loss ? '<br><span class="sub">' + esc(sprintf(__("loss %s", "dox-pos"), dinero(p.loss))) + "</span>" : "") + "</td>" +
 			(conCosto ? '<td class="num">' + (vendido ? (p.profit !== null && p.profit !== undefined ? dinero(p.profit) + '<br><span class="sub">' + p.margin + " %</span>" : '<span class="sub">sin costo</span>') : "") + "</td>" : "") +
 			'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span></td></tr>";
 	}
@@ -1904,6 +1946,7 @@
 		const conCosto = !!d.costs; // Solo quien administra, con los costos encendidos.
 		h += '<div class="kpis">' + kpi(dinero(t.sold), __("Sold", "dox-pos")) + kpi(t.orders, _n("Sale", "Sales", t.orders, "dox-pos")) + kpi(t.units, _n("Unit", "Units", t.units, "dox-pos")) + kpi(dinero(t.avg), __("Per sale", "dox-pos")) +
 			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
+			(d.losses && t.loss > 0 ? kpi("−" + dinero(t.loss), sprintf(_n("Loss on %d sale", "Losses on %d sales", t.loss_n, "dox-pos"), t.loss_n)) : "") +
 			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n)) : "") + "</div>";
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Inventory.", "dox-pos")) + "</p>";
 		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel) + listaHist(__("By payment method", "dox-pos"), d.by_payment) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
@@ -1918,18 +1961,19 @@
 		const t = d.totals;
 		let h = '<p class="hsub">' + esc(__("The cash", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs;
-		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos")) + kpi(dinero(t.sold), __("Sold", "dox-pos")) + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos")) : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		const conPerdida = !!d.losses && t.loss > 0; // Hubo pérdidas anotadas en el periodo: salen como cifra y como columna.
+		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos")) + kpi(dinero(t.sold), __("Sold", "dox-pos")) + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos")) : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos")) : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
 		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals) + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("By day", "dox-pos")) + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
 		if (!d.days.length) h += '<p class="empty">Nada en este periodo.</p>';
 		else {
 			const tot = (m) => (d.method_totals.find((x) => x.name === m) || {}).total || 0;
-			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>' + esc(__("Day", "dox-pos")) + '</th><th class="num">' + esc(__("Sales", "dox-pos")) + '</th><th class="num">' + esc(__("Sold", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Cost", "dox-pos")) + '</th><th class="num">' + esc(__("Profit", "dox-pos")) + "</th>" : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">' + esc(__("To collect", "dox-pos")) + '</th><th class="num">' + esc(__("Layaway", "dox-pos")) + "</th></tr></thead><tbody>";
+			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>' + esc(__("Day", "dox-pos")) + '</th><th class="num">' + esc(__("Sales", "dox-pos")) + '</th><th class="num">' + esc(__("Sold", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Cost", "dox-pos")) + '</th><th class="num">' + esc(__("Profit", "dox-pos")) + "</th>" : "") + (conPerdida ? '<th class="num">' + esc(__("Losses", "dox-pos")) + "</th>" : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">' + esc(__("To collect", "dox-pos")) + '</th><th class="num">' + esc(__("Layaway", "dox-pos")) + "</th></tr></thead><tbody>";
 			d.days.forEach((r) => {
-				h += "<tr><td>" + esc(diaBonito(r.day)) + '</td><td class="num">' + r.n + '</td><td class="num">' + dinero(r.sold) + "</td>" + (conCosto ? '<td class="num">' + (r.n ? dinero(r.cost) : "") + '</td><td class="num">' + (r.n ? dinero(r.profit) : "") + "</td>" : "") + d.methods.map((m) => '<td class="num">' + (r.methods[m] ? dinero(r.methods[m]) : "") + "</td>").join("") + '<td class="num">' + (r.cod ? dinero(r.cod) : "") + '</td><td class="num">' + (r.holds ? dinero(r.holds) : "") + "</td></tr>";
+				h += "<tr><td>" + esc(diaBonito(r.day)) + '</td><td class="num">' + r.n + '</td><td class="num">' + dinero(r.sold) + "</td>" + (conCosto ? '<td class="num">' + (r.n ? dinero(r.cost) : "") + '</td><td class="num">' + (r.n ? dinero(r.profit) : "") + "</td>" : "") + (conPerdida ? '<td class="num">' + (r.loss ? "−" + dinero(r.loss) : "") + "</td>" : "") + d.methods.map((m) => '<td class="num">' + (r.methods[m] ? dinero(r.methods[m]) : "") + "</td>").join("") + '<td class="num">' + (r.cod ? dinero(r.cod) : "") + '</td><td class="num">' + (r.holds ? dinero(r.holds) : "") + "</td></tr>";
 			});
-			if (d.days.length > 1) h += '<tr class="tot"><td>' + esc(__("Total", "dox-pos")) + '</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + (conCosto ? '<td class="num">' + dinero(t.cost) + '</td><td class="num">' + dinero(t.profit) + "</td>" : "") + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
+			if (d.days.length > 1) h += '<tr class="tot"><td>' + esc(__("Total", "dox-pos")) + '</td><td class="num">' + t.orders + '</td><td class="num">' + dinero(t.sold) + "</td>" + (conCosto ? '<td class="num">' + dinero(t.cost) + '</td><td class="num">' + dinero(t.profit) + "</td>" : "") + (conPerdida ? '<td class="num">−' + dinero(t.loss) + "</td>" : "") + d.methods.map((m) => '<td class="num">' + dinero(tot(m)) + "</td>").join("") + '<td class="num">' + dinero(t.cod) + '</td><td class="num">' + dinero(t.holds) + "</td></tr>";
 			h += "</tbody></table></div>";
 		}
 		h += "</div>";

@@ -202,7 +202,70 @@ function dox_pos_payment_methods() {
 		}
 		$out[ $key ] = $m;
 	}
+	// Las que la tienda añadió en Ajustes > Ventas (otra cuenta de Nequi, Daviplata, Addi...): quedan
+	// pagadas al registrar la venta.
+	foreach ( dox_pos_custom_payments() as $m ) {
+		if ( $m['on'] ) {
+			$out[ $m['key'] ] = array( 'id' => 'dox_pos_' . $m['key'], 'title' => $m['title'], 'paid' => true );
+		}
+	}
 	return $out ? $out : dox_pos_builtin_payments();
+}
+
+/**
+ * Las formas de pago propias, tal como se guardaron (encendidas o no). La clave ("p_" y seis
+ * letras o cifras) se asigna al crearla y no cambia aunque se renombre: los pedidos la llevan.
+ *
+ * @return array<int,array{key:string,title:string,on:bool}>
+ */
+function dox_pos_custom_payments() {
+	$s   = dox_pos_sales();
+	$out = array();
+	foreach ( (array) ( $s['custom_payments'] ?? array() ) as $m ) {
+		$key   = sanitize_key( is_array( $m ) ? ( $m['key'] ?? '' ) : '' );
+		$title = sanitize_text_field( is_array( $m ) ? ( $m['title'] ?? '' ) : '' );
+		if ( '' !== $key && '' !== $title ) {
+			$out[] = array( 'key' => $key, 'title' => $title, 'on' => ! empty( $m['on'] ) );
+		}
+	}
+	return $out;
+}
+
+/**
+ * Una clave nueva para una forma de pago propia, distinta de las que ya hay.
+ *
+ * @param string[] $used Las claves ocupadas.
+ * @return string
+ */
+function dox_pos_new_payment_key( $used ) {
+	do {
+		$key = 'p_' . substr( md5( wp_generate_uuid4() ), 0, 6 );
+	} while ( in_array( $key, $used, true ) );
+	return $key;
+}
+
+/**
+ * Una fila de forma de pago propia en Ajustes > Ventas. También pinta la plantilla de las nuevas,
+ * con el índice __i__ que el JS sustituye al añadirla.
+ *
+ * @param int|string $i       Índice en el formulario.
+ * @param array      $m       key, title, on.
+ * @param string     $chosen  La forma de pago por defecto.
+ */
+function dox_pos_custom_payment_row( $i, $m, $chosen ) {
+	$name = 'dox_pos_sales[custom_payments][' . $i . ']';
+	?>
+	<div class="dp-pay dp-pay-own<?php echo ! empty( $m['on'] ) ? '' : ' off'; ?>" data-key="<?php echo esc_attr( $m['key'] ); ?>">
+		<input type="hidden" name="<?php echo esc_attr( $name ); ?>[key]" value="<?php echo esc_attr( $m['key'] ); ?>" class="dp-pay-key">
+		<label class="dp-switch"><input type="checkbox" role="switch" name="<?php echo esc_attr( $name ); ?>[on]" value="1" <?php checked( ! empty( $m['on'] ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $m['title'] ); ?></span></label>
+		<div class="dp-pay-main">
+			<input type="text" name="<?php echo esc_attr( $name ); ?>[title]" value="<?php echo esc_attr( $m['title'] ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Name of the payment method', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Name of the payment method', 'dox-pos' ); ?>">
+			<span class="dp-hint"><?php esc_html_e( 'It is marked as paid when recorded.', 'dox-pos' ); ?></span>
+		</div>
+		<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $m['key'] ); ?>" <?php checked( $chosen, $m['key'] ); ?> <?php disabled( empty( $m['on'] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Make default', 'dox-pos' ); ?></span></label>
+		<button type="button" class="dp-iconbtn dp-quitar" aria-label="<?php esc_attr_e( 'Remove', 'dox-pos' ); ?>"><?php echo wp_kses( dox_pos_icon( 'trash' ), dox_pos_svg_tags() ); ?></button>
+	</div>
+	<?php
 }
 
 /**
@@ -683,21 +746,49 @@ function dox_pos_sanitize_sales( $in ) {
 			'title' => sanitize_text_field( $set[ $key ]['title'] ?? '' ) ?: $m['title'],
 		);
 	}
+	// Las formas de pago propias: nombre y si está encendida. La clave viene del formulario (el JS
+	// la asigna al añadir la fila) y, si falta o se repite, se le pone una nueva.
+	$out['custom_payments'] = array();
+	$used                   = array_keys( $out['payments'] );
+	foreach ( (array) ( $in['custom_payments'] ?? array() ) as $row ) {
+		$title = sanitize_text_field( is_array( $row ) ? ( $row['title'] ?? '' ) : '' );
+		if ( '' === $title ) {
+			continue; // Una fila vacía: como si no se hubiera añadido.
+		}
+		$key = sanitize_key( $row['key'] ?? '' );
+		if ( ! preg_match( '/^p_[a-z0-9]{6}$/', $key ) || in_array( $key, $used, true ) ) {
+			$key = dox_pos_new_payment_key( $used );
+		}
+		$used[] = $key;
+		$on     = ! empty( $row['on'] );
+		$any    = $any || $on;
+		$out['custom_payments'][] = array( 'key' => $key, 'title' => $title, 'on' => $on );
+	}
 	if ( ! $any ) {
 		add_settings_error( 'dox_pos', 'payments', __( 'At least one payment method is needed. All of them were turned on.', 'dox-pos' ) );
 		foreach ( $out['payments'] as &$p ) {
 			$p['on'] = true;
 		}
 		unset( $p );
+		foreach ( $out['custom_payments'] as &$p ) {
+			$p['on'] = true;
+		}
+		unset( $p );
+	}
+	$on_keys = array();
+	foreach ( $out['payments'] as $key => $p ) {
+		if ( $p['on'] ) {
+			$on_keys[] = $key;
+		}
+	}
+	foreach ( $out['custom_payments'] as $p ) {
+		if ( $p['on'] ) {
+			$on_keys[] = $p['key'];
+		}
 	}
 	$default = sanitize_key( $in['default_payment'] ?? '' );
-	if ( ! $default || empty( $out['payments'][ $default ]['on'] ) ) {
-		foreach ( $out['payments'] as $key => $p ) {
-			if ( $p['on'] ) {
-				$default = $key;
-				break;
-			}
-		}
+	if ( ! in_array( $default, $on_keys, true ) ) {
+		$default = (string) ( $on_keys[0] ?? '' );
 	}
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
@@ -987,6 +1078,7 @@ function dox_pos_settings_page() {
 	$sales    = dox_pos_sales();
 	$channels = dox_pos_channels();
 	$payments = dox_pos_builtin_payments();
+	$customs  = dox_pos_custom_payments();
 	$active   = dox_pos_payment_methods();
 	$default  = dox_pos_default_payment();
 	$logo     = dox_pos_logo_url();
@@ -1228,7 +1320,12 @@ function dox_pos_settings_page() {
 								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Make default', 'dox-pos' ); ?></span></label>
 							</div>
 							<?php endforeach; ?>
+							<?php foreach ( $customs as $i => $m ) : ?>
+								<?php dox_pos_custom_payment_row( $i, $m, $default ); ?>
+							<?php endforeach; ?>
 						</div>
+						<button type="button" class="dp-btn dp-btn-soft" id="dp-pago-add"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Add payment method', 'dox-pos' ); ?></button>
+						<template id="dp-pago-tpl"><?php dox_pos_custom_payment_row( '__i__', array( 'key' => '', 'title' => '', 'on' => true ), '-' ); ?></template>
 					</div>
 
 					<div class="dp-card">

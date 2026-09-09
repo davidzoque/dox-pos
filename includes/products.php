@@ -1356,7 +1356,8 @@ function dox_pos_common_price( $variations ) {
  *
  * @param int   $id   Producto.
  * @param array $data Igual que al crear: name, price ('' = no tocar), cost ('' = no tocar, 0 = quitarlo),
- *                    categories, description, publish, sizes, colors, qty, images.
+ *                    categories, description, publish, sizes, colors, qty, images, y split_stock
+ *                    (repartir por tallas un total que iba en conjunto: desde ahí cada una lleva las suyas).
  * @return array|WP_Error
  */
 function dox_pos_update_product( $id, $data ) {
@@ -1395,6 +1396,9 @@ function dox_pos_update_product( $id, $data ) {
 		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
 	$variable = $p->is_type( 'variable' );
+	// Repartir por tallas un total que iba en conjunto (el padre las controlaba y las tallas heredaban):
+	// cada talla pasa a llevar las que digan las casillas, y el padre deja de llevarlas.
+	$split = $variable && null !== $model['shared'] && ! empty( $data['split_stock'] );
 
 	// Tallas y colores: los que ya tenía, más los nuevos. A un producto que no varía por color
 	// (o por talla) no se le añaden desde aquí: sus variaciones quedarían para "cualquier" color.
@@ -1497,6 +1501,10 @@ function dox_pos_update_product( $id, $data ) {
 			}
 		}
 	} else {
+		if ( $split ) {
+			$p->set_manage_stock( false );
+			$p->set_stock_quantity( null );
+		}
 		$new_sizes  = array_values( array_diff( array_keys( $sizes ), $model['sizes'] ) );
 		$new_colors = array_values( array_diff( array_keys( $colors ), array_column( $model['colors'], 'key' ) ) );
 		if ( $new_sizes || $new_colors ) {
@@ -1541,10 +1549,13 @@ function dox_pos_update_product( $id, $data ) {
 				$v->set_regular_price( $price );
 				$changed = true;
 			}
-			if ( null === $model['shared'] && null !== $vr['stock'] ) {
+			if ( ( null === $model['shared'] && null !== $vr['stock'] ) || $split ) {
 				$row = $qty[ $vr['color'] ] ?? null;
 				if ( is_array( $row ) && array_key_exists( (string) $vr['size'], $row ) ) {
 					$n = max( 0, (int) $row[ (string) $vr['size'] ] );
+					if ( $split && null === $vr['stock'] ) {
+						$v->set_manage_stock( true ); // Deja de heredar el total del producto: desde ahora lleva las suyas.
+					}
 					if ( $n !== $vr['stock'] ) {
 						$v->set_stock_quantity( $n );
 						$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
@@ -1602,7 +1613,7 @@ function dox_pos_update_product( $id, $data ) {
 				if ( '' !== $base_price ) {
 					$v->set_regular_price( $base_price );
 				}
-				if ( null === $model['shared'] ) {
+				if ( null === $model['shared'] || $split ) {
 					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
 					$v->set_manage_stock( true );
 					$v->set_stock_quantity( $n );

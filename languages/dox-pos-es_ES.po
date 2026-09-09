@@ -2178,3 +2178,111 @@ msgstr "Hola {name}, tu pedido #{order} de {store} ya salió con {carrier}.\nGu�
 msgctxt "fecha y hora"
 msgid "F j, G:i"
 msgstr "j \\d\\e F, G:i"
+
+#: includes/orders.php
+msgid "%1$s has %2$d left for all its sizes together, and the order takes %3$d."
+msgstr "De %1$s quedan %2$d para todas sus tallas juntas, y el pedido lleva %3$d."
+
+#: includes/orders.php
+msgid "Only administrators and shop managers can note a loss."
+msgstr "Anotar una pérdida es cosa de administradores y gerentes de tienda."
+
+#: includes/orders.php
+msgid "Loss of %1$s noted from the register by %2$s. %3$s"
+msgstr "Pérdida de %1$s anotada desde la caja por %2$s. %3$s"
+
+#: includes/orders.php
+msgid "Loss removed from the register by %s."
+msgstr "Pérdida quitada desde la caja por %s."
+
+#: includes/history.php assets/js/caja.js
+msgid "Loss"
+msgstr "Pérdida"
+
+#: includes/history.php
+msgid "Losses noted on the sales"
+msgstr "Pérdidas anotadas en las ventas"
+
+#: includes/history.php assets/js/caja.js
+msgid "Losses"
+msgstr "Pérdidas"
+
+#: includes/settings.php
+msgid "Add payment method"
+msgstr "Añadir forma de pago"
+
+#: includes/settings.php
+msgid "Name of the payment method"
+msgstr "Nombre de la forma de pago"
+
+#: assets/js/caja.js
+msgid "%s left for all sizes"
+msgstr "quedan %s para todas las tallas"
+
+#: assets/js/caja.js
+msgid "%s left for all options"
+msgstr "quedan %s para todas las opciones"
+
+#: assets/js/caja.js
+msgid "goes to the total shared by all sizes"
+msgstr "va al total que comparten todas las tallas"
+
+#: assets/js/caja.js
+msgid "%d left for all sizes"
+msgstr "quedan %d para todas las tallas"
+
+#: assets/js/caja.js
+msgid "Note a loss"
+msgstr "Anotar una pérdida"
+
+#: assets/js/caja.js
+msgid "Loss on order #%s"
+msgstr "Pérdida en el pedido #%s"
+
+#: assets/js/caja.js
+msgid "What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale."
+msgstr "Lo que este pedido te costó de más, aparte de la mercancía: un envío más caro de lo que cobraste, un flete que devolviste, un arreglo. Se resta de la ganancia de esta venta."
+
+#: assets/js/caja.js
+msgid "How much"
+msgstr "Cuánto"
+
+#: assets/js/caja.js
+msgid "Why"
+msgstr "Por qué"
+
+#: assets/js/caja.js
+msgid "The shipping cost more than what was charged"
+msgstr "El envío costó más de lo cobrado"
+
+#: assets/js/caja.js
+msgid "Remove the loss"
+msgstr "Quitar la pérdida"
+
+#: assets/js/caja.js
+msgid "Loss noted."
+msgstr "Pérdida anotada."
+
+#: assets/js/caja.js
+msgid "Loss removed."
+msgstr "Pérdida quitada."
+
+#: assets/js/caja.js
+msgid "loss %s"
+msgstr "pérdida %s"
+
+#: assets/js/caja.js
+msgid "Loss on %d sale"
+msgid_plural "Losses on %d sales"
+msgstr[0] "Pérdida en %d venta"
+msgstr[1] "Pérdidas en %d ventas"
+
+#: assets/js/caja.js
+msgid "Spread them by size"
+msgstr "Repartirlas por talla"
+
+#: assets/js/caja.js
+msgid "There is %d unit in total: write how many go to each size. Once saved, every size carries its own units."
+msgid_plural "There are %d units in total: write how many go to each size. Once saved, every size carries its own units."
+msgstr[0] "Hay %d unidad en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."
+msgstr[1] "Hay %d unidades en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."

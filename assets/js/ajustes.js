@@ -327,7 +327,9 @@
 			if (!$('input[type="checkbox"]', row).checked) return;
 			const s = document.createElement("span");
 			const input = $(".dp-input", row);
-			s.textContent = input.value.trim() || input.placeholder;
+			const name = input.value.trim() || (row.classList.contains("dp-pay-own") ? "" : input.placeholder); // Una propia sin nombre todavía no sale.
+			if (!name) return;
+			s.textContent = name;
 			if ($('input[type="radio"]', row).checked) s.className = "on";
 			box.appendChild(s);
 		});
@@ -344,6 +346,41 @@
 			const primera = $$('.dp-pay input[type="checkbox"]', pagos).find((c) => c.checked);
 			if (primera) $('input[type="radio"]', primera.closest(".dp-pay")).checked = true;
 		}
+	});
+	// Las formas de pago propias: se añaden con una clave nueva (que ya no cambia: los pedidos la llevan) y se quitan.
+	const pagoTpl = $("#dp-pago-tpl");
+	let np = $$(".dp-pay-own", pagos).length; // Los índices nuevos siguen contando aunque se quiten filas.
+	const claveNueva = () => "p_" + Array.from({ length: 6 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
+	if (pagoTpl) {
+		$("#dp-pago-add").addEventListener("click", () => {
+			const row = pagoTpl.content.cloneNode(true).querySelector(".dp-pay");
+			const key = claveNueva();
+			$$("input", row).forEach((i) => { i.name = i.name.replace("__i__", String(np)); });
+			row.dataset.key = key;
+			$(".dp-pay-key", row).value = key;
+			$('input[type="radio"]', row).value = key;
+			row.classList.add("is-new");
+			np++;
+			pagos.appendChild(row);
+			$(".dp-input", row).focus();
+			sucio();
+		});
+	}
+	pagos.addEventListener("click", (e) => {
+		const b = e.target.closest(".dp-quitar");
+		if (!b) return;
+		const row = b.closest(".dp-pay");
+		const eraDefault = $('input[type="radio"]', row).checked;
+		row.classList.add("out");
+		setTimeout(() => {
+			row.remove();
+			if (eraDefault) { // La que sale marcada pasa a ser la primera encendida.
+				const primera = $$('.dp-pay input[type="checkbox"]', pagos).find((c) => c.checked);
+				if (primera) $('input[type="radio"]', primera.closest(".dp-pay")).checked = true;
+			}
+			pintarPagos();
+			sucio();
+		}, 140);
 	});
 
 	// ---------- apartados: horas, mensaje y nota ----------
