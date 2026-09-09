@@ -1011,7 +1011,7 @@
 	}
 	function agregarArchivos(files) {
 		Array.from(files || []).forEach((file) => {
-			if (cfg.max_upload && file.size > cfg.max_upload) { toast(sprintf(__("%s is larger than the server allows.", "dox-pos"), file.name)); return; }
+			if (file.size > 200 * 1024 * 1024) { toast(sprintf(__("%s is larger than the server allows.", "dox-pos"), file.name)); return; } // El del servidor se mira al subir, ya reducida.
 			const ext = (file.name.split(".").pop() || "").toUpperCase();
 			const f = { uid: ++uidN, file: file, ext: ext.length <= 4 ? ext : __("PHOTO", "dox-pos"), estado: "cola", url: "", local: "", id: 0, color: "", kb: 0, error: "" };
 			try { f.url = URL.createObjectURL(file); f.local = f.url; } catch (e) { /* sin vista previa */ }
@@ -1020,6 +1020,58 @@
 		pintarFotos();
 		pintarResumenProducto();
 		procesarFotos();
+	}
+	// Reduce la foto en el propio teléfono antes de mandarla. Un teléfono nuevo saca fotos de 24 o
+	// 48 megapíxeles: son varios megas por foto y el servidor tarda segundos en descifrarlas. A la
+	// medida con la que la tienda las va a guardar pesan unos cientos de kilobytes, así que suben
+	// al instante aunque haya poca señal. Si el navegador no sabe leer el formato (un HEIC en
+	// Android, por ejemplo) devuelve null y se manda la original: el servidor la reduce igual.
+	async function reducirFoto(file, maxPx) {
+		if (!maxPx || !file || !window.createImageBitmap || !HTMLCanvasElement.prototype.toBlob) return null;
+		if (file.size <= 500 * 1024) return null; // Ya es pequeña: no hay nada que ganar.
+		let bmp = null;
+		try {
+			bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); // ya derecha, sin depender del EXIF
+		} catch (e) {
+			return null; // El navegador no lee ese formato.
+		}
+		try {
+			const lado = Math.max(bmp.width, bmp.height);
+			if (!lado || lado <= maxPx) return null;
+			let cv = document.createElement("canvas");
+			let w = bmp.width, h = bmp.height, src = bmp;
+			// En dos pasos cuando la reducción es grande: de una sola pasada el navegador deja
+			// dientes de sierra en los bordes finos.
+			if (lado > maxPx * 3) {
+				const e1 = (maxPx * 2) / lado;
+				cv.width = w = Math.max(1, Math.round(bmp.width * e1));
+				cv.height = h = Math.max(1, Math.round(bmp.height * e1));
+				const c1 = cv.getContext("2d");
+				if (!c1) return null;
+				c1.imageSmoothingEnabled = true;
+				c1.imageSmoothingQuality = "high";
+				c1.drawImage(bmp, 0, 0, w, h);
+				src = cv;
+				cv = document.createElement("canvas");
+			}
+			const e2 = maxPx / Math.max(w, h);
+			cv.width = Math.max(1, Math.round(w * e2));
+			cv.height = Math.max(1, Math.round(h * e2));
+			const ctx = cv.getContext("2d");
+			if (!ctx) return null;
+			ctx.imageSmoothingEnabled = true;
+			ctx.imageSmoothingQuality = "high";
+			ctx.drawImage(src, 0, 0, cv.width, cv.height);
+			const aBlob = (tipo) => new Promise((res) => { try { cv.toBlob(res, tipo, 0.95); } catch (e) { res(null); } });
+			let blob = await aBlob("image/webp");
+			if (!blob || blob.type !== "image/webp") blob = await aBlob("image/jpeg"); // Safari viejo no escribe WebP.
+			if (!blob || !blob.size || blob.size >= file.size) return null; // No mejoró: se manda la original.
+			return new File([blob], (file.name || "foto").replace(/\.[^.]+$/, "") + (blob.type === "image/webp" ? ".webp" : ".jpg"), { type: blob.type });
+		} catch (e) {
+			return null;
+		} finally {
+			if (bmp && bmp.close) bmp.close();
+		}
 	}
 	async function procesarFotos() {
 		if (pr.subiendo) return;
@@ -1030,8 +1082,10 @@
 		pintarFotos();
 		pintarResumenProducto();
 		try {
+			if (!f.lista) { f.lista = (await reducirFoto(f.file, cfg.max_px)) || f.file; }
+			if (cfg.max_upload && f.lista.size > cfg.max_upload) { throw new Error(sprintf(__("%s is larger than the server allows.", "dox-pos"), f.file.name || "")); }
 			const fd = new FormData();
-			fd.append("file", f.file, f.file.name || "foto");
+			fd.append("file", f.lista, f.lista.name || "foto");
 			fd.append("name", $("#p-nom").value.trim());
 			const d = await api("products/image", { method: "POST", body: fd });
 			if (pr.fotos.includes(f)) { // si la quitaron mientras subía, se borra del servidor

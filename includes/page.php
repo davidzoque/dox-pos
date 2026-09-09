@@ -245,6 +245,7 @@ function dox_pos_js_config() {
 		'url'             => dox_pos_url(),
 		'today'           => wp_date( 'Y-m-d' ),                          // El día de la tienda, para los periodos.
 		'max_upload'      => (int) wp_max_upload_size(),
+		'max_px'          => (int) dox_pos_products_settings()['max_px'], // El lado mayor con el que se guardan las fotos: el teléfono ya las manda a esa medida.
 		'version'         => DOX_POS_VERSION,
 	);
 	return apply_filters( 'dox_pos_cfg', $cfg ); // Los añadidos meten lo suyo (el Pro: assistant, ai_ready, demo).
