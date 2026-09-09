@@ -2223,7 +2223,8 @@
 	}
 	function pintarMovimientos(d) {
 		let h = '<p class="hsub">' + esc(__("Movements", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
-		if (hi.producto) h += '<p class="hint">' + esc(__("Only", "dox-pos")) + " <b>" + esc(hi.productoNombre) + '</b> <button type="button" class="undo" id="h-solo-x">' + esc(__("see them all", "dox-pos")) + "</button></p>";
+		// El filtro por producto, bien visible: una franja de color con el nombre y el botón para quitarlo.
+		if (hi.producto) h += '<div class="hsolo" role="status"><span class="hsolo-l">' + esc(__("Only this product", "dox-pos")) + "</span><b>" + esc(hi.productoNombre) + '</b><button type="button" class="chip" id="h-solo-x">' + esc(__("See them all", "dox-pos")) + " \u2715</button></div>";
 		h += '<p class="hint">' + (d.total ? esc(sprintf(_n("%d movement", "%d movements", d.total, "dox-pos"), d.total)) + " · " + esc(__("in", "dox-pos")) + " <b>+" + d.in + "</b> · " + esc(__("out", "dox-pos")) + " <b>−" + d.out + "</b> · " + excelLink("movimientos") : esc(__("No movements in this period. Every sale, stock entry, cancellation and stock change is kept here, with its reason and who did it.", "dox-pos"))) + "</p>";
 		if (d.items.length) {
 			const conCosto = !!d.costs; // El costo por unidad de cada movimiento (el de compra en una entrada), para quien administra.

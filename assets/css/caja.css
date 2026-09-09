@@ -370,6 +370,10 @@ tr.off,li.off{opacity:.5}
 .hfechas input{width:auto;padding:7px 10px;font-size:13px}
 .histwrap{max-width:1100px;margin:0 auto;width:100%}
 .hsub{font-family:var(--serif);font-size:19px;font-weight:600;margin:12px 0 10px}
+.hsolo{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:6px 0 12px;padding:10px 12px 10px 14px;background:var(--soft);color:var(--soft-accent);border-radius:12px;font-size:14px}
+.hsolo-l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.hsolo b{font-weight:600;color:var(--ink)}
+.hsolo .chip{margin-left:auto;background:var(--surface);border-color:transparent;font-weight:600;min-height:32px;padding:4px 12px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
 .kpi b{display:block;font-family:var(--serif);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

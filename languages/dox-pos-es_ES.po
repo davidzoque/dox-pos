@@ -2585,3 +2585,11 @@ msgstr "Sin señal: no se pudieron cargar más productos."
 #: assets/js/caja.js
 msgid "There are no products yet."
 msgstr "Todavía no hay productos."
+
+#: assets/js/caja.js
+msgid "Only this product"
+msgstr "Solo este producto"
+
+#: assets/js/caja.js
+msgid "See them all"
+msgstr "Ver todos"

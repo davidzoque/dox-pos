@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.33.2
+Stable tag: 0.33.3
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.33.3 =
+* In Reports > Movements, filtering by a product now shows a coloured strip with the product's name and a "See them all" button, instead of a line of small text that was easy to miss.
 
 = 0.33.2 =
 * The Inventory list is titled just "All products", with the count.
