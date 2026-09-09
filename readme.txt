@@ -20,7 +20,7 @@ It is built for the shop that sells through chat and ships by courier, not for a
 = What it does =
 
 * **Sell and put on layaway.** Channel, customer, city, shipping, discount and payment method. A sale becomes a WooCommerce order, so the stock, the reports and the emails are the ones the store already had. A layaway holds the stock and cancels itself if it is not paid within the deadline you set.
-* **Stock in.** Record what arrives with supplier, invoice and cost. It adds to the stock and warns you if the same invoice was already recorded from another phone.
+* **Inventory.** Record what arrives with supplier, invoice and cost. It adds to the stock and warns you if the same invoice was already recorded from another phone.
 * **Orders.** The ones from the register and, if you want, the ones from the website, with their status and the WhatsApp message ready. Mark them shipped with a carrier and a tracking number, and the customer gets an email with the tracking link, using the store's own email design.
 * **Products.** Create and edit products from the phone: photos (iPhone HEIC included, stored as WebP), sizes, colors, units per size and an automatic SKU that follows the one the store already uses.
 * **History.** Sales, the daily cash, the stock ledger and, with costs on, what each product leaves. Everything downloads as a real Excel file.
@@ -74,7 +74,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 == Screenshots ==
 
 1. Recording a sale: search on the left, the order on the right, with the channel it came in through, the customer and how they pay.
-2. Stock in, with the supplier, the invoice and the cost of each unit.
+2. Inventory, with the supplier, the invoice and the cost of each unit.
 3. Orders from the register and from the website, with their status and the WhatsApp message ready.
 4. Creating a product from the phone: photos, sizes, colors and units.
 5. History: sales, daily cash and the stock ledger, with the profit of each sale.

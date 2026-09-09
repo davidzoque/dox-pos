@@ -186,6 +186,43 @@ function dox_pos_list_entries( $limit = 40 ) {
 	return array_map( 'dox_pos_format_entry', $rows ?: array() );
 }
 
+/**
+ * La foto y el producto padre de una lista de tallas o productos, resuelto de una vez para toda
+ * la lista: tres consultas en vez de una por línea, que con cuarenta entradas serían cientos.
+ *
+ * @param int[] $ids Productos o variaciones.
+ * @return array<int,array{pid:int,image:string}>
+ */
+function dox_pos_items_media( $ids ) {
+	global $wpdb;
+	$ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $ids ) ) ) );
+	$out = array();
+	if ( ! $ids ) {
+		return $out;
+	}
+	$marks = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+	$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT p.ID, p.post_parent, pm.meta_value AS thumb, pp.meta_value AS parent_thumb FROM {$wpdb->posts} p LEFT JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_thumbnail_id' LEFT JOIN {$wpdb->postmeta} pp ON pp.post_id = p.post_parent AND pp.meta_key = '_thumbnail_id' WHERE p.ID IN ({$marks})", ...$ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- El sniff no ve los marcadores dentro de la variable ni cuenta los argumentos desempaquetados.
+	$thumbs = array();
+	foreach ( (array) $rows as $r ) {
+		$t = (int) ( $r['thumb'] ? $r['thumb'] : $r['parent_thumb'] );
+		$out[ (int) $r['ID'] ] = array( 'pid' => (int) $r['post_parent'] ? (int) $r['post_parent'] : (int) $r['ID'], 'thumb' => $t, 'image' => '' );
+		if ( $t ) {
+			$thumbs[] = $t;
+		}
+	}
+	if ( $thumbs ) {
+		_prime_post_caches( array_values( array_unique( $thumbs ) ), false, true ); // Las fotos y sus tamaños, de una vez.
+		foreach ( $out as $id => $d ) {
+			if ( $d['thumb'] ) {
+				$url = wp_get_attachment_image_url( $d['thumb'], 'woocommerce_thumbnail' );
+				$out[ $id ]['image'] = $url ? $url : '';
+			}
+			unset( $out[ $id ]['thumb'] );
+		}
+	}
+	return $out;
+}
+
 function dox_pos_format_entry( $row ) {
 	$lines = (array) json_decode( $row['items'], true );
 	$user  = $row['user_id'] ? get_userdata( (int) $row['user_id'] ) : null;
@@ -201,7 +238,33 @@ function dox_pos_format_entry( $row ) {
 		'status'   => $row['status'],
 		'user'     => $user ? $user->display_name : '',
 		'items'    => implode( ' + ', array_map( fn( $l ) => $l['name'] . ' ×' . $l['qty'], $lines ) ),
+		// Y las mismas líneas una por una, con su foto y su ficha, para poder tocarlas en la caja.
+		'lines'    => dox_pos_entry_lines( $lines ),
 	);
+}
+
+/**
+ * Las líneas de una entrada tal como las pinta la caja.
+ *
+ * @param array $lines Lo guardado en la entrada.
+ * @return array
+ */
+function dox_pos_entry_lines( $lines ) {
+	$media = dox_pos_items_media( wp_list_pluck( (array) $lines, 'id' ) );
+	$out   = array();
+	foreach ( (array) $lines as $l ) {
+		$id    = (int) ( $l['id'] ?? 0 );
+		$m     = $media[ $id ] ?? array( 'pid' => $id, 'image' => '' );
+		$out[] = array(
+			'id'    => $id,
+			'pid'   => (int) $m['pid'],
+			'name'  => (string) ( $l['name'] ?? '' ),
+			'sku'   => (string) ( $l['sku'] ?? '' ),
+			'qty'   => (int) ( $l['qty'] ?? 0 ),
+			'image' => (string) $m['image'],
+		);
+	}
+	return $out;
 }
 
 /**

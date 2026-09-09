@@ -983,8 +983,8 @@ msgstr "La caja propone el siguiente código libre del prefijo que usa la catego
 msgid "Costs and profit"
 msgstr "Costos y ganancia"
 
-msgid "What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Stock in, every purchase with its cost recalculates the product's average cost."
-msgstr "Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Entró mercancía, cada compra con su costo recalcula el costo promedio del producto."
+msgid "What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Inventory, every purchase with its cost recalculates the product's average cost."
+msgstr "Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Inventario, cada compra con su costo recalcula el costo promedio del producto."
 
 msgid "This version of WooCommerce does not have the cost field"
 msgstr "Esta versión de WooCommerce no trae el campo de costo"
@@ -1001,8 +1001,8 @@ msgstr "Guarda estos ajustes con el interruptor puesto y se enciende (WooCommerc
 msgid "Track product costs and see the profit (turns on the WooCommerce cost field)"
 msgstr "Llevar el costo de los productos y ver la ganancia (enciende el campo de costo de WooCommerce)"
 
-msgid "Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with \"Upload costs from Excel\" in Stock in."
-msgstr "Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con \"Subir costos desde Excel\" en Entró mercancía."
+msgid "Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with \"Upload costs from Excel\" in Inventory."
+msgstr "Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con \"Subir costos desde Excel\" en Inventario."
 
 msgid "Who creates products"
 msgstr "Quién crea productos"
@@ -1111,9 +1111,6 @@ msgstr "Por la API"
 
 msgid "Via the command line"
 msgstr "Por consola"
-
-msgid "Stock in"
-msgstr "Entró mercancía"
 
 msgid "History"
 msgstr "Historial"
@@ -1771,8 +1768,8 @@ msgstr "Sin tallas: talla única."
 msgid "Marked by the category. If the product does not come in all of them, tap the extra ones to remove them."
 msgstr "Marcadas por la categoría. Si el producto no viene en todas, toca las que sobran para quitarlas."
 
-msgid "To change it, record the goods in Stock in or do it in WooCommerce. A new size uses that same total."
-msgstr "Para cambiarlo, registra la mercancía en Entró mercancía o hazlo en WooCommerce. Una talla nueva usa ese mismo total."
+msgid "To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total."
+msgstr "Para cambiarlo, registra la mercancía en Inventario o hazlo en WooCommerce. Una talla nueva usa ese mismo total."
 
 msgid "Choose a category."
 msgstr "Elige una categoría."
@@ -1975,8 +1972,8 @@ msgstr "Por venta"
 msgid "Not paid yet (%d)"
 msgstr "Sin pagar aún (%d)"
 
-msgid "The cost is set in Products, or loaded all at once from the inventory Excel in Stock in."
-msgstr "El costo se pone en Productos, o se carga de golpe desde el Excel del inventario en Entró mercancía."
+msgid "The cost is set in Products, or loaded all at once from the inventory Excel in Inventory."
+msgstr "El costo se pone en Productos, o se carga de una vez con el Excel del inventario en Inventario."
 
 msgid "By channel"
 msgstr "Por canal"

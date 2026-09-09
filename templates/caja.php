@@ -31,7 +31,7 @@ dox_pos_enqueue_caja( $cfg );
 		</span>
 		<nav class="tabs" id="tabs">
 			<button type="button" data-t="vender" aria-pressed="true"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></button>
-			<button type="button" data-t="entrada" aria-pressed="false"><?php esc_html_e( 'Stock in', 'dox-pos' ); ?></button>
+			<button type="button" data-t="entrada" aria-pressed="false"><?php esc_html_e( 'Inventory', 'dox-pos' ); ?></button>
 			<button type="button" data-t="pedidos" aria-pressed="false"><?php esc_html_e( 'Orders', 'dox-pos' ); ?> <span id="npend"></span></button>
 			<?php if ( $cfg['products'] ) : ?>
 			<button type="button" data-t="producto" aria-pressed="false"><?php esc_html_e( 'Products', 'dox-pos' ); ?></button>

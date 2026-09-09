@@ -662,9 +662,20 @@
 		st.entradas.forEach((e) => {
 			const li = document.createElement("li");
 			li.className = "lin" + (e.status !== "ok" ? " off" : "");
+			// Cada prenda con su foto y su nombre, que abre la ficha; debajo, de dónde vino la entrada.
+			// Quien no puede entrar a Productos las ve igual, pero sin abrir nada.
+			const abre = !!cfg.products;
+			const prendas = (e.lines && e.lines.length ? e.lines : []).map((l) => {
+				const foto = '<span class="thumb sm">' + (l.image ? '<img src="' + esc(l.image) + '" alt="" loading="lazy">' : esc(iniciales(l.name || ""))) + "</span>";
+				const txt = "<span>" + esc(l.name) + (l.qty > 1 ? ' <b>×' + l.qty + "</b>" : "") + "</span>";
+				return abre
+					? '<button type="button" class="epz" data-pid="' + (l.pid || l.id) + '">' + foto + txt + "</button>"
+					: '<span class="epz">' + foto + txt + "</span>";
+			}).join("");
 			li.innerHTML =
-				'<span class="n">' + esc(e.items) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · " + esc(__("voided", "dox-pos")) : "") + "</i></span>" +
+				'<span class="n">' + (prendas ? '<span class="epl">' + prendas + "</span>" : esc(e.items)) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · " + esc(__("voided", "dox-pos")) : "") + "</i></span>" +
 				'<span class="v">+' + e.units + "</span>";
+			li.querySelectorAll("button.epz").forEach((b) => { b.onclick = () => editarDesdeLista(+b.dataset.pid); });
 			if (e.status === "ok") {
 				const b = document.createElement("button");
 				b.type = "button";
@@ -1430,7 +1441,7 @@
 		$("#p-todo0").hidden = shared;
 		if (shared) { // Existencias en conjunto para todas las tallas: se cambian por mercancía o en WooCommerce.
 			t.innerHTML = "";
-			$("#p-qty-shared").textContent = sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared) + " " + __("To change it, record the goods in Stock in or do it in WooCommerce. A new size uses that same total.", "dox-pos");
+			$("#p-qty-shared").textContent = sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared) + " " + __("To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total.", "dox-pos");
 			return;
 		}
 		const cols = columnas();
@@ -1894,7 +1905,7 @@
 		h += '<div class="kpis">' + kpi(dinero(t.sold), __("Sold", "dox-pos")) + kpi(t.orders, _n("Sale", "Sales", t.orders, "dox-pos")) + kpi(t.units, _n("Unit", "Units", t.units, "dox-pos")) + kpi(dinero(t.avg), __("Per sale", "dox-pos")) +
 			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
 			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n)) : "") + "</div>";
-		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Stock in.", "dox-pos")) + "</p>";
+		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Inventory.", "dox-pos")) + "</p>";
 		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel) + listaHist(__("By payment method", "dox-pos"), d.by_payment) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
 			(d.by_day.length > 1 ? listaHist(__("By day", "dox-pos"), d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("Orders", "dox-pos")) + ' <span class="cnt">' + d.count + (d.count > d.items.length ? " · " + esc(sprintf(__("the latest %d", "dox-pos"), d.items.length)) : "") + (d.count ? " " + excelLink("ventas") : "") + "</span></h4>";

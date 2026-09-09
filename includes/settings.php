@@ -1420,7 +1420,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Costs and profit', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Stock in, every purchase with its cost recalculates the product\'s average cost.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Inventory, every purchase with its cost recalculates the product\'s average cost.', 'dox-pos' ); ?></p>
 						</div>
 						<?php if ( ! method_exists( 'WC_Product', 'get_cogs_value' ) ) : ?>
 						<div class="dp-callout">
@@ -1441,7 +1441,7 @@ function dox_pos_settings_page() {
 						</div>
 						<?php endif; ?>
 						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Track product costs and see the profit (turns on the WooCommerce cost field)', 'dox-pos' ); ?></span></label>
-						<p class="dp-hint"><?php esc_html_e( 'Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with "Upload costs from Excel" in Stock in.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with "Upload costs from Excel" in Inventory.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
