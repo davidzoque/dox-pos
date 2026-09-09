@@ -42,6 +42,8 @@
 		top: null,                                // lo más vendido, para Vender antes de buscar
 		topAt: 0,                                 // cuándo se pidió
 		topOn: false,                             // ¿la lista de Vender enseña eso ahora?
+		cat: { items: [], page: 0, more: true, loading: false, at: 0, total: 0 }, // el catálogo de la A a la Z, para Inventario antes de buscar
+		catOn: false,                             // ¿la lista de Inventario enseña eso ahora?
 		vars: {},                                 // id de variación -> {v, p}
 		rates: [],                                // opciones de envío que dio la tienda
 		rate: null,                               // la elegida
@@ -107,6 +109,8 @@
 		if (q.length < 2) {
 			st.res[modo] = [];
 			if (modo === "venta") { mostrarTop(); return; } // Sin buscar nada: lo más vendido.
+			mostrarCatalogo(); // En Inventario, el catálogo de la A a la Z.
+			return;
 			ul.innerHTML = vacio(__("Type two letters of the name, or the SKU.", "dox-pos"));
 			return;
 		}
@@ -116,7 +120,7 @@
 			const data = await api("search?q=" + encodeURIComponent(q), { signal: p.ctrl.signal });
 			data.items.forEach((prod) => prod.variations.forEach((v) => { st.vars[v.id] = { v: v, p: prod }; }));
 			st.res[modo] = data.items;
-			if (modo === "venta") st.topOn = false;
+			if (modo === "venta") st.topOn = false; else st.catOn = false;
 			if (data.items.length === 1) st.abierto[modo] = data.items[0].id; // si hay uno solo, se abre
 			else if (!data.items.some((x) => x.id === st.abierto[modo])) st.abierto[modo] = null;
 			pintarResultados(modo);
@@ -146,6 +150,40 @@
 		st.topOn = true;
 		if (!st.top.some((x) => x.id === st.abierto.venta)) st.abierto.venta = null;
 		pintarResultados("venta");
+	}
+	// Inventario no arranca vacío: el catálogo entero, de la A a la Z, de veinte en veinte; al llegar abajo carga más.
+	// Se vuelve a pedir desde el principio al minuto de quieto, o después de guardar una entrada, para que las existencias estén al día.
+	async function mostrarCatalogo(mas) {
+		const c = st.cat;
+		if (!mas && c.items.length && Date.now() - c.at > 60000) { c.items = []; c.page = 0; c.more = true; }
+		if (c.loading) return;
+		if ((!c.items.length || mas) && c.more) {
+			c.loading = true;
+			const ul = listaDe("entrada");
+			if (mas) ul.insertAdjacentHTML("beforeend", '<li class="empty cargando">' + esc(__("Loading more\u2026", "dox-pos")) + "</li>");
+			try {
+				const d = await api("catalog?page=" + (c.page + 1));
+				c.items = c.items.concat(d.items || []);
+				c.page = d.page || c.page + 1;
+				c.more = !!d.more;
+				c.total = d.total || 0;
+				c.at = Date.now();
+			} catch (e) {
+				c.loading = false;
+				ul.querySelectorAll(".cargando").forEach((x) => x.remove());
+				if (e.message === "sesion") return;
+				if (!c.items.length) { ul.innerHTML = vacio(__("The catalogue could not be loaded. Check the connection and try again.", "dox-pos")); return; }
+				if (e.red) toast(__("No signal: more products could not be loaded.", "dox-pos"));
+				return;
+			}
+			c.loading = false;
+		}
+		if (inputDe("entrada").value.trim().length >= 2) return; // Ya está escribiendo: manda la búsqueda.
+		c.items.forEach((prod) => prod.variations.forEach((v) => { st.vars[v.id] = { v: v, p: prod }; }));
+		st.res.entrada = c.items;
+		st.catOn = true;
+		if (!c.items.some((x) => x.id === st.abierto.entrada)) st.abierto.entrada = null;
+		pintarResultados("entrada");
 	}
 	const vacio = (txt) => '<li class="empty">' + esc(txt) + "</li>";
 	function iniciales(n) {
@@ -193,12 +231,14 @@
 		const ul = listaDe(modo);
 		ul.innerHTML = "";
 		const items = st.res[modo];
-		const top = modo === "venta" && st.topOn; // La lista de arranque: lo más vendido.
+		const top = modo === "venta" && st.topOn; // La lista de arranque de Vender: lo más vendido.
+		const cat = modo === "entrada" && st.catOn; // Y la de Inventario: el catálogo de la A a la Z.
 		if (!items.length) {
-			ul.innerHTML = vacio(top ? __("Type two letters of the name, or the SKU.", "dox-pos") : __("Nothing matches. Try a single word.", "dox-pos"));
+			ul.innerHTML = vacio(cat ? __("There are no products yet.", "dox-pos") : top ? __("Type two letters of the name, or the SKU.", "dox-pos") : __("Nothing matches. Try a single word.", "dox-pos"));
 			return;
 		}
 		if (top) ul.innerHTML = '<li class="rtit">' + esc(__("Best sellers of the last 30 days", "dox-pos")) + "</li>";
+		if (cat) ul.innerHTML = '<li class="rtit">' + esc(__("All products, A to Z", "dox-pos")) + (st.cat.total ? ' <span class="cnt">' + st.cat.items.length + " / " + st.cat.total + "</span>" : "") + "</li>";
 		items.forEach((p) => {
 			// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
 			const bolsas = {};
@@ -248,6 +288,10 @@
 			}
 			ul.appendChild(li);
 		});
+		if (cat && st.cat.more) { // Si lo cargado no llena el hueco (pantalla alta), se pide la siguiente página ya.
+			const sc = ul.parentElement;
+			if (sc && sc.scrollHeight <= sc.clientHeight + 10) mostrarCatalogo(true);
+		}
 	}
 
 	// ---------- el pedido y la entrada ----------
@@ -468,6 +512,7 @@
 		if ($("#q").value.trim().length >= 2) await buscar("venta");
 		else if (st.topOn) { st.topAt = 0; await mostrarTop(); }
 		if ($("#q2").value.trim().length >= 2) await buscar("entrada");
+		else if (st.catOn) { st.cat.at = 0; await mostrarCatalogo(); }
 	}
 
 	// ---------- pedidos ----------
@@ -2301,7 +2346,7 @@
 	const oyentes = {};
 	function on(ev, fn) { (oyentes[ev] = oyentes[ev] || []).push(fn); }
 	function emit(ev, d) { (oyentes[ev] || []).forEach((fn) => { try { fn(d); } catch (e) { console.error(e); } }); }
-	pestaña({ id: "entrada", abrir: cargarEntradas });
+	pestaña({ id: "entrada", abrir: () => { cargarEntradas(); if (!st.cat.items.length && !inputDe("entrada").value.trim()) mostrarCatalogo(); } }); // El catálogo se pide la primera vez que se abre.
 	pestaña({ id: "pedidos", abrir: cargarPedidos });
 	pestaña({ id: "producto", abrir: abrirProducto });
 	pestaña({ id: "panel", abrir: () => cargarPanel(false) });
@@ -2436,6 +2481,8 @@
 		});
 		$("#q").addEventListener("input", () => programar("venta"));
 		$("#q2").addEventListener("input", () => programar("entrada"));
+		// Inventario: al llegar abajo de la lista del catálogo, la siguiente página.
+		listaDe("entrada").parentElement.addEventListener("scroll", (e) => { const el = e.target; if (st.catOn && st.cat.more && !st.cat.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 240) mostrarCatalogo(true); });
 		["#f-desc", "#f-env"].forEach((s) => $(s).addEventListener("input", pintarSum));
 		["#f-ciu", "#f-dir"].forEach((s) => $(s).addEventListener("input", programarEnvio));
 		$("#reg").onclick = () => cerrar(false);

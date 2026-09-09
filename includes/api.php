@@ -120,6 +120,7 @@ function dox_pos_register_routes() {
 	register_rest_route( $ns, '/history/sales', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_sales', 'permission_callback' => $perm, 'args' => array( 'from' => $date, 'to' => $date ) ) );
 	register_rest_route( $ns, '/dashboard', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_dashboard', 'permission_callback' => 'dox_pos_rest_history_permission' ) ); // El Panel: quien administra.
 	register_rest_route( $ns, '/top', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_top', 'permission_callback' => $perm ) ); // Lo más vendido, para Vender antes de buscar.
+	register_rest_route( $ns, '/catalog', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_catalog', 'permission_callback' => $perm, 'args' => array( 'page' => array( 'type' => 'integer', 'default' => 1 ) ) ) ); // El catálogo de la A a la Z, para Inventario antes de buscar.
 	register_rest_route( $ns, '/history/cash', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_cash', 'permission_callback' => 'dox_pos_rest_history_permission', 'args' => array( 'from' => $date, 'to' => $date ) ) );
 	register_rest_route(
 		$ns,
@@ -192,6 +193,10 @@ function dox_pos_rest_search( WP_REST_Request $request ) {
 
 function dox_pos_rest_top() {
 	return rest_ensure_response( array( 'items' => dox_pos_top_for_sale() ) );
+}
+
+function dox_pos_rest_catalog( WP_REST_Request $request ) {
+	return rest_ensure_response( dox_pos_catalog_page( (int) $request->get_param( 'page' ) ) );
 }
 
 function dox_pos_rest_dashboard() {

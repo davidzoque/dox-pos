@@ -55,6 +55,36 @@ function dox_pos_search( $term, $limit = 20 ) {
 }
 
 /**
+ * El catálogo entero por orden alfabético, de veinte en veinte y con la forma de una búsqueda: lo que
+ * Inventario enseña antes de buscar nada, cargando más al llegar abajo. Solo los publicados.
+ *
+ * @param int $page Página (1...).
+ * @param int $per  Cuántos por página.
+ * @return array items, page, more, total
+ */
+function dox_pos_catalog_page( $page = 1, $per = 20 ) {
+	global $wpdb;
+	$page  = max( 1, (int) $page );
+	$per   = max( 1, min( 50, (int) $per ) );
+	$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$ids   = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish' ORDER BY post_title ASC, ID ASC LIMIT %d OFFSET %d",
+			$per,
+			( $page - 1 ) * $per
+		)
+	);
+	$items = array();
+	foreach ( $ids as $id ) {
+		$item = dox_pos_format_product( (int) $id );
+		if ( $item ) {
+			$items[] = $item;
+		}
+	}
+	return array( 'items' => $items, 'page' => $page, 'more' => $page * $per < $total, 'total' => $total );
+}
+
+/**
  * Productos publicados cuyo título contiene lo escrito, tal cual.
  *
  * @param string $term  Lo que se escribió.

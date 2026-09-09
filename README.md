@@ -112,7 +112,7 @@ Quien administra (`manage_woocommerce`) tiene la pestaña Panel, antes de Vender
 
 Los añadidos meten tarjetas con el filtro `dox_pos_dashboard`: `$data['extra'][] = array( 'label' => ..., 'money' => ... (o 'text'), 'sub' => ..., 'go' => 'asistente' )`. El Pro pone así lo que no rota y a cuánto va el mes.
 
-`GET dox-pos/v1/top` es lo más vendido de los últimos treinta días con la forma de una búsqueda (`dox_pos_top_for_sale`: los mismos datos, las existencias de ahora y sin los agotados del todo). Vender lo enseña mientras no se escribe nada, y lo vuelve a pedir al minuto y después de cada venta. El ranking (`dox_pos_top_products`, por producto, unidades y lo que dejó) se guarda una hora en el transient `dox_pos_top_30`.
+`GET dox-pos/v1/catalog?page=N` es el catálogo publicado de la A a la Z, de veinte en veinte y con la forma de una búsqueda (`dox_pos_catalog_page`); Inventario lo enseña la primera vez que se abre la pestaña y pide la siguiente página al llegar abajo de la lista (`mostrarCatalogo`, `st.cat`), lo vuelve a pedir tras cada entrada guardada y al minuto de quieto. `GET dox-pos/v1/top` es lo más vendido de los últimos treinta días con la forma de una búsqueda (`dox_pos_top_for_sale`: los mismos datos, las existencias de ahora y sin los agotados del todo). Vender lo enseña mientras no se escribe nada, y lo vuelve a pedir al minuto y después de cada venta. El ranking (`dox_pos_top_products`, por producto, unidades y lo que dejó) se guarda una hora en el transient `dox_pos_top_30`.
 
 ## Costos y ganancia
 

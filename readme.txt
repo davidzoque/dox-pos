@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.33.0
+Stable tag: 0.33.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.33.1 =
+* Inventory no longer starts empty either: before you search it lists the whole catalogue from A to Z, twenty products at a time, and loads more as you reach the bottom. Searching by name or SKU works as before, and the list refreshes after each entry so the stock is current.
 
 = 0.33.0 =
 * Several groups of sizes can share units within the same colour: 0-6 and 6-12 months from one pool, 2-3 and 3-4 years from another. The "Shares" box on each size is now a small menu (does not share, shares, or shares in another group), the colour card gets one "Shared units" box per group, and the register, the website checkout, the kardex and the Excel treat each group as its own pool. With one colour and one group everything stays exactly as before.
