@@ -60,10 +60,17 @@ function dox_pos_create_entry( $data ) {
 	$lines = array();
 	$costs = array(); // Para el kardex: el costo de compra por unidad de cada producto o talla.
 	foreach ( (array) ( $data['lines'] ?? array() ) as $l ) {
+		if ( ! is_array( $l ) ) {
+			continue;
+		}
 		$p   = wc_get_product( (int) ( $l['id'] ?? 0 ) );
 		$qty = (int) ( $l['qty'] ?? 0 );
 		if ( ! $p || $qty < 1 ) {
 			continue;
+		}
+		// Sin control de existencias no hay a qué sumar: la entrada quedaría apuntada sin mover nada.
+		if ( ! $p->managing_stock() ) {
+			return new WP_Error( 'dox_pos_sin_control', sprintf( /* translators: %s: producto */ __( '%s does not track stock: turn it on in the product first.', 'dox-pos' ), dox_pos_item_name( $p ) ) );
 		}
 		$cost = $see && isset( $l['cost'] ) && '' !== $l['cost'] ? dox_pos_parse_money( $l['cost'] ) : null;
 		$cost = null === $cost || $cost <= 0 ? null : round( $cost, 2 );
@@ -75,10 +82,19 @@ function dox_pos_create_entry( $data ) {
 	if ( ! $lines ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'There is nothing to record.', 'dox-pos' ) );
 	}
+	// La fecha de la factura, si viene, tiene que existir (el 31 de febrero no entra).
+	$date = (string) ( $data['date'] ?? '' );
+	if ( '' !== $date ) {
+		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $date, $dm ) || ! checkdate( (int) $dm[2], (int) $dm[3], (int) $dm[1] ) ) {
+			return new WP_Error( 'dox_pos_fecha', __( 'That date does not exist.', 'dox-pos' ) );
+		}
+	}
 	$saved = array();
 	$units = 0;
 	$total = 0.0; // Lo que costó la mercancía que trae costo.
 	$ctx   = dox_pos_stock_context( 'entry', 0, trim( sanitize_text_field( $data['supplier'] ?? '' ) . ' ' . $invoice ), $costs ); // El kardex: "Entrada #N" (el número se pone al guardarla).
+	// Las unidades y la fila de la entrada van en una sola transacción: si la fila no se guarda, las unidades vuelven.
+	wc_transaction_query( 'start' );
 	foreach ( $lines as $l ) {
 		$p      = $l['product'];
 		$before = $p->managing_stock() ? (int) $p->get_stock_quantity() : null;
@@ -101,14 +117,14 @@ function dox_pos_create_entry( $data ) {
 	}
 	// Con las unidades ya sumadas, el costo promedio de cada producto que trajo costo.
 	$changed = dox_pos_costs_after_entry( $lines );
-	$wpdb->insert(
+	$ok      = $wpdb->insert(
 		dox_pos_entries_table(),
 		array(
 			'created_at' => current_time( 'mysql' ),
 			'user_id'    => get_current_user_id(),
 			'supplier'   => sanitize_text_field( $data['supplier'] ?? '' ),
 			'invoice'    => $invoice,
-			'entry_date' => preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $data['date'] ?? '' ) ) ? $data['date'] : null,
+			'entry_date' => '' !== $date ? $date : null,
 			'note'       => sanitize_textarea_field( $data['note'] ?? '' ),
 			'items'      => wp_json_encode( $saved ),
 			'units'      => $units,
@@ -119,6 +135,17 @@ function dox_pos_create_entry( $data ) {
 		array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%s', '%s' )
 	);
 	$entry_id = (int) $wpdb->insert_id;
+	if ( ! $ok || ! $entry_id ) {
+		wc_transaction_query( 'rollback' );
+		dox_pos_stock_context_end( $ctx );
+		dox_pos_pool_forget();
+		foreach ( $lines as $l ) { // Lo que se leyó de la base durante la transacción ya no vale.
+			clean_post_cache( $l['product']->get_id() );
+			wc_delete_product_transients( $l['product']->get_id() );
+		}
+		return new WP_Error( 'dox_pos_no_guardada', __( 'The stock entry could not be saved. Nothing was changed.', 'dox-pos' ) );
+	}
+	wc_transaction_query( 'commit' );
 	dox_pos_stock_log_set_ref( dox_pos_stock_context_end( $ctx ), $entry_id );
 	$entry                 = dox_pos_get_entry( $entry_id );
 	$entry['cost_changes'] = $changed; // Los productos cuyo costo promedio cambió con esta compra.
@@ -139,6 +166,10 @@ function dox_pos_cancel_entry( $id ) {
 	}
 	if ( 'ok' !== $row['status'] ) {
 		return new WP_Error( 'dox_pos_ya_anulada', __( 'That stock entry was already voided.', 'dox-pos' ) );
+	}
+	// Quien solo vende deshace lo suyo de hoy (se equivocó al registrar); una entrada de otro día o de otra persona la anula quien administra.
+	if ( ! current_user_can( 'manage_woocommerce' ) && ( get_current_user_id() !== (int) $row['user_id'] || current_time( 'Y-m-d' ) !== substr( (string) $row['created_at'], 0, 10 ) ) ) {
+		return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can void an entry from another day or from another person.', 'dox-pos' ) );
 	}
 	// Una entrada de demostración (las crea Dox POS Pro) nunca sumó nada, así que tampoco resta.
 	if ( ! dox_pos_is_demo_ref( $row['ref'] ?? '' ) ) {

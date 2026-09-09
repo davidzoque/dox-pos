@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.33.3
+Stable tag: 0.34.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,16 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.34.0 =
+* Hardening after a full code review. A sale only takes the channels set in Sales, a discount larger than the products is rejected, and the sales, entries and shipping routes skip malformed lines instead of failing.
+* The Cashier role can no longer confirm the payment of a website order, cancel an order that was already shipped or delivered, or void a stock entry from another day or another person: those are for administrators and shop managers.
+* A stock entry refuses a product that does not track stock and a date that does not exist, and the units and the entry are saved together: if the entry cannot be saved, the stock is not touched.
+* Sizes that share units by colour now move by the difference instead of copying the number, so two sales of different sizes of the same colour at the same instant both count.
+* Amounts with decimals: the register reads and shows prices, costs, discounts and shipping with the store's decimal separator, and the phone keyboard offers the decimal key when the store uses decimals. Stores with whole amounts (COP) see no change.
+* The Sales tab warns when WooCommerce has "Manage stock" turned off, because then nothing lowers the stock.
+* Uninstalling no longer deletes the settings of Dox POS Pro and removes the plugin's scheduled tasks.
+* Cost imports skip the "(no SKU)" rows in any language, the Excel files and the history get more memory and time for long periods, and the unit price in the order detail keeps the store's decimals.
 
 = 0.33.3 =
 * In Reports > Movements, filtering by a product now shows a coloured strip with the product's name and a "See them all" button, instead of a line of small text that was easy to miss.

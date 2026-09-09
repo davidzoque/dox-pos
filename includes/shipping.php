@@ -23,12 +23,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 function dox_pos_shipping_rates( $state, $city, $address, $lines ) {
 	$contents = array();
 	$cost     = 0;
-	foreach ( $lines as $l ) {
-		$p = wc_get_product( (int) $l['id'] );
+	foreach ( (array) $lines as $l ) {
+		if ( ! is_array( $l ) ) {
+			continue;
+		}
+		$p = wc_get_product( (int) ( $l['id'] ?? 0 ) );
 		if ( ! $p ) {
 			continue;
 		}
-		$qty        = max( 1, (int) $l['qty'] );
+		$qty        = max( 1, (int) ( $l['qty'] ?? 1 ) );
 		$line_total = (float) $p->get_price() * $qty;
 		$contents[] = array(
 			'product_id'        => $p->is_type( 'variation' ) ? $p->get_parent_id() : $p->get_id(),

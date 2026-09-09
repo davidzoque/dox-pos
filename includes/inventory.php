@@ -19,9 +19,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  * ya con la sesión y el permiso de la caja comprobados.
  */
 function dox_pos_send_inventory() {
+	dox_pos_big_job();
 	$data = dox_pos_inventory_data();
 	$file = dox_pos_inventory_xlsx( $data );
 	dox_pos_send_xlsx( $file, sanitize_file_name( 'inventario-' . sanitize_title( remove_accents( dox_pos_brand_name() ) ) . '-' . wp_date( 'Y-m-d' ) . '.xlsx' ) );
+}
+
+/**
+ * Un trabajo grande (el inventario entero, el historial de un periodo largo): más memoria y más
+ * tiempo que los de una petición normal, dentro de lo que el servidor permita.
+ */
+function dox_pos_big_job() {
+	if ( function_exists( 'wp_raise_memory_limit' ) ) {
+		wp_raise_memory_limit( 'admin' );
+	}
+	if ( function_exists( 'set_time_limit' ) ) {
+		@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Con safe_mode o sin permiso avisa y no hace nada.
+	}
 }
 
 /**

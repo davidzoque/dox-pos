@@ -231,10 +231,32 @@ function dox_pos_stock_quiet( $on = null ) {
 	return $depth > 0;
 }
 
+add_action( 'woocommerce_variation_before_set_stock', 'dox_pos_pool_remember', 5 );
+/**
+ * Antes de que cambien las existencias de una talla de una bolsa se apunta cuántas tenía en la base de
+ * datos, para que la sincronía de abajo mueva a las hermanas la diferencia y no el número entero. Se lee
+ * de la base y no del objeto porque, al guardar un producto, el objeto ya trae el valor nuevo.
+ *
+ * @param WC_Product $v La variación.
+ */
+function dox_pos_pool_remember( $v ) {
+	if ( dox_pos_stock_quiet() || ! $v instanceof WC_Product || '' === dox_pos_pool_key( $v ) ) {
+		return;
+	}
+	global $wpdb;
+	$before = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = '_stock' LIMIT 1", $v->get_id() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$GLOBALS['dox_pos_pool_before'][ $v->get_id() ] = null === $before ? null : (int) $before;
+}
+
 add_action( 'woocommerce_variation_set_stock', 'dox_pos_pool_sync' );
 /**
  * Cambiaron las existencias de una talla que está en una bolsa (una venta, una entrada, un cambio a
- * mano): sus hermanas pasan al mismo número. Sin apuntar nada en el kardex y sin volver a entrar aquí.
+ * mano): sus hermanas se mueven lo mismo. Sin apuntar nada en el kardex y sin volver a entrar aquí.
+ *
+ * Se mueve la diferencia (bajó una: las hermanas bajan una), no se copia el número: dos ventas de
+ * tallas distintas de la misma bolsa en el mismo instante restan las dos; copiando el número, una
+ * pisaba a la otra. Cuando no se sabe lo de antes, o mientras se forman o se mueven las bolsas
+ * (dox_pos_stock_quiet), se copia el número, que es lo que se quiere ahí.
  *
  * @param WC_Product $v La variación, ya con las existencias nuevas.
  */
@@ -248,8 +270,11 @@ function dox_pos_pool_sync( $v ) {
 		return;
 	}
 	dox_pos_pool_stock( 0, '', true ); // Lo que quedaba ya no vale.
-	$n    = (int) $v->get_stock_quantity();
-	$busy = true;
+	$n      = (int) $v->get_stock_quantity();
+	$before = $GLOBALS['dox_pos_pool_before'][ $v->get_id() ] ?? null;
+	unset( $GLOBALS['dox_pos_pool_before'][ $v->get_id() ] );
+	$delta = null === $before || dox_pos_stock_quiet() ? null : $n - $before;
+	$busy  = true;
 	dox_pos_stock_quiet( true );
 	try {
 		foreach ( dox_pos_pool_members( $v->get_parent_id(), $key ) as $sid ) {
@@ -257,7 +282,14 @@ function dox_pos_pool_sync( $v ) {
 				continue;
 			}
 			$s = wc_get_product( $sid );
-			if ( $s && true === $s->get_manage_stock() && (int) $s->get_stock_quantity() !== $n ) {
+			if ( ! $s || true !== $s->get_manage_stock() ) {
+				continue;
+			}
+			if ( null !== $delta ) {
+				if ( 0 !== $delta ) {
+					wc_update_product_stock( $s, abs( $delta ), $delta > 0 ? 'increase' : 'decrease' );
+				}
+			} elseif ( (int) $s->get_stock_quantity() !== $n ) {
 				wc_update_product_stock( $s, $n, 'set' );
 			}
 		}

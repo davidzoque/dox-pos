@@ -18,7 +18,11 @@ foreach ( array( 'administrator', 'shop_manager' ) as $role_name ) {
 	}
 }
 remove_role( 'caja' );
-wp_clear_scheduled_hook( 'dox_pos_ai_daily' );
+// Las tareas programadas del plugin (limpiar fotos sueltas, liberar apartados) se van con él.
+if ( function_exists( 'as_unschedule_all_actions' ) ) {
+	as_unschedule_all_actions( 'dox_pos_clean_images' );
+	as_unschedule_all_actions( 'dox_pos_release_hold' );
+}
 
 global $wpdb;
 // Los pedidos de demostración, si quedaron, se van con el plugin (sus filas de kardex también).
@@ -32,5 +36,6 @@ if ( function_exists( 'wc_get_orders' ) && get_option( 'dox_pos_demo' ) ) {
 	}
 	$wpdb->delete( $wpdb->prefix . 'dox_pos_stock_log', array( 'note' => 'Demo' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 }
-$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'dox\\_pos\\_%' OR option_name LIKE '\\_transient\\_%dox\\_pos\\_font\\_%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+// Solo los ajustes de este plugin: los del Pro (dox_pos_pro_*, dox_pos_ai_*, dox_pos_recover_*) son suyos y se quedan.
+$wpdb->query( "DELETE FROM {$wpdb->options} WHERE ( option_name LIKE 'dox\\_pos\\_%' OR option_name LIKE '\\_transient\\_%dox\\_pos\\_font\\_%' ) AND option_name NOT LIKE 'dox\\_pos\\_pro%' AND option_name NOT LIKE 'dox\\_pos\\_ai%' AND option_name NOT LIKE 'dox\\_pos\\_recover%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 flush_rewrite_rules();

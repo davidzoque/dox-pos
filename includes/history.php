@@ -396,6 +396,7 @@ function dox_pos_format_stock_row( $r ) {
  * @param string $kind    Solo movimientos: el tipo de motivo.
  */
 function dox_pos_send_history( $what, $from, $to, $q = '', $product = 0, $kind = '' ) {
+	dox_pos_big_job();
 	$full = dox_pos_history_full();
 	if ( ! $full && 'ventas' !== $what ) {
 		wp_die( esc_html__( 'That report is for administrators and shop managers.', 'dox-pos' ), '', array( 'response' => 403 ) );
@@ -649,6 +650,7 @@ function dox_pos_rest_history_permission() {
  * Las ventas: todas para quien ve el historial completo; para el rol Caja, solo las suyas de hoy.
  */
 function dox_pos_rest_history_sales( WP_REST_Request $request ) {
+	dox_pos_big_job();
 	if ( dox_pos_history_full() ) {
 		return rest_ensure_response( dox_pos_history_sales( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) ) );
 	}
@@ -656,10 +658,12 @@ function dox_pos_rest_history_sales( WP_REST_Request $request ) {
 }
 
 function dox_pos_rest_history_cash( WP_REST_Request $request ) {
+	dox_pos_big_job();
 	return rest_ensure_response( dox_pos_history_cash( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) ) );
 }
 
 function dox_pos_rest_history_stock( WP_REST_Request $request ) {
+	dox_pos_big_job();
 	return rest_ensure_response(
 		dox_pos_history_stock(
 			array(

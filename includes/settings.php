@@ -1337,6 +1337,18 @@ function dox_pos_settings_page() {
 						<template id="dp-pago-tpl"><?php dox_pos_custom_payment_row( '__i__', array( 'key' => '', 'title' => '', 'on' => true ), '-' ); ?></template>
 					</div>
 
+					<?php if ( 'yes' !== get_option( 'woocommerce_manage_stock' ) ) : // Sin esto, ninguna venta descuenta y ningún apartado reserva. ?>
+					<div class="dp-card">
+						<div class="dp-callout">
+							<?php echo wp_kses( dox_pos_icon( 'alert' ), dox_pos_svg_tags() ); ?>
+							<div>
+								<b><?php esc_html_e( 'WooCommerce is not managing stock', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'Sales do not lower the stock and layaways do not reserve anything until "Manage stock" is on in WooCommerce > Settings > Products > Inventory.', 'dox-pos' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=products&section=inventory' ) ); ?>"><?php esc_html_e( 'Open that setting', 'dox-pos' ); ?></a></span>
+							</div>
+						</div>
+					</div>
+					<?php endif; ?>
+
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Orders from the website', 'dox-pos' ); ?></h2>

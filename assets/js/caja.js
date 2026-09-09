@@ -12,7 +12,6 @@
 	const cfg = window.DOX_POS || {};
 	const $ = (s) => document.querySelector(s);
 	const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-	const num = (s) => parseInt(String(s).replace(/\D/g, ""), 10) || 0;
 
 	// Los canales y las formas de pago vienen de los ajustes (WooCommerce > Dox POS).
 	const CANALES = (cfg.channels && cfg.channels.length) ? cfg.channels : [{ name: "WhatsApp", pickup: false }];
@@ -29,6 +28,33 @@
 		const con = { left: M.symbol + s, right: s + M.symbol, left_space: M.symbol + " " + s, right_space: s + " " + M.symbol };
 		return (v < 0 ? "−" : "") + (con[M.pos] || con.left);
 	}
+	// Un importe tal como se escribe con el formato de la tienda ("189.000", "1.234,50", "12.50"): el separador de miles se quita,
+	// el decimal se respeta y se redondea a los decimales de la tienda (con cero decimales, "189.000" son ciento ochenta y nueve mil).
+	const num = (s) => {
+		let t = String(s == null ? "" : s).trim();
+		if (M.thousand) t = t.split(M.thousand).join("");
+		if (M.decimals > 0 && M.decimal && M.decimal !== ".") t = t.replace(M.decimal, ".");
+		else if (M.decimals === 0) t = t.replace(/[.,]/g, "");
+		const v = parseFloat(t.replace(/[^\d.]/g, ""));
+		if (isNaN(v)) return 0;
+		const p = Math.pow(10, M.decimals);
+		return Math.round(v * p) / p;
+	};
+	// Unidades: solo dígitos.
+	const uds = (s) => parseInt(String(s == null ? "" : s).replace(/\D/g, ""), 10) || 0;
+	// Un importe redondeado a los decimales de la tienda.
+	const redondear = (v) => { const p = Math.pow(10, M.decimals); return Math.round((Number(v) || 0) * p) / p; };
+	// Un número con el separador de miles de la tienda mientras se escribe, para que se vean los ceros; con decimales, los que haya.
+	const miles = (v) => {
+		const n = Number(v) || 0;
+		if (!n) return "";
+		const parts = Math.abs(n).toFixed(M.decimals).split(".");
+		let s = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand);
+		if (parts[1]) { const d = parts[1].replace(/0+$/, ""); if (d) s += M.decimal + d; }
+		return (n < 0 ? "-" : "") + s;
+	};
+	// El teclado de los importes en los campos que se pintan desde aquí: con decimales, el que trae la coma.
+	const IM = M.decimals > 0 ? "decimal" : "numeric";
 
 	const st = {
 		tab: "vender",
@@ -296,7 +322,7 @@
 
 	// ---------- el pedido y la entrada ----------
 	// El costo que la tienda conoce de una talla (solo llega a quien administra): la entrada lo propone como costo de compra.
-	const costoConocido = (vid) => (cfg.costs && st.vars[vid] && st.vars[vid].v.cost > 0 ? Math.round(st.vars[vid].v.cost) : 0);
+	const costoConocido = (vid) => (cfg.costs && st.vars[vid] && st.vars[vid].v.cost > 0 ? redondear(st.vars[vid].v.cost) : 0);
 	function añadir(vid, modo) {
 		const arr = modo === "venta" ? st.lineas : st.entrada;
 		const ya = arr.find((l) => l.vid === vid);
@@ -318,7 +344,7 @@
 				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i></span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
-					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="numeric" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
+					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IM + '" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
 					: '<span class="v">' + dinero(l.n * d.v.price) + "</span>");
 			if (conCosto) {
 				const inp = li.querySelector(".cst input");
@@ -409,7 +435,7 @@
 			const data = await post("shipping", { state: state, city: city, address: $("#f-dir").value.trim(), lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })) });
 			st.rates = data.rates || [];
 			st.rate = st.rates.find((r) => st.rate && r.id === st.rate.id) || st.rates[0] || null;
-			if (st.rate) $("#f-env").value = Math.round(st.rate.cost);
+			if (st.rate) $("#f-env").value = miles(redondear(st.rate.cost)) || "0";
 			pintarEnvio();
 			pintarSum();
 		} catch (e) {
@@ -427,7 +453,7 @@
 		st.rates.forEach((r) => {
 			const b = chip(r.label + " · " + dinero(r.cost), st.rate && st.rate.id === r.id, () => {
 				st.rate = r;
-				$("#f-env").value = Math.round(r.cost);
+				$("#f-env").value = miles(redondear(r.cost)) || "0";
 				pintarEnvio();
 				pintarSum();
 			});
@@ -1038,7 +1064,7 @@
 	}
 	// La pérdida de un pedido: se anota desde su detalle con el motivo, y se puede cambiar o quitar.
 	function modalPerdida(d) {
-		modal("<h3>" + esc(sprintf(__("Loss on order #%s", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale.", "dox-pos")) + '</p><div class="field"><label for="m-lamt">' + esc(__("How much", "dox-pos")) + '</label><input id="m-lamt" inputmode="numeric" placeholder="0" value="' + (d.loss ? esc(miles(Math.round(d.loss))) : "") + '"></div><div class="field mt"><label for="m-lnote">' + esc(__("Why", "dox-pos")) + '</label><input id="m-lnote" value="' + esc(d.loss_note || "") + '" placeholder="' + esc(__("The shipping cost more than what was charged", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + "</button>" + (d.loss ? '<button type="button" class="go alt" id="m-del">' + esc(__("Remove the loss", "dox-pos")) + "</button>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		modal("<h3>" + esc(sprintf(__("Loss on order #%s", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale.", "dox-pos")) + '</p><div class="field"><label for="m-lamt">' + esc(__("How much", "dox-pos")) + '</label><input id="m-lamt" inputmode="' + IM + '" placeholder="0" value="' + (d.loss ? esc(miles(redondear(d.loss))) : "") + '"></div><div class="field mt"><label for="m-lnote">' + esc(__("Why", "dox-pos")) + '</label><input id="m-lnote" value="' + esc(d.loss_note || "") + '" placeholder="' + esc(__("The shipping cost more than what was charged", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + "</button>" + (d.loss ? '<button type="button" class="go alt" id="m-del">' + esc(__("Remove the loss", "dox-pos")) + "</button>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
 		const amt = $("#m-lamt");
 		amt.addEventListener("input", () => formatearMiles(amt));
 		const guardar = async (amount, note) => {
@@ -1443,12 +1469,20 @@
 		} catch (e) { /* sin aviso */ }
 	}
 
-	// Un número con puntos de miles mientras se escribe, para que se vean los ceros.
-	const miles = (v) => (v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand) : "");
+	// El importe con el separador de miles mientras se escribe (miles(), arriba).
 	function formatearMiles(el) {
 		if (!el) return;
-		const s = miles(num(el.value));
-		if (el.value !== s) el.value = s;
+		const raw = el.value;
+		// Con decimales, mientras se escribe la parte decimal ("12," o "12,5") se deja como está: si no, la coma se iría al teclearla.
+		if (M.decimals > 0 && M.decimal && raw.indexOf(M.decimal) >= 0) {
+			const i = raw.indexOf(M.decimal);
+			const dec = raw.slice(i + 1).replace(/\D/g, "").slice(0, M.decimals);
+			const s = (miles(num(raw.slice(0, i))) || "0") + M.decimal + dec;
+			if (raw !== s) el.value = s;
+			return;
+		}
+		const s = miles(num(raw));
+		if (raw !== s) el.value = s;
 	}
 	function formatearPrecio() { formatearMiles($("#p-precio")); formatearMiles($("#p-costo")); }
 	// El costo escrito en el formulario (0 si no hay campo o está vacío).
@@ -1459,7 +1493,7 @@
 		const v = costoForm();
 		if (!pr.edit) return v || "";
 		if (pr.edit.cost === "" && !v) return ""; // Las tallas cuestan distinto y no se escribió nada: se quedan como están.
-		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : Math.round(Number(pr.edit.cost));
+		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : redondear(pr.edit.cost);
 		return v === was ? "" : v;
 	}
 	// Lo que deja cada unidad con el precio y el costo escritos.
@@ -1682,11 +1716,11 @@
 		hint.hidden = !partes.length;
 		hint.textContent = partes.join(" ");
 		box.querySelectorAll("input[inputmode]:not([data-pool])").forEach((inp) => {
-			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
+			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = uds(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
 		box.querySelectorAll("input[data-pool]").forEach((inp) => {
-			inp.oninput = () => { pr.totales[inp.dataset.pool] = num(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
+			inp.oninput = () => { pr.totales[inp.dataset.pool] = uds(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
 			inp.onfocus = () => inp.select();
 		});
 		box.querySelectorAll(".qsel").forEach((sel) => {
@@ -2047,19 +2081,19 @@
 		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
 		pr.totales = Object.assign({}, d.pool_stock || {}); // Las unidades compartidas por columna de color.
 		pr.legacy = !!d.legacy_pool; // Varios colores con un solo total: al guardar, cada color lleva el suyo.
-		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : num(d.shared);
+		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : uds(d.shared);
 		pr.cats = (d.categories || []).slice();
 		pr.tallas = (d.sizes || []).slice();
 		pr.colores = (d.colors || []).map((c) => ({ key: String(c.key), id: c.id, name: c.name, hex: c.hex }));
 		pr.qty = {};
-		Object.keys(d.qty || {}).forEach((ck) => { Object.keys(d.qty[ck] || {}).forEach((sid) => { pr.qty[qKey(ck, sid)] = num(d.qty[ck][sid]); }); });
+		Object.keys(d.qty || {}).forEach((ck) => { Object.keys(d.qty[ck] || {}).forEach((sid) => { pr.qty[qKey(ck, sid)] = uds(d.qty[ck][sid]); }); });
 		pr.fotos = (d.images || []).map((im) => ({ uid: ++uidN, file: null, ext: "", estado: "ok", url: im.url || "", local: "", id: im.id, color: im.color || "", kb: 0, error: "", existing: true }));
 		pr.manual = true; pr.tallasTocadas = true; pr.skuOk = undefined;
 		pr.masColores = true; pr.masTallas = true; pr.grupo = null; pr.dup = null;
 		$("#p-nom-dup").hidden = true;
 		$("#p-nom").value = d.name || "";
-		$("#p-precio").value = d.price === "" || d.price === null ? "" : String(d.price);
-		if ($("#p-costo")) $("#p-costo").value = d.cost === "" || d.cost === null || d.cost === undefined ? "" : String(Math.round(d.cost));
+		$("#p-precio").value = d.price === "" || d.price === null ? "" : miles(redondear(d.price));
+		if ($("#p-costo")) $("#p-costo").value = d.cost === "" || d.cost === null || d.cost === undefined ? "" : miles(redondear(d.cost));
 		formatearPrecio();
 		$("#p-sku").value = d.sku || "";
 		$("#p-sku").disabled = true;
@@ -2523,7 +2557,7 @@
 	// de los añadidos ya están registradas. Esperar a DOMContentLoaded es una trampa con optimizadores que
 	// retrasan el JS (el evento ya pasó, o fingen readyState).
 	window.DoxPOS = {
-		cfg, M, $, esc, num, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
+		cfg, M, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
 		verPedido, verProducto, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,

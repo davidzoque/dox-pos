@@ -2593,3 +2593,43 @@ msgstr "Solo este producto"
 #: assets/js/caja.js
 msgid "See them all"
 msgstr "Ver todos"
+
+#: includes/orders.php
+msgid "The discount cannot be more than the products."
+msgstr "El descuento no puede ser mayor que los productos."
+
+#: includes/orders.php
+msgid "Only administrators and shop managers can confirm the payment of a website order."
+msgstr "Solo administradores y gerentes de tienda pueden confirmar el pago de un pedido de la página web."
+
+#: includes/orders.php
+msgid "Only administrators and shop managers can cancel an order that was already shipped or delivered."
+msgstr "Solo administradores y gerentes de tienda pueden anular un pedido que ya se envió o se entregó."
+
+#: includes/entries.php
+msgid "%s does not track stock: turn it on in the product first."
+msgstr "%s no lleva existencias: actívalas primero en el producto."
+
+#: includes/entries.php
+msgid "That date does not exist."
+msgstr "Esa fecha no existe."
+
+#: includes/entries.php
+msgid "The stock entry could not be saved. Nothing was changed."
+msgstr "La entrada no se pudo guardar. No cambió nada."
+
+#: includes/entries.php
+msgid "Only administrators and shop managers can void an entry from another day or from another person."
+msgstr "Solo administradores y gerentes de tienda pueden anular una entrada de otro día o de otra persona."
+
+#: includes/settings.php
+msgid "WooCommerce is not managing stock"
+msgstr "WooCommerce no está llevando el inventario"
+
+#: includes/settings.php
+msgid "Sales do not lower the stock and layaways do not reserve anything until \"Manage stock\" is on in WooCommerce > Settings > Products > Inventory."
+msgstr "Las ventas no descuentan existencias y los apartados no reservan nada hasta que \"Gestionar inventario\" esté activado en WooCommerce > Ajustes > Productos > Inventario."
+
+#: includes/settings.php
+msgid "Open that setting"
+msgstr "Abrir ese ajuste"

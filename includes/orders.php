@@ -123,6 +123,9 @@ function dox_pos_create_order( $data, $hold ) {
 
 	$lines = array();
 	foreach ( (array) ( $data['lines'] ?? array() ) as $l ) {
+		if ( ! is_array( $l ) ) {
+			continue;
+		}
 		$p   = wc_get_product( (int) ( $l['id'] ?? 0 ) );
 		$qty = (int) ( $l['qty'] ?? 0 );
 		if ( ! $p || $qty < 1 ) {
@@ -145,6 +148,21 @@ function dox_pos_create_order( $data, $hold ) {
 	$falta = dox_pos_shared_stock_problem( $lines );
 	if ( $falta ) {
 		return $falta;
+	}
+	// Un descuento mayor que los productos dejaría el pedido en cero (WooCommerce no baja de ahí) con el inventario descontado.
+	$discount = max( 0, (float) ( $data['discount'] ?? 0 ) );
+	$subtotal = 0.0;
+	foreach ( $lines as $l ) {
+		$subtotal += (float) $l['product']->get_price() * $l['qty'];
+	}
+	if ( $discount > $subtotal ) {
+		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
+	}
+	// El canal: uno de los de los ajustes; si llega otra cosa, el primero.
+	$channels = wp_list_pluck( dox_pos_channels(), 'name' );
+	$channel  = sanitize_text_field( $data['channel'] ?? '' );
+	if ( ! in_array( $channel, $channels, true ) ) {
+		$channel = (string) reset( $channels );
 	}
 
 	$methods = dox_pos_payment_methods();
@@ -176,7 +194,6 @@ function dox_pos_create_order( $data, $hold ) {
 			$item->save();
 		}
 	}
-	$discount = max( 0, (float) ( $data['discount'] ?? 0 ) );
 	if ( $discount > 0 ) {
 		$fee = new WC_Order_Item_Fee();
 		$fee->set_name( __( 'Discount', 'dox-pos' ) );
@@ -201,7 +218,7 @@ function dox_pos_create_order( $data, $hold ) {
 	$order->set_customer_note( sanitize_textarea_field( $data['note'] ?? '' ) );
 	$user = wp_get_current_user();
 	$order->update_meta_data( '_dox_pos', 1 );
-	$order->update_meta_data( '_dox_pos_channel', sanitize_text_field( $data['channel'] ?? '' ) );
+	$order->update_meta_data( '_dox_pos_channel', $channel );
 	$order->update_meta_data( '_dox_pos_seller', $user->ID );
 	$order->update_meta_data( '_dox_pos_seller_name', $user->display_name );
 	if ( $ref ) {
@@ -223,7 +240,7 @@ function dox_pos_create_order( $data, $hold ) {
 		return $reserved;
 	}
 
-	$who = sprintf( /* translators: 1: usuario, 2: canal */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $data['channel'] ?? '' );
+	$who = sprintf( /* translators: 1: usuario, 2: canal */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
 	if ( $hold ) {
 		$order->update_status( 'on-hold', sprintf( /* translators: %d: horas */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
 		dox_pos_schedule_release( $order->get_id(), $hours );
@@ -439,6 +456,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 	}
 	$who  = wp_get_current_user()->display_name;
 	$caja = DOX_POS_VIA === $order->get_created_via();
+	$boss = current_user_can( 'manage_woocommerce' ); // Administradores y gerentes de tienda.
 	// Los correos al administrador sobran también aquí: el cambio lo acaba de hacer la tienda misma
 	// desde la caja (WooCommerce avisa "Pedido cancelado" hasta cuando lo cancela uno mismo).
 	foreach ( array( 'new_order', 'cancelled_order', 'failed_order' ) as $mail ) {
@@ -449,6 +467,10 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			// En la web, "fallido" es un pago que la pasarela rechazó y que puede haber entrado por otro lado.
 			if ( ! $order->has_status( array( 'on-hold', 'pending', 'failed' ) ) ) {
 				return new WP_Error( 'dox_pos_estado', $caja ? __( 'That order is no longer on layaway.', 'dox-pos' ) : __( 'That order is no longer awaiting payment.', 'dox-pos' ) );
+			}
+			// Dar por pagado un pedido de la web (un pago que la pasarela no confirmó) es decisión de quien administra.
+			if ( ! $caja && ! $boss ) {
+				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can confirm the payment of a website order.', 'dox-pos' ) );
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->delete_meta_data( '_dox_pos_hold_until' );
@@ -495,6 +517,10 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 		case 'cancel':
 			if ( $order->has_status( array( 'cancelled', 'refunded' ) ) ) {
 				return new WP_Error( 'dox_pos_estado', __( 'That order was already cancelled.', 'dox-pos' ) );
+			}
+			// El rol Caja anula lo que está abierto (apartados, sin pagar, por enviar); lo enviado o entregado, solo quien administra.
+			if ( ! $boss && ! $order->has_status( array( 'pending', 'on-hold', 'failed', 'processing' ) ) ) {
+				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can cancel an order that was already shipped or delivered.', 'dox-pos' ) );
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->update_status( 'cancelled', sprintf( /* translators: %s: quién lo anuló */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
@@ -893,7 +919,7 @@ function dox_pos_order_detail( $id ) {
 			'name'         => $it->get_name(),
 			'sku'          => $sku,
 			'qty'          => $qty,
-			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty ) : 0,
+			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, wc_get_price_decimals() ) : 0,
 			'total'        => (float) $it->get_total(),
 			'image'        => $img ? (string) wp_get_attachment_image_url( $img, 'woocommerce_thumbnail' ) : '',
 			'url'          => $parent && 'publish' === $parent->get_status() ? get_permalink( $parent->get_id() ) : '',

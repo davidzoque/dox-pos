@@ -11,6 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $logo  = dox_pos_logo_url();
 $brand = dox_pos_brand_name();
 $cfg   = dox_pos_js_config();
+$im    = wc_get_price_decimals() > 0 ? 'decimal' : 'numeric'; // El teclado de los importes: con decimales, el que trae la coma.
 dox_pos_enqueue_caja( $cfg );
 ?>
 <!doctype html>
@@ -82,12 +83,12 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp">
 							<h4><?php esc_html_e( 'Payment', 'dox-pos' ); ?></h4>
 							<div class="chips" id="f-pago"></div>
-							<div class="field mt"><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="numeric"></div>
+							<div class="field mt"><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
 						<div class="grp" id="g-envio">
 							<h4><?php esc_html_e( 'Shipping', 'dox-pos' ); ?></h4>
 							<div class="chips" id="f-envio"></div>
-							<div class="field mt"><label for="f-env"><?php esc_html_e( 'Shipping cost', 'dox-pos' ); ?></label><input id="f-env" value="0" inputmode="numeric"></div>
+							<div class="field mt"><label for="f-env"><?php esc_html_e( 'Shipping cost', 'dox-pos' ); ?></label><input id="f-env" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Note', 'dox-pos' ); ?></h4>
@@ -210,12 +211,12 @@ dox_pos_enqueue_caja( $cfg );
 							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><p class="fwarn" id="p-nom-dup" hidden></p></div>
 							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div></div>
 							<div class="g2 mt">
-								<div class="field"><label for="p-precio"><?php esc_html_e( 'Price', 'dox-pos' ); ?></label><input id="p-precio" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+								<div class="field"><label for="p-precio"><?php esc_html_e( 'Price', 'dox-pos' ); ?></label><input id="p-precio" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
 								<div class="field"><label for="p-sku"><?php esc_html_e( 'SKU', 'dox-pos' ); ?></label><input id="p-sku" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="pstatus" id="p-sku-st" aria-live="polite"></span></div>
 							</div>
 							<?php if ( $cfg['costs'] ) : // El costo por unidad, solo para quien administra. ?>
 							<div class="g2 mt">
-								<div class="field"><label for="p-costo"><?php esc_html_e( 'Cost per unit', 'dox-pos' ); ?></label><input id="p-costo" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+								<div class="field"><label for="p-costo"><?php esc_html_e( 'Cost per unit', 'dox-pos' ); ?></label><input id="p-costo" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
 								<div class="field"><span class="lbl"><?php esc_html_e( 'Profit', 'dox-pos' ); ?></span><p class="margen" id="p-margen"><?php esc_html_e( 'Enter a price and a cost.', 'dox-pos' ); ?></p></div>
 							</div>
 							<p class="hint"><?php esc_html_e( 'What you paid for each unit, including the supplier\'s shipping if there was any. Only people who administer the store can see it, and the profit is kept with every sale. A product with sizes carries one cost for all of them; if one costs something different, set it in WooCommerce.', 'dox-pos' ); ?></p>

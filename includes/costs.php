@@ -569,7 +569,7 @@ function dox_pos_costs_import( $file ) {
 		$sku = null !== $cols['sku'] ? trim( (string) ( $r[ $cols['sku'] ] ?? '' ) ) : '';
 		$ref = null !== $cols['ref'] ? trim( (string) ( $r[ $cols['ref'] ] ?? '' ) ) : '';
 		$key = '' !== $sku ? $sku : $ref;
-		if ( '' === $key || '(sin código)' === $key ) {
+		if ( '' === $key || '(sin código)' === $key || '(no SKU)' === $key || __( '(no SKU)', 'dox-pos' ) === $key ) { // Lo que el Excel del inventario pone cuando no hay código.
 			$out['skipped']++;
 			continue;
 		}
