@@ -2342,3 +2342,23 @@ msgstr "Todas las tallas comparten este total: la tienda descuenta de ahí sea c
 #: assets/js/caja.js
 msgid "for all the sizes together"
 msgstr "para todas las tallas juntas"
+
+#: assets/js/caja.js
+msgid "from the total"
+msgstr "del total"
+
+#: assets/js/caja.js
+msgid "That total is changed by recording the goods in Inventory, or in WooCommerce."
+msgstr "Ese total se cambia registrando la mercancía en Inventario, o en WooCommerce."
+
+#: assets/js/caja.js
+msgid "The sizes do not carry their own units but one total for all of them: %d unit."
+msgid_plural "The sizes do not carry their own units but one total for all of them: %d units."
+msgstr[0] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidad."
+msgstr[1] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidades."
+
+#: assets/js/caja.js
+msgid "The sizes marked “from the total” take from the %d unit the product has; the rest carry their own."
+msgid_plural "The sizes marked “from the total” take from the %d units the product has; the rest carry their own."
+msgstr[0] "Las tallas marcadas “del total” salen de la %d unidad que tiene el producto; las demás llevan las suyas."
+msgstr[1] "Las tallas marcadas “del total” salen de las %d unidades que tiene el producto; las demás llevan las suyas."

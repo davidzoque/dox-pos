@@ -1090,6 +1090,10 @@ function dox_pos_product_response( $p, $units = null, $nvars = null ) {
 		$units = $p->is_type( 'variable' )
 			? (int) $wpdb->get_var( $wpdb->prepare( "SELECT SUM(pm.meta_value) FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} v ON v.ID = pm.post_id AND v.post_parent = %d AND v.post_type = 'product_variation' WHERE pm.meta_key = '_stock'", $p->get_id() ) )
 			: (int) $p->get_stock_quantity();
+		// Las tallas que heredan no llevan su propio _stock: el total del producto se suma aparte, una vez.
+		if ( $p->is_type( 'variable' ) && $p->managing_stock() ) {
+			$units += (int) $p->get_stock_quantity();
+		}
 	}
 	return array(
 		'product' => array(
@@ -1296,16 +1300,19 @@ function dox_pos_product_edit_data( $id ) {
 	$prices = array();
 	$qty    = array();
 	$units  = 0;
+	$shared_cells = array(); // Las tallas que no llevan las suyas: salen del total del producto.
 	if ( $p->is_type( 'variable' ) ) {
 		foreach ( $model['variations'] as $v ) {
 			$prices[] = (float) $v['price'];
 			if ( null !== $v['stock'] ) {
 				$qty[ $v['color'] ][ (string) $v['size'] ] = $v['stock'];
 				$units += $v['stock'];
+			} else {
+				$shared_cells[] = $v['color'] . '|' . $v['size'];
 			}
 		}
 		if ( null !== $model['shared'] ) {
-			$units = (int) $model['shared'];
+			$units += (int) $model['shared']; // El total compartido, una sola vez, más lo de las tallas que llevan las suyas.
 		}
 	} else {
 		$prices[] = (float) $p->get_regular_price( 'edit' );
@@ -1334,7 +1341,8 @@ function dox_pos_product_edit_data( $id ) {
 		'sizes'       => $model['sizes'],
 		'colors'      => $model['colors'],
 		'qty'         => (object) $qty,
-		'shared'      => $model['shared'], // Existencias en conjunto (null si cada talla lleva las suyas).
+		'shared'      => $model['shared'],  // El total del producto (null si cada talla lleva las suyas).
+		'shared_cells' => $shared_cells,    // Qué tallas salen de ese total; el resto llevan las suyas y se editan.
 		'images'      => $images,
 		'variations'  => count( $model['variations'] ),
 		'units'       => $units,
@@ -1628,7 +1636,8 @@ function dox_pos_update_product( $id, $data ) {
 				$v->set_regular_price( $price );
 				$changed = true;
 			}
-			if ( ( null === $model['shared'] && null !== $vr['stock'] ) || $split ) {
+			// Las tallas que llevan las suyas se editan siempre, comparta o no alguna hermana el total del producto.
+			if ( null !== $vr['stock'] || $split ) {
 				$row = $qty[ $vr['color'] ] ?? null;
 				if ( is_array( $row ) && array_key_exists( (string) $vr['size'], $row ) ) {
 					$n = max( 0, (int) $row[ (string) $vr['size'] ] );

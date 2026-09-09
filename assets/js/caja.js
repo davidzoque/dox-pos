@@ -1526,6 +1526,7 @@
 		const bj = $("#p-junto");
 		bj.hidden = !puedeJunto;
 		bj.textContent = pr.junto ? __("Units per size", "dox-pos") : __("One total for all", "dox-pos");
+		bj.setAttribute("aria-pressed", pr.junto ? "true" : "false");
 		if (puedeJunto && pr.junto) { // El producto llevará un total y las tallas lo heredan.
 			t.innerHTML = "";
 			$("#p-junto-box").hidden = false;
@@ -1540,29 +1541,38 @@
 			return;
 		}
 		$("#p-junto-box").hidden = true;
-		const conjunto = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined); // Un total para todas las tallas.
-		const shared = conjunto && !pr.split;
-		$("#p-qty-shared").hidden = !shared;
-		$("#p-todo1").hidden = shared;
-		$("#p-todo0").hidden = shared;
-		if (shared) { // Existencias en conjunto para todas las tallas: se cambian por mercancía, en WooCommerce, o repartiéndolas aquí.
-			t.innerHTML = "";
-			$("#p-qty-shared").innerHTML = esc(sprintf(_n("This product does not carry units per size but one total for all of them: %d unit.", "This product does not carry units per size but one total for all of them: %d units.", pr.edit.shared, "dox-pos"), pr.edit.shared)) + " " + esc(__("To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total.", "dox-pos")) + ' <button type="button" class="lnk" id="p-split">' + esc(__("Spread them by size", "dox-pos")) + "</button>";
+		// Editando: las tallas que salen del total del producto. Las demás llevan las suyas y se escriben aquí,
+		// que es como está la mayoría de los productos de una tienda que creció con el tiempo.
+		const conjunto = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined);
+		const delTotal = conjunto && !pr.split ? new Set(pr.edit.shared_cells || []) : new Set();
+		const todasDelTotal = delTotal.size >= filas().length * columnas().length; // Ninguna talla lleva las suyas: no hay nada que rellenar.
+		$("#p-qty-shared").hidden = !delTotal.size;
+		$("#p-todo1").hidden = todasDelTotal;
+		$("#p-todo0").hidden = todasDelTotal;
+		if (delTotal.size) {
+			const todas = todasDelTotal;
+			$("#p-qty-shared").innerHTML = esc(sprintf(todas
+				? _n("The sizes do not carry their own units but one total for all of them: %d unit.", "The sizes do not carry their own units but one total for all of them: %d units.", pr.edit.shared, "dox-pos")
+				: _n("The sizes marked \u201cfrom the total\u201d take from the %d unit the product has; the rest carry their own.", "The sizes marked \u201cfrom the total\u201d take from the %d units the product has; the rest carry their own.", pr.edit.shared, "dox-pos"), pr.edit.shared)) +
+				" " + esc(__("That total is changed by recording the goods in Inventory, or in WooCommerce.", "dox-pos")) + ' <button type="button" class="undo" id="p-split">' + esc(__("Spread them by size", "dox-pos")) + "</button>";
 			$("#p-split").onclick = () => { pr.split = true; pintarCantidades(); pintarResumenProducto(); };
-			return;
 		}
 		const cols = columnas();
 		let h = "<thead><tr><th></th>" + cols.map((c) => "<th>" + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>";
 		filas().forEach((r) => {
 			h += '<tr><th scope="row" title="' + esc(r.name) + '">' + esc(r.label || r.name) + "</th>" +
-				cols.map((c) => { const v = pr.qty[qKey(c.key, r.id)]; return '<td><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '"></td>'; }).join("") + "</tr>";
+				cols.map((c) => {
+					if (delTotal.has(c.key + "|" + r.id)) return '<td class="shr">' + esc(__("from the total", "dox-pos")) + "</td>"; // Sale del total del producto: no se escribe aquí.
+					const v = pr.qty[qKey(c.key, r.id)];
+					return '<td><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '"></td>';
+				}).join("") + "</tr>";
 		});
 		t.innerHTML = h + "</tbody>";
 		t.querySelectorAll("input").forEach((inp) => {
 			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
-		if (conjunto) { // Repartiendo: se dice cuántas hay que colocar.
+		if (conjunto && pr.split) { // Repartiendo: se dice cuántas hay que colocar.
 			$("#p-qty-shared").hidden = false;
 			$("#p-qty-shared").textContent = sprintf(_n("There is %d unit in total: write how many go to each size. Once saved, every size carries its own units.", "There are %d units in total: write how many go to each size. Once saved, every size carries its own units.", pr.edit.shared, "dox-pos"), pr.edit.shared);
 		}
@@ -1574,9 +1584,11 @@
 	}
 	function unidadesTotales() {
 		if (!pr.edit && pr.junto) return pr.juntoN || 0;
-		if (pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined && !pr.split) return pr.edit.shared;
-		let u = 0;
-		filas().forEach((r) => columnas().forEach((c) => { u += cantidad(c.key, r.id); }));
+		// Editando: el total del producto (si alguna talla sale de él) más lo que lleve cada talla suya.
+		const conjunto = pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined && !pr.split;
+		const delTotal = conjunto ? new Set(pr.edit.shared_cells || []) : new Set();
+		let u = conjunto ? pr.edit.shared : 0;
+		filas().forEach((r) => columnas().forEach((c) => { if (!delTotal.has(c.key + "|" + r.id)) u += cantidad(c.key, r.id); }));
 		return u;
 	}
 

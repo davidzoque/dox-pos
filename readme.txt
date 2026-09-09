@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.29.0
+Stable tag: 0.29.2
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.29.2 =
+* A product where some sizes take their units from the product's total and others carry their own (the usual case in a shop that grew over time) now shows all its sizes when you edit it: the shared ones are marked "from the total" and the rest are typed in as always. Before, the whole table was hidden and those units could only be changed in WooCommerce.
+* The three controls in the Units header no longer run into each other, and "One total for all" looks like the switch it is.
 
 = 0.29.0 =
 * The tab is called Reports, not History: what is in there (sales, the day's cash, stock movements and performance) are reports on how the shop is doing. The order detail keeps its own History with the order's notes.

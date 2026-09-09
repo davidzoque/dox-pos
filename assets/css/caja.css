@@ -300,6 +300,11 @@ tr.off,li.off{opacity:.5}
 .qtyt th[scope="row"]{position:sticky;left:0;background:var(--sunk);max-width:140px;overflow:hidden;text-overflow:ellipsis}
 .qtyt td{padding:3px 4px;text-align:center}
 .qtyt td input{width:64px;text-align:center;padding:8px 4px;font-variant-numeric:tabular-nums}
+/* La cabecera de Unidades lleva tres controles: los dos de relleno rápido y el interruptor del total */
+.grp h4.qh{flex-wrap:wrap;gap:8px}
+.qhdr{display:inline-flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:flex-end}
+.chip.sm{min-height:30px;padding:4px 12px;font-size:12px}
+.qtyt td.shr{color:var(--muted);font-size:12px;white-space:nowrap}
 .qjunto{max-width:200px}
 .qjunto input{text-align:center;font-variant-numeric:tabular-nums}
 .switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13.5px;font-weight:500;position:relative}
