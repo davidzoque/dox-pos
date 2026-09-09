@@ -229,7 +229,10 @@ body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
 .dp-app .dp-tags-input,.dp-app .dp-tags-input:focus{flex:1;min-width:160px;border:0;outline:0;box-shadow:none;height:30px;min-height:0;margin:0;padding:0 6px;background:none;color:var(--dp-ink);font-family:inherit;font-size:14px}
 
 /* ---------- datos de la tienda ---------- */
-.dp-facts{margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+/* auto-fit y no auto-fill: con dos datos y sitio para tres, auto-fill dejaba una columna vacía
+   a la derecha y la tarjeta se veía descuadrada. Un dato solo tampoco se estira de lado a lado. */
+.dp-facts{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.dp-facts>div:only-child{max-width:340px}
 .dp-facts>div{padding:12px 14px;border:1px solid var(--dp-line);border-radius:12px;background:var(--dp-sunk)}
 .dp-facts dt{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dp-muted);margin-bottom:4px}
 .dp-facts dt .dp-i{width:14px;height:14px;vertical-align:0}

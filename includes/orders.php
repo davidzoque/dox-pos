@@ -20,6 +20,9 @@ const DOX_POS_VIA = 'dox-pos';
  * "admin" (hecho a mano en WooCommerce > Pedidos) u "otro" (una app, la API).
  */
 function dox_pos_order_origin( $order ) {
+	if ( ! $order instanceof WC_Order ) {
+		return 'otro'; // Un reembolso o algo que no es un pedido: no tiene de dónde venir.
+	}
 	$via = (string) $order->get_created_via();
 	if ( DOX_POS_VIA === $via ) {
 		return 'caja';
@@ -112,7 +115,7 @@ function dox_pos_create_order( $data, $hold ) {
 	// Si la misma venta ya entró (la cola sin señal reintenta), se devuelve la que existe.
 	$ref = sanitize_text_field( $data['ref'] ?? '' );
 	if ( $ref ) {
-		$existing = wc_get_orders( array( 'meta_query' => array( array( 'key' => '_dox_pos_ref', 'value' => $ref ) ), 'limit' => 1 ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+		$existing = wc_get_orders( array( 'type' => 'shop_order', 'meta_query' => array( array( 'key' => '_dox_pos_ref', 'value' => $ref ) ), 'limit' => 1 ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 		if ( $existing ) {
 			return dox_pos_order_response( $existing[0], $hold );
 		}
@@ -450,6 +453,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 function dox_pos_list_orders( $limit = 80 ) {
 	$args = array(
 		'limit'   => $limit,
+		'type'    => 'shop_order', // Sin esto entran también los reembolsos, que no son pedidos.
 		'orderby' => 'date',
 		'order'   => 'DESC',
 		'status'  => array( 'wc-pending', 'wc-on-hold', 'wc-processing', 'wc-enviado', 'wc-completed', 'wc-cancelled', 'wc-failed', 'wc-refunded' ),
