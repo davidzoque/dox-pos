@@ -2567,8 +2567,8 @@ msgid "%1$s (group %2$d)"
 msgstr "%1$s (grupo %2$d)"
 
 #: assets/js/caja.js
-msgid "All products, A to Z"
-msgstr "Todos los productos, de la A a la Z"
+msgid "All products"
+msgstr "Todos los productos"
 
 #: assets/js/caja.js
 msgid "Loading more…"

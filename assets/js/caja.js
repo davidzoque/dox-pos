@@ -238,7 +238,7 @@
 			return;
 		}
 		if (top) ul.innerHTML = '<li class="rtit">' + esc(__("Best sellers of the last 30 days", "dox-pos")) + "</li>";
-		if (cat) ul.innerHTML = '<li class="rtit">' + esc(__("All products, A to Z", "dox-pos")) + (st.cat.total ? ' <span class="cnt">' + st.cat.items.length + " / " + st.cat.total + "</span>" : "") + "</li>";
+		if (cat) ul.innerHTML = '<li class="rtit">' + esc(__("All products", "dox-pos")) + (st.cat.total ? ' <span class="cnt">' + st.cat.items.length + " / " + st.cat.total + "</span>" : "") + "</li>";
 		items.forEach((p) => {
 			// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
 			const bolsas = {};

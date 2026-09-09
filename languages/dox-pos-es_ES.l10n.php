@@ -84,7 +84,7 @@ return array(
 		'After' => 'Quedan',
 		'All' => 'Todos',
 		'All colors' => 'Todos los colores',
-		'All products, A to Z' => 'Todos los productos, de la A a la Z',
+		'All products' => 'Todos los productos',
 		'All sizes share' => 'Todas las tallas comparten',
 		'All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one.' => 'Todas las tallas comparten este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Después puedes repartirlo por talla desde Editar uno.',
 		'An email with the tracking number and the tracking link reached %s.' => 'Le llegó un correo a %s con la guía y el enlace de rastreo.',
