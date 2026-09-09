@@ -2318,3 +2318,27 @@ msgstr "%d para todas las tallas"
 #: assets/js/caja.js
 msgid "No signal: the product could not be loaded."
 msgstr "Sin señal: no se pudo cargar el producto."
+
+#: templates/caja.php
+msgid "Reports"
+msgstr "Informes"
+
+#: templates/caja.php
+msgid "Units in total"
+msgstr "Unidades en total"
+
+#: assets/js/caja.js
+msgid "One total for all"
+msgstr "Un total para todas"
+
+#: assets/js/caja.js
+msgid "Units per size"
+msgstr "Unidades por talla"
+
+#: assets/js/caja.js
+msgid "All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one."
+msgstr "Todas las tallas comparten este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Después puedes repartirlo por talla desde Editar uno."
+
+#: assets/js/caja.js
+msgid "for all the sizes together"
+msgstr "para todas las tallas juntas"

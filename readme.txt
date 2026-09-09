@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.28.1
+Stable tag: 0.29.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.29.0 =
+* The tab is called Reports, not History: what is in there (sales, the day's cash, stock movements and performance) are reports on how the shop is doing. The order detail keeps its own History with the order's notes.
+* A new product can carry one total for all its sizes, the way many shops keep their stock: under Units, "One total for all". The store then discounts from that total whichever size is sold, and you can spread it by size later from Edit one.
 
 = 0.28.1 =
 * An add-on can choose which tab the register opens on when there is no address to follow (Dox POS Pro uses it to open on Today for whoever manages the shop). Everyone else keeps opening on Sell.

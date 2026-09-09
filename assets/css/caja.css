@@ -300,6 +300,8 @@ tr.off,li.off{opacity:.5}
 .qtyt th[scope="row"]{position:sticky;left:0;background:var(--sunk);max-width:140px;overflow:hidden;text-overflow:ellipsis}
 .qtyt td{padding:3px 4px;text-align:center}
 .qtyt td input{width:64px;text-align:center;padding:8px 4px;font-variant-numeric:tabular-nums}
+.qjunto{max-width:200px}
+.qjunto input{text-align:center;font-variant-numeric:tabular-nums}
 .switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13.5px;font-weight:500;position:relative}
 .switch input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
 .switch-ui{width:42px;height:24px;border-radius:999px;background:var(--line);position:relative;flex:none;margin-top:1px;transition:background-color 160ms ease}

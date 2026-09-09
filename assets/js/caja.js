@@ -1521,6 +1521,25 @@
 	const filas = () => { const r = tallasOrdenadas(); return r.length ? r : [{ id: 0, name: __("One size", "dox-pos"), label: "" }]; };
 	function pintarCantidades() {
 		const t = $("#p-qty");
+		// Creando: el botón deja elegir entre unidades por talla o un solo total para todas.
+		const puedeJunto = !pr.edit && (pr.tallas.length > 0 || pr.colores.length > 0);
+		const bj = $("#p-junto");
+		bj.hidden = !puedeJunto;
+		bj.textContent = pr.junto ? __("Units per size", "dox-pos") : __("One total for all", "dox-pos");
+		if (puedeJunto && pr.junto) { // El producto llevará un total y las tallas lo heredan.
+			t.innerHTML = "";
+			$("#p-junto-box").hidden = false;
+			$("#p-qty-shared").hidden = false;
+			$("#p-qty-shared").textContent = __("All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one.", "dox-pos");
+			$("#p-todo1").hidden = true;
+			$("#p-todo0").hidden = true;
+			const inp = $("#p-junto-n");
+			if (document.activeElement !== inp) inp.value = pr.juntoN ? String(pr.juntoN) : "";
+			inp.oninput = () => { pr.juntoN = num(inp.value); pintarResumenProducto(); };
+			inp.onfocus = () => inp.select();
+			return;
+		}
+		$("#p-junto-box").hidden = true;
 		const conjunto = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined); // Un total para todas las tallas.
 		const shared = conjunto && !pr.split;
 		$("#p-qty-shared").hidden = !shared;
@@ -1554,6 +1573,7 @@
 		pintarResumenProducto();
 	}
 	function unidadesTotales() {
+		if (!pr.edit && pr.junto) return pr.juntoN || 0;
 		if (pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined && !pr.split) return pr.edit.shared;
 		let u = 0;
 		filas().forEach((r) => columnas().forEach((c) => { u += cantidad(c.key, r.id); }));
@@ -1631,7 +1651,8 @@
 			if (cfg.costs && costoForm() > precio) avisos.push(__("The cost is higher than the price: it would sell at a loss.", "dox-pos"));
 			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
 			let tabla = "";
-			if (pr.tallas.length || pr.colores.length) {
+			if (pr.junto) tabla = ' <span class="sub">' + esc(__("for all the sizes together", "dox-pos")) + "</span>";
+			else if (pr.tallas.length || pr.colores.length) {
 				tabla = '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
 					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
 			}
@@ -1684,6 +1705,7 @@
 			sizes: rows.map((t) => t.id),
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
 			qty: qty,
+			shared_stock: !pr.edit && pr.junto ? (pr.juntoN || 0) : null, // Un solo total para todas las tallas, al crear.
 			split_stock: !!pr.split, // Un total en conjunto que se reparte por tallas.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
@@ -1709,7 +1731,8 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.split = false;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.split = false; pr.junto = false; pr.juntoN = 0;
+		if ($("#p-junto-n")) $("#p-junto-n").value = "";
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		$("#p-pub").checked = true;
@@ -2181,6 +2204,7 @@
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-todo1").onclick = () => ponerTodas(1);
 			$("#p-todo0").onclick = () => ponerTodas(0);
+			$("#p-junto").onclick = () => { pr.junto = !pr.junto; pintarCantidades(); pintarResumenProducto(); };
 			$("#p-crear").onclick = crearProducto;
 			document.querySelectorAll("#pmode button").forEach((b) => { b.onclick = () => ponerModo(b.dataset.m); });
 			$("#p-q").addEventListener("input", programarBusquedaProducto);

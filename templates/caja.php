@@ -36,7 +36,7 @@ dox_pos_enqueue_caja( $cfg );
 			<?php if ( $cfg['products'] ) : ?>
 			<button type="button" data-t="producto" aria-pressed="false"><?php esc_html_e( 'Products', 'dox-pos' ); ?></button>
 			<?php endif; ?>
-			<button type="button" data-t="historial" aria-pressed="false"><?php echo esc_html( $cfg['history_full'] ? __( 'History', 'dox-pos' ) : __( 'My day', 'dox-pos' ) ); ?></button>
+			<button type="button" data-t="historial" aria-pressed="false"><?php echo esc_html( $cfg['history_full'] ? __( 'Reports', 'dox-pos' ) : __( 'My day', 'dox-pos' ) ); ?></button>
 			<?php do_action( 'dox_pos_tabs', $cfg ); // Pestañas de los añadidos (el Pro pone Asistente). ?>
 		</nav>
 		<span class="user"><?php echo esc_html( $cfg['user'] ); ?> · <a href="<?php echo esc_url( $cfg['logout'] ); ?>"><?php esc_html_e( 'Sign out', 'dox-pos' ); ?></a></span>
@@ -234,8 +234,9 @@ dox_pos_enqueue_caja( $cfg );
 							<p class="hint" id="p-tallas-hint"><?php esc_html_e( 'Choose the category and its sizes appear.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="grp">
-							<h4><?php esc_html_e( 'Units', 'dox-pos' ); ?> <span class="cnt"><button type="button" class="undo" id="p-todo1"><?php esc_html_e( 'All to 1', 'dox-pos' ); ?></button> <button type="button" class="undo" id="p-todo0"><?php esc_html_e( 'All to 0', 'dox-pos' ); ?></button></span></h4>
+							<h4><?php esc_html_e( 'Units', 'dox-pos' ); ?> <span class="cnt"><button type="button" class="undo" id="p-todo1"><?php esc_html_e( 'All to 1', 'dox-pos' ); ?></button> <button type="button" class="undo" id="p-todo0"><?php esc_html_e( 'All to 0', 'dox-pos' ); ?></button> <button type="button" class="undo" id="p-junto" hidden></button></span></h4>
 							<div class="wrapx qtywrap"><table class="qtyt" id="p-qty"></table></div>
+							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Units in total', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
 							<p class="hint" id="p-qty-shared" hidden></p>
 						</div>
 						<div class="grp">

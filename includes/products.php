@@ -873,6 +873,9 @@ function dox_pos_create_product( $data ) {
 	}
 
 	$variable = $sizes || $colors;
+	// Un solo total para todas las tallas: lo lleva el producto y las tallas lo heredan, como los 136
+	// productos que Rosella ya tenía así. Null (o sin tallas) = cada talla lleva las suyas.
+	$shared   = $variable && isset( $data['shared_stock'] ) && '' !== $data['shared_stock'] && null !== $data['shared_stock'] ? max( 0, (int) $data['shared_stock'] ) : null;
 	$ctx      = dox_pos_stock_context( 'create' ); // El kardex: las unidades iniciales quedan como "Creado en la caja".
 	$product  = $variable ? new WC_Product_Variable() : new WC_Product_Simple();
 	$product->set_name( $name );
@@ -907,6 +910,12 @@ function dox_pos_create_product( $data ) {
 			$attrs[] = dox_pos_make_attribute( $size_tax, array_keys( $sizes ), count( $attrs ) );
 		}
 		$product->set_attributes( $attrs );
+		if ( null !== $shared ) {
+			$product->set_manage_stock( true );
+			$product->set_stock_quantity( $shared );
+			$product->set_stock_status( $shared > 0 ? 'instock' : 'outofstock' );
+			$units = $shared;
+		}
 	}
 	try {
 		if ( '' !== $sku ) {
@@ -956,16 +965,20 @@ function dox_pos_create_product( $data ) {
 						// Ese código ya existía: la variación se queda sin código, el producto no se pierde.
 					}
 				}
-				$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
 				$v->set_regular_price( $price );
-				$v->set_manage_stock( true );
-				$v->set_stock_quantity( $n );
-				$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
+				if ( null === $shared ) {
+					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
+					$v->set_manage_stock( true );
+					$v->set_stock_quantity( $n );
+					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
+					$units += $n;
+				} else {
+					$v->set_manage_stock( false ); // Hereda el total del producto.
+				}
 				if ( $cterm && isset( $by_color[ $ckey ] ) ) {
 					$v->set_image_id( $by_color[ $ckey ] );
 				}
 				$v->save();
-				$units += $n;
 				$nvars++;
 			}
 		}
