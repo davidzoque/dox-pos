@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.28.0
+Stable tag: 0.28.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.28.1 =
+* An add-on can choose which tab the register opens on when there is no address to follow (Dox POS Pro uses it to open on Today for whoever manages the shop). Everyone else keeps opening on Sell.
 
 = 0.28.0 =
 * Tap a product anywhere (the assistant, the history, the stock entries) and its card opens right there: photo, code, price, cost and what each unit leaves for those who manage the shop, units per size (or the shared total), category, and the buttons to edit it or see it in the store. Before, it jumped straight to the editor.

@@ -2132,8 +2132,13 @@
 	// Abre lo que diga la dirección: la pestaña y su vista, y, si viene, el pedido (#pedidos/123) o la ficha
 	// de un producto (#producto/123). Así los enlaces del correo del resumen llegan a donde apuntan, se
 	// abra la caja de cero o ya estuviera abierta.
-	function abrirDesdeHash() {
+	function abrirDesdeHash(inicial) {
 		const [tabH, vistaH, extraH] = location.hash.replace(/^#/, "").split("/");
+		if (!tabH && inicial === true && cfg.open_tab && cfg.open_tab !== "vender") { // Sin # al entrar: la pestaña que diga un añadido (el Pro: Hoy para quien administra).
+			const t0 = document.querySelector('#tabs button[data-t="' + cfg.open_tab + '"]');
+			if (t0) setTimeout(() => t0.click(), 0);
+			return;
+		}
 		if (!tabH || tabH === "vender") return;
 		const t = document.querySelector('#tabs button[data-t="' + tabH + '"]');
 		if (!t) return;
@@ -2211,7 +2216,7 @@
 			$("#h-q").addEventListener("input", () => { clearTimeout(hqTimer); hqTimer = setTimeout(() => { hi.q = $("#h-q").value.trim(); hi.page = 1; cargarHistorial(); }, 300); });
 		}
 		emit("arranque"); // Los añadidos enganchan lo suyo (el Pro: el chat, la insignia, el aviso de demostración).
-		abrirDesdeHash();
+		abrirDesdeHash(true);
 		// Y si cambia el # con la caja ya abierta (el enlace del correo cae en esta misma pestaña, o
 		// se toca "atrás"), se abre lo que pida sin recargar.
 		window.addEventListener("hashchange", abrirDesdeHash);
