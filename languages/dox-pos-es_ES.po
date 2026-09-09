@@ -2286,3 +2286,35 @@ msgid "There is %d unit in total: write how many go to each size. Once saved, ev
 msgid_plural "There are %d units in total: write how many go to each size. Once saved, every size carries its own units."
 msgstr[0] "Hay %d unidad en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."
 msgstr[1] "Hay %d unidades en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."
+
+#: includes/products.php
+msgid "That product does not exist."
+msgstr "Ese producto no existe."
+
+#: assets/js/caja.js
+msgid "%1$s to %2$s"
+msgstr "de %1$s a %2$s"
+
+#: assets/js/caja.js
+msgid "Code"
+msgstr "Código"
+
+#: assets/js/caja.js
+msgid "Option"
+msgstr "Opción"
+
+#: assets/js/caja.js
+msgid "not tracked"
+msgstr "sin control"
+
+#: assets/js/caja.js
+msgid "shared by all sizes"
+msgstr "compartidas por todas las tallas"
+
+#: assets/js/caja.js
+msgid "%d for all sizes"
+msgstr "%d para todas las tallas"
+
+#: assets/js/caja.js
+msgid "No signal: the product could not be loaded."
+msgstr "Sin señal: no se pudo cargar el producto."

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.27.0
+Stable tag: 0.28.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.28.0 =
+* Tap a product anywhere (the assistant, the history, the stock entries) and its card opens right there: photo, code, price, cost and what each unit leaves for those who manage the shop, units per size (or the shared total), category, and the buttons to edit it or see it in the store. Before, it jumped straight to the editor.
+* The loss on an order stands out: a proper "Note a loss" button on the detail, a red tag with the amount once noted, and the same tag on the orders list and in the history. The profit comes out in colour: green when it reaches the shop's target margin, amber when it falls short, red when it is low.
 
 = 0.27.0 =
 * Losses. From the order detail, an administrator or shop manager can note what an order cost beyond the goods (a shipment that cost more than what was charged, a freight refunded, a repair), with the reason. It comes off the profit of that sale, shows in the history, the cash report and their Excel files, and the order keeps a note of who wrote it.

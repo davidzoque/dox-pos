@@ -500,6 +500,14 @@
 			$("#m-no").onclick = cerrarModal;
 		}
 	}
+	// La ganancia en color según el margen: verde si llega al que la tienda quiere, ámbar si se queda
+	// corta, rojo si es poca. Los umbrales vienen de los ajustes del asistente cuando está el Pro.
+	function pildoraGanancia(profit, margin) {
+		const good = +cfg.margin_good || 40, low = +cfg.margin_low || 20;
+		const sin = margin === null || margin === undefined;
+		const cls = sin ? "e" : (margin >= good ? "c" : (margin >= low ? "y" : "r"));
+		return '<span class="tag ' + cls + '">' + dinero(profit) + (sin ? "" : " · " + margin + " %") + "</span>";
+	}
 	function pintarDetalle(d) {
 		const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[d.status] || "e";
 		const web = d.origin !== "caja";
@@ -525,9 +533,9 @@
 			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
 			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
 			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un imprevisto). Solo quien administra.
-			(d.loss !== undefined ? '<tr class="loss"><td>' + esc(__("Loss", "dox-pos")) + (d.loss_note ? ' <span class="sub">· ' + esc(d.loss_note) + "</span>" : "") + "</td><td>" + (d.loss ? "−" + dinero(d.loss) + " " : "") + '<button type="button" class="lnk" id="m-loss">' + esc(d.loss ? __("Edit", "dox-pos") : __("Note a loss", "dox-pos")) + "</button></td></tr>" : "") +
-			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse (y la pérdida ya restada).
-			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + dinero(d.profit) + (d.margin !== null ? ' <span class="sub">' + d.margin + " %</span>" : "") + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
+			(d.loss !== undefined ? '<tr class="loss"><td>' + esc(__("Loss", "dox-pos")) + (d.loss_note ? ' <span class="sub">· ' + esc(d.loss_note) + "</span>" : "") + "</td><td>" + (d.loss ? '<span class="tag r">−' + dinero(d.loss) + '</span><button type="button" class="lnk" id="m-loss">' + esc(__("Edit", "dox-pos")) + "</button>" : '<button type="button" class="mini" id="m-loss">' + esc(__("Note a loss", "dox-pos")) + "</button>") + "</td></tr>" : "") +
+			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse (y la pérdida ya restada), en color según el margen.
+			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + pildoraGanancia(d.profit, d.margin) + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
 			"</tbody></table></section>";
 		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
 		h += "<span>" + esc(__("Name", "dox-pos")) + "</span><span>" + esc(d.customer || __("No name", "dox-pos")) + "</span>";
@@ -550,6 +558,49 @@
 		$("#m-no").onclick = cerrarModal;
 		if ($("#m-loss")) $("#m-loss").onclick = () => modalPerdida(d);
 		$("#modal-card").querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { cerrarModal(); editarDesdeLista(+b.dataset.edit); }; });
+	}
+	// ----- la tarjeta de un producto: se abre tocando su nombre en el asistente, el historial o las entradas, sin salir de ahí -----
+	async function verProducto(id) {
+		modal("<h3>" + esc(__("Product", "dox-pos")) + '</h3><p class="mp">' + esc(__("Loading\u2026", "dox-pos")) + "</p>", "wide");
+		try {
+			const d = await api("products/" + id + "/card");
+			if ($("#modal").hidden) return; // lo cerraron mientras cargaba
+			pintarProductoCard(d);
+		} catch (e) {
+			if (e.message === "sesion") return;
+			modal("<h3>" + esc(__("Product", "dox-pos")) + '</h3><p class="mp">' + esc(e.red ? __("No signal: the product could not be loaded.", "dox-pos") : e.message) + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "wide");
+			$("#m-no").onclick = cerrarModal;
+		}
+	}
+	function pintarProductoCard(d) {
+		const conTalla = d.variations.some((v) => v.talla);
+		const rango = (a, b) => (a === b ? dinero(b) : sprintf(__("%1$s to %2$s", "dox-pos"), dinero(a), dinero(b)));
+		let h = "<h3>" + esc(d.name) + ' <span class="tag ' + (d.status === "publish" ? "c" : "e") + '">' + esc(d.status_label) + "</span></h3>";
+		h += '<div class="od"><div class="pc-top"><span class="thumb pc-img">' + (d.image_large || d.image ? '<img src="' + esc(d.image_large || d.image) + '" alt="">' : esc(iniciales(d.name))) + '</span><div class="kv">';
+		if (d.sku) h += "<span>" + esc(__("Code", "dox-pos")) + '</span><span><span class="sku">' + esc(d.sku) + "</span></span>";
+		h += "<span>" + esc(__("Price", "dox-pos")) + "</span><span>" + rango(d.price_min, d.price_max) + "</span>";
+		if (d.cost !== undefined) { // El costo y lo que deja cada unidad: solo quien administra.
+			let costo = d.cost === null ? '<span class="sub">' + esc(__("no cost", "dox-pos")) + "</span>" : (d.cost === "" ? rango(d.cost_min, d.cost_max) : dinero(d.cost));
+			if (d.cost > 0 && d.price_max > 0 && d.price_min === d.price_max) costo += " · " + pildoraGanancia(d.price_max - d.cost, Math.round((d.price_max - d.cost) / d.price_max * 100));
+			h += "<span>" + esc(__("Cost", "dox-pos")) + "</span><span>" + costo + "</span>";
+		}
+		if (d.categories && d.categories.length) h += "<span>" + esc(__("Category", "dox-pos")) + "</span><span>" + esc(d.categories.join(", ")) + "</span>";
+		h += "<span>" + esc(__("Units", "dox-pos")) + "</span><span>" + (d.units === null ? '<span class="sub">' + esc(__("not tracked", "dox-pos")) + "</span>" : "<b>" + esc(sprintf(_n("%d unit", "%d units", d.units, "dox-pos"), d.units)) + "</b>" + (d.shared !== null ? ' <span class="sub">· ' + esc(__("shared by all sizes", "dox-pos")) + "</span>" : "")) + "</span>";
+		h += "</div></div>";
+		if (d.variations.length > 1 || (d.variations.length === 1 && d.variations[0].talla)) {
+			h += '<table class="tot pc-var"><thead><tr><th>' + esc(conTalla ? __("Size", "dox-pos") : __("Option", "dox-pos")) + "</th><th>" + esc(__("Code", "dox-pos")) + '</th><th class="num">' + esc(__("Units", "dox-pos")) + "</th></tr></thead><tbody>";
+			d.variations.forEach((v) => {
+				const st = v.stock === null ? (v.status === "outofstock" ? __("out of stock", "dox-pos") : __("no limit", "dox-pos")) : (v.shared ? sprintf(__("%d for all sizes", "dox-pos"), v.stock) : String(v.stock));
+				h += "<tr" + (v.stock === 0 || v.status === "outofstock" ? ' class="off"' : "") + "><td>" + esc(v.label) + "</td><td>" + (v.sku ? '<span class="sku">' + esc(v.sku) + "</span>" : "") + '</td><td class="num">' + esc(st) + "</td></tr>";
+			});
+			h += "</tbody></table>";
+		}
+		if (d.description) h += '<p class="sub pc-desc">' + esc(d.description) + "</p>";
+		h += "</div>";
+		h += '<div class="mbtn stick odb"><div class="oda">' + (d.editable && hayProducto() ? '<button type="button" class="mini" id="m-edit">' + esc(__("Edit", "dox-pos")) + "</button>" : "") + (d.url ? '<a class="mini sec" href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + "</a>" : "") + '</div><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>";
+		modal(h, "wide");
+		$("#m-no").onclick = cerrarModal;
+		if ($("#m-edit")) $("#m-edit").onclick = () => { cerrarModal(); editarDesdeLista(d.id); };
 	}
 	function pintarPedidos() {
 		const tb = $("#tped");
@@ -579,6 +630,7 @@
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
 				'<td class="num">' + dinero(p.total) + "</td>" +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
+					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
 					(p.status === "apartado" ? '<br><span class="sub">' + esc(sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>" : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
 			const td = document.createElement("td");
@@ -690,7 +742,7 @@
 			li.innerHTML =
 				'<span class="n">' + (prendas ? '<span class="epl">' + prendas + "</span>" : esc(e.items)) + "<i>" + esc(e.date) + (e.supplier ? " · " + esc(e.supplier) : "") + (e.invoice ? " · " + esc(e.invoice) : "") + (e.user ? " · " + esc(e.user) : "") + (e.cost ? " · " + dinero(e.cost) : "") + (e.status !== "ok" ? " · " + esc(__("voided", "dox-pos")) : "") + "</i></span>" +
 				'<span class="v">+' + e.units + "</span>";
-			li.querySelectorAll("button.epz").forEach((b) => { b.onclick = () => editarDesdeLista(+b.dataset.pid); });
+			li.querySelectorAll("button.epz").forEach((b) => { b.onclick = () => verProducto(+b.dataset.pid); });
 			if (e.status === "ok") {
 				const b = document.createElement("button");
 				b.type = "button";
@@ -1935,8 +1987,8 @@
 			'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
 			'<td class="items">' + esc(p.items) + "</td><td>" + canal + "</td>" +
 			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">' + esc(__("pays on delivery", "dox-pos")) + "</span>" : "") + "</td>" +
-			'<td class="num">' + dinero(p.total) + (p.loss ? '<br><span class="sub">' + esc(sprintf(__("loss %s", "dox-pos"), dinero(p.loss))) + "</span>" : "") + "</td>" +
-			(conCosto ? '<td class="num">' + (vendido ? (p.profit !== null && p.profit !== undefined ? dinero(p.profit) + '<br><span class="sub">' + p.margin + " %</span>" : '<span class="sub">sin costo</span>') : "") + "</td>" : "") +
+			'<td class="num">' + dinero(p.total) + (p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") + "</td>" +
+			(conCosto ? '<td class="num">' + (vendido ? (p.profit !== null && p.profit !== undefined ? pildoraGanancia(p.profit, p.margin) : '<span class="sub">' + esc(__("no cost", "dox-pos")) + "</span>") : "") + "</td>" : "") +
 			'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span></td></tr>";
 	}
 	function pintarVentas(d) {
@@ -2091,7 +2143,7 @@
 		setTimeout(() => {
 			t.click();
 			if (tabH === "pedidos" && idH) verPedido(idH);
-			if (tabH === "producto" && idH) editarDesdeLista(idH);
+			if (tabH === "producto" && idH) verProducto(idH); // La tarjeta; desde ahí, Editar.
 		}, 0);
 	}
 	function init() {
@@ -2192,7 +2244,8 @@
 		// (los añadidos usan sus propios atributos) y no tiene que abrir ninguna ficha.
 		document.addEventListener("click", (e) => { const b = e.target.closest("[data-ver]"); const id = b ? parseInt(b.dataset.ver, 10) : 0; if (b && id > 0) { e.preventDefault(); verPedido(id); } });
 		// Y tocar el nombre de un producto (en el resumen, los consejos o lo que se agota) abre su ficha.
-		document.addEventListener("click", (e) => { const b = e.target.closest("[data-prod]"); if (b) { e.preventDefault(); editarDesdeLista(+b.dataset.prod); } });
+		// Un producto nombrado en cualquier parte (el asistente, el historial): su tarjeta, sin salir de donde se está.
+		document.addEventListener("click", (e) => { const b = e.target.closest("[data-prod]"); if (b) { e.preventDefault(); verProducto(+b.dataset.prod); } });
 		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#modal").hidden) cerrarModal(); });
 		const hoy = new Date();
 		$("#e-fec").value = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + String(hoy.getDate()).padStart(2, "0");
@@ -2217,7 +2270,7 @@
 	window.DoxPOS = {
 		cfg, M, $, esc, num, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
-		verPedido, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
+		verPedido, verProducto, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,
 		pestaña, on, emit, pestañaActual: () => st.tab, arrancar: init,
 	};

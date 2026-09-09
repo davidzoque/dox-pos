@@ -1329,6 +1329,72 @@ function dox_pos_product_edit_data( $id ) {
 }
 
 /**
+ * La tarjeta de un producto: lo que se enseña al tocar su nombre en cualquier parte de la caja (el
+ * asistente, el historial, las entradas) sin salir de donde se está. Lo mismo que trae el buscador
+ * (dox_pos_format_product) más el estado, las categorías, el enlace, las unidades y, para quien
+ * administra, el costo.
+ *
+ * @param int $id Producto (o variación: se abre su padre).
+ * @return array|WP_Error
+ */
+function dox_pos_product_card( $id ) {
+	$p = wc_get_product( (int) $id );
+	if ( $p && $p->is_type( 'variation' ) ) {
+		$p = wc_get_product( $p->get_parent_id() );
+	}
+	if ( ! $p ) {
+		return new WP_Error( 'dox_pos_no_existe', __( 'That product does not exist.', 'dox-pos' ) );
+	}
+	$card = dox_pos_format_product( $p->get_id() );
+	$cats = array();
+	foreach ( $p->get_category_ids() as $cid ) {
+		$t = get_term( $cid, 'product_cat' );
+		if ( $t && ! is_wp_error( $t ) ) {
+			$cats[] = html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' );
+		}
+	}
+	$labels = array( 'publish' => __( 'Published', 'dox-pos' ), 'private' => __( 'Hidden', 'dox-pos' ), 'draft' => __( 'Draft', 'dox-pos' ), 'pending' => __( 'Draft', 'dox-pos' ) );
+	$status = $p->get_status();
+	// Las unidades: las de cada talla, más el total del producto una sola vez si las tallas lo comparten.
+	$units  = null;
+	$shared = null;
+	foreach ( $card['variations'] as $v ) {
+		if ( null === $v['stock'] ) {
+			continue;
+		}
+		if ( ! empty( $v['shared'] ) ) {
+			$shared = (int) $v['stock'];
+		} else {
+			$units = (int) $units + (int) $v['stock'];
+		}
+	}
+	if ( null !== $shared ) {
+		$units = (int) $units + $shared;
+	}
+	$prices = array_values( array_unique( array_map( fn( $v ) => (float) $v['price'], $card['variations'] ) ) );
+	$out    = $card + array(
+		'image_large'  => $p->get_image_id() ? (string) wp_get_attachment_image_url( $p->get_image_id(), 'woocommerce_single' ) : '',
+		'status'       => $status,
+		'status_label' => $labels[ $status ] ?? $status,
+		'url'          => 'publish' === $status ? get_permalink( $p->get_id() ) : '',
+		'categories'   => $cats,
+		'units'        => $units,
+		'shared'       => $shared,
+		'price_min'    => $prices ? min( $prices ) : 0.0,
+		'price_max'    => $prices ? max( $prices ) : 0.0,
+		'editable'     => in_array( $p->get_type(), array( 'simple', 'variable' ), true ) && current_user_can( dox_pos_products_cap() ),
+		'description'  => wp_trim_words( dox_pos_plain_text( $p->get_description( 'edit' ) ), 40 ),
+	);
+	if ( dox_pos_can_see_costs() ) {
+		$cs              = dox_pos_product_cost_summary( $p );
+		$out['cost']     = $cs['cost']; // Uno solo; '' si las tallas cuestan distinto; null sin costo.
+		$out['cost_min'] = $cs['min'];
+		$out['cost_max'] = $cs['max'];
+	}
+	return $out;
+}
+
+/**
  * El precio más repetido entre las variaciones (para una talla nueva cuando no se escribe precio).
  *
  * @param array $variations Filas del modelo.

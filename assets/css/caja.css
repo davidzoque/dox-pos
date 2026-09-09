@@ -192,6 +192,10 @@ td.acts{white-space:nowrap}
 td.items{max-width:280px}
 tr.off,li.off{opacity:.5}
 .tag.d{background:var(--sunk);color:var(--muted);text-decoration:line-through}
+.tag.y{background:#FBF0D9;color:#8A5A00}
+.tag.r{background:#FDE8E8;color:#B42318}
+.tot .tag{font-size:12.5px;padding:3px 10px}
+.tot .tag+.lnk{margin-left:6px}
 .undo{appearance:none;background:none;border:0;color:var(--primary);font:500 12px var(--ui);
   cursor:pointer;padding:8px 0 8px 8px;text-decoration:underline;text-underline-offset:3px;flex:none}
 
@@ -570,6 +574,15 @@ table.ped .lnk.items{white-space:normal}
 .odb .oda .mini+.mini{margin-left:0}
 .odb .go.alt{width:auto;margin:0;padding:8px 16px;min-height:38px}
 .odb a.mini{text-decoration:none;display:inline-flex;align-items:center}
+/* La tarjeta de un producto: foto, datos y unidades por talla, sin salir de donde se está */
+.pc-top{display:flex;gap:16px;align-items:flex-start}
+.pc-top .thumb.pc-img{width:112px;height:136px;flex:none;font-size:22px}
+.pc-top .kv{flex:1;min-width:0;align-content:start}
+.pc-var{margin-top:0}
+.pc-var th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:0 0 4px}
+.pc-var th.num,.pc-var td.num{text-align:right}
+.pc-var tr.off td{color:var(--muted)}
+.pc-desc{margin:0;line-height:1.5}
 
 /* Costos: en cada línea de la entrada, una fila más con lo que costó la unidad; y lo que deja cada unidad en el formulario de producto */
 .lin.cost{flex-wrap:wrap}

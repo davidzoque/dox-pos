@@ -601,6 +601,7 @@ function dox_pos_format_order( $order ) {
 		'payment'      => $order->get_payment_method_title(),
 		'paid'         => $order->is_paid(),
 		'cod'          => 'cod' === $order->get_payment_method(), // Contraentrega: "procesando" no es pagado.
+		'loss'         => dox_pos_can_see_losses() ? dox_pos_order_loss( $order ) : null, // La pérdida anotada, para marcarla en la lista (solo quien administra).
 		'total'        => (float) $order->get_total(),
 		'status'       => $st[0],
 		'label'        => $st[1],
