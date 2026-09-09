@@ -294,7 +294,8 @@ function dox_pos_stock_reason_label( $reason, $ref = 0 ) {
 	$n = (int) $ref ? ' #' . (int) $ref : '';
 	switch ( $reason ) {
 		case 'sale':
-			return __( 'Sale', 'dox-pos' ) . $n;
+			// Con contexto: el mismo texto se usa en la caja como par singular/plural ("1 venta", "4 ventas").
+			return _x( 'Sale', 'motivo del movimiento', 'dox-pos' ) . $n;
 		case 'hold':
 			return __( 'Layaway', 'dox-pos' ) . $n;
 		case 'web':
