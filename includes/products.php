@@ -564,10 +564,9 @@ function dox_pos_upload_image( $file, $title = '' ) {
 		return new WP_Error( 'dox_pos_foto', __( 'The store cannot read that file as a photo. JPG, PNG, WebP and HEIC work.', 'dox-pos' ) );
 	}
 	$s = dox_pos_products_settings();
-	dox_pos_limit_imagick();
 	wp_raise_memory_limit( 'image' );
 	if ( function_exists( 'set_time_limit' ) ) {
-		set_time_limit( 120 );
+		set_time_limit( 300 ); // Una foto de muchos megapíxeles en un servidor lento no puede morir a mitad.
 	}
 	// La calidad va por el filtro, no por set_quality(): el editor de WordPress vuelve a la de
 	// fábrica (82) después de cada redimensión y al generar los tamaños. Comprobado en WP 7.1.
@@ -625,7 +624,18 @@ function dox_pos_upload_image( $file, $title = '' ) {
  * @return array|WP_Error Lo que devuelve WP_Image_Editor::save().
  */
 function dox_pos_convert_to_webp( $path, $type, $max_px, $title ) {
+	// Con el tamaño de la foto en la mano (cuesta milisegundos) se le da a ImageMagick el techo
+	// que necesita y se reduce en dos pasos, que es lo que hace llevadera una foto de 48 MP.
+	dox_pos_limit_imagick( dox_pos_image_pixels( $path ) );
+	require_once DOX_POS_PATH . 'includes/class-dox-pos-image-editor.php';
+	$propio = class_exists( 'Dox_POS_Image_Editor' );
+	if ( $propio ) {
+		add_filter( 'wp_image_editors', 'dox_pos_image_editors' );
+	}
 	$editor = wp_get_image_editor( $path, array( 'mime_type' => $type ) );
+	if ( $propio ) {
+		remove_filter( 'wp_image_editors', 'dox_pos_image_editors' );
+	}
 	if ( is_wp_error( $editor ) ) {
 		return new WP_Error( 'dox_pos_foto', in_array( $type, array( 'image/heic', 'image/heif' ), true ) ? __( 'This server cannot read HEIC photos. Send the photo as a JPG.', 'dox-pos' ) : __( 'The photo could not be read.', 'dox-pos' ) );
 	}
@@ -654,19 +664,63 @@ function dox_pos_convert_to_webp( $path, $type, $max_px, $title ) {
 }
 
 /**
- * ImageMagick con techo de memoria: una foto de 12 MP en HEIC se decodifica en unos 200 MB;
- * por encima del techo usa disco en vez de tumbar el proceso.
+ * El techo de memoria de ImageMagick, a la medida de la foto que llega. Descifrada ocupa 8 bytes
+ * por píxel (93 MB una de 12 megapíxeles, 372 MB una de 48), y en cuanto no cabe en el techo,
+ * ImageMagick trabaja contra disco: la misma foto de 48 MP tarda 146 segundos con 256 MB y 4 con
+ * 768. Se le da lo que pide, con sitio para la copia reducida, entre 256 MB y 1 GB, que es hasta
+ * donde llega un alojamiento normal.
+ *
+ * @param int $pixels Ancho por alto de la foto. Con 0, el techo de siempre.
  */
-function dox_pos_limit_imagick() {
+function dox_pos_limit_imagick( $pixels = 0 ) {
 	if ( ! class_exists( 'Imagick' ) ) {
 		return;
 	}
+	$mb = $pixels > 0 ? (int) ceil( $pixels * 8 * 2 / MB_IN_BYTES ) : 256;
+	$mb = min( 1024, max( 256, $mb ) );
 	try {
-		Imagick::setResourceLimit( Imagick::RESOURCETYPE_MEMORY, 256 * 1024 * 1024 );
-		Imagick::setResourceLimit( Imagick::RESOURCETYPE_MAP, 512 * 1024 * 1024 );
+		Imagick::setResourceLimit( Imagick::RESOURCETYPE_MEMORY, $mb * MB_IN_BYTES );
+		Imagick::setResourceLimit( Imagick::RESOURCETYPE_MAP, 2 * $mb * MB_IN_BYTES );
 	} catch ( Exception $e ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 		// Sin límite: se sigue igual.
 	}
+}
+
+/**
+ * Cuántos píxeles tiene la foto, sin descifrarla. getimagesize() no sabe de HEIC, así que en ese
+ * caso se lo pregunta a ImageMagick, que solo lee la cabecera y tarda milisegundos.
+ *
+ * @param string $path El archivo.
+ * @return int Ancho por alto, o 0 si no se sabe.
+ */
+function dox_pos_image_pixels( $path ) {
+	$size = @getimagesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Con un formato que no conoce avisa; para eso está el respaldo de abajo.
+	if ( is_array( $size ) && ! empty( $size[0] ) && ! empty( $size[1] ) ) {
+		return (int) $size[0] * (int) $size[1];
+	}
+	if ( ! class_exists( 'Imagick' ) ) {
+		return 0;
+	}
+	try {
+		$im = new Imagick();
+		$im->pingImage( $path );
+		$px = (int) $im->getImageWidth() * (int) $im->getImageHeight();
+		$im->clear();
+		return $px;
+	} catch ( Exception $e ) {
+		return 0;
+	}
+}
+
+/**
+ * El editor de la caja (el de WordPress con el muestreo previo) por delante de los suyos.
+ *
+ * @param string[] $editors Los editores.
+ * @return string[]
+ */
+function dox_pos_image_editors( $editors ) {
+	array_unshift( $editors, 'Dox_POS_Image_Editor' );
+	return $editors;
 }
 
 /**
