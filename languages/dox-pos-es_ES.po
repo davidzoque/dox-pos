@@ -1265,12 +1265,6 @@ msgstr "Sin colores: el producto solo varía por talla."
 msgid "Choose the category and its sizes appear."
 msgstr "Elige la categoría y salen sus tallas."
 
-msgid "All to 1"
-msgstr "Todas en 1"
-
-msgid "All to 0"
-msgstr "Todas en 0"
-
 msgid "Description"
 msgstr "Descripción"
 
@@ -2328,24 +2322,12 @@ msgid "Units in total"
 msgstr "Unidades en total"
 
 #: assets/js/caja.js
-msgid "One total for all"
-msgstr "Un total para todas"
-
-#: assets/js/caja.js
-msgid "Units per size"
-msgstr "Unidades por talla"
-
-#: assets/js/caja.js
 msgid "All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one."
 msgstr "Todas las tallas comparten este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Después puedes repartirlo por talla desde Editar uno."
 
 #: assets/js/caja.js
 msgid "for all the sizes together"
 msgstr "para todas las tallas juntas"
-
-#: assets/js/caja.js
-msgid "from the total"
-msgstr "del total"
 
 #: assets/js/caja.js
 msgid "That total is changed by recording the goods in Inventory, or in WooCommerce."
@@ -2357,30 +2339,165 @@ msgid_plural "The sizes do not carry their own units but one total for all of th
 msgstr[0] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidad."
 msgstr[1] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidades."
 
-#: assets/js/caja.js
-msgid "The sizes marked “from the total” take from the %d unit the product has; the rest carry their own."
-msgid_plural "The sizes marked “from the total” take from the %d units the product has; the rest carry their own."
-msgstr[0] "Las tallas marcadas “del total” salen de la %d unidad que tiene el producto; las demás llevan las suyas."
-msgstr[1] "Las tallas marcadas “del total” salen de las %d unidades que tiene el producto; las demás llevan las suyas."
-
-#: assets/js/caja.js
-msgid "its own"
-msgstr "las suyas"
-
 #: templates/caja.php
-msgid "Shared total"
-msgstr "Total compartido"
+msgid "Dashboard"
+msgstr "Panel"
+
+#: includes/settings.php
+msgid "The dashboard"
+msgstr "El panel"
+
+#: includes/settings.php
+msgid "Administrators and shop managers get a Dashboard tab in the register: sold today with yesterday next to it, the week and the month against the previous ones, the last fourteen days, what came in by payment method, what is owed, the orders to handle, the best sellers and the stock. Salespeople do not see it and always land on Sell."
+msgstr "Administradores y gerentes de tienda tienen en la caja la pestaña Panel: lo vendido hoy con ayer al lado, la semana y el mes frente a los anteriores, los últimos catorce días, lo que entró por forma de pago, lo que deben, los pedidos por atender, lo más vendido y el inventario. Las vendedoras no la ven y siempre entran por Vender."
+
+#: includes/settings.php
+msgid "Open the register on the Dashboard for whoever manages the shop"
+msgstr "Abrir la caja en el Panel a quien administra la tienda"
+
+#: includes/dashboard.php
+msgctxt "fecha con día de la semana"
+msgid "l, F j"
+msgstr "l j \\d\\e F"
 
 #: assets/js/caja.js
-msgid "All the sizes take from this total: the store discounts from it whichever size is sold. Tap “its own” on a size to give it separate units."
-msgstr "Todas las tallas salen de este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Toca “las suyas” en una talla para que lleve unidades aparte."
+msgid "Best sellers of the last 30 days"
+msgstr "Lo más vendido en los últimos 30 días"
 
 #: assets/js/caja.js
-msgid "The sizes marked “from the total” take from the product's total; the rest carry their own. Tap a size's link to switch it."
-msgstr "Las tallas marcadas “del total” salen del total del producto; las demás llevan las suyas. Toca el enlace de una talla para cambiarla."
+msgid "Refresh"
+msgstr "Actualizar"
 
 #: assets/js/caja.js
-msgid "%1$d in the product's total, shared by %2$d size"
-msgid_plural "%1$d in the product's total, shared by %2$d sizes"
-msgstr[0] "%1$d en el total del producto, compartido por %2$d talla"
-msgstr[1] "%1$d en el total del producto, compartido por %2$d tallas"
+msgid "No signal: the dashboard reads from the shop."
+msgstr "Sin señal: el Panel lee de la tienda."
+
+#: assets/js/caja.js
+msgid "Sold today"
+msgstr "Vendido hoy"
+
+#: assets/js/caja.js
+msgid "yesterday %s"
+msgstr "ayer %s"
+
+#: assets/js/caja.js
+msgid "Profit today"
+msgstr "Ganancia hoy"
+
+#: assets/js/caja.js
+msgid "%d %% margin"
+msgstr "%d %% de margen"
+
+#: assets/js/caja.js
+msgid "%d sale with no cost"
+msgid_plural "%d sales with no cost"
+msgstr[0] "%d venta sin costo"
+msgstr[1] "%d ventas sin costo"
+
+#: assets/js/caja.js
+msgid "losses %s"
+msgstr "pérdidas %s"
+
+#: assets/js/caja.js
+msgid "cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)"
+msgstr "contraentrega %1$s (%2$d) · apartados %3$s (%4$d)"
+
+#: assets/js/caja.js
+msgid "last week at this point: %s"
+msgstr "la semana pasada a esta altura: %s"
+
+#: assets/js/caja.js
+msgid "last month at this point: %s"
+msgstr "el mes pasado a esta altura: %s"
+
+#: assets/js/caja.js
+msgid "Last 14 days"
+msgstr "Últimos 14 días"
+
+#: assets/js/caja.js
+msgid "Best sellers"
+msgstr "Lo más vendido"
+
+#: assets/js/caja.js
+msgid "last 30 days"
+msgstr "últimos 30 días"
+
+#: assets/js/caja.js
+msgid "No sales in the last 30 days."
+msgstr "Sin ventas en los últimos 30 días."
+
+#: assets/js/caja.js
+msgid "Collected today"
+msgstr "Cobrado hoy"
+
+#: assets/js/caja.js
+msgid "Nothing collected yet today."
+msgstr "Hoy todavía no entró nada."
+
+#: assets/js/caja.js
+msgid "On the way"
+msgstr "En camino"
+
+#: assets/js/caja.js
+msgid "Layaways"
+msgstr "Apartados"
+
+#: assets/js/caja.js
+msgid "Payments to confirm"
+msgstr "Pagos por confirmar"
+
+#: assets/js/caja.js
+msgid "Website orders unpaid"
+msgstr "De la web sin pagar"
+
+#: assets/js/caja.js
+msgid "Orders to handle"
+msgstr "Pedidos por atender"
+
+#: assets/js/caja.js
+msgid "Nothing pending."
+msgstr "Nada pendiente."
+
+#: assets/js/caja.js
+msgid "Units in stock"
+msgstr "Unidades en existencia"
+
+#: assets/js/caja.js
+msgid "Products out of stock"
+msgstr "Productos agotados"
+
+#: assets/js/caja.js
+msgid "Shares units"
+msgstr "Comparte unidades"
+
+#: templates/caja.php assets/js/caja.js
+msgid "Shared units"
+msgstr "Unidades compartidas"
+
+#: assets/js/caja.js
+msgid "%s takes these units."
+msgid_plural "%s share these units: when one of them sells, they all go down."
+msgstr[0] "%s usa estas unidades."
+msgstr[1] "%s comparten estas unidades: al venderse una, bajan para todas."
+
+#: assets/js/caja.js
+msgid "Do several sizes sell from the same units? Tick “Shares units” on each one and write how many there are for all of them."
+msgstr "¿Varias tallas se venden de las mismas unidades? Marca «Comparte unidades» en cada una y escribe cuántas hay entre todas."
+
+#: assets/js/caja.js
+msgid "and %d more"
+msgstr "y %d más"
+
+#: assets/js/caja.js
+msgid "%1$s and %2$s"
+msgstr "%1$s y %2$s"
+
+#: assets/js/caja.js
+msgid "%1$d shared unit between %2$d sizes"
+msgid_plural "%1$d shared units between %2$d sizes"
+msgstr[0] "%1$d unidad compartida entre %2$d tallas"
+msgstr[1] "%1$d unidades compartidas entre %2$d tallas"
+
+#: assets/js/caja.js
+msgid "shared"
+msgstr "compartidas"

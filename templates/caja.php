@@ -30,6 +30,9 @@ dox_pos_enqueue_caja( $cfg );
 			<span class="cajita"><?php echo esc_html( $cfg['screen'] ); ?></span>
 		</span>
 		<nav class="tabs" id="tabs">
+			<?php if ( $cfg['history_full'] ) : ?>
+			<button type="button" data-t="panel" aria-pressed="false"><?php esc_html_e( 'Dashboard', 'dox-pos' ); ?></button>
+			<?php endif; ?>
 			<button type="button" data-t="vender" aria-pressed="true"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></button>
 			<button type="button" data-t="entrada" aria-pressed="false"><?php esc_html_e( 'Inventory', 'dox-pos' ); ?></button>
 			<button type="button" data-t="pedidos" aria-pressed="false"><?php esc_html_e( 'Orders', 'dox-pos' ); ?> <span id="npend"></span></button>
@@ -234,9 +237,9 @@ dox_pos_enqueue_caja( $cfg );
 							<p class="hint" id="p-tallas-hint"><?php esc_html_e( 'Choose the category and its sizes appear.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="grp">
-							<h4 class="qh"><?php esc_html_e( 'Units', 'dox-pos' ); ?> <span class="cnt qhdr"><button type="button" class="undo" id="p-todo1"><?php esc_html_e( 'All to 1', 'dox-pos' ); ?></button><button type="button" class="undo" id="p-todo0"><?php esc_html_e( 'All to 0', 'dox-pos' ); ?></button><button type="button" class="chip sm" id="p-junto" aria-pressed="false" hidden></button></span></h4>
+							<h4><?php esc_html_e( 'Units', 'dox-pos' ); ?></h4>
 							<div class="wrapx qtywrap"><table class="qtyt" id="p-qty"></table></div>
-							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Shared total', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
+							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Shared units', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
 							<p class="hint" id="p-qty-shared" hidden></p>
 						</div>
 						<div class="grp">
@@ -257,6 +260,13 @@ dox_pos_enqueue_caja( $cfg );
 			</div>
 		</section>
 		<?php endif; ?>
+		<?php if ( $cfg['history_full'] ) : ?>
+		<!-- ================= PANEL: las cifras del día, como cuadro de mando ================= -->
+		<section class="tab" id="t-panel" hidden>
+			<div class="scroll"><div class="histwrap pnl" id="panel"></div></div>
+		</section>
+		<?php endif; ?>
+
 		<!-- ================= HISTORIAL: ventas, la caja del día y los movimientos ================= -->
 		<section class="tab" id="t-historial" hidden>
 			<div class="histbar">

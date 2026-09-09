@@ -164,6 +164,14 @@ function dox_pos_show_web_orders() {
 }
 
 /**
+ * Si la caja abre en el Panel a quien administra la tienda (los demás siempre entran por Vender).
+ */
+function dox_pos_open_panel() {
+	$s = dox_pos_sales();
+	return ! isset( $s['open_panel'] ) || ! empty( $s['open_panel'] );
+}
+
+/**
  * Los canales por los que entra una venta. "pickup" = se entrega en mano, sin envío.
  *
  * @return array<int,array{name:string,pickup:bool}>
@@ -792,6 +800,7 @@ function dox_pos_sanitize_sales( $in ) {
 	}
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
+	$out['open_panel']      = ! empty( $in['open_panel'] );
 
 	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
 	$carriers = is_array( $in['carriers'] ?? null ) ? $in['carriers'] : preg_split( '/\r\n|\r|\n/', (string) ( $in['carriers'] ?? '' ) );
@@ -1334,6 +1343,14 @@ function dox_pos_settings_page() {
 							<p><?php esc_html_e( 'The Orders tab also shows what people buy in the online store, tagged "Website" and with where the customer came from, so you can mark it shipped or delivered from your phone just like a register sale.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[web_orders]" value="1" <?php checked( dox_pos_show_web_orders() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Show website orders in the register', 'dox-pos' ); ?></span></label>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'The dashboard', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Administrators and shop managers get a Dashboard tab in the register: sold today with yesterday next to it, the week and the month against the previous ones, the last fourteen days, what came in by payment method, what is owed, the orders to handle, the best sellers and the stock. Salespeople do not see it and always land on Sell.', 'dox-pos' ); ?></p>
+						</div>
+						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[open_panel]" value="1" <?php checked( dox_pos_open_panel() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Open the register on the Dashboard for whoever manages the shop', 'dox-pos' ); ?></span></label>
 					</div>
 				</section>
 

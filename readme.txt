@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.30.0
+Stable tag: 0.31.2
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.31.2 =
+* A Dashboard tab for administrators and shop managers, before Sell: sold today with yesterday next to it, today's profit, what is owed (cash on delivery on the way and layaways), the week and the month against the previous ones at the same point, the last fourteen days as bars, what came in today by payment method, the best sellers of the last thirty days, the orders to handle and the stock. Every card opens the tab it comes from. The register opens on it for whoever manages the shop (a switch in Settings > Register turns that off); salespeople keep landing on Sell.
+* Sell no longer starts empty: before you type anything it lists the best sellers of the last thirty days, with their sizes and stock, ready to tap.
+* The Units table of the product form is simpler: the "All to 1" and "All to 0" buttons are gone, and each size has a "Shares units" checkbox instead of the "from the total" and "its own" links. Ticking it takes that size out of its own box and onto the shared units, which get one box under the table together with the list of sizes that share them.
 
 = 0.30.0 =
 * Each size decides where its units come from. In the product form, creating or editing, every size (and colour) has a small link: "from the total" moves it onto the product's shared total, "its own" gives it separate units. The shared total gets its own box as soon as one size uses it, and "One total for all" switches every size at once. So a product can have, say, 2-3 and 3-4 years drawing from one pool while 6-12 months keeps its own count, without opening WooCommerce.

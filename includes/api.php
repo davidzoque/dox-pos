@@ -118,6 +118,8 @@ function dox_pos_register_routes() {
 	// la caja del día y los movimientos, administradores y gerentes.
 	$date = array( 'type' => 'string', 'required' => false, 'default' => '', 'sanitize_callback' => 'sanitize_text_field' );
 	register_rest_route( $ns, '/history/sales', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_sales', 'permission_callback' => $perm, 'args' => array( 'from' => $date, 'to' => $date ) ) );
+	register_rest_route( $ns, '/dashboard', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_dashboard', 'permission_callback' => 'dox_pos_rest_history_permission' ) ); // El Panel: quien administra.
+	register_rest_route( $ns, '/top', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_top', 'permission_callback' => $perm ) ); // Lo más vendido, para Vender antes de buscar.
 	register_rest_route( $ns, '/history/cash', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_history_cash', 'permission_callback' => 'dox_pos_rest_history_permission', 'args' => array( 'from' => $date, 'to' => $date ) ) );
 	register_rest_route(
 		$ns,
@@ -186,6 +188,14 @@ function dox_pos_rest_out( $result ) {
 
 function dox_pos_rest_search( WP_REST_Request $request ) {
 	return rest_ensure_response( array( 'items' => dox_pos_search( $request->get_param( 'q' ), 20 ) ) );
+}
+
+function dox_pos_rest_top() {
+	return rest_ensure_response( array( 'items' => dox_pos_top_for_sale() ) );
+}
+
+function dox_pos_rest_dashboard() {
+	return rest_ensure_response( dox_pos_dashboard() );
 }
 
 function dox_pos_rest_shipping( WP_REST_Request $request ) {

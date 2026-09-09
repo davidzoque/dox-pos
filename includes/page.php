@@ -241,6 +241,7 @@ function dox_pos_js_config() {
 		'hold_hours'      => dox_pos_hold_hours(),
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
+		'open_tab'        => dox_pos_history_full() && dox_pos_open_panel() ? 'panel' : '', // Sin # al entrar: quien administra cae en el Panel, si el ajuste lo dice.
 		'losses'          => dox_pos_can_see_losses(),                    // ¿Anota y ve las pérdidas de los pedidos? (administradores y gerentes)
 		'margin_good'     => 40,                                          // La ganancia sale en verde desde este margen; el Pro pone el de sus ajustes.
 		'margin_low'      => 20,                                          // Y en rojo por debajo de este.

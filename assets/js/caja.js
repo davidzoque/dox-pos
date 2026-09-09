@@ -39,6 +39,9 @@
 		entrada: [],                              // lo que llegó: [{vid, n}]
 		res: { venta: [], entrada: [] },          // últimos resultados de cada pestaña
 		abierto: { venta: null, entrada: null },  // producto desplegado en cada pestaña
+		top: null,                                // lo más vendido, para Vender antes de buscar
+		topAt: 0,                                 // cuándo se pidió
+		topOn: false,                             // ¿la lista de Vender enseña eso ahora?
 		vars: {},                                 // id de variación -> {v, p}
 		rates: [],                                // opciones de envío que dio la tienda
 		rate: null,                               // la elegida
@@ -103,6 +106,7 @@
 		if (p.ctrl) p.ctrl.abort();
 		if (q.length < 2) {
 			st.res[modo] = [];
+			if (modo === "venta") { mostrarTop(); return; } // Sin buscar nada: lo más vendido.
 			ul.innerHTML = vacio(__("Type two letters of the name, or the SKU.", "dox-pos"));
 			return;
 		}
@@ -112,6 +116,7 @@
 			const data = await api("search?q=" + encodeURIComponent(q), { signal: p.ctrl.signal });
 			data.items.forEach((prod) => prod.variations.forEach((v) => { st.vars[v.id] = { v: v, p: prod }; }));
 			st.res[modo] = data.items;
+			if (modo === "venta") st.topOn = false;
 			if (data.items.length === 1) st.abierto[modo] = data.items[0].id; // si hay uno solo, se abre
 			else if (!data.items.some((x) => x.id === st.abierto[modo])) st.abierto[modo] = null;
 			pintarResultados(modo);
@@ -121,6 +126,26 @@
 			if (e.name === "AbortError" || e.message === "sesion") return;
 			ul.innerHTML = vacio(__("The search failed. Check the connection and try again.", "dox-pos"));
 		}
+	}
+	// Lo más vendido en los últimos treinta días, para que Vender no salga vacío antes de buscar.
+	// Se pide de nuevo al minuto, o después de una venta, para que las existencias estén al día.
+	async function mostrarTop() {
+		if (!st.top || Date.now() - st.topAt > 60000) {
+			try {
+				const d = await api("top");
+				st.top = d.items || [];
+				st.topAt = Date.now();
+			} catch (e) {
+				if (e.message === "sesion") return;
+				st.top = st.top || [];
+			}
+		}
+		if (inputDe("venta").value.trim().length >= 2) return; // Ya está escribiendo: manda la búsqueda.
+		st.top.forEach((prod) => prod.variations.forEach((v) => { st.vars[v.id] = { v: v, p: prod }; }));
+		st.res.venta = st.top;
+		st.topOn = true;
+		if (!st.top.some((x) => x.id === st.abierto.venta)) st.abierto.venta = null;
+		pintarResultados("venta");
 	}
 	const vacio = (txt) => '<li class="empty">' + esc(txt) + "</li>";
 	function iniciales(n) {
@@ -165,10 +190,12 @@
 		const ul = listaDe(modo);
 		ul.innerHTML = "";
 		const items = st.res[modo];
+		const top = modo === "venta" && st.topOn; // La lista de arranque: lo más vendido.
 		if (!items.length) {
-			ul.innerHTML = vacio(__("Nothing matches. Try a single word.", "dox-pos"));
+			ul.innerHTML = vacio(top ? __("Type two letters of the name, or the SKU.", "dox-pos") : __("Nothing matches. Try a single word.", "dox-pos"));
 			return;
 		}
+		if (top) ul.innerHTML = '<li class="rtit">' + esc(__("Best sellers of the last 30 days", "dox-pos")) + "</li>";
 		items.forEach((p) => {
 			// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
 			const compartido = p.variations.find((v) => v.shared && v.stock);
@@ -432,7 +459,9 @@
 	}
 	// Vuelve a preguntar por lo que está en pantalla, para que las existencias se vean al día.
 	async function refrescarStock() {
+		pa.at = 0; // El Panel se vuelve a pedir la próxima vez que se abra.
 		if ($("#q").value.trim().length >= 2) await buscar("venta");
+		else if (st.topOn) { st.topAt = 0; await mostrarTop(); }
 		if ($("#q2").value.trim().length >= 2) await buscar("entrada");
 	}
 
@@ -1533,58 +1562,58 @@
 		pr.compartidas = new Set(compartidasVivas());
 		const variable = pr.edit ? pr.edit.type === "variable" : (pr.tallas.length > 0 || pr.colores.length > 0);
 		const n = variable ? pr.compartidas.size : 0;
-		const todas = variable && n > 0 && n === keys.length;
-		// La pastilla: todas las tallas del total (encendida) o cada una con las suyas.
-		const bj = $("#p-junto");
-		bj.hidden = !variable;
-		bj.textContent = todas ? __("Units per size", "dox-pos") : __("One total for all", "dox-pos");
-		bj.setAttribute("aria-pressed", todas ? "true" : "false");
-		$("#p-todo1").hidden = todas;
-		$("#p-todo0").hidden = todas;
-		// El total del producto: se escribe en cuanto alguna talla sale de él.
+		const cols = columnas();
+		const rows = filas();
+		const pool = () => (pr.total ? miles(pr.total) : "\u2013");
+		// Las unidades compartidas: su casilla sale en cuanto alguna talla las usa.
 		$("#p-junto-box").hidden = !n;
 		if (n) {
 			const inp = $("#p-junto-n");
 			if (document.activeElement !== inp) inp.value = pr.total ? miles(pr.total) : "";
-			inp.oninput = () => { pr.total = num(inp.value); pintarResumenProducto(); };
+			inp.oninput = () => { pr.total = num(inp.value); t.querySelectorAll(".qpool").forEach((x) => { x.textContent = pool(); }); pintarResumenProducto(); };
 			inp.onfocus = () => inp.select();
 		}
+		// Debajo de la tabla: qué tallas comparten, o cómo hacer que compartan.
 		const hint = $("#p-qty-shared");
-		hint.hidden = !n;
-		if (n) hint.textContent = todas
-			? __("All the sizes take from this total: the store discounts from it whichever size is sold. Tap \u201cits own\u201d on a size to give it separate units.", "dox-pos")
-			: __("The sizes marked \u201cfrom the total\u201d take from the product's total; the rest carry their own. Tap a size's link to switch it.", "dox-pos");
-		const cols = columnas();
+		hint.hidden = !variable || keys.length < 2;
+		if (!hint.hidden) hint.textContent = n
+			? sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", n, "dox-pos"), nombresCompartidas(rows, cols))
+			: __("Do several sizes sell from the same units? Tick \u201cShares units\u201d on each one and write how many there are for all of them.", "dox-pos");
 		let h = "<thead><tr><th></th>" + cols.map((c) => "<th>" + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>";
-		filas().forEach((r) => {
+		rows.forEach((r) => {
 			h += '<tr><th scope="row" title="' + esc(r.name) + '">' + esc(r.label || r.name) + "</th>" +
 				cols.map((c) => {
 					const k = qKey(c.key, r.id);
 					const sale = variable && pr.compartidas.has(k);
-					const sw = variable ? '<button type="button" class="lnk qsw" data-k="' + esc(k) + '">' + esc(sale ? __("its own", "dox-pos") : __("from the total", "dox-pos")) + "</button>" : "";
-					if (sale) return '<td class="shr"><span>' + esc(__("from the total", "dox-pos")) + "</span>" + sw + "</td>";
+					// Cada talla lleva su casilla "Comparte unidades": marcada, sale de las compartidas y no se le escribe nada.
+					const chk = variable ? '<label class="qshare"><input type="checkbox" data-k="' + esc(k) + '"' + (sale ? " checked" : "") + ">" + esc(__("Shares units", "dox-pos")) + "</label>" : "";
+					if (sale) return '<td class="shr"><span class="qcell"><span class="qpool" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool() + "</span>" + chk + "</span></td>";
 					const v = pr.qty[k];
-					return '<td><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + sw + "</td>";
+					return '<td><span class="qcell"><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + chk + "</span></td>";
 				}).join("") + "</tr>";
 		});
 		t.innerHTML = h + "</tbody>";
-		t.querySelectorAll("input").forEach((inp) => {
+		t.querySelectorAll("input[inputmode]").forEach((inp) => {
 			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
-		t.querySelectorAll(".qsw").forEach((b) => {
-			b.onclick = () => { // Un toque: la talla pasa del total a las suyas, o al revés.
-				const k = b.dataset.k;
-				if (pr.compartidas.has(k)) pr.compartidas.delete(k); else pr.compartidas.add(k);
+		t.querySelectorAll(".qshare input").forEach((cb) => {
+			cb.onchange = () => { // Marcada: la talla pasa a las unidades compartidas; desmarcada, vuelve a las suyas.
+				if (cb.checked) pr.compartidas.add(cb.dataset.k); else pr.compartidas.delete(cb.dataset.k);
 				pintarCantidades();
 				pintarResumenProducto();
 			};
 		});
 	}
-	function ponerTodas(n) {
-		filas().forEach((r) => columnas().forEach((c) => { pr.qty[qKey(c.key, r.id)] = n; }));
-		pintarCantidades();
-		pintarResumenProducto();
+	// Las tallas (y el color, si hay más de uno) que comparten unidades, con nombre: "2-3 años, 3-4 años y 4-5 años".
+	function nombresCompartidas(rows, cols) {
+		const names = [];
+		rows.forEach((r) => cols.forEach((c) => { if (pr.compartidas.has(qKey(c.key, r.id))) names.push((r.label || r.name) + (cols.length > 1 ? " " + c.name : "")); }));
+		const first = names.slice(0, 4);
+		const rest = names.length - first.length;
+		if (rest > 0) return first.join(", ") + " " + sprintf(__("and %d more", "dox-pos"), rest);
+		if (first.length < 2) return first.join("");
+		return sprintf(__("%1$s and %2$s", "dox-pos"), first.slice(0, -1).join(", "), first[first.length - 1]);
 	}
 	function unidadesTotales() {
 		// El total del producto, una vez, si alguna talla sale de él; más lo que lleve cada talla suya.
@@ -1667,9 +1696,9 @@
 			let tabla = "";
 			const vivas = new Set(compartidasVivas());
 			if (pr.tallas.length || pr.colores.length) {
-				if (vivas.size) tabla = ' <span class="sub">' + esc(sprintf(_n("%1$d in the product's total, shared by %2$d size", "%1$d in the product's total, shared by %2$d sizes", vivas.size, "dox-pos"), pr.total || 0, vivas.size)) + "</span>";
+				if (vivas.size) tabla = ' <span class="sub">' + esc(sprintf(_n("%1$d shared unit between %2$d sizes", "%1$d shared units between %2$d sizes", pr.total || 0, "dox-pos"), pr.total || 0, vivas.size)) + "</span>";
 				tabla += '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
-					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => (vivas.has(qKey(c.key, r.id)) ? '<td class="zero">' + esc(__("from the total", "dox-pos")) + "</td>" : '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>")).join("") + "</tr>").join("") + "</tbody></table>";
+					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => (vivas.has(qKey(c.key, r.id)) ? '<td class="zero">' + esc(__("shared", "dox-pos")) + "</td>" : '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>")).join("") + "</tr>").join("") + "</tbody></table>";
 			}
 			const li = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
 			modal("<h3>" + esc(__("Check before creating", "dox-pos")) + '</h3><dl class="rev">' +
@@ -2129,6 +2158,72 @@
 		soltar();
 	}
 
+	// ---------- el Panel ----------
+	// Las cifras del día como cuadro de mando, para quien administra. Se piden al abrir la pestaña (de nuevo
+	// si pasó medio minuto, o hubo una venta o un pedido tocado); "Actualizar" las pide ya mismo.
+	const pa = { at: 0, data: null };
+	async function cargarPanel(fuerza) {
+		const box = $("#panel");
+		if (!box) return;
+		if (!fuerza && pa.data && Date.now() - pa.at < 30000) { pintarPanel(pa.data); return; }
+		if (!pa.data) box.innerHTML = '<p class="empty">' + esc(__("Loading\u2026", "dox-pos")) + "</p>";
+		box.style.opacity = ".6";
+		try {
+			pa.data = await api("dashboard");
+			pa.at = Date.now();
+			pintarPanel(pa.data);
+		} catch (e) {
+			if (e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? __("No signal: the dashboard reads from the shop.", "dox-pos") : e.message) + "</p>";
+		}
+		box.style.opacity = "";
+	}
+	const thumbHtml = (p) => '<span class="thumb sm">' + esc(iniciales(p.name)) + (p.image ? '<img alt="" loading="lazy" src="' + esc(p.image) + '">' : "") + "</span>";
+	function pintarPanel(d) {
+		const t = d.today, y = d.yesterday, w = d.week, m = d.month, p = d.pending;
+		const conCosto = !!d.costs;
+		const ventas = (n) => sprintf(_n("%d sale", "%d sales", n, "dox-pos"), n);
+		const unidades = (n) => sprintf(_n("%d unit", "%d units", n, "dox-pos"), n);
+		// Una tarjeta: la cifra, el rótulo y una línea pequeña debajo; con "go", tocarla abre esa pestaña.
+		const card = (v, l, sub, go) => '<div class="kpi"' + (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "") + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + sub + "</i>" : "") + "</div>";
+		const dif = (a, b) => { if (!(b > 0)) return ""; const pc = Math.round((a - b) / b * 100); return '<em class="' + (pc >= 0 ? "up" : "down") + '">' + (pc >= 0 ? "+" : "\u2212") + Math.abs(pc) + "\u00a0%</em> · "; };
+		const cobrar = (p.cod || 0) + (p.holds || 0);
+		let h = '<div class="pnl-head"><p class="hsub">' + esc(d.date_label) + '</p><button type="button" class="mini" id="pnl-ref">' + esc(__("Refresh", "dox-pos")) + "</button></div>";
+		h += '<div class="kpis big">' +
+			card(dinero(t.sold), __("Sold today", "dox-pos"), esc(ventas(t.orders) + " · " + unidades(t.units) + " · " + sprintf(__("yesterday %s", "dox-pos"), dinero(y.sold))), "historial/ventas/hoy") +
+			(conCosto ? card(dinero(t.profit || 0), __("Profit today", "dox-pos"), esc([t.margin !== null && t.margin !== undefined ? sprintf(__("%d %% margin", "dox-pos"), t.margin) : "", t.no_cost_n ? sprintf(_n("%d sale with no cost", "%d sales with no cost", t.no_cost_n, "dox-pos"), t.no_cost_n) : "", d.losses && t.loss > 0 ? sprintf(__("losses %s", "dox-pos"), dinero(t.loss)) : ""].filter(Boolean).join(" · ")), "historial/caja") : "") +
+			card(dinero(cobrar), __("To collect", "dox-pos"), esc(sprintf(__("cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)", "dox-pos"), dinero(p.cod || 0), p.cod_n || 0, dinero(p.holds || 0), p.holds_n || 0)), "pedidos") +
+			card(dinero(w.sold), __("This week", "dox-pos"), dif(w.sold, w.prev) + esc(ventas(w.orders) + " · " + sprintf(__("last week at this point: %s", "dox-pos"), dinero(w.prev))), "historial/ventas/semana") +
+			card(dinero(m.sold), __("This month", "dox-pos"), dif(m.sold, m.prev) + esc(ventas(m.orders) + " · " + sprintf(__("last month at this point: %s", "dox-pos"), dinero(m.prev))), "historial/ventas/mes") +
+			(d.extra || []).map((x) => card(x.money !== undefined && x.money !== null ? dinero(x.money) : esc(x.text || ""), x.label || "", esc(x.sub || ""), x.go || "")).join("") +
+			"</div>";
+		// Los últimos catorce días en barras; hoy, en color.
+		const max = Math.max(1, ...d.series.map((x) => x.total));
+		h += '<div class="pgrid">';
+		h += '<div class="pcard pwide"><h4>' + esc(__("Last 14 days", "dox-pos")) + '<span class="cnt">' + dinero(d.series.reduce((a, x) => a + x.total, 0)) + '</span></h4><div class="pbars">' +
+			d.series.map((x, i) => '<div class="pbar' + (i === d.series.length - 1 ? " now" : "") + '" title="' + esc(diaBonito(x.day) + ": " + dinero(x.total) + " · " + ventas(x.n)) + '"><i style="--h:' + Math.round(x.total / max * 100) + '%"></i><span>' + parseInt(x.day.slice(8), 10) + "</span></div>").join("") + "</div></div>";
+		h += '<div class="pcard"><h4>' + esc(__("Best sellers", "dox-pos")) + '<span class="cnt">' + esc(__("last 30 days", "dox-pos")) + "</span></h4>" +
+			(d.top.length ? '<ul class="bl ptop">' + d.top.map((x) => "<li>" + thumbHtml(x) + '<button type="button" class="lnk n" data-prod="' + x.id + '">' + esc(x.name) + "</button><span>" + esc(unidades(x.units)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("No sales in the last 30 days.", "dox-pos")) + "</p>") + "</div>";
+		h += '<div class="pcard"><h4>' + esc(__("Collected today", "dox-pos")) + '<span class="cnt">' + dinero(t.cashed) + "</span></h4>" +
+			(d.methods.length ? '<ul class="bl">' + d.methods.map((x) => "<li><span>" + esc(x.name) + "</span><span>" + esc(ventas(x.n)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing collected yet today.", "dox-pos")) + "</p>") + "</div>";
+		const pend = [[__("To ship", "dox-pos"), p.por_enviar], [__("On the way", "dox-pos"), p.enviado], [__("Layaways", "dox-pos"), p.apartado], [__("Payments to confirm", "dox-pos"), p.por_confirmar], [__("Website orders unpaid", "dox-pos"), p.sin_pagar]].filter((f) => f[1] > 0);
+		h += '<div class="pcard"><h4>' + esc(__("Orders to handle", "dox-pos")) + "</h4>" +
+			(pend.length ? '<ul class="bl">' + pend.map((f) => '<li><button type="button" class="lnk" data-go="pedidos">' + esc(f[0]) + "</button><span><b>" + f[1] + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing pending.", "dox-pos")) + "</p>") + "</div>";
+		h += '<div class="pcard"><h4>' + esc(__("Stock", "dox-pos")) + '</h4><ul class="bl"><li><button type="button" class="lnk" data-go="entrada">' + esc(__("Units in stock", "dox-pos")) + "</button><span><b>" + (miles(d.stock.units) || "0") + "</b></span></li><li><span>" + esc(__("Products out of stock", "dox-pos")) + "</span><span><b>" + (miles(d.stock.out) || "0") + "</b></span></li></ul></div>";
+		h += "</div>";
+		const box = $("#panel");
+		box.innerHTML = h;
+		$("#pnl-ref").onclick = () => cargarPanel(true);
+		box.querySelectorAll("[data-go]").forEach((el) => {
+			el.onclick = () => ir(el.dataset.go);
+			el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(el.dataset.go); } };
+		});
+	}
+	// Abre una pestaña como lo haría el #: "pedidos", "historial/ventas/semana"...
+	function ir(donde) {
+		if (donde.split("/")[0] === "vender") { $('#tabs button[data-t="vender"]').click(); return; }
+		if (location.hash === "#" + donde) abrirDesdeHash(); else location.hash = "#" + donde; // El cambio de # ya abre la pestaña.
+	}
+
 	// ---------- pestañas y arranque ----------
 	// Cada pestaña se registra con lo que hace al abrirse, lo que añade al # y cómo lee lo que venga en el #.
 	// Las del núcleo van aquí; los añadidos (el Pro) registran las suyas con DoxPOS.pestaña().
@@ -2141,6 +2236,8 @@
 	pestaña({ id: "entrada", abrir: cargarEntradas });
 	pestaña({ id: "pedidos", abrir: cargarPedidos });
 	pestaña({ id: "producto", abrir: abrirProducto });
+	pestaña({ id: "panel", abrir: () => cargarPanel(false) });
+	on("pedido", () => { pa.at = 0; }); // Un pedido tocado: el Panel se vuelve a pedir al abrirlo.
 	pestaña({
 		id: "historial",
 		abrir: cargarHistorial,
@@ -2173,7 +2270,7 @@
 	// abra la caja de cero o ya estuviera abierta.
 	function abrirDesdeHash(inicial) {
 		const [tabH, vistaH, extraH] = location.hash.replace(/^#/, "").split("/");
-		if (!tabH && inicial === true && cfg.open_tab && cfg.open_tab !== "vender") { // Sin # al entrar: la pestaña que diga un añadido (el Pro: Hoy para quien administra).
+		if (!tabH && inicial === true && cfg.open_tab && cfg.open_tab !== "vender") { // Sin # al entrar: la pestaña que diga la configuración (el Panel para quien administra).
 			const t0 = document.querySelector('#tabs button[data-t="' + cfg.open_tab + '"]');
 			if (t0) setTimeout(() => t0.click(), 0);
 			return;
@@ -2218,15 +2315,6 @@
 			$("#p-vaciar").onclick = vaciarProducto;
 			$("#p-color-add").onclick = añadirColorNuevo;
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
-			$("#p-todo1").onclick = () => ponerTodas(1);
-			$("#p-todo0").onclick = () => ponerTodas(0);
-			$("#p-junto").onclick = () => { // Todas del total, o todas con las suyas.
-				const keys = celdas();
-				const todas = pr.compartidas.size > 0 && compartidasVivas().length === keys.length;
-				pr.compartidas = todas ? new Set() : new Set(keys);
-				pintarCantidades();
-				pintarResumenProducto();
-			};
 			$("#p-crear").onclick = crearProducto;
 			document.querySelectorAll("#pmode button").forEach((b) => { b.onclick = () => ponerModo(b.dataset.m); });
 			$("#p-q").addEventListener("input", programarBusquedaProducto);
@@ -2304,7 +2392,7 @@
 		pintarDepartamentos();
 		pintarTodo();
 		pintarEnvio();
-		listaDe("venta").innerHTML = vacio(__("Type two letters of the name, or the SKU.", "dox-pos"));
+		mostrarTop(); // Lo más vendido, mientras no se busque nada.
 		listaDe("entrada").innerHTML = vacio(__("Search what arrived by name or SKU.", "dox-pos"));
 		cargarPedidos();
 		window.addEventListener("online", () => { pintarCola(); vaciarCola(); });
