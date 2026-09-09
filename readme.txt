@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.32.0
+Stable tag: 0.32.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.32.1 =
+* The Units block of the product form is now one card per colour: its sizes in rows, each with its number and a small "Shares" box, and under them the colour's shared units with a line saying which sizes share them. Cards stack on a phone and sit in a grid on a wide screen, so a product with six colours no longer turns into a table that scrolls sideways. "All sizes share" in the card header ticks every size of that colour at once.
 
 = 0.32.0 =
 * Shared units by colour. In a product with several colours, "Shares units" now works per colour: the Coral sizes share Coral's units and the Rosa sizes share Rosa's, each with its own box under the table. Selling a size only lowers the units of its colour, the register warns with the colour's figure ("Romper Marian · Coral has 3 left for all its sizes together"), and the website checkout counts the whole colour while it holds stock during a payment, so two customers cannot take two sizes when one unit is left. The inventory Excel, the Dashboard, the product card and the cost average count each colour's units once. A product with one colour keeps the plain product total, as before.

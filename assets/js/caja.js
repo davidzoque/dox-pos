@@ -1564,59 +1564,66 @@
 	// editar: es como están la mayoría de los productos de una tienda que creció con el tiempo (unas tallas
 	// del total, otras con las suyas), y WooCommerce lo permite talla por talla.
 	function pintarCantidades() {
-		const t = $("#p-qty");
+		const box = $("#p-qty");
 		const keys = celdas();
 		pr.compartidas = new Set(compartidasVivas());
 		const variable = pr.edit ? pr.edit.type === "variable" : (pr.tallas.length > 0 || pr.colores.length > 0);
 		const cols = columnas();
 		const rows = filas();
 		const multi = cols.length > 1; // Con varios colores, cada color lleva sus propias unidades compartidas (una bolsa por color).
-		// Qué columnas tienen tallas que comparten, y cuántas.
-		const porCol = {};
-		if (variable) cols.forEach((c) => { const k = rows.filter((r) => pr.compartidas.has(qKey(c.key, r.id))).length; if (k) porCol[c.key] = k; });
-		const n = Object.values(porCol).reduce((a, b) => a + b, 0);
 		const pool = (ckey) => (pr.totales[ckey] ? miles(pr.totales[ckey]) : "\u2013");
-		// Las cajas de unidades compartidas: una por color con tallas que comparten (una sola si el producto tiene un color o ninguno).
-		const box = $("#p-junto-box");
-		box.hidden = !n;
-		box.innerHTML = !n ? "" : cols.filter((c) => porCol[c.key]).map((c) => '<div class="field qjunto"><label for="p-junto-' + esc(c.key) + '">' + esc(multi ? sprintf(__("Shared units · %s", "dox-pos"), c.name) : __("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(c.key) + '" data-pool="' + esc(c.key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[c.key] ? miles(pr.totales[c.key]) : "") + '"></div>').join("");
-		box.querySelectorAll("input").forEach((inp) => {
-			inp.oninput = () => { pr.totales[inp.dataset.pool] = num(inp.value); t.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
-			inp.onfocus = () => inp.select();
-		});
-		// Debajo de la tabla: qué tallas comparten (por color, si hay varios), o cómo hacer que compartan.
-		const hint = $("#p-qty-shared");
-		hint.hidden = !variable || keys.length < 2;
-		if (!hint.hidden) {
-			if (!n) hint.textContent = __("Do several sizes sell from the same units? Tick \u201cShares units\u201d on each one and write how many there are for all of them.", "dox-pos");
-			else {
-				const partes = cols.filter((c) => porCol[c.key]).map((c) => (multi ? c.name + ": " : "") + sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", porCol[c.key], "dox-pos"), nombresCompartidas(rows, [c])));
-				if (multi) partes.push(__("Each colour keeps its own shared units: selling a size only lowers the units of its colour.", "dox-pos"));
-				if (multi && pr.legacy) partes.push(sprintf(__("These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving.", "dox-pos"), pr.legacyTotal));
-				hint.textContent = partes.join(" ");
+		let algunas = 0;
+		// Una tarjeta por color (una sola si el producto no tiene colores): sus tallas en filas, y debajo las unidades que comparten.
+		// En el teléfono se apilan; en pantalla grande van en rejilla. Nada se desplaza a lo ancho.
+		box.innerHTML = cols.map((c) => {
+			const comparten = rows.filter((r) => pr.compartidas.has(qKey(c.key, r.id)));
+			algunas += comparten.length;
+			let h = '<div class="qcard">';
+			if (pr.colores.length) h += '<div class="qcard-h"><span class="qcard-n">' + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</span>" + (variable && rows.length > 1 ? '<label class="qshare qall"><input type="checkbox" data-all="' + esc(c.key) + '"' + (comparten.length === rows.length ? " checked" : "") + ">" + esc(__("All sizes share", "dox-pos")) + "</label>" : "") + "</div>";
+			rows.forEach((r) => {
+				const k = qKey(c.key, r.id);
+				const sale = variable && pr.compartidas.has(k);
+				// Cada talla lleva su casilla "Comparte": marcada, sale de las unidades compartidas de su color y no se le escribe nada.
+				const chk = variable ? '<label class="qshare"><input type="checkbox" data-k="' + esc(k) + '"' + (sale ? " checked" : "") + ">" + esc(__("Shares", "dox-pos")) + "</label>" : "";
+				const v = pr.qty[k];
+				h += '<div class="qrow"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + '</span><span class="qcell">' +
+					(sale ? '<span class="qpool" data-pool="' + esc(c.key) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(c.key) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
+					chk + "</span></div>";
+			});
+			if (comparten.length) {
+				h += '<div class="qpoolbox"><label for="p-junto-' + esc(c.key) + '">' + esc(__("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(c.key) + '" data-pool="' + esc(c.key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[c.key] ? miles(pr.totales[c.key]) : "") + '"></div>';
+				h += '<p class="qhint">' + esc(sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", comparten.length, "dox-pos"), nombresCompartidas(rows, [c]))) + "</p>";
 			}
-		}
-		let h = "<thead><tr><th></th>" + cols.map((c) => "<th>" + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>";
-		rows.forEach((r) => {
-			h += '<tr><th scope="row" title="' + esc(r.name) + '">' + esc(r.label || r.name) + "</th>" +
-				cols.map((c) => {
-					const k = qKey(c.key, r.id);
-					const sale = variable && pr.compartidas.has(k);
-					// Cada talla lleva su casilla "Comparte unidades": marcada, sale de las compartidas de su color y no se le escribe nada.
-					const chk = variable ? '<label class="qshare"><input type="checkbox" data-k="' + esc(k) + '"' + (sale ? " checked" : "") + ">" + esc(__("Shares units", "dox-pos")) + "</label>" : "";
-					if (sale) return '<td class="shr"><span class="qcell"><span class="qpool" data-pool="' + esc(c.key) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(c.key) + "</span>" + chk + "</span></td>";
-					const v = pr.qty[k];
-					return '<td><span class="qcell"><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + chk + "</span></td>";
-				}).join("") + "</tr>";
-		});
-		t.innerHTML = h + "</tbody>";
-		t.querySelectorAll("input[inputmode]").forEach((inp) => {
+			return h + "</div>";
+		}).join("");
+		// Debajo de las tarjetas: cómo hacer que compartan, o que cada color va por su cuenta.
+		const hint = $("#p-qty-shared");
+		const partes = [];
+		if (variable && keys.length > 1 && !algunas) partes.push(__("Do several sizes sell from the same units? Tick \u201cShares\u201d on each one and write how many there are for all of them.", "dox-pos"));
+		if (multi && algunas) partes.push(__("Each colour keeps its own shared units: selling a size only lowers the units of its colour.", "dox-pos"));
+		if (multi && algunas && pr.legacy) partes.push(sprintf(__("These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving.", "dox-pos"), pr.legacyTotal));
+		hint.hidden = !partes.length;
+		hint.textContent = partes.join(" ");
+		box.querySelectorAll("input[inputmode]:not([data-pool])").forEach((inp) => {
 			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
-		t.querySelectorAll(".qshare input").forEach((cb) => {
+		box.querySelectorAll("input[data-pool]").forEach((inp) => {
+			inp.oninput = () => { pr.totales[inp.dataset.pool] = num(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
+			inp.onfocus = () => inp.select();
+		});
+		box.querySelectorAll(".qshare input[data-k]").forEach((cb) => {
 			cb.onchange = () => { // Marcada: la talla pasa a las unidades compartidas de su color; desmarcada, vuelve a las suyas.
 				if (cb.checked) pr.compartidas.add(cb.dataset.k); else pr.compartidas.delete(cb.dataset.k);
+				pintarCantidades();
+				pintarResumenProducto();
+			};
+		});
+		box.querySelectorAll(".qshare input[data-all]").forEach((cb) => {
+			const cnt = rows.filter((r) => pr.compartidas.has(qKey(cb.dataset.all, r.id))).length;
+			cb.indeterminate = cnt > 0 && cnt < rows.length; // Unas sí y otras no: la casilla lo enseña a medias.
+			cb.onchange = () => { // Todas las tallas de ese color comparten, o ninguna.
+				rows.forEach((r) => { const k = qKey(cb.dataset.all, r.id); if (cb.checked) pr.compartidas.add(k); else pr.compartidas.delete(k); });
 				pintarCantidades();
 				pintarResumenProducto();
 			};
@@ -1797,7 +1804,6 @@
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.compartidas = new Set(); pr.totales = {}; pr.legacy = false; pr.legacyTotal = 0;
-		if ($("#p-junto-box")) $("#p-junto-box").innerHTML = "";
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		$("#p-pub").checked = true;

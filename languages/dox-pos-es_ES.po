@@ -2466,10 +2466,6 @@ msgstr "Unidades en existencia"
 msgid "Products out of stock"
 msgstr "Productos agotados"
 
-#: assets/js/caja.js
-msgid "Shares units"
-msgstr "Comparte unidades"
-
 #: templates/caja.php assets/js/caja.js
 msgid "Shared units"
 msgstr "Unidades compartidas"
@@ -2479,10 +2475,6 @@ msgid "%s takes these units."
 msgid_plural "%s share these units: when one of them sells, they all go down."
 msgstr[0] "%s usa estas unidades."
 msgstr[1] "%s comparten estas unidades: al venderse una, bajan para todas."
-
-#: assets/js/caja.js
-msgid "Do several sizes sell from the same units? Tick “Shares units” on each one and write how many there are for all of them."
-msgstr "¿Varias tallas se venden de las mismas unidades? Marca «Comparte unidades» en cada una y escribe cuántas hay entre todas."
 
 #: assets/js/caja.js
 msgid "and %d more"
@@ -2519,13 +2511,21 @@ msgid "%s: units shared among their sizes"
 msgstr "%s: unidades compartidas entre sus tallas"
 
 #: assets/js/caja.js
-msgid "Shared units · %s"
-msgstr "Unidades compartidas · %s"
-
-#: assets/js/caja.js
 msgid "Each colour keeps its own shared units: selling a size only lowers the units of its colour."
 msgstr "Cada color lleva sus propias unidades compartidas: vender una talla solo baja las de su color."
 
 #: assets/js/caja.js
 msgid "These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving."
 msgstr "Estas tallas compartían un solo total para todos los colores (%d). Desde ahora cada color lleva el suyo: revisa las cifras antes de guardar."
+
+#: assets/js/caja.js
+msgid "Shares"
+msgstr "Comparte"
+
+#: assets/js/caja.js
+msgid "All sizes share"
+msgstr "Todas las tallas comparten"
+
+#: assets/js/caja.js
+msgid "Do several sizes sell from the same units? Tick “Shares” on each one and write how many there are for all of them."
+msgstr "¿Varias tallas se venden de las mismas unidades? Marca «Comparte» en cada una y escribe cuántas hay entre todas."
