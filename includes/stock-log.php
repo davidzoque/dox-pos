@@ -173,6 +173,9 @@ function dox_pos_stock_changed( $product ) {
 		if ( ! $id ) {
 			return;
 		}
+		if ( $product->is_type( 'variation' ) && 'parent' === $product->get_manage_stock() ) {
+			return; // Sale del total del producto: no tiene existencias propias que apuntar (las del producto se apuntan aparte).
+		}
 		$after    = $product->get_stock_quantity();
 		$known    = array_key_exists( $id, $GLOBALS['dox_pos_stock_before'] ?? array() );
 		$before   = $known ? $GLOBALS['dox_pos_stock_before'][ $id ] : null;

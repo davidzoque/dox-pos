@@ -2362,3 +2362,25 @@ msgid "The sizes marked “from the total” take from the %d unit the product h
 msgid_plural "The sizes marked “from the total” take from the %d units the product has; the rest carry their own."
 msgstr[0] "Las tallas marcadas “del total” salen de la %d unidad que tiene el producto; las demás llevan las suyas."
 msgstr[1] "Las tallas marcadas “del total” salen de las %d unidades que tiene el producto; las demás llevan las suyas."
+
+#: assets/js/caja.js
+msgid "its own"
+msgstr "las suyas"
+
+#: templates/caja.php
+msgid "Shared total"
+msgstr "Total compartido"
+
+#: assets/js/caja.js
+msgid "All the sizes take from this total: the store discounts from it whichever size is sold. Tap “its own” on a size to give it separate units."
+msgstr "Todas las tallas salen de este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Toca “las suyas” en una talla para que lleve unidades aparte."
+
+#: assets/js/caja.js
+msgid "The sizes marked “from the total” take from the product's total; the rest carry their own. Tap a size's link to switch it."
+msgstr "Las tallas marcadas “del total” salen del total del producto; las demás llevan las suyas. Toca el enlace de una talla para cambiarla."
+
+#: assets/js/caja.js
+msgid "%1$d in the product's total, shared by %2$d size"
+msgid_plural "%1$d in the product's total, shared by %2$d sizes"
+msgstr[0] "%1$d en el total del producto, compartido por %2$d talla"
+msgstr[1] "%1$d en el total del producto, compartido por %2$d tallas"

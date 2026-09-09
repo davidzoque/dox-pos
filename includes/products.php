@@ -873,9 +873,16 @@ function dox_pos_create_product( $data ) {
 	}
 
 	$variable = $sizes || $colors;
-	// Un solo total para todas las tallas: lo lleva el producto y las tallas lo heredan, como los 136
-	// productos que Rosella ya tenía así. Null (o sin tallas) = cada talla lleva las suyas.
-	$shared   = $variable && isset( $data['shared_stock'] ) && '' !== $data['shared_stock'] && null !== $data['shared_stock'] ? max( 0, (int) $data['shared_stock'] ) : null;
+	// Qué tallas salen del total del producto (shared_cells, clave color|talla) y ese total (shared_stock): lo
+	// lleva el producto y esas tallas lo heredan; las demás llevan las suyas. Sin shared_cells pero con
+	// shared_stock, todas (los formularios anteriores a la 0.30). Null = cada talla lleva las suyas.
+	$cells = null;
+	if ( $variable && isset( $data['shared_cells'] ) && is_array( $data['shared_cells'] ) ) {
+		$cells = array_map( 'strval', $data['shared_cells'] );
+	} elseif ( $variable && isset( $data['shared_stock'] ) && '' !== $data['shared_stock'] && null !== $data['shared_stock'] ) {
+		$cells = array( '*' );
+	}
+	$shared = $cells ? max( 0, (int) ( $data['shared_stock'] ?? 0 ) ) : null;
 	$ctx      = dox_pos_stock_context( 'create' ); // El kardex: las unidades iniciales quedan como "Creado en la caja".
 	$product  = $variable ? new WC_Product_Variable() : new WC_Product_Simple();
 	$product->set_name( $name );
@@ -966,14 +973,15 @@ function dox_pos_create_product( $data ) {
 					}
 				}
 				$v->set_regular_price( $price );
-				if ( null === $shared ) {
+				$inherit = null !== $shared && ( in_array( '*', $cells, true ) || in_array( $ckey . '|' . $sid, $cells, true ) );
+				if ( ! $inherit ) {
 					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
 					$v->set_manage_stock( true );
 					$v->set_stock_quantity( $n );
 					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
 					$units += $n;
 				} else {
-					$v->set_manage_stock( false ); // Hereda el total del producto.
+					$v->set_manage_stock( false ); // Sale del total del producto.
 				}
 				if ( $cterm && isset( $by_color[ $ckey ] ) ) {
 					$v->set_image_id( $by_color[ $ckey ] );
@@ -1443,8 +1451,8 @@ function dox_pos_common_price( $variations ) {
  *
  * @param int   $id   Producto.
  * @param array $data Igual que al crear: name, price ('' = no tocar), cost ('' = no tocar, 0 = quitarlo),
- *                    categories, description, publish, sizes, colors, qty, images, y split_stock
- *                    (repartir por tallas un total que iba en conjunto: desde ahí cada una lleva las suyas).
+ *                    categories, description, publish, sizes, colors, qty, images, shared_cells (las
+ *                    tallas que salen del total del producto, clave color|talla) y shared_stock (ese total).
  * @return array|WP_Error
  */
 function dox_pos_update_product( $id, $data ) {
@@ -1483,9 +1491,16 @@ function dox_pos_update_product( $id, $data ) {
 		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
 	$variable = $p->is_type( 'variable' );
-	// Repartir por tallas un total que iba en conjunto (el padre las controlaba y las tallas heredaban):
-	// cada talla pasa a llevar las que digan las casillas, y el padre deja de llevarlas.
-	$split = $variable && null !== $model['shared'] && ! empty( $data['split_stock'] );
+	// Qué tallas salen del total del producto (shared_cells, clave color|talla) y ese total (shared_stock), tal
+	// como lo manda el formulario desde la 0.30. Sin shared_cells, ninguna talla cambia de sitio y solo se
+	// escriben las que llevan las suyas; split_stock (0.27) equivale a "ninguna sale del total".
+	$cells = null;
+	if ( $variable && isset( $data['shared_cells'] ) && is_array( $data['shared_cells'] ) ) {
+		$cells = array_map( 'strval', $data['shared_cells'] );
+	} elseif ( $variable && ! empty( $data['split_stock'] ) ) {
+		$cells = array();
+	}
+	$pool = null !== $cells && $cells ? max( 0, (int) ( $data['shared_stock'] ?? ( $model['shared'] ?? 0 ) ) ) : null;
 
 	// Tallas y colores: los que ya tenía, más los nuevos. A un producto que no varía por color
 	// (o por talla) no se le añaden desde aquí: sus variaciones quedarían para "cualquier" color.
@@ -1588,9 +1603,15 @@ function dox_pos_update_product( $id, $data ) {
 			}
 		}
 	} else {
-		if ( $split ) {
-			$p->set_manage_stock( false );
-			$p->set_stock_quantity( null );
+		if ( null !== $cells ) {
+			if ( $cells ) { // Alguna talla sale del total: lo lleva el producto.
+				$p->set_manage_stock( true );
+				$p->set_stock_quantity( $pool );
+				$p->set_stock_status( $pool > 0 ? 'instock' : 'outofstock' );
+			} else { // Ninguna: el producto deja de llevarlas.
+				$p->set_manage_stock( false );
+				$p->set_stock_quantity( null );
+			}
 		}
 		$new_sizes  = array_values( array_diff( array_keys( $sizes ), $model['sizes'] ) );
 		$new_colors = array_values( array_diff( array_keys( $colors ), array_column( $model['colors'], 'key' ) ) );
@@ -1636,13 +1657,22 @@ function dox_pos_update_product( $id, $data ) {
 				$v->set_regular_price( $price );
 				$changed = true;
 			}
-			// Las tallas que llevan las suyas se editan siempre, comparta o no alguna hermana el total del producto.
-			if ( null !== $vr['stock'] || $split ) {
+			// Sale del total del producto o lleva las suyas: lo que diga el formulario (shared_cells); si no lo
+			// manda, cada talla se queda como está y solo se escriben las que llevan las suyas.
+			$inherit = null !== $cells ? in_array( $vr['color'] . '|' . $vr['size'], $cells, true ) : null === $vr['stock'];
+			if ( $inherit ) {
+				if ( null !== $vr['stock'] ) {
+					$v->set_manage_stock( false ); // Pasa a salir del total del producto; sus unidades sueltas se olvidan.
+					$v->set_stock_quantity( null );
+					$changed = true;
+				}
+			} else {
 				$row = $qty[ $vr['color'] ] ?? null;
 				if ( is_array( $row ) && array_key_exists( (string) $vr['size'], $row ) ) {
 					$n = max( 0, (int) $row[ (string) $vr['size'] ] );
-					if ( $split && null === $vr['stock'] ) {
-						$v->set_manage_stock( true ); // Deja de heredar el total del producto: desde ahora lleva las suyas.
+					if ( null === $vr['stock'] ) {
+						$v->set_manage_stock( true ); // Deja de salir del total: desde ahora lleva las suyas.
+						$changed = true;
 					}
 					if ( $n !== $vr['stock'] ) {
 						$v->set_stock_quantity( $n );
@@ -1701,13 +1731,14 @@ function dox_pos_update_product( $id, $data ) {
 				if ( '' !== $base_price ) {
 					$v->set_regular_price( $base_price );
 				}
-				if ( null === $model['shared'] || $split ) {
+				$inherit = null !== $cells ? in_array( $ckey . '|' . $sid, $cells, true ) : null !== $model['shared'];
+				if ( ! $inherit ) {
 					$n = dox_pos_qty_at( $qty, (string) $ckey, (string) $sid );
 					$v->set_manage_stock( true );
 					$v->set_stock_quantity( $n );
 					$v->set_stock_status( $n > 0 ? 'instock' : 'outofstock' );
 				} else {
-					$v->set_manage_stock( false ); // Hereda las existencias en conjunto del producto.
+					$v->set_manage_stock( false ); // Sale del total del producto.
 				}
 				if ( $cterm && isset( $by_color[ $ckey ] ) ) {
 					$v->set_image_id( $by_color[ $ckey ] );

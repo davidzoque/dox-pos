@@ -989,6 +989,7 @@
 	// por si la página se recarga o se cae la sesión.
 	const pr = {
 		cargado: false, abriendo: null, form: null,
+		compartidas: new Set(), total: 0, // Las tallas que salen del total del producto (clave color|talla), y ese total.
 		fotos: [],          // [{uid, file, estado: cola|subiendo|ok|error, id, url, color, kb, error}]
 		cats: [],           // ids de categoría elegidos
 		colores: [],        // [{key, id, name, hex}]; id 0 = color nuevo (key "n:nombre")
@@ -1519,52 +1520,51 @@
 	const cantidad = (ckey, sid) => { const v = pr.qty[qKey(ckey, sid)]; return v === undefined ? 0 : v; };
 	const columnas = () => (pr.colores.length ? pr.colores : [{ key: "", name: __("Units", "dox-pos"), hex: "" }]);
 	const filas = () => { const r = tallasOrdenadas(); return r.length ? r : [{ id: 0, name: __("One size", "dox-pos"), label: "" }]; };
+	// Todas las casillas talla × color que hay ahora mismo en el formulario.
+	const celdas = () => { const out = []; filas().forEach((r) => columnas().forEach((c) => out.push(qKey(c.key, r.id)))); return out; };
+	// Las que salen del total del producto, sin las de tallas o colores que ya se quitaron.
+	const compartidasVivas = () => { const keys = celdas(); return [...pr.compartidas].filter((k) => keys.includes(k)); };
+	// Cada talla sale del total del producto o lleva las suyas, y se cambia con un toque. Vale al crear y al
+	// editar: es como están la mayoría de los productos de una tienda que creció con el tiempo (unas tallas
+	// del total, otras con las suyas), y WooCommerce lo permite talla por talla.
 	function pintarCantidades() {
 		const t = $("#p-qty");
-		// Creando: el botón deja elegir entre unidades por talla o un solo total para todas.
-		const puedeJunto = !pr.edit && (pr.tallas.length > 0 || pr.colores.length > 0);
+		const keys = celdas();
+		pr.compartidas = new Set(compartidasVivas());
+		const variable = pr.edit ? pr.edit.type === "variable" : (pr.tallas.length > 0 || pr.colores.length > 0);
+		const n = variable ? pr.compartidas.size : 0;
+		const todas = variable && n > 0 && n === keys.length;
+		// La pastilla: todas las tallas del total (encendida) o cada una con las suyas.
 		const bj = $("#p-junto");
-		bj.hidden = !puedeJunto;
-		bj.textContent = pr.junto ? __("Units per size", "dox-pos") : __("One total for all", "dox-pos");
-		bj.setAttribute("aria-pressed", pr.junto ? "true" : "false");
-		if (puedeJunto && pr.junto) { // El producto llevará un total y las tallas lo heredan.
-			t.innerHTML = "";
-			$("#p-junto-box").hidden = false;
-			$("#p-qty-shared").hidden = false;
-			$("#p-qty-shared").textContent = __("All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one.", "dox-pos");
-			$("#p-todo1").hidden = true;
-			$("#p-todo0").hidden = true;
+		bj.hidden = !variable;
+		bj.textContent = todas ? __("Units per size", "dox-pos") : __("One total for all", "dox-pos");
+		bj.setAttribute("aria-pressed", todas ? "true" : "false");
+		$("#p-todo1").hidden = todas;
+		$("#p-todo0").hidden = todas;
+		// El total del producto: se escribe en cuanto alguna talla sale de él.
+		$("#p-junto-box").hidden = !n;
+		if (n) {
 			const inp = $("#p-junto-n");
-			if (document.activeElement !== inp) inp.value = pr.juntoN ? String(pr.juntoN) : "";
-			inp.oninput = () => { pr.juntoN = num(inp.value); pintarResumenProducto(); };
+			if (document.activeElement !== inp) inp.value = pr.total ? miles(pr.total) : "";
+			inp.oninput = () => { pr.total = num(inp.value); pintarResumenProducto(); };
 			inp.onfocus = () => inp.select();
-			return;
 		}
-		$("#p-junto-box").hidden = true;
-		// Editando: las tallas que salen del total del producto. Las demás llevan las suyas y se escriben aquí,
-		// que es como está la mayoría de los productos de una tienda que creció con el tiempo.
-		const conjunto = !!(pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined);
-		const delTotal = conjunto && !pr.split ? new Set(pr.edit.shared_cells || []) : new Set();
-		const todasDelTotal = delTotal.size >= filas().length * columnas().length; // Ninguna talla lleva las suyas: no hay nada que rellenar.
-		$("#p-qty-shared").hidden = !delTotal.size;
-		$("#p-todo1").hidden = todasDelTotal;
-		$("#p-todo0").hidden = todasDelTotal;
-		if (delTotal.size) {
-			const todas = todasDelTotal;
-			$("#p-qty-shared").innerHTML = esc(sprintf(todas
-				? _n("The sizes do not carry their own units but one total for all of them: %d unit.", "The sizes do not carry their own units but one total for all of them: %d units.", pr.edit.shared, "dox-pos")
-				: _n("The sizes marked \u201cfrom the total\u201d take from the %d unit the product has; the rest carry their own.", "The sizes marked \u201cfrom the total\u201d take from the %d units the product has; the rest carry their own.", pr.edit.shared, "dox-pos"), pr.edit.shared)) +
-				" " + esc(__("That total is changed by recording the goods in Inventory, or in WooCommerce.", "dox-pos")) + ' <button type="button" class="undo" id="p-split">' + esc(__("Spread them by size", "dox-pos")) + "</button>";
-			$("#p-split").onclick = () => { pr.split = true; pintarCantidades(); pintarResumenProducto(); };
-		}
+		const hint = $("#p-qty-shared");
+		hint.hidden = !n;
+		if (n) hint.textContent = todas
+			? __("All the sizes take from this total: the store discounts from it whichever size is sold. Tap \u201cits own\u201d on a size to give it separate units.", "dox-pos")
+			: __("The sizes marked \u201cfrom the total\u201d take from the product's total; the rest carry their own. Tap a size's link to switch it.", "dox-pos");
 		const cols = columnas();
 		let h = "<thead><tr><th></th>" + cols.map((c) => "<th>" + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>";
 		filas().forEach((r) => {
 			h += '<tr><th scope="row" title="' + esc(r.name) + '">' + esc(r.label || r.name) + "</th>" +
 				cols.map((c) => {
-					if (delTotal.has(c.key + "|" + r.id)) return '<td class="shr">' + esc(__("from the total", "dox-pos")) + "</td>"; // Sale del total del producto: no se escribe aquí.
-					const v = pr.qty[qKey(c.key, r.id)];
-					return '<td><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '"></td>';
+					const k = qKey(c.key, r.id);
+					const sale = variable && pr.compartidas.has(k);
+					const sw = variable ? '<button type="button" class="lnk qsw" data-k="' + esc(k) + '">' + esc(sale ? __("its own", "dox-pos") : __("from the total", "dox-pos")) + "</button>" : "";
+					if (sale) return '<td class="shr"><span>' + esc(__("from the total", "dox-pos")) + "</span>" + sw + "</td>";
+					const v = pr.qty[k];
+					return '<td><input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + sw + "</td>";
 				}).join("") + "</tr>";
 		});
 		t.innerHTML = h + "</tbody>";
@@ -1572,10 +1572,14 @@
 			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = num(inp.value); pintarResumenProducto(); });
 			inp.addEventListener("focus", () => inp.select());
 		});
-		if (conjunto && pr.split) { // Repartiendo: se dice cuántas hay que colocar.
-			$("#p-qty-shared").hidden = false;
-			$("#p-qty-shared").textContent = sprintf(_n("There is %d unit in total: write how many go to each size. Once saved, every size carries its own units.", "There are %d units in total: write how many go to each size. Once saved, every size carries its own units.", pr.edit.shared, "dox-pos"), pr.edit.shared);
-		}
+		t.querySelectorAll(".qsw").forEach((b) => {
+			b.onclick = () => { // Un toque: la talla pasa del total a las suyas, o al revés.
+				const k = b.dataset.k;
+				if (pr.compartidas.has(k)) pr.compartidas.delete(k); else pr.compartidas.add(k);
+				pintarCantidades();
+				pintarResumenProducto();
+			};
+		});
 	}
 	function ponerTodas(n) {
 		filas().forEach((r) => columnas().forEach((c) => { pr.qty[qKey(c.key, r.id)] = n; }));
@@ -1583,12 +1587,10 @@
 		pintarResumenProducto();
 	}
 	function unidadesTotales() {
-		if (!pr.edit && pr.junto) return pr.juntoN || 0;
-		// Editando: el total del producto (si alguna talla sale de él) más lo que lleve cada talla suya.
-		const conjunto = pr.edit && pr.edit.shared !== null && pr.edit.shared !== undefined && !pr.split;
-		const delTotal = conjunto ? new Set(pr.edit.shared_cells || []) : new Set();
-		let u = conjunto ? pr.edit.shared : 0;
-		filas().forEach((r) => columnas().forEach((c) => { if (!delTotal.has(c.key + "|" + r.id)) u += cantidad(c.key, r.id); }));
+		// El total del producto, una vez, si alguna talla sale de él; más lo que lleve cada talla suya.
+		const vivas = new Set(compartidasVivas());
+		let u = vivas.size ? (pr.total || 0) : 0;
+		filas().forEach((r) => columnas().forEach((c) => { if (!vivas.has(qKey(c.key, r.id))) u += cantidad(c.key, r.id); }));
 		return u;
 	}
 
@@ -1663,10 +1665,11 @@
 			if (cfg.costs && costoForm() > precio) avisos.push(__("The cost is higher than the price: it would sell at a loss.", "dox-pos"));
 			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
 			let tabla = "";
-			if (pr.junto) tabla = ' <span class="sub">' + esc(__("for all the sizes together", "dox-pos")) + "</span>";
-			else if (pr.tallas.length || pr.colores.length) {
-				tabla = '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
-					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+			const vivas = new Set(compartidasVivas());
+			if (pr.tallas.length || pr.colores.length) {
+				if (vivas.size) tabla = ' <span class="sub">' + esc(sprintf(_n("%1$d in the product's total, shared by %2$d size", "%1$d in the product's total, shared by %2$d sizes", vivas.size, "dox-pos"), pr.total || 0, vivas.size)) + "</span>";
+				tabla += '<table class="revt"><thead><tr><th></th>' + cols.map((c) => "<th>" + esc(c.name) + "</th>").join("") + "</tr></thead><tbody>" +
+					rows.map((r) => "<tr><th>" + esc(r.label || r.name) + "</th>" + cols.map((c) => (vivas.has(qKey(c.key, r.id)) ? '<td class="zero">' + esc(__("from the total", "dox-pos")) + "</td>" : '<td class="' + (cantidad(c.key, r.id) ? "" : "zero") + '">' + cantidad(c.key, r.id) + "</td>")).join("") + "</tr>").join("") + "</tbody></table>";
 			}
 			const li = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
 			modal("<h3>" + esc(__("Check before creating", "dox-pos")) + '</h3><dl class="rev">' +
@@ -1717,8 +1720,8 @@
 			sizes: rows.map((t) => t.id),
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
 			qty: qty,
-			shared_stock: !pr.edit && pr.junto ? (pr.juntoN || 0) : null, // Un solo total para todas las tallas, al crear.
-			split_stock: !!pr.split, // Un total en conjunto que se reparte por tallas.
+			shared_cells: compartidasVivas(),                          // Las tallas que salen del total del producto (clave color|talla)...
+			shared_stock: compartidasVivas().length ? (pr.total || 0) : null, // ...y ese total.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
@@ -1743,7 +1746,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.split = false; pr.junto = false; pr.juntoN = 0;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.compartidas = new Set(); pr.total = 0;
 		if ($("#p-junto-n")) $("#p-junto-n").value = "";
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
@@ -1901,7 +1904,8 @@
 		if (pr.edit || pr.fotos.length) limpiarProducto();
 		pr.modo = "editar";
 		pr.edit = d;
-		pr.split = false;
+		pr.compartidas = new Set(d.shared_cells || []); // Las tallas que hoy salen del total del producto.
+		pr.total = d.shared === null || d.shared === undefined ? 0 : num(d.shared);
 		pr.cats = (d.categories || []).slice();
 		pr.tallas = (d.sizes || []).slice();
 		pr.colores = (d.colors || []).map((c) => ({ key: String(c.key), id: c.id, name: c.name, hex: c.hex }));
@@ -2216,7 +2220,13 @@
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-todo1").onclick = () => ponerTodas(1);
 			$("#p-todo0").onclick = () => ponerTodas(0);
-			$("#p-junto").onclick = () => { pr.junto = !pr.junto; pintarCantidades(); pintarResumenProducto(); };
+			$("#p-junto").onclick = () => { // Todas del total, o todas con las suyas.
+				const keys = celdas();
+				const todas = pr.compartidas.size > 0 && compartidasVivas().length === keys.length;
+				pr.compartidas = todas ? new Set() : new Set(keys);
+				pintarCantidades();
+				pintarResumenProducto();
+			};
 			$("#p-crear").onclick = crearProducto;
 			document.querySelectorAll("#pmode button").forEach((b) => { b.onclick = () => ponerModo(b.dataset.m); });
 			$("#p-q").addEventListener("input", programarBusquedaProducto);

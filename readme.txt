@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.29.2
+Stable tag: 0.30.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.30.0 =
+* Each size decides where its units come from. In the product form, creating or editing, every size (and colour) has a small link: "from the total" moves it onto the product's shared total, "its own" gives it separate units. The shared total gets its own box as soon as one size uses it, and "One total for all" switches every size at once. So a product can have, say, 2-3 and 3-4 years drawing from one pool while 6-12 months keeps its own count, without opening WooCommerce.
 
 = 0.29.2 =
 * A product where some sizes take their units from the product's total and others carry their own (the usual case in a shop that grew over time) now shows all its sizes when you edit it: the shared ones are marked "from the total" and the rest are typed in as always. Before, the whole table was hidden and those units could only be changed in WooCommerce.

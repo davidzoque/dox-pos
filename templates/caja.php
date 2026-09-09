@@ -236,7 +236,7 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp">
 							<h4 class="qh"><?php esc_html_e( 'Units', 'dox-pos' ); ?> <span class="cnt qhdr"><button type="button" class="undo" id="p-todo1"><?php esc_html_e( 'All to 1', 'dox-pos' ); ?></button><button type="button" class="undo" id="p-todo0"><?php esc_html_e( 'All to 0', 'dox-pos' ); ?></button><button type="button" class="chip sm" id="p-junto" aria-pressed="false" hidden></button></span></h4>
 							<div class="wrapx qtywrap"><table class="qtyt" id="p-qty"></table></div>
-							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Units in total', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
+							<div class="field qjunto" id="p-junto-box" hidden><label for="p-junto-n"><?php esc_html_e( 'Shared total', 'dox-pos' ); ?></label><input id="p-junto-n" inputmode="numeric" placeholder="0"></div>
 							<p class="hint" id="p-qty-shared" hidden></p>
 						</div>
 						<div class="grp">
