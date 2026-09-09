@@ -2133,7 +2133,9 @@
 		}
 		$("#modal").addEventListener("click", (e) => { if (e.target === $("#modal")) cerrarModal(); });
 		// Tocar el número o los productos de un pedido (en Pedidos, Historial u Hoy) abre su detalle.
-		document.addEventListener("click", (e) => { const b = e.target.closest("[data-ver]"); if (b) { e.preventDefault(); verPedido(+b.dataset.ver); } });
+		// Solo cuando el atributo trae el número del pedido: un data-ver vacío es otro botón
+		// (los añadidos usan sus propios atributos) y no tiene que abrir ninguna ficha.
+		document.addEventListener("click", (e) => { const b = e.target.closest("[data-ver]"); const id = b ? parseInt(b.dataset.ver, 10) : 0; if (b && id > 0) { e.preventDefault(); verPedido(id); } });
 		// Y tocar el nombre de un producto (en el resumen, los consejos o lo que se agota) abre su ficha.
 		document.addEventListener("click", (e) => { const b = e.target.closest("[data-prod]"); if (b) { e.preventDefault(); editarDesdeLista(+b.dataset.prod); } });
 		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#modal").hidden) cerrarModal(); });
