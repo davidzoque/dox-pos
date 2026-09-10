@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.35.0
+Stable tag: 0.36.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.36.0 =
+* The lists of the register no longer leave half a line empty: a long one splits into two columns that still read top to bottom.
+* Add-ons can now draw the same figure cards and strip cells the Dashboard uses, so every screen of the register counts in the same shapes.
 
 = 0.35.0 =
 * The Dashboard is laid out again: today's figures in three big cards, then one strip with the week, the month and whatever the add-ons contribute, and the lists in two columns. No more half-empty rows or cards stretched to fill a gap.

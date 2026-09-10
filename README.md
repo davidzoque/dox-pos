@@ -112,6 +112,8 @@ Quien administra (`manage_woocommerce`) tiene la pestaña Panel, antes de Vender
 
 La pantalla va en tres alturas para que no queden huecos: lo de hoy en tarjetas grandes (`.kpis.big`: vendido, ganancia y por cobrar), debajo la franja `.kstrip` con la semana, el mes y lo que añadan los módulos (una sola tarjeta con las casillas separadas por la línea del fondo, así reparte el ancho sean las que sean), y abajo la gráfica y las listas, con lo más vendido a un lado (`.pmain`) y las cuentas cortas apiladas al otro (`.pside`).
 
+Las dos piezas de cifra las pinta la caja y las usan también los añadidos: `DoxPOS.kpi(valor, rótulo, sub, go)` una tarjeta y `DoxPOS.ks(valor, rótulo, dif, sub, go)` una casilla de franja. El valor y la diferencia entran tal cual (ya vienen con formato); el rótulo y el sub se escapan dentro. Con `go`, la pieza se marca con `data-go` y quien la pinta le engancha el clic. Nada de rejillas `auto-fit` para tarjetas que cambian de número: con flex la última fila se reparte lo que sobra y no queda el hueco. Una lista `.bl` larga se parte en dos columnas con `.bl.dos` (columnas de periódico: se sigue leyendo de arriba abajo y baja sola a una columna cuando no caben dos).
+
 La gráfica enseña los tramos de `DOX_POS_DASH_RANGES` (7, 14, 30 y 90 días). Los tres primeros se cortan de lo que ya vino; el de 90 se pide a `GET dox-pos/v1/dashboard/series?days=90` (`dox_pos_dashboard_long`: los días anteriores guardados y hoy en vivo) y se queda en memoria hasta el siguiente Actualizar. El tramo elegido se recuerda en `localStorage` (`dox-pos-panel-dias`). Con muchas barras se afinan, se juntan y el día solo sale cada tantas; la cifra del tramo manda en la tarjeta, con el rótulo de a qué corresponde y lo que da al día.
 
 Los añadidos meten casillas con el filtro `dox_pos_dashboard`: `$data['extra'][] = array( 'label' => ..., 'money' => ... (o 'text'), 'sub' => ..., 'go' => 'asistente' )`; salen en la franja, detrás de la semana y el mes. El Pro pone así lo que no rota y a cuánto va el mes.
@@ -142,7 +144,7 @@ funciona completo sin él. Lo que el gratuito abre para los añadidos:
   (avisos bajo la cabecera), `dox_pos_sections` (las secciones `section.tab#t-<id>`), `dox_pos_scripts`
   (scripts, después de `caja.js`) y `dox_pos_caja_open` (al abrir la caja, antes de pintar).
 - **En el JS**: `caja.js` expone `window.DoxPOS` con sus utilidades (`api`, `post`, `modal`, `confirmar`,
-  `toast`, `esc`, `dinero`, `kpi`, `chip`, `verPedido`, `editarDesdeLista`, `accion`, `fijarHash`…),
+  `toast`, `esc`, `dinero`, `kpi`, `ks`, `chip`, `verPedido`, `editarDesdeLista`, `accion`, `fijarHash`…),
   `pestaña({ id, abrir, hash, desdeHash })` para registrar una pestaña, y `on`/`emit` con los avisos
   `arranque`, `pedido` y `pestaña`. La plantilla llama a `DoxPOS.arrancar()` al final, cuando los
   añadidos ya se registraron; por eso `caja.js` no arranca solo.

@@ -429,6 +429,8 @@ tr.off,li.off{opacity:.5}
 .bl{list-style:none;margin:0;padding:0}
 .bl li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
 .bl li:last-child{border-bottom:0}
+.bl.dos{columns:320px 2;column-gap:28px} /* las listas largas: en dos columnas se lee igual de arriba abajo y no queda medio renglón vacío */
+.bl.dos li{break-inside:avoid}
 .bl li span:last-child{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
 .bl li b{color:var(--ink)}
 .wrapx2{overflow:auto;margin:0 -16px;padding:0 16px}
@@ -458,11 +460,11 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 /* Lo que el asistente nombra se toca: el número de un pedido abre su detalle y el nombre de un producto, su ficha. */
 .aicard a,.pend .pt a,.bl a,.adv p a{color:var(--primary);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .aicard a:hover,.pend .pt a:hover,.bl a:hover,.adv p a:hover{text-decoration-thickness:2px}
-.pend{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.pend li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.pend{list-style:none;margin:0;padding:0;columns:430px 2;column-gap:10px} /* dos columnas: se leen de arriba abajo y no queda medio renglón vacío en cada aviso */
+.pend li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;align-items:stretch;gap:8px;break-inside:avoid;margin:0 0 10px}
 .pend li.alta{border-left:3px solid #8E2B21}
 .pend li.media{border-left:3px solid var(--primary)}
-.pend .pt{display:grid;gap:3px;min-width:0;flex:1 1 260px;justify-items:start}
+.pend .pt{display:grid;gap:3px;min-width:0;justify-items:start}
 .pend .pt b{font-weight:600;font-size:13.5px}
 .pend .pt span:last-child{font-size:12.5px;color:var(--muted);line-height:1.4}
 .pend .pt .tag{margin-bottom:2px}
@@ -481,7 +483,8 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .bl.uso li span:first-child em{display:block;height:3px;min-width:3px;margin-top:5px;border-radius:3px;background:var(--soft)}
 .bl li .sub2{display:block;font-size:11.5px;line-height:1.35;color:var(--muted);font-style:normal;margin-top:2px;white-space:normal}
 .bl li .tag{font-size:10px;padding:1px 6px;margin-left:6px;vertical-align:1px}
-.advs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.advs{display:flex;flex-wrap:wrap;gap:10px}
+.adv{flex:1 1 240px}
 .adv{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:6px;align-content:start}
 .adv b{font-weight:600;font-size:14px;line-height:1.35}
 .adv p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
@@ -497,7 +500,14 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .chk .n.baja{background:var(--sunk);color:var(--ink)}
 .chk .n.ok{background:var(--ok-soft);color:var(--ok)}
 .chka{display:flex;gap:6px;flex-wrap:wrap}
+.chkh>.chka{flex:none;margin-left:auto} /* los botones al borde: si no, se reparten el ancho con el texto y dejan el hueco en medio */
 .chka .mini+.mini{margin-left:0}
+.chkg{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px}
+.chkg .chk{margin:0}
+.chkg .chkh{align-items:flex-start;padding:11px 12px}
+.chkg .chk .n{width:36px;height:36px;font-size:13px;border-radius:10px}
+.chkg .chkh b{font-size:13px}
+.chkg .chkh>div>span{font-size:11.5px}
 .chkb{border-top:1px solid var(--line);padding:10px 14px 14px}
 .chkl{list-style:none;margin:0;padding:0}
 .chkl li{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;flex-wrap:wrap}

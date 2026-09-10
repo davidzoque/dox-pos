@@ -2186,7 +2186,12 @@
 		}
 		if (n === hi.req) box.style.opacity = "";
 	}
-	const kpi = (v, l) => '<div class="kpi"><b>' + v + "</b><span>" + esc(l) + "</span></div>";
+	// Una tarjeta de cifra y una casilla de la franja, que usan también los añadidos: la cifra y la
+	// diferencia entran tal cual (ya vienen con formato); el rótulo y la línea de abajo se escapan aquí.
+	// Con "go", tocarla abre esa pestaña (se escribe como en el #).
+	const abre = (go) => (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "");
+	const kpi = (v, l, sub, go) => '<div class="kpi"' + abre(go) + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
+	const ks = (v, l, dif, sub, go) => '<div class="ks"' + abre(go) + "><span>" + esc(l) + "</span><b>" + v + (dif || "") + "</b>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
 	function listaHist(titulo, arr, conUnidades) {
 		if (!arr || !arr.length) return "";
 		return '<div class="grp"><h4>' + esc(titulo) + '</h4><ul class="bl">' + arr.map((x) =>
@@ -2335,19 +2340,14 @@
 	function pintarPanel(d) {
 		const t = d.today, y = d.yesterday, w = d.week, m = d.month, p = d.pending;
 		const conCosto = !!d.costs;
-		// Una tarjeta: la cifra, el rótulo y una línea pequeña debajo; con "go", tocarla abre esa pestaña.
-		const abre = (go) => (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "");
-		const card = (v, l, sub, go) => '<div class="kpi"' + abre(go) + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + sub + "</i>" : "") + "</div>";
-		// Una casilla de la franja: lo mismo en pequeño, con el rótulo arriba y la diferencia al lado de la cifra.
-		const ks = (v, l, dif, sub, go) => '<div class="ks"' + abre(go) + "><span>" + esc(l) + "</span><b>" + v + (dif || "") + "</b>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
 		const dif = (a, b) => { if (!(b > 0)) return ""; const pc = Math.round((a - b) / b * 100); return ' <em class="' + (pc >= 0 ? "up" : "down") + '">' + (pc >= 0 ? "+" : "\u2212") + Math.abs(pc) + "\u00a0%</em>"; };
 		const cobrar = (p.cod || 0) + (p.holds || 0);
 		let h = '<div class="pnl-head"><p class="hsub">' + esc(d.date_label) + '</p><button type="button" class="mini" id="pnl-ref">' + esc(__("Refresh", "dox-pos")) + "</button></div>";
 		// Lo de hoy, en grande: lo que se vendió, lo que dejó y lo que falta por cobrar.
 		h += '<div class="kpis big">' +
-			card(dinero(t.sold), __("Sold today", "dox-pos"), esc(ventasN(t.orders) + " · " + unidadesN(t.units) + " · " + sprintf(__("yesterday %s", "dox-pos"), dinero(y.sold))), "historial/ventas/hoy") +
-			(conCosto ? card(dinero(t.profit || 0), __("Profit today", "dox-pos"), esc([t.margin !== null && t.margin !== undefined ? sprintf(__("%d %% margin", "dox-pos"), t.margin) : "", t.no_cost_n ? sprintf(_n("%d sale with no cost", "%d sales with no cost", t.no_cost_n, "dox-pos"), t.no_cost_n) : "", d.losses && t.loss > 0 ? sprintf(__("losses %s", "dox-pos"), dinero(t.loss)) : ""].filter(Boolean).join(" · ")), "historial/caja") : "") +
-			card(dinero(cobrar), __("To collect", "dox-pos"), esc(sprintf(__("cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)", "dox-pos"), dinero(p.cod || 0), p.cod_n || 0, dinero(p.holds || 0), p.holds_n || 0)), "pedidos") +
+			kpi(dinero(t.sold), __("Sold today", "dox-pos"), ventasN(t.orders) + " · " + unidadesN(t.units) + " · " + sprintf(__("yesterday %s", "dox-pos"), dinero(y.sold)), "historial/ventas/hoy") +
+			(conCosto ? kpi(dinero(t.profit || 0), __("Profit today", "dox-pos"), [t.margin !== null && t.margin !== undefined ? sprintf(__("%d %% margin", "dox-pos"), t.margin) : "", t.no_cost_n ? sprintf(_n("%d sale with no cost", "%d sales with no cost", t.no_cost_n, "dox-pos"), t.no_cost_n) : "", d.losses && t.loss > 0 ? sprintf(__("losses %s", "dox-pos"), dinero(t.loss)) : ""].filter(Boolean).join(" · "), "historial/caja") : "") +
+			kpi(dinero(cobrar), __("To collect", "dox-pos"), sprintf(__("cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)", "dox-pos"), dinero(p.cod || 0), p.cod_n || 0, dinero(p.holds || 0), p.holds_n || 0), "pedidos") +
 			"</div>";
 		// La semana, el mes y lo que añadan los módulos: una franja seguida, que no deja huecos aunque cambie el número de casillas.
 		h += '<div class="kstrip">' +
@@ -2618,7 +2618,7 @@
 	// de los añadidos ya están registradas. Esperar a DOMContentLoaded es una trampa con optimizadores que
 	// retrasan el JS (el evento ya pasó, o fingen readyState).
 	window.DoxPOS = {
-		cfg, M, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, chip, chips, uuid, ocupar,
+		cfg, M, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, ks, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
 		verPedido, verProducto, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,
