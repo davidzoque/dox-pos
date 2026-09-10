@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.36.0
+Stable tag: 0.37.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ The register for a shop that sells on WhatsApp and Instagram: sales, layaways, s
 
 == Description ==
 
-Dox POS adds a `/caja` page with its own sign-in screen. From there you search products with their photo and stock, record the sales that come in through WhatsApp or Instagram (each one is a WooCommerce order, so stock goes down on its own), put products on layaway while the customer pays, record the stock that arrives and keep the list of what has to be shipped.
+Dox POS adds a `/pos` page (`/caja` on a Spanish site) with its own sign-in screen. From there you search products with their photo and stock, record the sales that come in through WhatsApp or Instagram (each one is a WooCommerce order, so stock goes down on its own), put products on layaway while the customer pays, record the stock that arrives and keep the list of what has to be shipped.
 
 It is built for the shop that sells through chat and ships by courier, not for a counter with a barcode scanner: no hardware, no receipt printer, no cash drawer. A phone is enough.
 
@@ -32,9 +32,9 @@ The business assistant (today's pending work, a store review, a chat, a forecast
 
 = External services =
 
-This plugin loads the two register fonts from **Google Fonts** (fonts.googleapis.com and fonts.gstatic.com), which is on by default. When the register opens, the browser of whoever uses it requests those fonts from Google, which receives their IP address and the usual data of a web request. The settings page does the same while you pick a font, and asks Google whether the name you typed exists. No store, order or customer data is ever sent.
+The register can load its two fonts from **Google Fonts** (fonts.googleapis.com and fonts.gstatic.com). This is off by default: a fresh install uses the fonts of the phone or the computer and the plugin does not connect to any outside service.
 
-You can turn it off in WooCommerce > Dox POS > Brand, with the "Load the fonts from Google Fonts" switch: the fonts of the phone or the computer are used instead and the plugin does not connect to any outside service.
+If you turn on the "Load the fonts from Google Fonts" switch in WooCommerce > Dox POS > Brand, the browser of whoever opens the register requests those fonts from Google, which receives their IP address and the usual data of a web request. With the switch on, the settings page loads the fonts the same way while you pick one, and when you type a font name the plugin asks Google whether a font by that name exists. No store, order or customer data is ever sent, and turning the switch off stops every request.
 
 Google terms: https://policies.google.com/terms
 Google privacy: https://policies.google.com/privacy
@@ -42,7 +42,7 @@ Google privacy: https://policies.google.com/privacy
 == Installation ==
 
 1. Upload the `dox-pos` folder to `/wp-content/plugins/` and activate the plugin.
-2. Open `/caja` and sign in with an administrator, a shop manager or a user with the "Cashier" role.
+2. Open `/pos` (`/caja` on a Spanish site) and sign in with an administrator, a shop manager or a user with the "Cashier" role.
 3. Set the brand, the colors, the address of the screen, the sales channels and the payment methods in WooCommerce > Dox POS.
 
 == Frequently Asked Questions ==
@@ -81,6 +81,12 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.37.0 =
+* Google Fonts are off until the shop turns them on in WooCommerce > Dox POS > Brand: a fresh install uses the fonts of the phone or the computer and does not connect to any outside service. A shop that had already made its choice keeps it.
+* Font names go into the register stylesheet as letters, digits, spaces and hyphens only, and the line that starts the register is added through the WordPress script system instead of being printed by the template.
+* The register and the sign-in page declare the language of the site instead of a fixed one.
+* The default address of the register follows the language of the site: /pos on an English site, /caja on a Spanish one. It is written to the settings when the plugin is installed, so it never moves afterwards, and shops that were already using /caja stay there. In English the screen is called POS instead of Register, which on a website reads like signing up.
 
 = 0.36.0 =
 * The lists of the register no longer leave half a line empty: a long one splits into two columns that still read top to bottom.

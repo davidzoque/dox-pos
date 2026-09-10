@@ -278,8 +278,12 @@ msgstr "Inventario"
 msgid "By category"
 msgstr "Por categoría"
 
-msgid "Register"
+msgid "POS"
 msgstr "Caja"
+
+msgctxt "default path of the register: one lowercase word, no spaces"
+msgid "pos"
+msgstr "caja"
 
 msgid "Website"
 msgstr "Página web"
@@ -581,7 +585,7 @@ msgstr "El enlace de %s no vale: tiene que empezar por https://"
 msgid "Ella dress (M · Pink)"
 msgstr "Vestido Ella (M · Rosa)"
 
-msgid "Register logo"
+msgid "POS logo"
 msgstr "Logo de la caja"
 
 msgid "Use this image"
@@ -743,8 +747,8 @@ msgstr "Elegir el color: %s"
 msgid "Fonts"
 msgstr "Fuentes"
 
-msgid "Two fonts for the register: one for the interface and one for the total and the headings. They are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com). If you would rather nothing left the site, turn the switch off and the fonts of the phone or the computer are used."
-msgstr "Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com). Si prefieres que no salga nada del sitio, apaga el interruptor y se usan las fuentes del teléfono o del computador."
+msgid "Two fonts for the register: one for the interface and one for the total and the headings. Off, the fonts of the phone or the computer are used and nothing leaves the site. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), and this page asks Google whether a font name you type exists."
+msgstr "Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Apagado, se usan las fuentes del teléfono o del computador y nada sale del sitio. Encendido, se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com), y esta página le pregunta a Google si existe la fuente que escribas."
 
 msgid "Load the fonts from Google Fonts"
 msgstr "Cargar las fuentes desde Google Fonts"
@@ -767,10 +771,10 @@ msgstr "Cómo se llama la pantalla y en qué dirección se abre. La dirección s
 msgid "Screen name"
 msgstr "Nombre de la pantalla"
 
-msgid "The word next to the logo and in the tab title. Empty: Register."
+msgid "The word next to the logo and in the tab title. Empty: POS."
 msgstr "La palabra junto al logo y en el título de la pestaña. Vacío: Caja."
 
-msgid "Register address"
+msgid "POS address"
 msgstr "Dirección de la caja"
 
 msgid "Only letters, numbers and hyphens. It is checked right away that no other page uses it; the change applies when you save."
@@ -1328,7 +1332,7 @@ msgstr "Entrar"
 msgid "Sign out of this account"
 msgstr "Salir de este usuario"
 
-msgid "The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant."
+msgid "The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant."
 msgstr "La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y mercancía desde el frontend (/caja), sin entrar a wp-admin, con pedidos, productos, historial, kardex y Excel. Cada venta es un pedido de WooCommerce y el inventario baja solo. Con Dox POS Pro, el asistente de negocio."
 
 msgid "with %d unit"

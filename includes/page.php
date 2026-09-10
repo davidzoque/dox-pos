@@ -141,10 +141,10 @@ function dox_pos_logo_url() {
 
 /**
  * Encola lo que usa la pantalla: la hoja de estilo con los colores de la marca como CSS en línea,
- * las fuentes (si el ajuste dice que se carguen) y, con $cfg, el JS de la caja con su configuración
- * delante. La caja es una página completa fuera del tema, así que no llama a wp_head() ni a
- * wp_footer() (arrastrarían todo lo del tema y de los demás plugins): imprime solo esta cola, con
- * wp_print_styles() en la cabecera y wp_print_scripts() al final de la plantilla.
+ * las fuentes (solo si la tienda encendió el interruptor de Google Fonts) y, con $cfg, el JS de la
+ * caja con su configuración delante. La caja es una página completa fuera del tema, así que no llama
+ * a wp_head() ni a wp_footer() (arrastrarían todo lo del tema y de los demás plugins): imprime solo
+ * esta cola, con wp_print_styles() en la cabecera y wp_print_scripts() al final de la plantilla.
  *
  * @param array|null $cfg Lo que va al navegador, o null en el login (que no lleva JS).
  */
@@ -161,6 +161,20 @@ function dox_pos_enqueue_caja( $cfg = null ) {
 	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n' ), $ver, true );
 	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', DOX_POS_PATH . 'languages' ); // Los textos del JS salen de languages/dox-pos-<idioma>-<md5>.json.
 	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
+}
+
+/**
+ * La línea que arranca la caja, como script en línea de WordPress. Va en un handle sin archivo
+ * (dox-pos-start) que depende de todo lo encolado para la caja, el de caja.js y los de los añadidos,
+ * así que se imprime el último, cuando los añadidos ya se engancharon a los eventos. La plantilla
+ * lo llama después del gancho dox_pos_scripts. No se espera a DOMContentLoaded a propósito: los
+ * optimizadores que retrasan el JS lo disparan antes de tiempo o fingen readyState.
+ */
+function dox_pos_enqueue_start() {
+	$deps = array_values( array_diff( dox_pos_assets( 'script' ), array( 'dox-pos-start' ) ) );
+	wp_register_script( 'dox-pos-start', false, $deps, DOX_POS_VERSION, true );
+	wp_add_inline_script( 'dox-pos-start', 'window.DoxPOS && window.DoxPOS.arrancar();' );
+	wp_enqueue_script( 'dox-pos-start' );
 }
 
 /**
@@ -197,10 +211,7 @@ function dox_pos_head() {
 	<title><?php echo esc_html( dox_pos_screen_name() . ' · ' . dox_pos_brand_name() ); ?></title>
 	<?php
 	wp_site_icon();
-	if ( dox_pos_fonts_on() ) {
-		echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
-	}
-	wp_print_styles( dox_pos_assets( 'style' ) ); // Solo lo de la caja.
+	wp_print_styles( dox_pos_assets( 'style' ) ); // Solo lo de la caja (y la hoja de Google Fonts, si la tienda la encendió).
 	do_action( 'dox_pos_head' ); // Hojas de estilo de los añadidos.
 }
 

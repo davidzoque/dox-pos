@@ -35,7 +35,7 @@ function dox_pos_order_origin( $order ) {
 
 function dox_pos_origin_label( $origin ) {
 	$labels = array(
-		'caja'  => __( 'Register', 'dox-pos' ),
+		'caja'  => __( 'POS', 'dox-pos' ),
 		'web'   => __( 'Website', 'dox-pos' ),
 		'admin' => __( 'Manual', 'dox-pos' ),
 		'otro'  => __( 'Other', 'dox-pos' ),

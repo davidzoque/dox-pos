@@ -103,28 +103,45 @@ function dox_pos_colors() {
 }
 
 /**
- * Las dos fuentes (de Google Fonts): la de la interfaz y la de los títulos y totales.
- *
- * @return array{ui:string,serif:string}
- */
-/**
- * ¿Se cargan las fuentes desde Google Fonts? De fábrica sí; apagado, la caja y la página de
- * ajustes usan las fuentes del sistema y el plugin no habla con ningún servidor de fuera.
+ * ¿Se cargan las fuentes desde Google Fonts? De fábrica no: hay que encenderlo en Ajustes > Marca.
+ * Apagado, la caja y la página de ajustes usan las fuentes del sistema y el plugin no habla con
+ * ningún servidor de fuera. Es lo que pide el directorio de WordPress.org: nada sale del sitio sin
+ * que la tienda lo elija.
  */
 function dox_pos_fonts_on() {
 	$b = dox_pos_brand();
-	return ! isset( $b['fonts_google'] ) || ! empty( $b['fonts_google'] );
+	return ! empty( $b['fonts_google'] );
 }
 
+/**
+ * Las dos fuentes (de Google Fonts): la de la interfaz y la de los títulos y totales, ya limpias.
+ *
+ * @return array{ui:string,serif:string}
+ */
 function dox_pos_fonts() {
 	$b   = dox_pos_brand();
 	$out = dox_pos_default_fonts();
 	foreach ( $out as $k => $default ) {
-		if ( ! empty( $b[ 'font_' . $k ] ) ) {
-			$out[ $k ] = (string) $b[ 'font_' . $k ];
+		$font = isset( $b[ 'font_' . $k ] ) ? dox_pos_font_name( $b[ 'font_' . $k ] ) : '';
+		if ( '' !== $font ) {
+			$out[ $k ] = $font;
 		}
 	}
 	return $out;
+}
+
+/**
+ * El nombre de una fuente, limpio para ir dentro del CSS y de la URL de Google Fonts: solo letras,
+ * números, espacios y guiones (es lo que llevan los nombres de Google Fonts). Fuera comillas, punto y
+ * coma, llaves o etiquetas, que podrían cerrar la declaración o la hoja de estilo.
+ *
+ * @param string $name Lo que haya en el ajuste.
+ * @return string
+ */
+function dox_pos_font_name( $name ) {
+	$name = preg_replace( '/[^A-Za-z0-9 \-]/', '', (string) $name );
+	$name = trim( preg_replace( '/\s+/', ' ', $name ) );
+	return substr( $name, 0, 60 );
 }
 
 function dox_pos_screen() {
@@ -133,11 +150,12 @@ function dox_pos_screen() {
 }
 
 /**
- * Cómo se llama la pantalla en la barra y en el título ("Caja").
+ * Cómo se llama la pantalla en la barra y en el título ("Caja"; "POS" en inglés, porque "Register"
+ * suelto en una web se lee como "crear cuenta").
  */
 function dox_pos_screen_name() {
 	$s = dox_pos_screen();
-	return ! empty( $s['name'] ) ? (string) $s['name'] : __( 'Register', 'dox-pos' );
+	return ! empty( $s['name'] ) ? (string) $s['name'] : __( 'POS', 'dox-pos' );
 }
 
 /**
@@ -146,6 +164,15 @@ function dox_pos_screen_name() {
 function dox_pos_slug() {
 	$s    = dox_pos_screen();
 	$slug = ! empty( $s['slug'] ) ? sanitize_title( $s['slug'] ) : '';
+	return $slug ? $slug : dox_pos_default_slug();
+}
+
+/**
+ * La ruta de fábrica según el idioma del sitio: /pos/ en inglés, /caja/ en español (es la traducción
+ * de "pos"). Se escribe en el ajuste al instalar (dox_pos_freeze_slug) para que no se mueva después.
+ */
+function dox_pos_default_slug() {
+	$slug = sanitize_title( _x( 'pos', 'default path of the register: one lowercase word, no spaces', 'dox-pos' ) );
 	return $slug ? $slug : DOX_POS_SLUG;
 }
 
@@ -500,12 +527,14 @@ function dox_pos_is_dark( $hex ) {
  * colores son los de fábrica no se toca nada: caja.css ya los trae exactos.
  */
 function dox_pos_theme_css() {
-	$c    = dox_pos_colors();
-	$f    = dox_pos_fonts();
-	$on   = dox_pos_fonts_on();
-	$vars = array(
-		'--ui'    => ( $on ? '"' . $f['ui'] . '",' : '' ) . '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
-		'--serif' => ( $on ? '"' . $f['serif'] . '",' : '' ) . 'Georgia,serif',
+	$c     = dox_pos_colors();
+	$f     = dox_pos_fonts();
+	$on    = dox_pos_fonts_on();
+	$ui    = dox_pos_font_name( $f['ui'] ); // Limpias aquí mismo, justo antes de entrar en el CSS.
+	$serif = dox_pos_font_name( $f['serif'] );
+	$vars  = array(
+		'--ui'    => ( $on && $ui ? '"' . $ui . '",' : '' ) . '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+		'--serif' => ( $on && $serif ? '"' . $serif . '",' : '' ) . 'Georgia,serif',
 	);
 	if ( dox_pos_default_colors() !== $c ) {
 		$dark_bar   = dox_pos_is_dark( $c['bar'] );
@@ -547,7 +576,10 @@ function dox_pos_fonts_url() {
 		return '';
 	}
 	$f = dox_pos_fonts();
-	return 'https://fonts.googleapis.com/css2?family=' . str_replace( ' ', '+', $f['ui'] ) . ':wght@400;500;600;700&family=' . str_replace( ' ', '+', $f['serif'] ) . ':wght@400;600;700&display=swap';
+	$q = function ( $name ) {
+		return str_replace( ' ', '+', dox_pos_font_name( $name ) ); // Solo letras, números, + y guiones llegan a la URL.
+	};
+	return 'https://fonts.googleapis.com/css2?family=' . $q( $f['ui'] ) . ':wght@400;500;600;700&family=' . $q( $f['serif'] ) . ':wght@400;600;700&display=swap';
 }
 
 /**
@@ -658,8 +690,7 @@ function dox_pos_sanitize_brand( $in ) {
 		$out['colors'][ $k ] = dox_pos_hex( $in['colors'][ $k ] ?? '' ) ?: $default;
 	}
 	foreach ( dox_pos_default_fonts() as $k => $default ) {
-		$font = sanitize_text_field( $in[ 'font_' . $k ] ?? '' );
-		$font = trim( preg_replace( '/\s+/', ' ', $font ) );
+		$font = dox_pos_font_name( sanitize_text_field( $in[ 'font_' . $k ] ?? '' ) );
 		if ( '' === $font || $font === $default ) {
 			$out[ 'font_' . $k ] = '';
 			continue;
@@ -709,9 +740,9 @@ function dox_pos_sanitize_screen( $in ) {
 	$in   = is_array( $in ) ? $in : array();
 	$old  = dox_pos_screen();
 	$slug = sanitize_title( $in['slug'] ?? '' );
-	$prev = ! empty( $old['slug'] ) ? sanitize_title( $old['slug'] ) : DOX_POS_SLUG;
+	$prev = ! empty( $old['slug'] ) ? sanitize_title( $old['slug'] ) : dox_pos_default_slug();
 	if ( '' === $slug ) {
-		$slug = DOX_POS_SLUG;
+		$slug = dox_pos_default_slug();
 	}
 	if ( $slug !== $prev ) {
 		$problem = dox_pos_slug_problem( $slug );
@@ -1035,8 +1066,8 @@ function dox_pos_admin_assets( $hook ) {
 				'fonts'   => dox_pos_default_fonts(),
 				'message' => dox_pos_default_hold_message(),
 				'shipMessage' => dox_pos_default_ship_message(),
-				'screen'  => __( 'Register', 'dox-pos' ),
-				'slug'    => DOX_POS_SLUG,
+				'screen'  => __( 'POS', 'dox-pos' ),
+				'slug'    => dox_pos_default_slug(),
 				'hours'   => 48,
 			),
 			'siteLogo' => ( (int) get_theme_mod( 'custom_logo' ) ) ? wp_get_attachment_image_url( (int) get_theme_mod( 'custom_logo' ), 'full' ) : '',
@@ -1050,7 +1081,7 @@ function dox_pos_admin_assets( $hook ) {
 			'notices'  => dox_pos_settings_notices(),
 			'i18n'     => array(
 				'carriers' => array( __( 'DHL', 'dox-pos' ), __( 'UPS', 'dox-pos' ), __( 'FedEx', 'dox-pos' ) ),
-				'pickLogo'  => __( 'Register logo', 'dox-pos' ),
+				'pickLogo'  => __( 'POS logo', 'dox-pos' ),
 				'use'       => __( 'Use this image', 'dox-pos' ),
 				'channel'   => __( 'Channel name', 'dox-pos' ),
 				'pickup'    => __( 'Pickup', 'dox-pos' ),
@@ -1218,7 +1249,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Fonts', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the total and the headings. They are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com). If you would rather nothing left the site, turn the switch off and the fonts of the phone or the computer are used.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the total and the headings. Off, the fonts of the phone or the computer are used and nothing leaves the site. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), and this page asks Google whether a font name you type exists.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Load the fonts from Google Fonts', 'dox-pos' ); ?></span></label>
 						<div class="dp-mt">
@@ -1254,11 +1285,11 @@ function dox_pos_settings_page() {
 						</div>
 						<div class="dp-field">
 							<label class="dp-label" for="dp-screen"><?php esc_html_e( 'Screen name', 'dox-pos' ); ?></label>
-							<input type="text" id="dp-screen" name="dox_pos_screen[name]" value="<?php echo esc_attr( $screen['name'] ?? '' ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Register', 'dox-pos' ); ?>" autocomplete="off">
-							<p class="dp-hint"><?php esc_html_e( 'The word next to the logo and in the tab title. Empty: Register.', 'dox-pos' ); ?></p>
+							<input type="text" id="dp-screen" name="dox_pos_screen[name]" value="<?php echo esc_attr( $screen['name'] ?? '' ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'POS', 'dox-pos' ); ?>" autocomplete="off">
+							<p class="dp-hint"><?php esc_html_e( 'The word next to the logo and in the tab title. Empty: POS.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-field">
-							<label class="dp-label" for="dp-slug"><?php esc_html_e( 'Register address', 'dox-pos' ); ?></label>
+							<label class="dp-label" for="dp-slug"><?php esc_html_e( 'POS address', 'dox-pos' ); ?></label>
 							<div class="dp-urlfield">
 								<span class="dp-urlfield-pre"><?php echo esc_html( $host ); ?>/</span>
 								<input type="text" id="dp-slug" name="dox_pos_screen[slug]" value="<?php echo esc_attr( $slug ); ?>" class="dp-input" spellcheck="false" autocomplete="off" autocapitalize="off" pattern="[a-z0-9-]+">

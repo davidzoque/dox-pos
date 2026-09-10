@@ -630,7 +630,7 @@
 			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
 		const dir = [d.address, d.address2, d.city].filter(Boolean).join(", ");
 		let h = "<h3>" + esc(sprintf(__("Order #%s", "dox-pos"), d.number)) + ' <span class="tag ' + cls + '">' + esc(d.label) + "</span></h3>";
-		h += '<p class="mp">' + esc(d.created) + " · " + (web ? esc(d.origin_label) + (d.source ? " " + esc(sprintf(__("(from %s)", "dox-pos"), d.source)) : "") : esc(d.channel) + " · " + esc(__("Register", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "")) + (d.demo ? " · " + esc(__("demo", "dox-pos")) : "") + "</p>";
+		h += '<p class="mp">' + esc(d.created) + " · " + (web ? esc(d.origin_label) + (d.source ? " " + esc(sprintf(__("(from %s)", "dox-pos"), d.source)) : "") : esc(d.channel) + " · " + esc(__("POS", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "")) + (d.demo ? " · " + esc(__("demo", "dox-pos")) : "") + "</p>";
 		h += '<div class="od">';
 		h += "<section><h4>" + esc(__("Products", "dox-pos")) + "</h4>" + (items ? '<ul class="odl">' + items + "</ul>" : '<p class="sub">' + esc(__("No products.", "dox-pos")) + "</p>");
 		h += '<table class="tot"><tbody><tr><td>' + esc(__("Subtotal", "dox-pos")) + "</td><td>" + dinero(d.subtotal) + "</td></tr>" +
@@ -726,7 +726,7 @@
 			// El canal: en la caja, por dónde entró la venta y quién la registró; en la web, la etiqueta y de dónde llegó el cliente.
 			const canal = web
 				? '<span class="tag w">' + esc(p.origin_label) + "</span>" + (p.source ? '<br><span class="sub">' + esc(sprintf(__("from %s", "dox-pos"), p.source)) + "</span>" : "")
-				: esc(p.channel) + '<br><span class="sub">' + esc(__("Register", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
+				: esc(p.channel) + '<br><span class="sub">' + esc(__("POS", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
 			tr.innerHTML =
 				'<td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
 				'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></td>" +
@@ -2613,10 +2613,10 @@
 		vaciarCola();
 		$("#q").focus();
 	}
-	// Lo que los añadidos pueden usar (el Pro se cuelga de aquí). El script va al final del body y la plantilla
-	// llama a DoxPOS.arrancar() después de cargar los añadidos, así que todo lo que toca ya existe y las pestañas
-	// de los añadidos ya están registradas. Esperar a DOMContentLoaded es una trampa con optimizadores que
-	// retrasan el JS (el evento ya pasó, o fingen readyState).
+	// Lo que los añadidos pueden usar (el Pro se cuelga de aquí). El script va al final del body y el arranque
+	// (DoxPOS.arrancar(), un script en línea del handle dox-pos-start que depende de todos) se imprime después de
+	// los añadidos, así que todo lo que toca ya existe y sus pestañas ya están registradas. Esperar a
+	// DOMContentLoaded es una trampa con optimizadores que retrasan el JS (el evento ya pasó, o fingen readyState).
 	window.DoxPOS = {
 		cfg, M, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, ks, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,

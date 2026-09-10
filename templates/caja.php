@@ -15,7 +15,7 @@ $im    = wc_get_price_decimals() > 0 ? 'decimal' : 'numeric'; // El teclado de l
 dox_pos_enqueue_caja( $cfg );
 ?>
 <!doctype html>
-<html lang="es">
+<html <?php language_attributes(); ?>>
 <head>
 <?php dox_pos_head(); ?>
 </head>
@@ -305,8 +305,8 @@ dox_pos_enqueue_caja( $cfg );
 </div>
 <?php
 do_action( 'dox_pos_scripts', $cfg ); // Los añadidos encolan los suyos, con dependencia de dox-pos-caja.
-wp_print_scripts( dox_pos_assets( 'script' ) ); // caja.js con su configuración delante, y detrás los de los añadidos.
+dox_pos_enqueue_start();                // La línea que arranca la caja, detrás de todos.
+wp_print_scripts( dox_pos_assets( 'script' ) ); // caja.js con su configuración delante, luego los de los añadidos y al final el arranque.
 ?>
-<script>window.DoxPOS && window.DoxPOS.arrancar();</script>
 </body>
 </html>

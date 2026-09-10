@@ -30,14 +30,34 @@ function dox_pos_maybe_install() {
  * Deja todo lo que el plugin necesita. Repetirlo no hace daño.
  */
 function dox_pos_install() {
+	if ( ! is_textdomain_loaded( 'dox-pos' ) ) {
+		dox_pos_textdomain(); // Al activar desde la lista de plugins, init ya pasó y la traducción no se cargó; la ruta de fábrica sale del idioma.
+	}
 	dox_pos_install_roles();
 	dox_pos_install_tables();
+	dox_pos_freeze_slug();
 	dox_pos_add_rewrite();
 	dox_pos_schedule_cleanup();
 	dox_pos_migrate_tokens();
 	flush_rewrite_rules();
 	update_option( 'dox_pos_version', DOX_POS_VERSION );
 	do_action( 'dox_pos_installed' ); // Los añadidos crean lo suyo (el Pro, sus tablas y su tarea).
+}
+
+/**
+ * Deja la ruta escrita en el ajuste la primera vez, para que no se mueva nunca: ni al cambiar el
+ * idioma del sitio ni al actualizar. Hasta la 0.36.0 la ruta de fábrica era /caja/ en cualquier
+ * idioma; una tienda que ya existía y nunca eligió ruta se queda ahí, que es donde sus vendedoras la
+ * tienen guardada. Una instalación nueva toma la de su idioma (dox_pos_default_slug: /pos/, /caja/).
+ */
+function dox_pos_freeze_slug() {
+	$screen = dox_pos_screen();
+	if ( ! empty( $screen['slug'] ) ) {
+		return;
+	}
+	$was            = (string) get_option( 'dox_pos_version', '' ); // Vacío en una instalación nueva.
+	$screen['slug'] = '' !== $was && version_compare( $was, '0.37.0', '<' ) ? 'caja' : dox_pos_default_slug();
+	update_option( 'dox_pos_screen', $screen );
 }
 
 /**

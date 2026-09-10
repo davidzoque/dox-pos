@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Dox POS
  * Plugin URI:        https://github.com/davidzoque/dox-pos
- * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/caja), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
- * Version:           0.36.0
+ * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
+ * Version:           0.37.0
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,11 +22,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.36.0' );
+define( 'DOX_POS_VERSION', '0.37.0' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
-define( 'DOX_POS_SLUG', 'caja' );        // La ruta de fábrica: dominio.com/caja (se cambia en los ajustes)
+define( 'DOX_POS_SLUG', 'pos' );         // La ruta de fábrica en inglés; la de cada idioma la da dox_pos_default_slug() y se guarda al instalar (dox_pos_freeze_slug).
 define( 'DOX_POS_CAP', 'dox_pos_use' ); // El permiso que abre la puerta.
 define( 'DOX_POS_DEMO_REF', 'dox-demo-' ); // Marca las filas de demostración que no son pedidos (los crea el Pro; el guardián de aquí las protege).
 
@@ -42,7 +42,9 @@ if ( file_exists( DOX_POS_PATH . 'includes/updater.php' ) ) {
 /**
  * Las traducciones del plugin. El código va en inglés (es lo que espera WordPress.org) y los
  * idiomas salen de languages/: el español viene en el paquete y el resto llega de
- * translate.wordpress.org cuando el plugin esté publicado.
+ * translate.wordpress.org cuando el plugin esté publicado. La llamada se queda a propósito, en
+ * init: sin ella WordPress solo mira los paquetes de idioma de wp-content/languages/plugins/, que
+ * para el español no existirán hasta que translate.wordpress.org lo tenga traducido y aprobado.
  */
 add_action( 'init', 'dox_pos_textdomain', 1 );
 function dox_pos_textdomain() {
