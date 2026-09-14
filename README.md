@@ -11,7 +11,7 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 | `dox-pos.php` | Cabecera, constantes, activación (rol + ruta). |
 | `includes/settings.php` | Los ajustes (WooCommerce > Dox POS) y las funciones que el resto del plugin pregunta: marca, colores, fuentes, nombre y ruta de la pantalla, canales, formas de pago, plazo y mensaje del apartado, transportadoras, país y moneda de la tienda. También arma el `<style>` con los colores. |
 | `includes/roles.php` | El rol `caja` y el permiso `dox_pos_use`. Quien es solo de caja no entra a wp-admin. |
-| `includes/page.php` | La ruta (la del ajuste; de fábrica `/pos` en inglés y `/caja` en español, `dox_pos_default_slug()`, y desde la 0.37.0 se escribe en el ajuste al instalar con `dox_pos_freeze_slug()` para que no se mueva al cambiar el idioma; las tiendas anteriores se quedan en `/caja`), el login propio, el `<head>` común y las plantillas. Sin caché. |
+| `includes/page.php` | La ruta (la del ajuste; de fábrica `/pos` en inglés y `/caja` en español, `dox_pos_default_slug()`, que mira el locale del sitio y no la traducción, y desde la 0.37.0 se escribe en el ajuste al instalar con `dox_pos_freeze_slug()` para que no se mueva al cambiar el idioma; las tiendas anteriores se quedan en `/caja`), el login propio, el `<head>` común y las plantillas. Sin caché. |
 | `includes/catalog.php` | El buscador: usa el motor de WooCommerce (nombre y SKU, con variaciones). |
 | `includes/api.php` | La API REST en `/wp-json/dox-pos/v1/`. Solo con sesión y permiso. Sus respuestas se marcan sin caché para LiteSpeed (`rest_pre_dispatch`): con "Cache REST API" activo, LiteSpeed las guardaba en la caché privada del usuario hasta 30 minutos. |
 | `includes/orders.php` | Vender y apartar. Cada venta es un pedido de WooCommerce (`created_via = dox-pos`): el stock lo mueve Woo. El apartado es un pedido "en espera" que Action Scheduler cancela solo al vencer el plazo. Añade el estado "Enviado". La lista de pedidos incluye los de la web. |
@@ -34,7 +34,10 @@ Desde la 0.22.0 el código va **en inglés**, que es lo que espera WordPress.org
 como traducción en `languages/`: `dox-pos-es_ES.po` (la fuente), `.mo` (el formato de siempre) y
 `.l10n.php` (el que WordPress 6.5 y posteriores prefieren y el que manda si está). Son 447 entradas,
 plurales incluidos, más la descripción de la cabecera del plugin, que WordPress también traduce.
-`dox_pos_textdomain()` carga la carpeta en `init` con prioridad 1.
+`dox_pos_textdomain()` carga la carpeta en `init` con prioridad 1, **solo en la compilación de GitHub**:
+el zip de WordPress.org va sin `languages/` y sin esa llamada (van dentro de los marcadores
+`dox-pos-repo-only`, que la Action quita), porque el directorio lo exige (revisión del 14/09/2026).
+Allí el español se sube a translate.wordpress.org y WordPress lo baja como paquete de idioma.
 
 Al tocar un texto: cambiarlo en inglés en el código y añadir el par al `.po`, y regenerar el `.mo` y
 el `.l10n.php` (los tres tienen que decir lo mismo, y el `.l10n.php` gana). Un sitio en español no

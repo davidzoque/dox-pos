@@ -281,10 +281,6 @@ msgstr "Por categoría"
 msgid "POS"
 msgstr "Caja"
 
-msgctxt "default path of the register: one lowercase word, no spaces"
-msgid "pos"
-msgstr "caja"
-
 msgid "Website"
 msgstr "Página web"
 

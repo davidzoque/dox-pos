@@ -766,7 +766,6 @@ return array(
 		'cash on delivery' => 'paga al recibir',
 		'cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)' => 'contraentrega %1$s (%2$d) · apartados %3$s (%4$d)',
 		'cost %s' => 'costo %s',
-		'default path of the register: one lowercase word, no spacespos' => 'caja',
 		'demo' => 'demostración',
 		'edit it' => 'edítalo',
 		'expires in %d h' => 'vence en %d h',

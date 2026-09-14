@@ -168,12 +168,13 @@ function dox_pos_slug() {
 }
 
 /**
- * La ruta de fábrica según el idioma del sitio: /pos/ en inglés, /caja/ en español (es la traducción
- * de "pos"). Se escribe en el ajuste al instalar (dox_pos_freeze_slug) para que no se mueva después.
+ * La ruta de fábrica según el idioma del sitio: /caja/ en cualquier español (es_ES, es_CO, es_MX...) y
+ * /pos/ en los demás. Sale del locale, no de un archivo de traducción, así que vale igual en el zip de
+ * WordPress.org, que no lleva traducciones. Se escribe en el ajuste al instalar (dox_pos_freeze_slug)
+ * para que no se mueva después.
  */
 function dox_pos_default_slug() {
-	$slug = sanitize_title( _x( 'pos', 'default path of the register: one lowercase word, no spaces', 'dox-pos' ) );
-	return $slug ? $slug : DOX_POS_SLUG;
+	return preg_match( '/^es(_|$)/', get_locale() ) ? 'caja' : DOX_POS_SLUG;
 }
 
 function dox_pos_sales() {
