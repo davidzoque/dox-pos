@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.37.1
+Stable tag: 0.37.2
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.37.2 =
+* The settings page is headed by the Dox POS logo instead of a letter in a box.
 
 = 0.37.1 =
 * The Spanish translation is no longer bundled with the plugin: it comes from translate.wordpress.org, as the directory requires. The default address on a Spanish site (/caja) now follows the site language directly, so it does not depend on translation files.
