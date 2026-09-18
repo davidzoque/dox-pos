@@ -1084,7 +1084,7 @@ msgstr[1] "Ventas"
 #. El motivo de un movimiento del kardex. Va con contexto porque "Sale" también es
 #. la etiqueta plural de la tarjeta de ventas del historial.
 #: includes/stock-log.php:298
-msgctxt "motivo del movimiento"
+msgctxt "stock movement reason"
 msgid "Sale"
 msgstr "Venta"
 
@@ -2178,7 +2178,7 @@ msgid "Hi {name}, your order #{order} from {store} is on its way with {carrier}.
 msgstr "Hola {name}, tu pedido #{order} de {store} ya salió con {carrier}.\nGuía: {tracking}\nPuedes seguirlo aquí: {link}"
 
 #: includes/orders.php:831
-msgctxt "fecha y hora"
+msgctxt "date and time format"
 msgid "F j, G:i"
 msgstr "j \\d\\e F, G:i"
 
@@ -2365,7 +2365,7 @@ msgid "Open the register on the Dashboard for whoever manages the shop"
 msgstr "Abrir la caja en el Panel a quien administra la tienda"
 
 #: includes/dashboard.php
-msgctxt "fecha con día de la semana"
+msgctxt "date format with weekday"
 msgid "l, F j"
 msgstr "l j \\d\\e F"
 

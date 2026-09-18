@@ -66,10 +66,10 @@ function dox_pos_pool_name( $v ) {
 		return $color;
 	}
 	if ( '' === $color ) {
-		/* translators: %d: número del grupo de tallas */
+		/* translators: %d: number of the size group */
 		return sprintf( __( 'group %d', 'dox-pos' ), $g );
 	}
-	/* translators: 1: color, 2: número del grupo de tallas */
+	/* translators: 1: colour, 2: number of the size group */
 	return sprintf( __( '%1$s (group %2$d)', 'dox-pos' ), $color, $g );
 }
 

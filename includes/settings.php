@@ -721,7 +721,7 @@ function dox_pos_sanitize_brand( $in ) {
 		$was = (string) ( $old[ 'font_' . $k ] ?? '' );
 		// Solo se le pregunta a Google si las fuentes se cargan de ahí.
 		if ( $out['fonts_google'] && $font !== $was && ! dox_pos_google_font_exists( $font ) ) {
-			add_settings_error( 'dox_pos', 'font_' . $k, sprintf( /* translators: %s: nombre de la fuente */ __( 'Google Fonts does not know the font "%s". Copy the name exactly as it appears on fonts.google.com. The previous one was kept.', 'dox-pos' ), $font ) );
+			add_settings_error( 'dox_pos', 'font_' . $k, sprintf( /* translators: %s: font name */ __( 'Google Fonts does not know the font "%s". Copy the name exactly as it appears on fonts.google.com. The previous one was kept.', 'dox-pos' ), $font ) );
 			$font = $was;
 		}
 		$out[ 'font_' . $k ] = $font;
@@ -754,7 +754,7 @@ function dox_pos_slug_problem( $slug ) {
 		$taken = true;
 	}
 	if ( $taken ) {
-		return sprintf( /* translators: %s: ruta */ __( 'The path /%s/ is already used by another page.', 'dox-pos' ), $slug );
+		return sprintf( /* translators: %s: path */ __( 'The path /%s/ is already used by another page.', 'dox-pos' ), $slug );
 	}
 	return '';
 }
@@ -873,7 +873,7 @@ function dox_pos_sanitize_sales( $in ) {
 			}
 			$url = str_replace( '__GUIA__', '{tracking}', esc_url_raw( str_replace( array( '{tracking}', '%7Btracking%7D' ), '__GUIA__', $url ) ) );
 			if ( ! preg_match( '#^https://#i', $url ) ) {
-				/* translators: %s: transportadora */
+				/* translators: %s: carrier */
 				add_settings_error( 'dox_pos', 'carrier_url', sprintf( __( 'The %s link is not valid: it has to start with https://', 'dox-pos' ), $name ) );
 				$url = '';
 			}
@@ -1133,7 +1133,7 @@ function dox_pos_admin_assets( $hook ) {
 				'saving'    => __( 'Saving…', 'dox-pos' ),
 				'unsaved'   => __( 'There are unsaved changes.', 'dox-pos' ),
 				'close'     => __( 'Close', 'dox-pos' ),
-				/* translators: %s: nombre de la etiqueta que se quita */
+				/* translators: %s: name of the tag being removed */
 				'removeTag' => __( 'Remove %s', 'dox-pos' ),
 			),
 		)
@@ -1269,7 +1269,7 @@ function dox_pos_settings_page() {
 							<?php foreach ( $labels as $k => $label ) : ?>
 							<div class="dp-swatch" data-key="<?php echo esc_attr( $k ); ?>" data-default="<?php echo esc_attr( $defaults[ $k ] ); ?>" style="--sw:<?php echo esc_attr( $colors[ $k ] ); ?>">
 								<label class="dp-swatch-well" for="dp-pick-<?php echo esc_attr( $k ); ?>">
-									<input type="color" id="dp-pick-<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $colors[ $k ] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: nombre del color */ __( 'Pick the color: %s', 'dox-pos' ), $label ) ); ?>">
+									<input type="color" id="dp-pick-<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $colors[ $k ] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: colour name */ __( 'Pick the color: %s', 'dox-pos' ), $label ) ); ?>">
 								</label>
 								<div class="dp-swatch-meta">
 									<label class="dp-swatch-name" for="dp-color-<?php echo esc_attr( $k ); ?>"><?php echo esc_html( $label ); ?></label>
@@ -1293,13 +1293,13 @@ function dox_pos_settings_page() {
 								<label class="dp-label" for="dp-font-ui"><?php esc_html_e( 'Interface', 'dox-pos' ); ?></label>
 								<input type="text" id="dp-font-ui" name="dox_pos_brand[font_ui]" value="<?php echo esc_attr( $brand['font_ui'] ?? '' ); ?>" class="dp-input" placeholder="<?php echo esc_attr( dox_pos_default_fonts()['ui'] ); ?>" list="dp-font-list" autocomplete="off">
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['ui'] ) ); ?></p>
+								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: default font */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['ui'] ) ); ?></p>
 							</div>
 							<div class="dp-field">
 								<label class="dp-label" for="dp-font-serif"><?php esc_html_e( 'Totals and headings', 'dox-pos' ); ?></label>
 								<input type="text" id="dp-font-serif" name="dox_pos_brand[font_serif]" value="<?php echo esc_attr( $brand['font_serif'] ?? '' ); ?>" class="dp-input" placeholder="<?php echo esc_attr( dox_pos_default_fonts()['serif'] ); ?>" list="dp-font-list" autocomplete="off">
 								<p class="dp-status" aria-live="polite"></p>
-								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: fuente de fábrica */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['serif'] ) ); ?></p>
+								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: default font */ __( 'Empty: %s.', 'dox-pos' ), dox_pos_default_fonts()['serif'] ) ); ?></p>
 							</div>
 						</div>
 						<datalist id="dp-font-list">
@@ -1354,7 +1354,7 @@ function dox_pos_settings_page() {
 							<?php endforeach; ?>
 						</ul>
 						<?php if ( $access['total'] > count( $access['users'] ) ) : ?>
-						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: usuarios */ _n( 'See the %d remaining user', 'See the %d remaining users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
+						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: number of users */ _n( 'See the %d remaining user', 'See the %d remaining users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
 						<?php endif; ?>
 					</div>
 				</section>
@@ -1389,7 +1389,7 @@ function dox_pos_settings_page() {
 							<div class="dp-pay<?php echo isset( $active[ $key ] ) ? '' : ' off'; ?>" data-key="<?php echo esc_attr( $key ); ?>">
 								<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][on]" value="1" <?php checked( isset( $active[ $key ] ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $m['title'] ); ?></span></label>
 								<div class="dp-pay-main">
-									<input type="text" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][title]" value="<?php echo esc_attr( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) ); ?>" class="dp-input" placeholder="<?php echo esc_attr( $m['title'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: forma de pago */ __( 'Name of %s', 'dox-pos' ), $m['title'] ) ); ?>">
+									<input type="text" name="dox_pos_sales[payments][<?php echo esc_attr( $key ); ?>][title]" value="<?php echo esc_attr( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) ); ?>" class="dp-input" placeholder="<?php echo esc_attr( $m['title'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: payment method */ __( 'Name of %s', 'dox-pos' ), $m['title'] ) ); ?>">
 									<span class="dp-hint"><?php echo $m['paid'] ? esc_html__( 'It is marked as paid when recorded.', 'dox-pos' ) : esc_html__( 'It stays "to ship" and is collected on delivery.', 'dox-pos' ); ?></span>
 								</div>
 								<label class="dp-def"><input type="radio" name="dox_pos_sales[default_payment]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $default, $key ); ?> <?php disabled( ! isset( $active[ $key ] ) ); ?>><span class="dp-def-on"><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default', 'dox-pos' ); ?></span><span class="dp-def-off"><?php esc_html_e( 'Make default', 'dox-pos' ); ?></span></label>
@@ -1484,7 +1484,7 @@ function dox_pos_settings_page() {
 							<div class="dp-carrier dp-row">
 								<input type="text" class="dp-input" data-k="name" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( $c['name'] ); ?>" placeholder="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Carrier', 'dox-pos' ); ?>">
 								<input type="text" class="dp-input" data-k="url" name="dox_pos_sales[carriers][<?php echo (int) $i; ?>][url]" value="<?php echo esc_attr( $c['url'] ); ?>" placeholder="https://… {tracking}" aria-label="<?php esc_attr_e( 'Tracking link', 'dox-pos' ); ?>" inputmode="url" autocomplete="off">
-								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: transportadora */ __( 'Remove %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
+								<button type="button" class="dp-carrier-x" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: carrier */ __( 'Remove %s', 'dox-pos' ), $c['name'] ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'x' ), dox_pos_svg_tags() ); ?></button>
 							</div>
 							<?php endforeach; ?>
 						</div>
@@ -1525,9 +1525,9 @@ function dox_pos_settings_page() {
 							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Shipping zones', 'dox-pos' ); ?></a>
 						</div>
 						<dl class="dp-facts">
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Country', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: etiqueta (Departamento), 2: cuántos */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Currency', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: importe de ejemplo */ __( 'written as %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zones', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: zonas */ _n( '%d shipping zone', '%d shipping zones', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Country', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: label (State), 2: how many */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Currency', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: sample amount */ __( 'written as %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zones', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: number of shipping zones */ _n( '%d shipping zone', '%d shipping zones', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
 							<div><dt><?php echo wp_kses( dox_pos_icon( 'chat' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Cities', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'With a list to choose from (Colciudades)', 'dox-pos' ) : esc_html__( 'Typed by hand', 'dox-pos' ); ?></dd></div>
 						</dl>
 					</div>
@@ -1582,7 +1582,7 @@ function dox_pos_settings_page() {
 							<div class="dp-field">
 								<label class="dp-label" for="dp-<?php echo esc_attr( $k ); ?>"><?php echo esc_html( $label ); ?></label>
 								<select id="dp-<?php echo esc_attr( $k ); ?>" name="dox_pos_products[<?php echo esc_attr( $k ); ?>]" class="dp-input">
-									<option value=""><?php echo esc_html( $products[ $k ] ? sprintf( /* translators: %s: atributo detectado */ __( 'Automatic: %s', 'dox-pos' ), $attrs[ $products[ $k ] ] ) : __( 'Automatic: none', 'dox-pos' ) ); ?></option>
+									<option value=""><?php echo esc_html( $products[ $k ] ? sprintf( /* translators: %s: attribute that was detected */ __( 'Automatic: %s', 'dox-pos' ), $attrs[ $products[ $k ] ] ) : __( 'Automatic: none', 'dox-pos' ) ); ?></option>
 									<?php foreach ( $attrs as $tax => $alabel ) : ?>
 									<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $praw[ $k ] ?? '', $tax ); ?>><?php echo esc_html( $alabel . ' (' . $tax . ')' ); ?></option>
 									<?php endforeach; ?>

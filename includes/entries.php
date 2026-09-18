@@ -41,15 +41,15 @@ function dox_pos_create_entry( $data ) {
 			return new WP_Error(
 				'dox_pos_factura_repetida',
 				sprintf(
-					/* translators: 1: factura, 2: fecha y hora, 3: ", de Proveedor" o nada, 4: ", por Usuario" o nada, 5: "con N unidades" */
+					/* translators: 1: invoice, 2: date and time, 3: from Supplier or empty, 4: by User or empty, 5: with N units */
 					__( 'Invoice %1$s was already recorded on %2$s%3$s%4$s, %5$s.', 'dox-pos' ),
 					$prev['invoice'],
 					$prev['date'],
-					/* translators: %s: proveedor */
+					/* translators: %s: supplier */
 					$prev['supplier'] ? sprintf( __( ', from %s', 'dox-pos' ), $prev['supplier'] ) : '',
-					/* translators: %s: quién la registró */
+					/* translators: %s: who recorded it */
 					$prev['user'] ? sprintf( __( ', by %s', 'dox-pos' ), $prev['user'] ) : '',
-					/* translators: %d: unidades */
+					/* translators: %d: units */
 					sprintf( _n( 'with %d unit', 'with %d units', $prev['units'], 'dox-pos' ), $prev['units'] )
 				),
 				array( 'entry' => $prev )
@@ -70,7 +70,7 @@ function dox_pos_create_entry( $data ) {
 		}
 		// Sin control de existencias no hay a qué sumar: la entrada quedaría apuntada sin mover nada.
 		if ( ! $p->managing_stock() ) {
-			return new WP_Error( 'dox_pos_sin_control', sprintf( /* translators: %s: producto */ __( '%s does not track stock: turn it on in the product first.', 'dox-pos' ), dox_pos_item_name( $p ) ) );
+			return new WP_Error( 'dox_pos_sin_control', sprintf( /* translators: %s: product */ __( '%s does not track stock: turn it on in the product first.', 'dox-pos' ), dox_pos_item_name( $p ) ) );
 		}
 		$cost = $see && isset( $l['cost'] ) && '' !== $l['cost'] ? dox_pos_parse_money( $l['cost'] ) : null;
 		$cost = null === $cost || $cost <= 0 ? null : round( $cost, 2 );

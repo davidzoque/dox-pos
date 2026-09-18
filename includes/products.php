@@ -530,7 +530,7 @@ function dox_pos_sku_problem( $sku ) {
 	$id = wc_get_product_id_by_sku( $sku );
 	if ( $id ) {
 		$p = wc_get_product( $id );
-		return sprintf( /* translators: 1: código, 2: producto */ __( 'SKU %1$s is already used by %2$s.', 'dox-pos' ), $sku, $p ? dox_pos_item_name( $p ) : '#' . $id );
+		return sprintf( /* translators: 1: SKU, 2: product */ __( 'SKU %1$s is already used by %2$s.', 'dox-pos' ), $sku, $p ? dox_pos_item_name( $p ) : '#' . $id );
 	}
 	return '';
 }
@@ -552,7 +552,7 @@ function dox_pos_sku_problem( $sku ) {
 function dox_pos_upload_image( $file, $title = '' ) {
 	if ( ! empty( $file['error'] ) ) {
 		$msg = in_array( (int) $file['error'], array( UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE ), true )
-			? sprintf( /* translators: %s: tamaño */ __( 'The photo is larger than the server allows (%s).', 'dox-pos' ), size_format( wp_max_upload_size() ) )
+			? sprintf( /* translators: %s: size */ __( 'The photo is larger than the server allows (%s).', 'dox-pos' ), size_format( wp_max_upload_size() ) )
 			: __( 'The photo did not upload completely. Please try again.', 'dox-pos' );
 		return new WP_Error( 'dox_pos_foto', $msg );
 	}
@@ -937,7 +937,7 @@ function dox_pos_create_product( $data ) {
 		$pid = $product->save();
 	} catch ( Exception $e ) {
 		dox_pos_stock_context_end( $ctx );
-		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( /* translators: %s: motivo */ __( 'WooCommerce would not create the product: %s', 'dox-pos' ), $e->getMessage() ) );
+		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( /* translators: %s: reason */ __( 'WooCommerce would not create the product: %s', 'dox-pos' ), $e->getMessage() ) );
 	}
 	if ( ! $pid ) {
 		dox_pos_stock_context_end( $ctx );
@@ -1066,7 +1066,7 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	$r = wp_insert_term( $name, $tax );
 	if ( is_wp_error( $r ) ) {
-		return new WP_Error( 'dox_pos_color', sprintf( /* translators: 1: color, 2: motivo */ __( 'The color %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
+		return new WP_Error( 'dox_pos_color', sprintf( /* translators: 1: colour, 2: reason */ __( 'The color %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
 	}
 	$hex = dox_pos_hex( $hex );
 	if ( $hex ) {
@@ -1216,7 +1216,7 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 		}
 		$name = $a->get_name();
 		if ( $name !== $size_tax && $name !== $color_tax ) {
-			/* translators: %s: nombre del atributo */
+			/* translators: %s: attribute name */
 			return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'This product varies by "%s", which the register does not handle: edit it in WooCommerce.', 'dox-pos' ), wc_attribute_label( $name ) ) );
 		}
 		if ( $name === $size_tax ) {
@@ -1705,7 +1705,7 @@ function dox_pos_update_product( $id, $data ) {
 		$pid = $p->save();
 	} catch ( Exception $e ) {
 		dox_pos_stock_context_end( $ctx );
-		/* translators: %s: motivo */
+		/* translators: %s: reason */
 		return new WP_Error( 'dox_pos_no_se_pudo', sprintf( __( 'WooCommerce would not save the product: %s', 'dox-pos' ), $e->getMessage() ) );
 	}
 

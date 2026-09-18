@@ -35,7 +35,7 @@ dox_pos_enqueue_caja();
 <main class="login">
 	<form class="login-card" method="post" action="<?php echo esc_url( dox_pos_url() ); ?>">
 		<h1><?php echo esc_html( dox_pos_screen_name() ); ?></h1>
-		<p class="login-sub"><?php echo esc_html( sprintf( /* translators: %s: nombre de la marca */ __( 'Sign in with your %s account.', 'dox-pos' ), $brand ) ); ?></p>
+		<p class="login-sub"><?php echo esc_html( sprintf( /* translators: %s: brand name */ __( 'Sign in with your %s account.', 'dox-pos' ), $brand ) ); ?></p>
 		<?php if ( ! empty( $sin_permiso ) ) : ?>
 			<p class="login-err" role="alert"><?php esc_html_e( 'Your user does not have access to the register. Sign in with another one.', 'dox-pos' ); ?></p>
 		<?php elseif ( ! empty( $error ) ) : ?>

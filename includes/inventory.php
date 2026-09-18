@@ -459,11 +459,11 @@ function dox_pos_inventory_xlsx( $d ) {
 					$cells .= dox_pos_xlsx_cell( $ref, $r['ref'], 7 );
 					break;
 				case 'size':
-					/* translators: %d: cuántas tallas */
+					/* translators: %d: number of sizes */
 					$cells .= dox_pos_xlsx_cell( $ref, $ns ? sprintf( _n( '%d size', '%d sizes', $ns, 'dox-pos' ), $ns ) : '', 8 );
 					break;
 				case 'color':
-					/* translators: %d: cuántos colores */
+					/* translators: %d: number of colours */
 					$cells .= dox_pos_xlsx_cell( $ref, $nc ? sprintf( _n( '%d color', '%d colors', $nc, 'dox-pos' ), $nc ) : '', 8 );
 					break;
 				case 'price':

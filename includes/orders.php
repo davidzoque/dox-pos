@@ -133,7 +133,7 @@ function dox_pos_create_order( $data, $hold ) {
 		}
 		$parent = $p->is_type( 'variation' ) ? wc_get_product( $p->get_parent_id() ) : $p;
 		if ( ! $parent || 'publish' !== $parent->get_status() ) {
-			return new WP_Error( 'dox_pos_no_disponible', sprintf( /* translators: %s: producto */ __( '%s is no longer for sale.', 'dox-pos' ), dox_pos_item_name( $p ) ) );
+			return new WP_Error( 'dox_pos_no_disponible', sprintf( /* translators: %s: product */ __( '%s is no longer for sale.', 'dox-pos' ), dox_pos_item_name( $p ) ) );
 		}
 		$falta = dox_pos_stock_problem( $p, $qty );
 		if ( $falta ) {
@@ -240,9 +240,9 @@ function dox_pos_create_order( $data, $hold ) {
 		return $reserved;
 	}
 
-	$who = sprintf( /* translators: 1: usuario, 2: canal */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
+	$who = sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
 	if ( $hold ) {
-		$order->update_status( 'on-hold', sprintf( /* translators: %d: horas */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
+		$order->update_status( 'on-hold', sprintf( /* translators: %d: hours */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
 		dox_pos_schedule_release( $order->get_id(), $hours );
 	} elseif ( $pay['paid'] ) {
 		$order->add_order_note( $who );
@@ -287,7 +287,7 @@ function dox_pos_stock_free( $p, $exclude = 0 ) {
 function dox_pos_stock_problem( $p, $qty ) {
 	$name = dox_pos_item_name( $p );
 	if ( ! $p->is_in_stock() ) {
-		return new WP_Error( 'dox_pos_sin_stock', sprintf( /* translators: %s: producto */ __( '%s is out of stock.', 'dox-pos' ), $name ) );
+		return new WP_Error( 'dox_pos_sin_stock', sprintf( /* translators: %s: product */ __( '%s is out of stock.', 'dox-pos' ), $name ) );
 	}
 	if ( ! $p->managing_stock() || $p->backorders_allowed() ) {
 		return null;
@@ -296,9 +296,9 @@ function dox_pos_stock_problem( $p, $qty ) {
 	if ( $free >= $qty ) {
 		return null;
 	}
-	$msg = sprintf( /* translators: 1: producto, 2: cuántos quedan, 3: cuántos pidió */ __( 'There are %2$d of %1$s left, not %3$d.', 'dox-pos' ), $name, max( 0, $free ), $qty );
+	$msg = sprintf( /* translators: 1: product, 2: how many are left, 3: how many were asked for */ __( 'There are %2$d of %1$s left, not %3$d.', 'dox-pos' ), $name, max( 0, $free ), $qty );
 	if ( $held > 0 ) {
-		/* translators: %d: unidades retenidas */
+		/* translators: %d: units held */
 		$msg .= ' ' . sprintf( _n( '%d is in a payment in progress.', '%d are in payments in progress.', $held, 'dox-pos' ), $held );
 	}
 	return new WP_Error( 'dox_pos_sin_stock', $msg );
@@ -345,9 +345,9 @@ function dox_pos_shared_stock_problem( $lines, $exclude = 0 ) {
 			continue;
 		}
 		$name = $g['holder'] ? dox_pos_pool_title( $holder ) : $holder->get_name(); // "Romper Marian · Coral", o el producto.
-		$msg  = sprintf( /* translators: 1: producto, 2: cuántas quedan, 3: cuántas pide el pedido */ __( '%1$s has %2$d left for all its sizes together, and the order takes %3$d.', 'dox-pos' ), $name, max( 0, $free ), $g['qty'] );
+		$msg  = sprintf( /* translators: 1: product, 2: how many are left, 3: how many the order takes */ __( '%1$s has %2$d left for all its sizes together, and the order takes %3$d.', 'dox-pos' ), $name, max( 0, $free ), $g['qty'] );
 		if ( $held > 0 ) {
-			/* translators: %d: unidades retenidas */
+			/* translators: %d: units held */
 			$msg .= ' ' . sprintf( _n( '%d is in a payment in progress.', '%d are in payments in progress.', $held, 'dox-pos' ), $held );
 		}
 		return new WP_Error( 'dox_pos_sin_stock', $msg );
@@ -382,7 +382,7 @@ function dox_pos_reserve_stock( $order, $lines ) {
 			}
 			list( $free ) = dox_pos_stock_free( $p, $order->get_id() );
 			if ( $free < $l['qty'] ) {
-				return new WP_Error( 'dox_pos_sin_stock', sprintf( /* translators: 1: producto, 2: cuántos quedan, 3: cuántos pidió */ __( 'There are %2$d of %1$s left, not %3$d: it was just sold somewhere else.', 'dox-pos' ), dox_pos_item_name( $p ), max( 0, $free ), $l['qty'] ) );
+				return new WP_Error( 'dox_pos_sin_stock', sprintf( /* translators: 1: product, 2: how many are left, 3: how many were asked for */ __( 'There are %2$d of %1$s left, not %3$d: it was just sold somewhere else.', 'dox-pos' ), dox_pos_item_name( $p ), max( 0, $free ), $l['qty'] ) );
 			}
 		}
 		$shared = dox_pos_shared_stock_problem( $lines, $order->get_id() );
@@ -474,7 +474,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->delete_meta_data( '_dox_pos_hold_until' );
-			$order->add_order_note( sprintf( /* translators: %s: quién confirmó */ __( 'Payment confirmed from the register by %s.', 'dox-pos' ), $who ) );
+			$order->add_order_note( sprintf( /* translators: %s: who confirmed it */ __( 'Payment confirmed from the register by %s.', 'dox-pos' ), $who ) );
 			$order->payment_complete();
 			break;
 		case 'release':
@@ -484,7 +484,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$ctx = dox_pos_stock_context( 'release', $order->get_id() );
-			$order->update_status( 'cancelled', sprintf( /* translators: %s: quién lo liberó */ __( 'Layaway released from the register by %s.', 'dox-pos' ), $who ) );
+			$order->update_status( 'cancelled', sprintf( /* translators: %s: who released it */ __( 'Layaway released from the register by %s.', 'dox-pos' ), $who ) );
 			dox_pos_stock_context_end( $ctx );
 			break;
 		case 'shipped':
@@ -505,14 +505,14 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 					$order->delete_meta_data( '_dox_pos_tracking_url' );
 				}
 			}
-			$order->update_status( 'enviado', sprintf( /* translators: 1: guía, 2: quién lo marcó */ __( 'Shipped. %1$s Marked by %2$s.', 'dox-pos' ), $tracking, $who ) );
+			$order->update_status( 'enviado', sprintf( /* translators: 1: tracking number, 2: who marked it */ __( 'Shipped. %1$s Marked by %2$s.', 'dox-pos' ), $tracking, $who ) );
 			$ship = dox_pos_ship_notify( $order ); // El correo a la clienta (si tiene) y el WhatsApp listo.
 			break;
 		case 'delivered':
 			if ( ! $order->has_status( array( 'enviado', 'processing' ) ) ) {
 				return new WP_Error( 'dox_pos_estado', __( 'That order is not on its way.', 'dox-pos' ) );
 			}
-			$order->update_status( 'completed', sprintf( /* translators: %s: quién lo marcó */ __( 'Delivered. Marked by %s.', 'dox-pos' ), $who ) );
+			$order->update_status( 'completed', sprintf( /* translators: %s: who marked it */ __( 'Delivered. Marked by %s.', 'dox-pos' ), $who ) );
 			break;
 		case 'cancel':
 			if ( $order->has_status( array( 'cancelled', 'refunded' ) ) ) {
@@ -523,7 +523,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can cancel an order that was already shipped or delivered.', 'dox-pos' ) );
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
-			$order->update_status( 'cancelled', sprintf( /* translators: %s: quién lo anuló */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
+			$order->update_status( 'cancelled', sprintf( /* translators: %s: who voided it */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
 			break;
 		case 'loss':
 			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un flete
@@ -539,12 +539,12 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			if ( $amount > 0 ) {
 				$order->update_meta_data( '_dox_pos_loss', wc_format_decimal( $amount, 2 ) );
 				$order->update_meta_data( '_dox_pos_loss_note', $note );
-				$order->add_order_note( trim( sprintf( /* translators: 1: monto, 2: quién lo anotó, 3: motivo */ __( 'Loss of %1$s noted from the register by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $amount ), $who, $note ) ) );
+				$order->add_order_note( trim( sprintf( /* translators: 1: amount, 2: who noted it, 3: reason */ __( 'Loss of %1$s noted from the register by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $amount ), $who, $note ) ) );
 			} else {
 				$order->delete_meta_data( '_dox_pos_loss' );
 				$order->delete_meta_data( '_dox_pos_loss_note' );
 				if ( $was > 0 ) {
-					$order->add_order_note( sprintf( /* translators: %s: quién la quitó */ __( 'Loss removed from the register by %s.', 'dox-pos' ), $who ) );
+					$order->add_order_note( sprintf( /* translators: %s: who removed it */ __( 'Loss removed from the register by %s.', 'dox-pos' ), $who ) );
 				}
 			}
 			$order->save();
@@ -716,7 +716,7 @@ function dox_pos_whatsapp_url( $phone, $text ) {
  * Mensaje corto para escribirle por WhatsApp a quien compró por la web.
  */
 function dox_pos_web_message( $order ) {
-	/* translators: 1: nombre, 2: tienda, 3: número de pedido */
+	/* translators: 1: customer name, 2: shop, 3: order number */
 	$text = sprintf( __( 'Hi %1$s, I am writing from %2$s about your order #%3$s.', 'dox-pos' ), $order->get_billing_first_name(), dox_pos_brand_name(), $order->get_order_number() );
 	return trim( preg_replace( '/[ \t]+([,.!?])/', '$1', $text ) );
 }
@@ -798,7 +798,7 @@ function dox_pos_ship_notify( $order ) {
 	if ( $email && dox_pos_ship_email_on() && ! $out['demo'] ) {
 		$out['email'] = $email;
 		$out['sent']  = dox_pos_ship_email( $order );
-		/* translators: %s: correo */
+		/* translators: %s: email address */
 		$order->add_order_note( $out['sent'] ? sprintf( __( 'Shipping notice emailed to %s.', 'dox-pos' ), $email ) : sprintf( __( 'The shipping notice could not be emailed to %s.', 'dox-pos' ), $email ) );
 	}
 	$phone = $order->get_billing_phone() ? $order->get_billing_phone() : $order->get_shipping_phone();
@@ -836,12 +836,12 @@ function dox_pos_ship_email( $order ) {
 		$addr = $order->get_formatted_billing_address();
 	}
 	$name = trim( (string) $order->get_billing_first_name() );
-	/* translators: %s: nombre */
+	/* translators: %s: name */
 	$html = '<p>' . ( $name ? sprintf( esc_html__( 'Hi %s,', 'dox-pos' ), esc_html( $name ) ) : esc_html__( 'Hi,', 'dox-pos' ) ) . '</p>';
-	/* translators: 1: pedido, 2: transportadora */
-	$html .= '<p>' . ( $carrier ? sprintf( esc_html__( 'Your order #%1$s has shipped with %2$s.', 'dox-pos' ), esc_html( $number ), esc_html( $carrier ) ) : sprintf( /* translators: %s: pedido */ esc_html__( 'Your order #%s has shipped.', 'dox-pos' ), esc_html( $number ) ) );
+	/* translators: 1: order number, 2: carrier */
+	$html .= '<p>' . ( $carrier ? sprintf( esc_html__( 'Your order #%1$s has shipped with %2$s.', 'dox-pos' ), esc_html( $number ), esc_html( $carrier ) ) : sprintf( /* translators: %s: order number */ esc_html__( 'Your order #%s has shipped.', 'dox-pos' ), esc_html( $number ) ) );
 	if ( $guide ) {
-		/* translators: %s: guía */
+		/* translators: %s: tracking number */
 		$html .= ' ' . sprintf( esc_html__( 'Tracking number: %s.', 'dox-pos' ), '<strong>' . esc_html( $guide ) . '</strong>' );
 	}
 	$html .= '</p>';
@@ -859,9 +859,9 @@ function dox_pos_ship_email( $order ) {
 	}
 	$html .= '<p>' . esc_html__( 'If you have any questions, just reply to this email.', 'dox-pos' ) . '</p>';
 	$html .= '<p>' . esc_html__( 'Thanks for your order,', 'dox-pos' ) . '<br>' . esc_html( $brand ) . '</p>';
-	/* translators: %s: pedido */
+	/* translators: %s: order number */
 	$heading = sprintf( __( 'Your order #%s is on its way', 'dox-pos' ), $number );
-	/* translators: 1: tienda, 2: pedido */
+	/* translators: 1: shop, 2: order number */
 	$subject = sprintf( __( '%1$s: your order #%2$s is on its way', 'dox-pos' ), $brand, $number );
 	$mailer  = WC()->mailer();
 	return (bool) $mailer->send( $to, $subject, $mailer->wrap_message( $heading, $html ) );
@@ -951,8 +951,8 @@ function dox_pos_order_detail( $id ) {
 	}
 	$ship  = $order->has_shipping_address();
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
-	/* translators: formato de fecha de PHP: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
-	$fmt   = _x( 'F j, G:i', 'fecha y hora', 'dox-pos' );
+	/* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
+	$fmt   = _x( 'F j, G:i', 'date and time format', 'dox-pos' );
 	return array_merge(
 		$f,
 		array(

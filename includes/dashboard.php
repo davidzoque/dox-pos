@@ -88,7 +88,7 @@ function dox_pos_dashboard() {
 	}
 
 	$data = array(
-		'date_label' => ucfirst( wp_date( /* translators: formato de fecha de PHP: https://wordpress.org/documentation/article/customize-date-and-time-format/ */ _x( 'l, F j', 'fecha con día de la semana', 'dox-pos' ) ) ),
+		'date_label' => ucfirst( wp_date( /* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */ _x( 'l, F j', 'date format with weekday', 'dox-pos' ) ) ),
 		'today'      => array(
 			'sold'      => $ts['sold'],
 			'orders'    => $ts['orders'],
