@@ -13,6 +13,19 @@
 	const $ = (s) => document.querySelector(s);
 	const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 
+	// Por dónde se le escribe a la clienta: WhatsApp, o mensaje de texto donde no se usa (Ajustes > Ventas).
+	// Cada texto va entero en las dos versiones, para que quien traduzca vea la frase completa.
+	const SMS = cfg.messaging === "sms";
+	const MSG = {
+		name: cfg.messaging_name || "WhatsApp",
+		open: SMS ? __("Open Messages", "dox-pos") : __("Open WhatsApp", "dox-pos"),
+		tell: SMS ? __("Text them", "dox-pos") : __("Tell them on WhatsApp", "dox-pos"),
+		also: SMS ? __("If you want, text them too: the message already carries the tracking number.", "dox-pos") : __("If you want, tell them on WhatsApp too: the message already carries the tracking number.", "dox-pos"),
+		hold: SMS ? __("The product is already reserved. Messages opens with the text written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos") : __("The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos"),
+		recorded: SMS ? __("Layaway recorded: order #%s. The message button is in Orders.", "dox-pos") : __("Layaway recorded: order #%s. The WhatsApp button is in Orders.", "dox-pos"),
+		noEmail: SMS ? __("No email address: when you mark it as shipped, the text message with the tracking number is ready for you.", "dox-pos") : __("No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you.", "dox-pos"),
+	};
+
 	// Los canales y las formas de pago vienen de los ajustes (WooCommerce > Dox POS).
 	const CANALES = (cfg.channels && cfg.channels.length) ? cfg.channels : [{ name: "WhatsApp", pickup: false }];
 	const PAGOS = (cfg.payments && cfg.payments.length) ? cfg.payments.map((p) => [p.key, p.title]) : [["transferencia", "Transferencia"]];
@@ -473,7 +486,7 @@
 	async function cerrar(hold) {
 		if (st.ocupado || !st.lineas.length) return;
 		if (hold && !$("#f-tel").value.trim()) {
-			toast(__("A layaway needs the customer\u2019s WhatsApp number.", "dox-pos"));
+			toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
 			$("#f-tel").focus();
 			return;
 		}
@@ -570,7 +583,7 @@
 			a.href = p.whatsapp;
 			a.target = "_blank";
 			a.rel = "noopener";
-			a.textContent = "WhatsApp";
+			a.textContent = MSG.name;
 			box.appendChild(a);
 		};
 		// Un pedido web sin pagar (o con el pago rechazado) no ha descontado inventario; uno "por confirmar", sí.
@@ -644,7 +657,7 @@
 			"</tbody></table></section>";
 		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
 		h += "<span>" + esc(__("Name", "dox-pos")) + "</span><span>" + esc(d.customer || __("No name", "dox-pos")) + "</span>";
-		if (d.phone) h += "<span>" + esc(__("Phone", "dox-pos")) + "</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">WhatsApp</a>' : "") + "</span>";
+		if (d.phone) h += "<span>" + esc(__("Phone", "dox-pos")) + "</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.name) + "</a>" : "") + "</span>";
 		if (d.email) h += "<span>" + esc(__("Email", "dox-pos")) + '</span><span><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a></span>";
 		if (dir) h += "<span>" + esc(__("Address", "dox-pos")) + "</span><span>" + esc(dir) + "</span>";
 		if (d.note) h += "<span>" + esc(__("Note", "dox-pos")) + "</span><span>" + esc(d.note) + "</span>";
@@ -754,8 +767,8 @@
 			if (act === "shipped" && s) {
 				// Qué pasó con el aviso a la clienta, y el WhatsApp con la guía a un toque.
 				let t = s.demo ? esc(__("This is a demo order: no emails are sent.", "dox-pos")) : (s.email ? esc(sprintf(s.sent ? __("An email with the tracking number and the tracking link reached %s.", "dox-pos") : __("The email to %s could not be sent.", "dox-pos"), s.email)) : esc(__("This order has no email address.", "dox-pos")));
-				if (s.whatsapp) t += " " + esc(__("If you want, tell them on WhatsApp too: the message already carries the tracking number.", "dox-pos"));
-				modal("<h3>" + esc(__("Marked as shipped", "dox-pos")) + '</h3><p class="mp">' + t + '</p><div class="mbtn">' + (s.whatsapp ? '<a class="go" href="' + esc(s.whatsapp) + '" target="_blank" rel="noopener">' + esc(__("Tell them on WhatsApp", "dox-pos")) + "</a>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
+				if (s.whatsapp) t += " " + esc(MSG.also);
+				modal("<h3>" + esc(__("Marked as shipped", "dox-pos")) + '</h3><p class="mp">' + t + '</p><div class="mbtn">' + (s.whatsapp ? '<a class="go" href="' + esc(s.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.tell) + "</a>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 				$("#m-no").onclick = cerrarModal;
 				return;
 			}
@@ -930,7 +943,7 @@
 				quitarDeCola(item.id);
 				hechos++;
 				if (item.tipo === "entrada") toast(sprintf(__("Entry saved: %s.", "dox-pos"), item.resumen));
-				else if (item.tipo === "apartado") toast(sprintf(__("Layaway recorded: order #%s. The WhatsApp button is in Orders.", "dox-pos"), d.order.number));
+				else if (item.tipo === "apartado") toast(sprintf(MSG.recorded, d.order.number));
 				else toast(sprintf(__("Sale recorded: order #%s.", "dox-pos"), d.order.number));
 			} catch (e) {
 				if (e.red || e.message === "sesion") break; // sigue sin señal: se espera
@@ -1045,7 +1058,7 @@
 		preguntar(texto).then((ok) => { if (ok) fn(); });
 	}
 	function modalWhatsApp(d) {
-		modal("<h3>" + esc(sprintf(__("Layaway #%s", "dox-pos"), d.order.number)) + '</h3><p class="mp">' + esc(sprintf(__("The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos"), cfg.hold_hours || 48)) + '</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(__("Open WhatsApp", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>");
+		modal("<h3>" + esc(sprintf(__("Layaway #%s", "dox-pos"), d.order.number)) + '</h3><p class="mp">' + esc(sprintf(MSG.hold, cfg.hold_hours || 48)) + '</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.open) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 	}
 	function modalEnvio(p) {
@@ -1053,7 +1066,7 @@
 		const lista = carriers.length ? '<datalist id="transportadoras">' + carriers.map((c) => '<option value="' + esc(c) + '"></option>').join("") + "</datalist>" : "";
 		const pista = carriers.length ? carriers.slice(0, 2).join(", ") + "…" : __("DHL, UPS\u2026", "dox-pos");
 		// Qué le va a llegar a la clienta: el correo con la guía si tiene correo; si no, el WhatsApp listo.
-		const aviso = p.email && cfg.ship_email ? '<p class="mp">' + esc(sprintf(__("When you mark it as shipped, %s gets an email with the carrier, the tracking number and the tracking link.", "dox-pos"), p.email)) + "</p>" : (p.phone ? '<p class="mp">' + esc(__("No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you.", "dox-pos")) + "</p>" : "");
+		const aviso = p.email && cfg.ship_email ? '<p class="mp">' + esc(sprintf(__("When you mark it as shipped, %s gets an email with the carrier, the tracking number and the tracking link.", "dox-pos"), p.email)) + "</p>" : (p.phone ? '<p class="mp">' + esc(MSG.noEmail) + "</p>" : "");
 		modal("<h3>" + esc(sprintf(__("Ship order #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(p.customer || "") + (p.city ? " · " + esc(p.city) : "") + "</p>" + aviso + '<div class="field"><label for="m-car">' + esc(__("Carrier", "dox-pos")) + '</label><input id="m-car" list="transportadoras" placeholder="' + esc(pista) + '" autocomplete="off">' + lista + '</div><div class="field mt"><label for="m-gui">' + esc(__("Tracking number", "dox-pos")) + '</label><input id="m-gui" placeholder="' + esc(__("Optional", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Mark as shipped", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
 		$("#m-ok").onclick = () => {
 			const extra = { carrier: $("#m-car").value.trim(), tracking: $("#m-gui").value.trim() };

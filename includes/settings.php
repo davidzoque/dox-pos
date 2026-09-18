@@ -38,26 +38,61 @@ function dox_pos_default_fonts() {
 	);
 }
 
+/**
+ * Los canales de fábrica. Donde se usa WhatsApp, por ahí llega casi todo; donde no (Estados Unidos y
+ * los demás de dox_pos_whatsapp_country), la venta por chat entra por Instagram, TikTok y Facebook.
+ *
+ * @return array<int,array{name:string,pickup:bool}>
+ */
 function dox_pos_default_channels() {
+	$in_person = array( 'name' => __( 'In person', 'dox-pos' ), 'pickup' => true );
+	if ( dox_pos_whatsapp_country() ) {
+		return array(
+			array( 'name' => 'WhatsApp', 'pickup' => false ),
+			array( 'name' => 'Instagram', 'pickup' => false ),
+			$in_person,
+		);
+	}
 	return array(
-		array( 'name' => 'WhatsApp', 'pickup' => false ),
 		array( 'name' => 'Instagram', 'pickup' => false ),
-		array( 'name' => __( 'In person', 'dox-pos' ), 'pickup' => true ),
+		array( 'name' => 'TikTok', 'pickup' => false ),
+		array( 'name' => 'Facebook', 'pickup' => false ),
+		$in_person,
 	);
 }
 
 /**
  * Las formas de pago que la caja sabe manejar. "paid" = queda pagado al registrar;
  * contraentrega no, y por eso el pedido se queda en "procesando" hasta que llega.
+ * Las cuatro de siempre en todas partes, y las del país de la tienda (Ajustes de WooCommerce):
+ * Nequi en Colombia, Zelle y Venmo en Estados Unidos. Cualquier otra se añade por su nombre en
+ * Ajustes > Ventas. El orden es el de la caja: primero la más usada en ese país.
+ *
+ * @return array<string,array{id:string,title:string,paid:bool}>
  */
 function dox_pos_builtin_payments() {
-	return array(
+	$all = array(
 		'nequi'         => array( 'id' => 'dox_pos_nequi', 'title' => 'Nequi', 'paid' => true ),
+		'zelle'         => array( 'id' => 'dox_pos_zelle', 'title' => 'Zelle', 'paid' => true ),
+		'venmo'         => array( 'id' => 'dox_pos_venmo', 'title' => 'Venmo', 'paid' => true ),
 		'transferencia' => array( 'id' => 'dox_pos_transfer', 'title' => __( 'Bank transfer', 'dox-pos' ), 'paid' => true ),
 		'contraentrega' => array( 'id' => 'cod', 'title' => __( 'Cash on delivery', 'dox-pos' ), 'paid' => false ),
 		'efectivo'      => array( 'id' => 'dox_pos_cash', 'title' => __( 'Cash payment', 'dox-pos' ), 'paid' => true ),
 		'tarjeta'       => array( 'id' => 'dox_pos_card', 'title' => __( 'Card', 'dox-pos' ), 'paid' => true ),
 	);
+	$country = dox_pos_country();
+	if ( 'CO' === $country ) {
+		$keys = array( 'nequi', 'transferencia', 'contraentrega', 'efectivo', 'tarjeta' );
+	} elseif ( 'US' === $country ) {
+		$keys = array( 'tarjeta', 'efectivo', 'zelle', 'venmo', 'transferencia', 'contraentrega' );
+	} else {
+		$keys = array( 'tarjeta', 'efectivo', 'transferencia', 'contraentrega' );
+	}
+	$out = array();
+	foreach ( $keys as $k ) {
+		$out[ $k ] = $all[ $k ];
+	}
+	return $out;
 }
 
 function dox_pos_default_hold_message() {
@@ -333,7 +368,11 @@ function dox_pos_default_payment() {
 	if ( $key && isset( $methods[ $key ] ) ) {
 		return $key;
 	}
-	return isset( $methods['transferencia'] ) ? 'transferencia' : (string) array_key_first( $methods );
+	// En Colombia casi todo llega por transferencia; en los demás países, la primera de la lista (tarjeta).
+	if ( 'CO' === dox_pos_country() && isset( $methods['transferencia'] ) ) {
+		return 'transferencia';
+	}
+	return (string) array_key_first( $methods );
 }
 
 /**
@@ -342,9 +381,12 @@ function dox_pos_default_payment() {
  * @return string[]
  */
 function dox_pos_carriers() {
-	$s   = dox_pos_sales();
+	$s = dox_pos_sales();
+	if ( ! isset( $s['carriers'] ) ) { // Ventas nunca guardadas: las conocidas del país.
+		return array_values( dox_pos_carrier_presets() );
+	}
 	$out = array();
-	foreach ( (array) ( $s['carriers'] ?? array() ) as $c ) {
+	foreach ( (array) $s['carriers'] as $c ) {
 		$row  = is_array( $c ) ? $c : array( 'name' => $c ); // Los ajustes viejos guardaban solo el nombre.
 		$name = sanitize_text_field( (string) ( $row['name'] ?? '' ) );
 		if ( '' === $name ) {
@@ -367,22 +409,74 @@ function dox_pos_carrier_key( $name ) {
 }
 
 /**
- * Las transportadoras conocidas con el enlace de rastreo que se sabe (comprobado el 5/09/2026:
- * Coordinadora acepta la guía en la dirección; Servientrega, Interrapidísimo y TCC la piden en
- * su página, así que el enlace lleva allí y el número va aparte). Sin enlace: solo el nombre.
+ * Las transportadoras conocidas del país de la tienda, con el enlace de rastreo que se sabe. Con
+ * {tracking} en el enlace, el rastreo abre con la guía puesta; sin {tracking}, el enlace lleva a la
+ * página de rastreo y la guía va aparte; sin enlace, solo el nombre. Las de Colombia se comprobaron
+ * el 5/09/2026. Las claves son dox_pos_carrier_key() del nombre. En un país sin lista, las tres
+ * internacionales.
  *
  * @return array<string,array{name:string,url:string}>
  */
 function dox_pos_carrier_presets() {
-	return array(
-		'coordinadora'    => array( 'name' => 'Coordinadora', 'url' => 'https://rastreo.coordinadora.com/?guia={tracking}' ),
-		'servientrega'    => array( 'name' => 'Servientrega', 'url' => 'https://www.servientrega.com/wps/portal/rastreo-envio' ),
-		'interrapidisimo' => array( 'name' => 'Interrapidísimo', 'url' => 'https://interrapidisimo.com/' ),
-		'tcc'             => array( 'name' => 'TCC', 'url' => 'https://www.tcc.com.co/rastrear-envio/' ),
-		'envia'           => array( 'name' => 'Envía', 'url' => '' ),
-		'deprisa'         => array( 'name' => 'Deprisa', 'url' => '' ),
-		'472'             => array( 'name' => '4-72', 'url' => '' ),
+	$dhl   = array( 'name' => 'DHL', 'url' => 'https://www.dhl.com/global-en/home/tracking.html?tracking-id={tracking}' );
+	$ups   = array( 'name' => 'UPS', 'url' => 'https://www.ups.com/track?tracknum={tracking}' );
+	$fedex = array( 'name' => 'FedEx', 'url' => 'https://www.fedex.com/fedextrack/?trknbr={tracking}' );
+	$sets  = array(
+		'CO' => array(
+			'coordinadora'    => array( 'name' => 'Coordinadora', 'url' => 'https://rastreo.coordinadora.com/?guia={tracking}' ),
+			'servientrega'    => array( 'name' => 'Servientrega', 'url' => 'https://www.servientrega.com/wps/portal/rastreo-envio' ),
+			'interrapidisimo' => array( 'name' => 'Interrapidísimo', 'url' => 'https://interrapidisimo.com/' ),
+			'tcc'             => array( 'name' => 'TCC', 'url' => 'https://www.tcc.com.co/rastrear-envio/' ),
+			'envia'           => array( 'name' => 'Envía', 'url' => '' ),
+			'deprisa'         => array( 'name' => 'Deprisa', 'url' => '' ),
+			'472'             => array( 'name' => '4-72', 'url' => '' ),
+		),
+		'US' => array(
+			'usps'  => array( 'name' => 'USPS', 'url' => 'https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking}' ),
+			'ups'   => $ups,
+			'fedex' => $fedex,
+			'dhl'   => $dhl,
+		),
+		'MX' => array(
+			'estafeta'      => array( 'name' => 'Estafeta', 'url' => 'https://www.estafeta.com/Herramientas/Rastreo' ),
+			'dhl'           => $dhl,
+			'fedex'         => $fedex,
+			'redpack'       => array( 'name' => 'Redpack', 'url' => 'https://www.redpack.com.mx/es/rastreo/' ),
+			'paquetexpress' => array( 'name' => 'Paquetexpress', 'url' => '' ),
+			'99minutos'     => array( 'name' => '99minutos', 'url' => '' ),
+		),
+		'ES' => array(
+			'correos' => array( 'name' => 'Correos', 'url' => 'https://www.correos.es/es/es/herramientas/localizador/envios/detalle?tracking-number={tracking}' ),
+			'seur'    => array( 'name' => 'SEUR', 'url' => 'https://www.seur.com/livetracking/?segOnlineIdentificador={tracking}' ),
+			'mrw'     => array( 'name' => 'MRW', 'url' => 'https://www.mrw.es/seguimiento_envios/MRW_resultados_consultas.asp?modo=nacional&envio={tracking}' ),
+			'gls'     => array( 'name' => 'GLS', 'url' => '' ),
+			'nacex'   => array( 'name' => 'Nacex', 'url' => '' ),
+		),
+		'AR' => array(
+			'correoargentino' => array( 'name' => 'Correo Argentino', 'url' => 'https://www.correoargentino.com.ar/formularios/ondnc' ),
+			'andreani'        => array( 'name' => 'Andreani', 'url' => '' ),
+			'oca'             => array( 'name' => 'OCA', 'url' => '' ),
+		),
+		'CL' => array(
+			'chilexpress'    => array( 'name' => 'Chilexpress', 'url' => '' ),
+			'starken'        => array( 'name' => 'Starken', 'url' => '' ),
+			'correosdechile' => array( 'name' => 'Correos de Chile', 'url' => '' ),
+			'blueexpress'    => array( 'name' => 'Blue Express', 'url' => '' ),
+		),
+		'PE' => array(
+			'olvacourier' => array( 'name' => 'Olva Courier', 'url' => '' ),
+			'serpost'     => array( 'name' => 'Serpost', 'url' => '' ),
+			'shalom'      => array( 'name' => 'Shalom', 'url' => '' ),
+		),
+		'EC' => array(
+			'servientrega' => array( 'name' => 'Servientrega', 'url' => '' ),
+			'urbano'       => array( 'name' => 'Urbano', 'url' => '' ),
+			'laarcourier'  => array( 'name' => 'Laar Courier', 'url' => '' ),
+		),
 	);
+	$country = dox_pos_country();
+	$out     = $sets[ $country ] ?? array( 'dhl' => $dhl, 'ups' => $ups, 'fedex' => $fedex );
+	return apply_filters( 'dox_pos_carrier_presets', $out, $country );
 }
 
 /**
@@ -463,6 +557,48 @@ function dox_pos_hold_message_template() {
  */
 function dox_pos_country() {
 	return function_exists( 'WC' ) ? (string) WC()->countries->get_base_country() : 'CO';
+}
+
+/**
+ * ¿En este país se le escribe a la clienta por WhatsApp? En Estados Unidos, Canadá, Australia, Nueva
+ * Zelanda, Japón, Corea y China casi nadie lo usa: ahí la caja manda mensajes de texto.
+ *
+ * @return bool
+ */
+function dox_pos_whatsapp_country() {
+	return ! in_array( dox_pos_country(), array( 'US', 'CA', 'AU', 'NZ', 'JP', 'KR', 'CN' ), true );
+}
+
+/**
+ * Por dónde se le escribe a la clienta: "whatsapp" (enlace wa.me) o "sms" (la app de Mensajes del
+ * teléfono, con el texto ya escrito). Lo que diga Ajustes > Ventas; sin ajuste, según el país.
+ *
+ * @return string
+ */
+function dox_pos_messaging() {
+	$s = dox_pos_sales();
+	if ( isset( $s['messaging'] ) && in_array( $s['messaging'], array( 'whatsapp', 'sms' ), true ) ) {
+		return $s['messaging'];
+	}
+	return dox_pos_whatsapp_country() ? 'whatsapp' : 'sms';
+}
+
+/**
+ * Cómo se llama en pantalla lo que se le manda a la clienta: "WhatsApp" o "Text message".
+ *
+ * @return string
+ */
+function dox_pos_messaging_name() {
+	return 'sms' === dox_pos_messaging() ? __( 'Text message', 'dox-pos' ) : 'WhatsApp';
+}
+
+/**
+ * El rótulo del teléfono en la venta: "WhatsApp" donde se usa, "Phone" donde se manda un SMS.
+ *
+ * @return string
+ */
+function dox_pos_phone_label() {
+	return 'sms' === dox_pos_messaging() ? __( 'Phone', 'dox-pos' ) : 'WhatsApp';
 }
 
 /**
@@ -855,6 +991,7 @@ function dox_pos_sanitize_sales( $in ) {
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
 	$out['open_panel']      = ! empty( $in['open_panel'] );
+	$out['messaging']       = in_array( $in['messaging'] ?? '', array( 'whatsapp', 'sms' ), true ) ? $in['messaging'] : '';
 
 	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
 	$carriers = is_array( $in['carriers'] ?? null ) ? $in['carriers'] : preg_split( '/\r\n|\r|\n/', (string) ( $in['carriers'] ?? '' ) );
@@ -1105,7 +1242,7 @@ function dox_pos_admin_assets( $hook ) {
 				'slug'    => dox_pos_default_slug(),
 				'hours'   => 48,
 			),
-			'siteLogo' => ( (int) get_theme_mod( 'custom_logo' ) ) ? wp_get_attachment_image_url( (int) get_theme_mod( 'custom_logo' ), 'full' ) : '',
+			'siteLogo' => dox_pos_site_logo_url(),
 			'siteName' => dox_pos_brand_name(),
 			'sample'   => array(
 				'name'     => __( 'Ana', 'dox-pos' ),
@@ -1117,6 +1254,7 @@ function dox_pos_admin_assets( $hook ) {
 			'i18n'     => array(
 				'carriers' => array( __( 'DHL', 'dox-pos' ), __( 'UPS', 'dox-pos' ), __( 'FedEx', 'dox-pos' ) ),
 				'pickLogo'  => __( 'POS logo', 'dox-pos' ),
+				'noSiteLogo' => __( 'This theme does not leave its logo where WordPress keeps it, so there is none to use: choose it from the library.', 'dox-pos' ),
 				'use'       => __( 'Use this image', 'dox-pos' ),
 				'channel'   => __( 'Channel name', 'dox-pos' ),
 				'pickup'    => __( 'Pickup', 'dox-pos' ),
@@ -1253,7 +1391,7 @@ function dox_pos_settings_page() {
 									<input type="hidden" id="dox_pos_logo" name="dox_pos_logo" value="<?php echo esc_attr( get_option( 'dox_pos_logo', '' ) ); ?>">
 									<button type="button" class="dp-btn dp-btn-soft" id="dp-logo-pick"><?php echo wp_kses( dox_pos_icon( 'image' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Choose from the library', 'dox-pos' ); ?></button>
 									<button type="button" class="dp-btn dp-btn-link" id="dp-logo-clear"><?php esc_html_e( 'Use the site\'s one', 'dox-pos' ); ?></button>
-									<p class="dp-hint"><?php esc_html_e( 'It sits on the bar: if the bar is dark, a light version works better. Empty: the logo from Appearance > Customize.', 'dox-pos' ); ?></p>
+									<p class="dp-hint"><?php esc_html_e( 'It sits on the bar: if the bar is dark, a light version works better. Empty: the site\'s logo, wherever the theme keeps it.', 'dox-pos' ); ?></p>
 								</div>
 							</div>
 						</div>
@@ -1286,7 +1424,7 @@ function dox_pos_settings_page() {
 							<h2><?php esc_html_e( 'Fonts', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the total and the headings. Off, the fonts of the phone or the computer are used and nothing leaves the site. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), and this page asks Google whether a font name you type exists.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Load the fonts from Google Fonts', 'dox-pos' ); ?></span></label>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Load the fonts from Google Fonts', 'dox-pos' ); ?></b><span><?php esc_html_e( 'On, the browser of whoever opens the register downloads the two fonts from Google.', 'dox-pos' ); ?></span></span></label>
 						<div class="dp-mt">
 						<div class="dp-grid-2">
 							<div class="dp-field">
@@ -1381,6 +1519,28 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Messages to the customer', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The layaway message, the shipping notice and the "write to them" buttons open with the text already written. Where WhatsApp is the norm they open in WhatsApp; where it is not (the United States, Canada, Australia...), in the phone\'s Messages app, as a text message. It is set from the store country; change it if your customers are elsewhere.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-pays" id="dp-messaging">
+							<?php
+							$msg_opts = array(
+								'whatsapp' => array( 'WhatsApp', __( 'Links that open WhatsApp with the number and the message in them. The customer field says "WhatsApp".', 'dox-pos' ) ),
+								'sms'      => array( __( 'Text message (SMS)', 'dox-pos' ), __( 'The phone\'s Messages app opens with the text written. The customer field says "Phone".', 'dox-pos' ) ),
+							);
+							foreach ( $msg_opts as $key => $t ) :
+								?>
+							<label class="dp-pay dp-radio">
+								<input type="radio" name="dox_pos_sales[messaging]" value="<?php echo esc_attr( $key ); ?>" <?php checked( dox_pos_messaging(), $key ); ?>>
+								<span class="dp-radio-ui" aria-hidden="true"></span>
+								<span class="dp-pay-main"><b><?php echo esc_html( $t[0] ); ?></b><span class="dp-hint"><?php echo esc_html( $t[1] ); ?></span></span>
+							</label>
+							<?php endforeach; ?>
+						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Payment methods', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Turn off the ones you do not use and name them however you want. The one marked "default" comes selected when the register opens.', 'dox-pos' ); ?></p>
 						</div>
@@ -1420,7 +1580,7 @@ function dox_pos_settings_page() {
 							<h2><?php esc_html_e( 'Orders from the website', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'The Orders tab also shows what people buy in the online store, tagged "Website" and with where the customer came from, so you can mark it shipped or delivered from your phone just like a register sale.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[web_orders]" value="1" <?php checked( dox_pos_show_web_orders() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Show website orders in the register', 'dox-pos' ); ?></span></label>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[web_orders]" value="1" <?php checked( dox_pos_show_web_orders() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Show website orders in the register', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Tagged "Website", with where the customer came from, next to the register sales.', 'dox-pos' ); ?></span></span></label>
 					</div>
 
 					<div class="dp-card">
@@ -1428,7 +1588,7 @@ function dox_pos_settings_page() {
 							<h2><?php esc_html_e( 'The dashboard', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'Administrators and shop managers get a Dashboard tab in the register: sold today with yesterday next to it, the week and the month against the previous ones, the last fourteen days, what came in by payment method, what is owed, the orders to handle, the best sellers and the stock. Salespeople do not see it and always land on Sell.', 'dox-pos' ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[open_panel]" value="1" <?php checked( dox_pos_open_panel() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Open the register on the Dashboard for whoever manages the shop', 'dox-pos' ); ?></span></label>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[open_panel]" value="1" <?php checked( dox_pos_open_panel() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Open the register on the Dashboard for whoever manages the shop', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Salespeople always land on Sell.', 'dox-pos' ); ?></span></span></label>
 					</div>
 				</section>
 
@@ -1450,8 +1610,8 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'WhatsApp message', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'It opens already written in WhatsApp when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Layaway message', 'dox-pos' ); ?></h2>
+							<p><?php echo esc_html( 'sms' === dox_pos_messaging() ? __( 'It opens already written in the phone\'s Messages app when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is.', 'dox-pos' ) : __( 'It opens already written in WhatsApp when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is.', 'dox-pos' ) ); ?></p>
 							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-message-reset"><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Default message', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-field">
@@ -1477,7 +1637,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Carriers', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {tracking} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the message to the customer: put {tracking} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="dp-rows dp-carriers" id="dp-carriers">
 							<?php foreach ( $carriers as $i => $c ) : ?>
@@ -1497,17 +1657,17 @@ function dox_pos_settings_page() {
 							</select>
 							<button type="button" class="dp-btn dp-btn-ghost" id="dp-carrier-add"><?php esc_html_e( 'Another carrier', 'dox-pos' ); ?></button>
 						</div>
-						<p class="dp-hint"><?php esc_html_e( 'Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {tracking}.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'The known ones are those of the store country. A link with {tracking} opens the tracking with the number already in it; a link without it opens the carrier\'s page and the number goes separately. Any other carrier: its name and, if it has one, its link with {tracking}.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Notice to the customer', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store\'s email design and sender. If it has a phone number, the register gets the WhatsApp message ready.', 'dox-pos' ); ?></p>
+							<p><?php echo esc_html( 'sms' === dox_pos_messaging() ? __( 'When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store\'s email design and sender. If it has a phone number, the register gets the text message ready.', 'dox-pos' ) : __( 'When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store\'s email design and sender. If it has a phone number, the register gets the WhatsApp message ready.', 'dox-pos' ) ); ?></p>
 						</div>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_sales[ship_email]" value="1" <?php checked( dox_pos_ship_email_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Email the customer when marking as shipped', 'dox-pos' ); ?></span></label>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[ship_email]" value="1" <?php checked( dox_pos_ship_email_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Email the customer when marking as shipped', 'dox-pos' ); ?></b><span><?php esc_html_e( 'The carrier, the tracking number and the link, in the store\'s email design.', 'dox-pos' ); ?></span></span></label>
 						<div class="dp-field dp-mt">
-							<label class="dp-label" for="dox_pos_ship_message"><?php esc_html_e( 'Shipping WhatsApp message', 'dox-pos' ); ?></label>
+							<label class="dp-label" for="dox_pos_ship_message"><?php esc_html_e( 'Shipping message', 'dox-pos' ); ?></label>
 							<div class="dp-chips" id="dp-ship-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
 								<?php foreach ( array( 'name', 'order', 'carrier', 'tracking', 'link', 'items', 'store' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
@@ -1612,8 +1772,9 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Costs and profit', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Inventory, every purchase with its cost recalculates the product\'s average cost.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'What each unit costs you, so the history, the Excel files and the order detail show the profit of every sale. The cost lives in the WooCommerce cost field; every sale freezes it in the order, so a later change does not rewrite past sales, and every stock entry with its cost recalculates the product\'s average cost.', 'dox-pos' ); ?></p>
 						</div>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Track product costs and see the profit', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Turns on the WooCommerce cost field. Administrators and shop managers see it; the Cashier role sells and records stock without seeing any cost.', 'dox-pos' ); ?></span></span></label>
 						<?php if ( ! method_exists( 'WC_Product', 'get_cogs_value' ) ) : ?>
 						<div class="dp-callout">
 							<?php echo wp_kses( dox_pos_icon( 'alert' ), dox_pos_svg_tags() ); ?>
@@ -1632,8 +1793,7 @@ function dox_pos_settings_page() {
 							</div>
 						</div>
 						<?php endif; ?>
-						<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[costs]" value="1" <?php checked( dox_pos_costs_setting() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-switch-text"><?php esc_html_e( 'Track product costs and see the profit (turns on the WooCommerce cost field)', 'dox-pos' ); ?></span></label>
-						<p class="dp-hint"><?php esc_html_e( 'Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with "Upload costs from Excel" in Inventory.', 'dox-pos' ); ?></p>
+						<p class="dp-hint"><?php esc_html_e( 'To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with "Upload costs from Excel" in Inventory.', 'dox-pos' ); ?></p>
 					</div>
 
 					<div class="dp-card">
@@ -1650,15 +1810,16 @@ function dox_pos_settings_page() {
 				<section class="dp-panel" id="dp-panel-pro" data-panel="pro" role="tabpanel" aria-labelledby="dp-tab-pro" hidden>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Dox POS Pro', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'The register you already have, plus an assistant that reviews the shop for you: what is pending today, what is running out, what leaves the most, and the customers who left without paying.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Dox POS Pro: an AI assistant for your shop', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Nobody tells you that a layaway expires this afternoon, that an order never went out, or that the size that sells is down to its last unit: you carry all of it in your head. The Pro reads your own sales, stock and orders, tells you each morning what to do, and does what you ask for in plain words. It proposes first, you approve, and anything can be undone.', 'dox-pos' ); ?></p>
 						</div>
 						<ul class="dp-pro-list">
-							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'What is pending today', 'dox-pos' ); ?></b><?php esc_html_e( 'Layaways about to expire, orders to ship, payments to confirm, with the WhatsApp message ready.', 'dox-pos' ); ?></span></li>
-							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'A review of the shop', 'dox-pos' ); ?></b><?php esc_html_e( 'Products with no photo or no price, stock that does not add up, sizes nobody buys: each one with the fix one tap away.', 'dox-pos' ); ?></span></li>
-							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Ask it anything', 'dox-pos' ); ?></b><?php esc_html_e( 'A chat that reads your own sales and answers what sold, what is left and what to restock.', 'dox-pos' ); ?></span></li>
-							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Abandoned carts', 'dox-pos' ); ?></b><?php esc_html_e( 'Whoever left the checkout half way gets an email that puts the cart back, and shows up in the register as something to do.', 'dox-pos' ); ?></span></li>
-							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Performance and the daily summary', 'dox-pos' ); ?></b><?php esc_html_e( 'What each product leaves, the margin tips, and how the day went in an email every night.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Uploading a product stops eating your afternoon', 'dox-pos' ); ?></b><?php esc_html_e( 'Tell it: the Ella dress in S, M and L at 89, with these photos. It creates it with its sizes, colors, description and SKU. It also changes prices and costs and updates orders. It shows you what it is about to do, you approve, and you can undo it for 24 hours.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Nothing slips through the day', 'dox-pos' ); ?></b><?php esc_html_e( 'Late shipments, payments to confirm, layaways expiring today and cash on delivery to collect: in order, and each one with its message already written.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'You find out before you run out', 'dox-pos' ); ?></b><?php esc_html_e( 'What is about to run out and when, how much to restock to cover the month, and what has not moved in ninety days.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'You know what really leaves money', 'dox-pos' ); ?></b><?php esc_html_e( 'What each product, category and day leaves once its cost is taken out, which price fell short, and where the margin is going.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'The ones who almost bought come back', 'dox-pos' ); ?></b><?php esc_html_e( 'Unpaid orders and abandoned carts get an email that reopens the cart and takes the payment, with the message ready to send.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'The day starts already sorted', 'dox-pos' ); ?></b><?php esc_html_e( 'An email every morning with how yesterday went and what to do today, plus fourteen checks on the catalogue (no photo, no price, stock that does not add up) that fix with one tap.', 'dox-pos' ); ?></span></li>
 						</ul>
 						<a class="dp-btn dp-btn-primary dp-pro-cta" href="<?php echo esc_url( dox_pos_site_url( 'plans' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'See the plans', 'dox-pos' ); ?><?php echo wp_kses( dox_pos_icon( 'external' ), dox_pos_svg_tags() ); ?></a>
 					</div>
@@ -1666,7 +1827,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'How it works', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'The AI is included: a thousand assistant actions a month through the Dox Studio server, with nothing to set up and no OpenAI account. If you would rather use your own OpenAI key, paste it and there is no monthly cap. The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
 				</section>
@@ -1704,7 +1865,7 @@ function dox_pos_settings_page() {
 						</div>
 					</div>
 
-					<div class="dp-mock dp-wa" data-view="whatsapp" hidden>
+					<div class="dp-mock dp-wa<?php echo 'sms' === dox_pos_messaging() ? ' dp-sms' : ''; ?>" data-view="whatsapp" hidden>
 						<div class="dp-wa-head"><span class="dp-wa-avatar">A</span><span class="dp-wa-who"><b><?php esc_html_e( 'Ana', 'dox-pos' ); ?></b><i><?php esc_html_e( 'online', 'dox-pos' ); ?></i></span></div>
 						<div class="dp-wa-body"><div class="dp-wa-bubble"><p id="dp-preview-message"></p><span class="dp-wa-time">10:42</span></div></div>
 					</div>

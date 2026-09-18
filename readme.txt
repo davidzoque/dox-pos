@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.37.4
+Stable tag: 0.38.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -16,6 +16,8 @@ The register for a shop that sells on WhatsApp and Instagram: sales, layaways, s
 Dox POS adds a `/pos` page (`/caja` on a Spanish site) with its own sign-in screen. From there you search products with their photo and stock, record the sales that come in through WhatsApp or Instagram (each one is a WooCommerce order, so stock goes down on its own), put products on layaway while the customer pays, record the stock that arrives and keep the list of what has to be shipped.
 
 It is built for the shop that sells through chat and ships by courier, not for a counter with a barcode scanner: no hardware, no receipt printer, no cash drawer. A phone is enough.
+
+It follows the country of the store (WooCommerce > Settings > General): the payment methods it offers, the carriers it suggests and the default sales channels are the ones of that country, and where WhatsApp is not the norm (the United States, for instance) the messages to the customer open as text messages in the phone's Messages app instead. Everything can be renamed, turned off or added to in WooCommerce > Dox POS > Sales.
 
 = What it does =
 
@@ -67,6 +69,10 @@ Administrators and shop managers. Someone with only the Cashier role sells and r
 
 In the WooCommerce cost field ("Cost of Goods Sold"), so it also shows in the WooCommerce product editor and other plugins can read it. The plugin turns that feature on when you save the settings with the costs switch on.
 
+= I am not in Colombia. Does it fit my shop? =
+
+Yes. The register reads the store country from WooCommerce. A Colombian store gets Nequi, the local carriers (Coordinadora, Servientrega, Interrapidísimo, TCC...) and WhatsApp; a US store gets Zelle and Venmo, USPS, UPS, FedEx and DHL, and text messages instead of WhatsApp; Mexico, Spain, Argentina, Chile, Peru and Ecuador have their own carriers, and any other country starts with DHL, UPS and FedEx. Card, cash, bank transfer and cash on delivery are there everywhere, and you can rename, turn off or add payment methods, carriers and channels in WooCommerce > Dox POS > Sales.
+
 = Does it work with the block checkout and with HPOS? =
 
 Yes. Orders are created through the WooCommerce API, and the plugin declares compatibility with High-Performance Order Storage and with the cart and checkout blocks.
@@ -81,6 +87,13 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.38.0 =
+* The register follows the store country (WooCommerce > Settings > General). Payment methods: Nequi only for a Colombian store, Zelle and Venmo for a US one, and card, cash, bank transfer and cash on delivery everywhere. Suggested carriers: Coordinadora, Servientrega, Interrapidísimo, TCC, Envía, Deprisa and 4-72 in Colombia; USPS, UPS, FedEx and DHL in the United States; Estafeta, Redpack, Paquetexpress and 99minutos in Mexico; Correos, SEUR, MRW, GLS and Nacex in Spain; the local ones in Argentina, Chile, Peru and Ecuador; DHL, UPS and FedEx anywhere else. A store that never saved its carriers now gets the ones of its country suggested when it marks an order as shipped. Default sales channels: Instagram, TikTok, Facebook and In person where WhatsApp is not the norm.
+* Text messages where WhatsApp is not used (the United States, Canada, Australia, New Zealand, Japan, Korea, China): the layaway message, the shipping notice and every "write to them" button open the phone's Messages app with the text written, and the customer field says Phone. A new "Messages to the customer" setting in WooCommerce > Dox POS > Sales switches between the two for any store.
+* "Use the site's one" for the logo now finds the logo of themes that keep it in their own settings (UiCore, Flatsome, WoodMart, Avada, Divi), not only the one from Appearance > Customize, and says so when there is none to use.
+* The switches in the settings (costs, website orders, dashboard, shipping email, Google Fonts) are rows with a title and a line that says what they do, so the costs card no longer reads as a wall of text.
+* The Pro tab says what the add-on is: an AI assistant that runs the shop with you, and what it does.
 
 = 0.37.4 =
 * Under the hood: the notes that translators read next to each text, and the three context labels that tell them what a word means, were written in Spanish. They are in English now, so the plugin can be translated into any language from translate.wordpress.org.

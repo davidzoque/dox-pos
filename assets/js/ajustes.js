@@ -204,7 +204,12 @@
 		});
 		frame.open();
 	});
-	$("#dp-logo-clear").addEventListener("click", () => { logoInput.value = ""; pintarTextos(); sucio(); });
+	$("#dp-logo-clear").addEventListener("click", () => {
+		logoInput.value = "";
+		pintarTextos();
+		sucio();
+		if (!cfg.siteLogo) toast(i18n.noSiteLogo || "", "info"); // El tema no deja su logo donde WordPress lo guarda: no hay nada que usar.
+	});
 
 	// La dirección se comprueba en vivo: ¿la usa otra página?
 	const slug = $("#dp-slug"), slugEstado = $("#dp-slug-status");
@@ -319,6 +324,10 @@
 	});
 
 	// ---------- formas de pago ----------
+	// La burbuja de la vista previa sigue a la elección: verde de WhatsApp o azul de Mensajes.
+	const messaging = $("#dp-messaging");
+	if (messaging) messaging.addEventListener("change", () => { const wa = $(".dp-wa", prev); if (wa) wa.classList.toggle("dp-sms", $('input[value="sms"]', messaging).checked); });
+
 	const pagos = $("#dp-pagos");
 	function pintarPagos() {
 		const box = $("#dp-preview-payments");

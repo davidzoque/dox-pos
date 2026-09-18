@@ -734,9 +734,6 @@ msgstr "Elegir de la biblioteca"
 msgid "Use the site's one"
 msgstr "Usar el del sitio"
 
-msgid "It sits on the bar: if the bar is dark, a light version works better. Empty: the logo from Appearance > Customize."
-msgstr "Va sobre la barra: si la barra es oscura, conviene una versión clara. Vacío: el logo de Apariencia > Personalizar."
-
 msgid "Colors"
 msgstr "Colores"
 
@@ -851,9 +848,6 @@ msgstr "Se guarda durante"
 msgid "hours"
 msgstr "horas"
 
-msgid "WhatsApp message"
-msgstr "Mensaje de WhatsApp"
-
 msgid "It opens already written in WhatsApp when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is."
 msgstr "Se abre ya escrito en WhatsApp al apartar; solo hay que enviarlo. Toca un comodín para insertarlo donde está el cursor."
 
@@ -878,9 +872,6 @@ msgstr "Se añade al final del mensaje, tal cual. Vacío: solo va el link."
 msgid "Carriers"
 msgstr "Transportadoras"
 
-msgid "They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the WhatsApp message to the customer: put {tracking} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately."
-msgstr "Se sugieren al marcar un pedido como enviado (también se puede escribir otra en el momento). El enlace de rastreo va en el correo y en el WhatsApp a la clienta: pon {tracking} donde la transportadora espera el número; si su página no lo admite, deja el enlace de la página de rastreo y el número va aparte."
-
 msgid "Add a known carrier"
 msgstr "Añadir una transportadora conocida"
 
@@ -890,9 +881,6 @@ msgstr "Añadir una conocida…"
 msgid "Another carrier"
 msgstr "Otra transportadora"
 
-msgid "Coordinadora takes the tracking number in the link. Servientrega, Interrapidísimo and TCC ask for it on their own page: the link takes you there. Any other one: its name and, if it has one, its link with {tracking}."
-msgstr "Coordinadora acepta la guía en el enlace. Servientrega, Interrapidísimo y TCC la piden en su página: el enlace lleva allí. Cualquier otra: su nombre y, si la tiene, su enlace con {tracking}."
-
 msgid "Notice to the customer"
 msgstr "Aviso a la clienta"
 
@@ -901,9 +889,6 @@ msgstr "Al marcar un pedido como enviado, si tiene correo le llega uno con la tr
 
 msgid "Email the customer when marking as shipped"
 msgstr "Correo a la clienta al marcar enviado"
-
-msgid "Shipping WhatsApp message"
-msgstr "Mensaje de WhatsApp del envío"
 
 msgid "A line whose placeholder ends up empty (no tracking number, no link) removes itself."
 msgstr "Una línea cuyo comodín quede vacío (sin guía, sin enlace) se quita sola."
@@ -992,9 +977,6 @@ msgstr "La caja propone el siguiente código libre del prefijo que usa la catego
 msgid "Costs and profit"
 msgstr "Costos y ganancia"
 
-msgid "What each unit costs you, so you can see the profit of every sale in the history, in the Excel files and in the order detail. The cost is stored in the WooCommerce cost field (it also shows in its product editor) and every sale freezes it in the order: if the cost goes up later, past sales do not change. In Inventory, every purchase with its cost recalculates the product's average cost."
-msgstr "Lo que te cuesta cada unidad, para ver la ganancia de cada venta en el historial, en el Excel y en el detalle del pedido. El costo se guarda en el campo de costo de WooCommerce (sale también en su editor de productos) y cada venta lo deja congelado en el pedido: si luego sube el costo, las ventas de antes no cambian. En Inventario, cada compra con su costo recalcula el costo promedio del producto."
-
 msgid "This version of WooCommerce does not have the cost field"
 msgstr "Esta versión de WooCommerce no trae el campo de costo"
 
@@ -1006,12 +988,6 @@ msgstr "Falta encender el campo de costo en WooCommerce"
 
 msgid "Save these settings with the switch on and it turns on (WooCommerce > Settings > Advanced > Features > Cost of Goods Sold). Until then, the register does not ask for costs."
 msgstr "Guarda estos ajustes con el interruptor puesto y se enciende (WooCommerce > Ajustes > Avanzado > Funciones > Cost of Goods Sold). Mientras tanto, la caja no pide costos."
-
-msgid "Track product costs and see the profit (turns on the WooCommerce cost field)"
-msgstr "Llevar el costo de los productos y ver la ganancia (enciende el campo de costo de WooCommerce)"
-
-msgid "Administrators and shop managers see it; the Cashier role sells and records stock without seeing costs. To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with \"Upload costs from Excel\" in Inventory."
-msgstr "Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver costos. Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con \"Subir costos desde Excel\" en Inventario."
 
 msgid "Who creates products"
 msgstr "Quién crea productos"
@@ -1337,9 +1313,6 @@ msgstr "Entrar"
 msgid "Sign out of this account"
 msgstr "Salir de este usuario"
 
-msgid "The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant."
-msgstr "La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y mercancía desde el frontend (/caja), sin entrar a wp-admin, con pedidos, productos, historial, kardex y Excel. Cada venta es un pedido de WooCommerce y el inventario baja solo. Con Dox POS Pro, el asistente de negocio."
-
 msgid "with %d unit"
 msgid_plural "with %d units"
 msgstr[0] "con %d unidad"
@@ -1437,9 +1410,6 @@ msgstr "Elige el %s y la ciudad para ver las opciones de envío de la tienda."
 
 msgid "Add products and set the city to see the shipping."
 msgstr "Agrega productos y pon la ciudad para ver el envío."
-
-msgid "A layaway needs the customer’s WhatsApp number."
-msgstr "Para apartar hace falta el WhatsApp del cliente."
 
 msgid "Putting on layaway…"
 msgstr "Apartando…"
@@ -1771,9 +1741,6 @@ msgstr "Sin tallas: talla única."
 msgid "Marked by the category. If the product does not come in all of them, tap the extra ones to remove them."
 msgstr "Marcadas por la categoría. Si el producto no viene en todas, toca las que sobran para quitarlas."
 
-msgid "To change it, record the goods in Inventory or do it in WooCommerce. A new size uses that same total."
-msgstr "Para cambiarlo, registra la mercancía en Inventario o hazlo en WooCommerce. Una talla nueva usa ese mismo total."
-
 msgid "Choose a category."
 msgstr "Elige una categoría."
 
@@ -2017,12 +1984,6 @@ msgstr "Devueltos"
 msgid "Adjustments"
 msgstr "Ajustes"
 
-msgid "Only"
-msgstr "Solo"
-
-msgid "see them all"
-msgstr "ver todos"
-
 msgid "in"
 msgstr "entraron"
 
@@ -2100,11 +2061,6 @@ msgid "%d record kept on this phone"
 msgid_plural "%d records kept on this phone"
 msgstr[0] "%d registro guardado en el teléfono"
 msgstr[1] "%d registros guardados en el teléfono"
-
-msgid "This product does not carry units per size but one total for all of them: %d unit."
-msgid_plural "This product does not carry units per size but one total for all of them: %d units."
-msgstr[0] "Este producto no lleva las unidades por talla, sino un total para todas: %d unidad."
-msgstr[1] "Este producto no lleva las unidades por talla, sino un total para todas: %d unidades."
 
 msgid "%d variation"
 msgid_plural "%d variations"
@@ -2271,24 +2227,10 @@ msgid "Loss removed."
 msgstr "Pérdida quitada."
 
 #: assets/js/caja.js
-msgid "loss %s"
-msgstr "pérdida %s"
-
-#: assets/js/caja.js
 msgid "Loss on %d sale"
 msgid_plural "Losses on %d sales"
 msgstr[0] "Pérdida en %d venta"
 msgstr[1] "Pérdidas en %d ventas"
-
-#: assets/js/caja.js
-msgid "Spread them by size"
-msgstr "Repartirlas por talla"
-
-#: assets/js/caja.js
-msgid "There is %d unit in total: write how many go to each size. Once saved, every size carries its own units."
-msgid_plural "There are %d units in total: write how many go to each size. Once saved, every size carries its own units."
-msgstr[0] "Hay %d unidad en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."
-msgstr[1] "Hay %d unidades en total: escribe cuántas van a cada talla. Al guardar, cada talla lleva las suyas."
 
 #: includes/products.php
 msgid "That product does not exist."
@@ -2325,28 +2267,6 @@ msgstr "Sin señal: no se pudo cargar el producto."
 #: templates/caja.php
 msgid "Reports"
 msgstr "Informes"
-
-#: templates/caja.php
-msgid "Units in total"
-msgstr "Unidades en total"
-
-#: assets/js/caja.js
-msgid "All the sizes share this total: the store discounts from it whichever size is sold. You can spread it by size later from Edit one."
-msgstr "Todas las tallas comparten este total: la tienda descuenta de ahí sea cual sea la talla que se venda. Después puedes repartirlo por talla desde Editar uno."
-
-#: assets/js/caja.js
-msgid "for all the sizes together"
-msgstr "para todas las tallas juntas"
-
-#: assets/js/caja.js
-msgid "That total is changed by recording the goods in Inventory, or in WooCommerce."
-msgstr "Ese total se cambia registrando la mercancía en Inventario, o en WooCommerce."
-
-#: assets/js/caja.js
-msgid "The sizes do not carry their own units but one total for all of them: %d unit."
-msgid_plural "The sizes do not carry their own units but one total for all of them: %d units."
-msgstr[0] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidad."
-msgstr[1] "Las tallas no llevan sus propias unidades sino un total para todas: %d unidades."
 
 #: templates/caja.php
 msgid "Dashboard"
@@ -2656,47 +2576,140 @@ msgstr "Abrir ese ajuste"
 msgid "Pro"
 msgstr "Pro"
 
-msgid "Dox POS Pro"
-msgstr "Dox POS Pro"
-
-msgid "The register you already have, plus an assistant that reviews the shop for you: what is pending today, what is running out, what leaves the most, and the customers who left without paying."
-msgstr "La caja que ya tienes, con un asistente que revisa la tienda por ti: lo que está pendiente hoy, lo que se está acabando, lo que más deja y los clientes que se fueron sin pagar."
-
-msgid "What is pending today"
-msgstr "Lo que está pendiente hoy"
-
-msgid "Layaways about to expire, orders to ship, payments to confirm, with the WhatsApp message ready."
-msgstr "Apartados por vencer, pedidos por enviar y pagos por confirmar, con el mensaje de WhatsApp listo."
-
-msgid "A review of the shop"
-msgstr "Una revisión de la tienda"
-
-msgid "Products with no photo or no price, stock that does not add up, sizes nobody buys: each one with the fix one tap away."
-msgstr "Productos sin foto o sin precio, existencias que no cuadran, tallas que nadie compra: cada cosa con su arreglo a un toque."
-
-msgid "Ask it anything"
-msgstr "Pregúntale lo que sea"
-
-msgid "A chat that reads your own sales and answers what sold, what is left and what to restock."
-msgstr "Un chat que lee tus ventas y responde qué se vendió, qué queda y qué hay que volver a pedir."
-
-msgid "Abandoned carts"
-msgstr "Carritos abandonados"
-
-msgid "Whoever left the checkout half way gets an email that puts the cart back, and shows up in the register as something to do."
-msgstr "A quien dejó el pago a medias le llega un correo que devuelve el carrito, y aparece en la caja como algo por hacer."
-
-msgid "Performance and the daily summary"
-msgstr "Rendimiento y el resumen diario"
-
-msgid "What each product leaves, the margin tips, and how the day went in an email every night."
-msgstr "Lo que deja cada producto, los consejos de margen y cómo fue el día, en un correo cada noche."
-
 msgid "See the plans"
 msgstr "Ver los planes"
 
 msgid "How it works"
 msgstr "Cómo funciona"
 
-msgid "The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked."
-msgstr "El Pro es un plugin aparte que se cuelga de este: una licencia por tienda, y la puedes mover a otro dominio cuando quieras. Si la licencia vence, la caja que usas hoy sigue funcionando igual, sin nada bloqueado."
+msgid "Text message"
+msgstr "Mensaje de texto"
+
+msgid "This theme does not leave its logo where WordPress keeps it, so there is none to use: choose it from the library."
+msgstr "Este tema no deja su logo donde WordPress lo guarda, así que no hay ninguno que usar: elígelo de la biblioteca."
+
+msgid "It sits on the bar: if the bar is dark, a light version works better. Empty: the site's logo, wherever the theme keeps it."
+msgstr "Va sobre la barra: si la barra es oscura, conviene una versión clara. Vacío: el logo del sitio, esté donde lo guarde el tema."
+
+msgid "On, the browser of whoever opens the register downloads the two fonts from Google."
+msgstr "Encendido, el navegador de quien abre la caja descarga las dos fuentes de Google."
+
+msgid "Messages to the customer"
+msgstr "Mensajes a la clienta"
+
+msgid "The layaway message, the shipping notice and the \"write to them\" buttons open with the text already written. Where WhatsApp is the norm they open in WhatsApp; where it is not (the United States, Canada, Australia...), in the phone's Messages app, as a text message. It is set from the store country; change it if your customers are elsewhere."
+msgstr "El mensaje del apartado, el aviso del envío y los botones de \"escribirle\" se abren con el texto ya escrito. Donde se usa WhatsApp se abren en WhatsApp; donde no (Estados Unidos, Canadá, Australia...), en la app de Mensajes del teléfono, como mensaje de texto. Sale del país de la tienda; cámbialo si tus clientas están en otro."
+
+msgid "Links that open WhatsApp with the number and the message in them. The customer field says \"WhatsApp\"."
+msgstr "Enlaces que abren WhatsApp con el número y el mensaje puestos. El campo de la clienta dice \"WhatsApp\"."
+
+msgid "Text message (SMS)"
+msgstr "Mensaje de texto (SMS)"
+
+msgid "The phone's Messages app opens with the text written. The customer field says \"Phone\"."
+msgstr "Se abre la app de Mensajes del teléfono con el texto escrito. El campo de la clienta dice \"Teléfono\"."
+
+msgid "Tagged \"Website\", with where the customer came from, next to the register sales."
+msgstr "Con la etiqueta \"Página web\" y de dónde llegó la clienta, junto a las ventas de la caja."
+
+msgid "Salespeople always land on Sell."
+msgstr "Quien vende entra siempre por Vender."
+
+msgid "Layaway message"
+msgstr "Mensaje del apartado"
+
+msgid "It opens already written in the phone's Messages app when you put something on layaway; you only have to send it. Tap a placeholder to insert it where the cursor is."
+msgstr "Se abre ya escrito en la app de Mensajes del teléfono al apartar; solo hay que enviarlo. Toca un comodín para insertarlo donde está el cursor."
+
+msgid "They are suggested when you mark an order as shipped (you can also type another one on the spot). The tracking link goes in the email and in the message to the customer: put {tracking} where the carrier expects the number; if their page does not take it, leave the link to the tracking page and the number goes separately."
+msgstr "Se sugieren al marcar un pedido como enviado (también se puede escribir otra en el momento). El enlace de rastreo va en el correo y en el mensaje a la clienta: pon {tracking} donde la transportadora espera el número; si su página no lo admite, deja el enlace de la página de rastreo y el número va aparte."
+
+msgid "The known ones are those of the store country. A link with {tracking} opens the tracking with the number already in it; a link without it opens the carrier's page and the number goes separately. Any other carrier: its name and, if it has one, its link with {tracking}."
+msgstr "Las conocidas son las del país de la tienda. Un enlace con {tracking} abre el rastreo con la guía ya puesta; uno sin {tracking} abre la página de la transportadora y la guía va aparte. Cualquier otra: su nombre y, si lo tiene, su enlace con {tracking}."
+
+msgid "When you mark an order as shipped, if it has an email address the customer gets one with the carrier, the tracking number and the tracking link, using the store's email design and sender. If it has a phone number, the register gets the text message ready."
+msgstr "Al marcar un pedido como enviado, si tiene correo le llega uno con la transportadora, la guía y el enlace de rastreo, con el diseño de los correos de la tienda y desde su remitente. Si tiene teléfono, la caja deja listo el mensaje de texto."
+
+msgid "The carrier, the tracking number and the link, in the store's email design."
+msgstr "La transportadora, la guía y el enlace, con el diseño de correo de la tienda."
+
+msgid "Shipping message"
+msgstr "Mensaje del envío"
+
+msgid "What each unit costs you, so the history, the Excel files and the order detail show the profit of every sale. The cost lives in the WooCommerce cost field; every sale freezes it in the order, so a later change does not rewrite past sales, and every stock entry with its cost recalculates the product's average cost."
+msgstr "Lo que te cuesta cada unidad, para que el historial, los Excel y el detalle del pedido enseñen la ganancia de cada venta. El costo vive en el campo de costo de WooCommerce; cada venta lo deja congelado en el pedido, así que un cambio posterior no reescribe las ventas pasadas, y cada entrada de inventario con su costo recalcula el costo promedio del producto."
+
+msgid "Track product costs and see the profit"
+msgstr "Llevar el costo de los productos y ver la ganancia"
+
+msgid "Turns on the WooCommerce cost field. Administrators and shop managers see it; the Cashier role sells and records stock without seeing any cost."
+msgstr "Enciende el campo de costo de WooCommerce. Lo ven administradores y gerentes de tienda; el rol Caja vende y registra mercancía sin ver ningún costo."
+
+msgid "To load costs all at once: download the inventory as Excel from the register, fill in the Cost column and upload it with \"Upload costs from Excel\" in Inventory."
+msgstr "Para cargar los costos de golpe: descarga el inventario en Excel desde la caja, llena la columna Costo y súbelo con \"Subir costos desde Excel\" en Inventario."
+
+msgid "Dox POS Pro: an AI assistant for your shop"
+msgstr "Dox POS Pro: un asistente de IA para tu tienda"
+
+msgid "The AI is included: a thousand assistant actions a month through the Dox Studio server, with nothing to set up and no OpenAI account. If you would rather use your own OpenAI key, paste it and there is no monthly cap. The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked."
+msgstr "La IA va incluida: mil acciones del asistente al mes a través del servidor de Dox Studio, sin configurar nada y sin cuenta de OpenAI. Si prefieres usar tu propia clave de OpenAI, la pegas y no hay tope mensual. El Pro es un plugin aparte que se cuelga de este: una licencia por tienda, y la puedes mover a otro dominio cuando quieras. Si la licencia vence, la caja que usas hoy sigue funcionando igual, sin nada bloqueado."
+
+msgid "Open Messages"
+msgstr "Abrir Mensajes"
+
+msgid "Text them"
+msgstr "Avisar por SMS"
+
+msgid "If you want, text them too: the message already carries the tracking number."
+msgstr "Si quieres, avísale también por mensaje de texto: el mensaje ya va con la guía."
+
+msgid "The product is already reserved. Messages opens with the text written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own."
+msgstr "El producto ya quedó reservado. Se abre Mensajes con el texto escrito: solo hay que darle enviar. Si no paga en %d horas, vuelve solo al inventario."
+
+msgid "Layaway recorded: order #%s. The message button is in Orders."
+msgstr "Apartado registrado: pedido #%s. En Pedidos tienes el botón del mensaje."
+
+msgid "No email address: when you mark it as shipped, the text message with the tracking number is ready for you."
+msgstr "Sin correo: al marcar enviado te queda listo el mensaje de texto con la guía."
+
+msgid "A layaway needs the customer’s phone number."
+msgstr "Para apartar hace falta el teléfono de la clienta."
+
+msgid "Nobody tells you that a layaway expires this afternoon, that an order never went out, or that the size that sells is down to its last unit: you carry all of it in your head. The Pro reads your own sales, stock and orders, tells you each morning what to do, and does what you ask for in plain words. It proposes first, you approve, and anything can be undone."
+msgstr "Nadie te avisa de que un apartado vence esta tarde, de que un pedido nunca salió o de que la talla que más se vende va por la última unidad: todo eso lo llevas tú en la cabeza. El Pro lee tus propias ventas, tu inventario y tus pedidos, te dice cada mañana qué hacer y hace lo que le pidas con tus palabras. Primero propone, tú apruebas, y todo se puede deshacer."
+
+msgid "Uploading a product stops eating your afternoon"
+msgstr "Subir un producto deja de comerte la tarde"
+
+msgid "Tell it: the Ella dress in S, M and L at 89, with these photos. It creates it with its sizes, colors, description and SKU. It also changes prices and costs and updates orders. It shows you what it is about to do, you approve, and you can undo it for 24 hours."
+msgstr "Le dices: el vestido Ella en S, M y L a 89.000, con estas fotos. Lo crea con sus tallas, colores, descripción y código. También cambia precios y costos y actualiza pedidos. Te enseña lo que va a hacer, tú apruebas, y puedes deshacerlo durante 24 horas."
+
+msgid "Nothing slips through the day"
+msgstr "Que no se te pase nada del día"
+
+msgid "Late shipments, payments to confirm, layaways expiring today and cash on delivery to collect: in order, and each one with its message already written."
+msgstr "Envíos atrasados, pagos por confirmar, apartados que vencen hoy y contraentregas por cobrar: en orden, y cada uno con su mensaje ya escrito."
+
+msgid "You find out before you run out"
+msgstr "Te enteras antes de quedarte sin nada"
+
+msgid "What is about to run out and when, how much to restock to cover the month, and what has not moved in ninety days."
+msgstr "Qué se está agotando y cuándo, cuánto reponer para cubrir el mes, y qué lleva noventa días sin moverse."
+
+msgid "You know what really leaves money"
+msgstr "Sabes qué te deja plata de verdad"
+
+msgid "What each product, category and day leaves once its cost is taken out, which price fell short, and where the margin is going."
+msgstr "Qué deja cada producto, cada categoría y cada día una vez descontado su costo, qué precio se quedó corto y por dónde se va el margen."
+
+msgid "The ones who almost bought come back"
+msgstr "Vuelven los que casi compran"
+
+msgid "Unpaid orders and abandoned carts get an email that reopens the cart and takes the payment, with the message ready to send."
+msgstr "Los pedidos sin pagar y los carritos abandonados reciben un correo que reabre el carrito y cobra, con el mensaje listo para enviar."
+
+msgid "The day starts already sorted"
+msgstr "El día empieza ya ordenado"
+
+msgid "An email every morning with how yesterday went and what to do today, plus fourteen checks on the catalogue (no photo, no price, stock that does not add up) that fix with one tap."
+msgstr "Un correo cada mañana con cómo fue ayer y qué hacer hoy, más catorce chequeos del catálogo (sin foto, sin precio, existencias que no cuadran) que se arreglan con un toque."

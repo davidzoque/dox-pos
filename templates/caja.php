@@ -74,7 +74,7 @@ dox_pos_enqueue_caja( $cfg );
 							<h4><?php esc_html_e( 'Customer', 'dox-pos' ); ?></h4>
 							<div class="g2">
 								<div class="field"><label for="f-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="f-nom" autocomplete="off"></div>
-								<div class="field"><label for="f-tel"><?php esc_html_e( 'WhatsApp', 'dox-pos' ); ?></label><input id="f-tel" inputmode="tel" autocomplete="off"></div>
+								<div class="field"><label for="f-tel"><?php echo esc_html( dox_pos_phone_label() ); ?></label><input id="f-tel" inputmode="tel" autocomplete="off"></div>
 								<div class="field"><label for="f-dep"><?php echo esc_html( $cfg['state_label'] ); ?></label><select id="f-dep"></select></div>
 								<div class="field"><label for="f-ciu"><?php esc_html_e( 'City', 'dox-pos' ); ?></label><input id="f-ciu" list="ciudades" autocomplete="off"><datalist id="ciudades"></datalist></div>
 							</div>

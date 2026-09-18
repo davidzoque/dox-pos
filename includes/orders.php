@@ -700,16 +700,27 @@ function dox_pos_hold_message( $order ) {
 }
 
 /**
- * Enlace wa.me con el mensaje escrito. Un número local (sin indicativo) lleva
- * delante el del país de la tienda: en Colombia, 3001234567 pasa a 573001234567.
+ * El enlace para escribirle a la clienta con el mensaje ya puesto: wa.me donde se usa WhatsApp, y
+ * sms: (la app de Mensajes del teléfono) donde no, según Ajustes > Ventas. Un número local (sin
+ * indicativo) lleva delante el del país de la tienda: en Colombia, 3001234567 pasa a 573001234567.
  */
-function dox_pos_whatsapp_url( $phone, $text ) {
+function dox_pos_message_url( $phone, $text ) {
 	$digits = preg_replace( '/\D/', '', (string) $phone );
 	$code   = dox_pos_calling_code();
 	if ( $code && strlen( $digits ) <= 10 && 0 !== strpos( $digits, $code ) ) {
 		$digits = $code . $digits;
 	}
+	if ( 'sms' === dox_pos_messaging() ) {
+		return 'sms:+' . $digits . '?&body=' . rawurlencode( $text ); // "?&body=" lo entienden iPhone y Android; "?body=" solo Android.
+	}
 	return 'https://wa.me/' . $digits . '?text=' . rawurlencode( $text );
+}
+
+/**
+ * El nombre de antes de dox_pos_message_url(): lo usa el Pro.
+ */
+function dox_pos_whatsapp_url( $phone, $text ) {
+	return dox_pos_message_url( $phone, $text );
 }
 
 /**

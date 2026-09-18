@@ -126,17 +126,66 @@ function dox_pos_logout_url() {
 }
 
 /**
- * El logo: el del ajuste, o el del sitio (Apariencia > Personalizar).
+ * El logo: el del ajuste, o el del sitio.
  *
  * @return string URL, o vacío.
  */
 function dox_pos_logo_url() {
 	$url = get_option( 'dox_pos_logo', '' );
 	if ( ! $url ) {
-		$id  = (int) get_theme_mod( 'custom_logo' );
-		$url = $id ? wp_get_attachment_image_url( $id, 'full' ) : '';
+		$url = dox_pos_site_logo_url();
 	}
 	return (string) apply_filters( 'dox_pos_logo_url', $url ? $url : '' );
+}
+
+/**
+ * El logo del sitio, esté donde esté: el de Apariencia > Personalizar (custom_logo), que es donde lo
+ * dejan los temas del directorio, los de bloques y Elementor; o, si el tema lo guarda en sus propias
+ * opciones (UiCore, Flatsome, WoodMart, Avada, Divi), el que tenga ahí. Vacío si no hay ninguno.
+ *
+ * @return string URL, o vacío.
+ */
+function dox_pos_site_logo_url() {
+	$id  = (int) get_theme_mod( 'custom_logo' );
+	$url = $id ? (string) wp_get_attachment_image_url( $id, 'full' ) : '';
+	if ( '' === $url ) {
+		// [opción, clave]: cada tema lo guarda como URL, como id del adjunto o como array con url o id.
+		$places = array(
+			array( 'uicore_theme_options', 'logo' ), // UiCore.
+			array( 'flatsome_options', 'site_logo' ), // Flatsome.
+			array( 'woodmart_options', 'logo' ), // WoodMart.
+			array( 'fusion_options', 'logo' ), // Avada.
+			array( 'et_divi', 'divi_logo' ), // Divi.
+		);
+		foreach ( $places as $p ) {
+			$o = get_option( $p[0] );
+			if ( is_array( $o ) && isset( $o[ $p[1] ] ) ) {
+				$url = dox_pos_logo_from_value( $o[ $p[1] ] );
+				if ( '' !== $url ) {
+					break;
+				}
+			}
+		}
+	}
+	return (string) apply_filters( 'dox_pos_site_logo_url', $url );
+}
+
+/**
+ * Una URL a partir de lo que un tema guarda como logo: la URL misma, el id del adjunto, o un array
+ * con "url" o "id" dentro.
+ *
+ * @param mixed $v Lo guardado.
+ * @return string
+ */
+function dox_pos_logo_from_value( $v ) {
+	if ( is_array( $v ) ) {
+		$v = ! empty( $v['url'] ) ? $v['url'] : ( ! empty( $v['id'] ) ? $v['id'] : '' );
+	}
+	if ( is_numeric( $v ) ) {
+		return (int) $v > 0 ? (string) wp_get_attachment_image_url( (int) $v, 'full' ) : '';
+	}
+	$v = trim( (string) $v );
+	return preg_match( '#^(https?:)?//|^/#', $v ) ? esc_url_raw( $v ) : '';
 }
 
 /**
@@ -239,6 +288,8 @@ function dox_pos_js_config() {
 		'default_payment' => dox_pos_default_payment(),
 		'carriers'        => dox_pos_carriers(),                            // [{name, url}] para el modal de envío.
 		'ship_email'      => dox_pos_ship_email_on(),                       // ¿Se le manda correo a la clienta al marcar enviado?
+		'messaging'       => dox_pos_messaging(),                           // "whatsapp" o "sms": por dónde se le escribe a la clienta.
+		'messaging_name'  => dox_pos_messaging_name(),                      // Cómo se llama en los botones ("WhatsApp" o "Text message").
 		'state_label'     => dox_pos_state_label(),
 		'states'          => function_exists( 'WC' ) ? WC()->countries->get_states( $country ) : array(),
 		'cities'          => 'CO' === $country && function_exists( 'colciu_get_ciudades' ) ? colciu_get_ciudades() : array(),
