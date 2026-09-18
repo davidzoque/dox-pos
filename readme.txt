@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.38.0
+Stable tag: 0.38.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -87,6 +87,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.38.1 =
+* Deleting the plugin no longer erases anything of yours. Until now, removing it from Plugins took the settings, the brand, the address of the register and the Cashier role with it, because that is what its uninstall file did. Now it keeps all of it, so installing it again picks up where you left off. WordPress asks nothing while it deletes a plugin, so a new switch in WooCommerce > Dox POS > Screen lets a shop say beforehand that it does want everything gone; with it on, the plugins list says so right next to the plugin. Orders, stock, the stock entries and the ledger were never touched and still are not.
 
 = 0.38.0 =
 * The register follows the store country (WooCommerce > Settings > General). Payment methods: Nequi only for a Colombian store, Zelle and Venmo for a US one, and card, cash, bank transfer and cash on delivery everywhere. Suggested carriers: Coordinadora, Servientrega, Interrapidísimo, TCC, Envía, Deprisa and 4-72 in Colombia; USPS, UPS, FedEx and DHL in the United States; Estafeta, Redpack, Paquetexpress and 99minutos in Mexico; Correos, SEUR, MRW, GLS and Nacex in Spain; the local ones in Argentina, Chile, Peru and Ecuador; DHL, UPS and FedEx anywhere else. A store that never saved its carriers now gets the ones of its country suggested when it marks an order as shipped. Default sales channels: Instagram, TikTok, Facebook and In person where WhatsApp is not the norm.

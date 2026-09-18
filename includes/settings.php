@@ -122,6 +122,18 @@ function dox_pos_pro_active() {
 	return defined( 'DOX_POS_PRO_VERSION' );
 }
 
+/**
+ * ¿Borrar los ajustes al desinstalar el plugin? De fábrica no: quien borra el plugin para probar
+ * otra cosa, o para volver a instalarlo, se encuentra su caja tal como la dejó. WordPress no
+ * pregunta nada mientras borra (ejecuta uninstall.php y ya), así que la respuesta se guarda antes,
+ * aquí, en Ajustes > Pantalla.
+ *
+ * @return bool
+ */
+function dox_pos_delete_data() {
+	return (bool) get_option( 'dox_pos_delete_data', 0 );
+}
+
 function dox_pos_brand() {
 	$b = get_option( 'dox_pos_brand', array() );
 	return is_array( $b ) ? $b : array();
@@ -788,6 +800,10 @@ function dox_pos_action_links( $links ) {
 		$links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos&tab=pro' ) ) . '">' . esc_html__( 'Pro', 'dox-pos' ) . '</a>';
 	}
 	array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos' ) ) . '">' . esc_html__( 'Settings', 'dox-pos' ) . '</a>' );
+	// Quien encendió el interruptor lo ve aquí, justo al lado del enlace que borra.
+	if ( dox_pos_delete_data() ) {
+		$links[] = '<span style="color:#b32d2e">' . esc_html__( 'Deleting also erases your settings', 'dox-pos' ) . '</span>';
+	}
 	return $links;
 }
 
@@ -802,6 +818,7 @@ function dox_pos_register_settings() {
 	register_setting( 'dox_pos', 'dox_pos_ship_message', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_ship_message', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_payment_note', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_note', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_products', array( 'type' => 'array', 'sanitize_callback' => 'dox_pos_sanitize_products', 'default' => array() ) );
+	register_setting( 'dox_pos', 'dox_pos_delete_data', array( 'type' => 'boolean', 'sanitize_callback' => 'dox_pos_sanitize_delete_data', 'default' => 0 ) );
 }
 
 /**
@@ -839,6 +856,16 @@ function dox_pos_sanitize_products( $in ) {
 		'color_attr' => isset( $all[ $col ] ) ? $col : '',
 		'costs'      => ! empty( $in['costs'] ),
 	);
+}
+
+/**
+ * El interruptor de "borrar mis ajustes al desinstalar": 1 o 0, nunca otra cosa.
+ *
+ * @param mixed $in Lo que llega del formulario.
+ * @return int
+ */
+function dox_pos_sanitize_delete_data( $in ) {
+	return empty( $in ) ? 0 : 1;
 }
 
 function dox_pos_sanitize_brand( $in ) {
@@ -1493,6 +1520,24 @@ function dox_pos_settings_page() {
 						</ul>
 						<?php if ( $access['total'] > count( $access['users'] ) ) : ?>
 						<p class="dp-hint"><a href="<?php echo esc_url( admin_url( 'users.php' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: number of users */ _n( 'See the %d remaining user', 'See the %d remaining users', $access['total'], 'dox-pos' ), $access['total'] ) ); ?></a></p>
+						<?php endif; ?>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'If you delete the plugin', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Deleting the plugin from Plugins leaves everything as it is: your brand, your colors, the address of the register, the channels, the payment methods, the carriers, your messages and the Cashier role stay, so installing it again picks up where you left off. Orders, stock, the stock entries and the ledger are never touched either way. WordPress asks nothing while it deletes, so if you would rather it take your settings with it, say so here beforehand.', 'dox-pos' ); ?></p>
+						</div>
+						<input type="hidden" name="dox_pos_delete_data" value="0">
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_delete_data" value="1" <?php checked( dox_pos_delete_data() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Also delete my settings when the plugin is deleted', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Off: deleting the plugin keeps everything. On: the settings, the Cashier role and the demo orders go with it, and that cannot be undone.', 'dox-pos' ); ?></span></span></label>
+						<?php if ( dox_pos_delete_data() ) : ?>
+						<div class="dp-callout">
+							<?php echo wp_kses( dox_pos_icon( 'alert' ), dox_pos_svg_tags() ); ?>
+							<div>
+								<b><?php esc_html_e( 'Deleting the plugin will now erase your settings', 'dox-pos' ); ?></b>
+								<span><?php esc_html_e( 'It says so next to the plugin in the plugins list too, so nobody deletes it by mistake. Your orders, your stock and the ledger are still kept.', 'dox-pos' ); ?></span>
+							</div>
+						</div>
 						<?php endif; ?>
 					</div>
 				</section>

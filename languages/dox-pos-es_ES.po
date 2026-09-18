@@ -2713,3 +2713,24 @@ msgstr "El día empieza ya ordenado"
 
 msgid "An email every morning with how yesterday went and what to do today, plus fourteen checks on the catalogue (no photo, no price, stock that does not add up) that fix with one tap."
 msgstr "Un correo cada mañana con cómo fue ayer y qué hacer hoy, más catorce chequeos del catálogo (sin foto, sin precio, existencias que no cuadran) que se arreglan con un toque."
+
+msgid "If you delete the plugin"
+msgstr "Si borras el plugin"
+
+msgid "Deleting the plugin from Plugins leaves everything as it is: your brand, your colors, the address of the register, the channels, the payment methods, the carriers, your messages and the Cashier role stay, so installing it again picks up where you left off. Orders, stock, the stock entries and the ledger are never touched either way. WordPress asks nothing while it deletes, so if you would rather it take your settings with it, say so here beforehand."
+msgstr "Borrar el plugin desde Plugins deja todo como está: tu marca, tus colores, la dirección de la caja, los canales, las formas de pago, las transportadoras, tus mensajes y el rol Caja se quedan, así que volver a instalarlo te lo devuelve donde lo dejaste. Los pedidos, el inventario, las entradas y el kardex no se tocan en ningún caso. WordPress no pregunta nada mientras borra, así que si prefieres que se lleve tus ajustes, dilo aquí antes."
+
+msgid "Also delete my settings when the plugin is deleted"
+msgstr "Borrar también mis ajustes cuando se borre el plugin"
+
+msgid "Off: deleting the plugin keeps everything. On: the settings, the Cashier role and the demo orders go with it, and that cannot be undone."
+msgstr "Apagado: borrar el plugin lo conserva todo. Encendido: los ajustes, el rol Caja y los pedidos de prueba se van con él, y eso no se puede deshacer."
+
+msgid "Deleting the plugin will now erase your settings"
+msgstr "Ahora borrar el plugin borrará tus ajustes"
+
+msgid "It says so next to the plugin in the plugins list too, so nobody deletes it by mistake. Your orders, your stock and the ledger are still kept."
+msgstr "También lo dice junto al plugin en la lista de plugins, para que nadie lo borre por descuido. Tus pedidos, tu inventario y el kardex se siguen conservando."
+
+msgid "Deleting also erases your settings"
+msgstr "Al borrarlo se van tus ajustes"
