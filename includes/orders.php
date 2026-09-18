@@ -51,13 +51,13 @@ function dox_pos_register_status() {
 	register_post_status(
 		'wc-enviado',
 		array(
-			'label'                     => _x( 'Shipped', 'Estado de pedido', 'dox-pos' ),
+			'label'                     => _x( 'Shipped', 'order status', 'dox-pos' ),
 			'public'                    => true,
 			'exclude_from_search'       => false,
 			'show_in_admin_all_list'    => true,
 			'show_in_admin_status_list' => true,
-			/* translators: %s: cantidad */
-			'label_count'               => _n_noop( 'Enviado <span class="count">(%s)</span>', 'Enviados <span class="count">(%s)</span>', 'dox-pos' ),
+			/* translators: %s: number of orders */
+			'label_count'               => _n_noop( 'Shipped <span class="count">(%s)</span>', 'Shipped <span class="count">(%s)</span>', 'dox-pos' ),
 		)
 	);
 }
@@ -68,11 +68,11 @@ function dox_pos_order_statuses( $statuses ) {
 	foreach ( $statuses as $k => $v ) {
 		$out[ $k ] = $v;
 		if ( 'wc-processing' === $k ) {
-			$out['wc-enviado'] = _x( 'Shipped', 'Estado de pedido', 'dox-pos' );
+			$out['wc-enviado'] = _x( 'Shipped', 'order status', 'dox-pos' );
 		}
 	}
 	if ( ! isset( $out['wc-enviado'] ) ) {
-		$out['wc-enviado'] = _x( 'Shipped', 'Estado de pedido', 'dox-pos' );
+		$out['wc-enviado'] = _x( 'Shipped', 'order status', 'dox-pos' );
 	}
 	return $out;
 }

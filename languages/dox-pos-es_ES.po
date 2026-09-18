@@ -290,6 +290,15 @@ msgstr "Otro"
 msgid "Shipped"
 msgstr "Enviado"
 
+msgctxt "order status"
+msgid "Shipped"
+msgstr "Enviado"
+
+msgid "Shipped <span class=\"count\">(%s)</span>"
+msgid_plural "Shipped <span class=\"count\">(%s)</span>"
+msgstr[0] "Enviado <span class=\"count\">(%s)</span>"
+msgstr[1] "Enviados <span class=\"count\">(%s)</span>"
+
 msgid "%s is no longer for sale."
 msgstr "%s ya no está a la venta."
 

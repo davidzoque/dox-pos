@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.37.2
+Stable tag: 0.37.3
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.37.3 =
+* The "Shipped" order status reads Shipped on an English site: the counter next to it in the orders list was written in Spanish in the code, and on a Spanish site the status itself showed as "Shipped" because its translator context was in Spanish too.
 
 = 0.37.2 =
 * The settings page is headed by the Dox POS logo instead of a letter in a box.
