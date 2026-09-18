@@ -68,6 +68,25 @@ function dox_pos_default_hold_message() {
  * Lo que el resto del plugin pregunta
  * ===================================================================== */
 
+/**
+ * La página del plugin, donde están los planes del Pro. En un solo sitio para no repetirla.
+ *
+ * @param string $hash Ancla, si se quiere ir a una parte de la página.
+ * @return string
+ */
+function dox_pos_site_url( $hash = '' ) {
+	return 'https://doxstudio.com/dox-pos/' . ( $hash ? '#' . $hash : '' );
+}
+
+/**
+ * ¿Está instalado Dox POS Pro? Con él puesto, el plugin no ofrece nada: ya lo tiene.
+ *
+ * @return bool
+ */
+function dox_pos_pro_active() {
+	return defined( 'DOX_POS_PRO_VERSION' );
+}
+
 function dox_pos_brand() {
 	$b = get_option( 'dox_pos_brand', array() );
 	return is_array( $b ) ? $b : array();
@@ -629,6 +648,9 @@ function dox_pos_option_page_capability() {
 // El enlace "Ajustes" en la lista de plugins.
 add_filter( 'plugin_action_links_' . plugin_basename( DOX_POS_FILE ), 'dox_pos_action_links' );
 function dox_pos_action_links( $links ) {
+	if ( ! dox_pos_pro_active() ) {
+		$links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos&tab=pro' ) ) . '">' . esc_html__( 'Pro', 'dox-pos' ) . '</a>';
+	}
 	array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=dox-pos' ) ) . '">' . esc_html__( 'Settings', 'dox-pos' ) . '</a>' );
 	return $links;
 }
@@ -1148,17 +1170,18 @@ function dox_pos_settings_page() {
 	$attrs    = dox_pos_attribute_taxonomies();
 	$heic     = class_exists( 'Imagick' ) && in_array( 'HEIC', (array) Imagick::queryFormats( 'HEIC' ), true );
 	// Cada pestaña: título, icono y qué vista previa enseña. Los añadidos (el Pro) meten las suyas por el filtro.
-	$tabs     = apply_filters(
-		'dox_pos_settings_tabs',
-		array(
-			'marca'     => array( __( 'Brand', 'dox-pos' ), 'palette', 'caja' ),
-			'pantalla'  => array( __( 'Screen', 'dox-pos' ), 'screen', 'caja' ),
-			'ventas'    => array( __( 'Sales', 'dox-pos' ), 'bag', 'caja' ),
-			'apartados' => array( __( 'Layaways', 'dox-pos' ), 'clock', 'whatsapp' ),
-			'envios'    => array( __( 'Shipments', 'dox-pos' ), 'truck', 'envio' ),
-			'productos' => array( __( 'Products', 'dox-pos' ), 'tag', 'producto' ),
-		)
+	$base     = array(
+		'marca'     => array( __( 'Brand', 'dox-pos' ), 'palette', 'caja' ),
+		'pantalla'  => array( __( 'Screen', 'dox-pos' ), 'screen', 'caja' ),
+		'ventas'    => array( __( 'Sales', 'dox-pos' ), 'bag', 'caja' ),
+		'apartados' => array( __( 'Layaways', 'dox-pos' ), 'clock', 'whatsapp' ),
+		'envios'    => array( __( 'Shipments', 'dox-pos' ), 'truck', 'envio' ),
+		'productos' => array( __( 'Products', 'dox-pos' ), 'tag', 'producto' ),
 	);
+	if ( ! dox_pos_pro_active() ) { // Quien ya tiene el Pro no ve esta pestaña.
+		$base['pro'] = array( __( 'Pro', 'dox-pos' ), 'sparkle', 'caja' );
+	}
+	$tabs     = apply_filters( 'dox_pos_settings_tabs', $base );
 	$skufmt   = array(
 		'codes' => array( __( 'Like the store: parent + size + color', 'dox-pos' ), __( 'Two digits for the size and two for the color, learned from the products that already exist (VE83 + 01 + 13 = VE830113). With no color, a 0.', 'dox-pos' ) ),
 		'slugs' => array( __( 'Parent, size and color with hyphens', 'dox-pos' ), __( 'VE83-6-12-months-pink. Easy to read at a glance; longer.', 'dox-pos' ) ),
@@ -1621,6 +1644,33 @@ function dox_pos_settings_page() {
 						</div>
 					</div>
 				</section>
+
+				<?php if ( ! dox_pos_pro_active() ) : ?>
+				<!-- ===================== Pro ===================== -->
+				<section class="dp-panel" id="dp-panel-pro" data-panel="pro" role="tabpanel" aria-labelledby="dp-tab-pro" hidden>
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Dox POS Pro', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The register you already have, plus an assistant that reviews the shop for you: what is pending today, what is running out, what leaves the most, and the customers who left without paying.', 'dox-pos' ); ?></p>
+						</div>
+						<ul class="dp-pro-list">
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'What is pending today', 'dox-pos' ); ?></b><?php esc_html_e( 'Layaways about to expire, orders to ship, payments to confirm, with the WhatsApp message ready.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'A review of the shop', 'dox-pos' ); ?></b><?php esc_html_e( 'Products with no photo or no price, stock that does not add up, sizes nobody buys: each one with the fix one tap away.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Ask it anything', 'dox-pos' ); ?></b><?php esc_html_e( 'A chat that reads your own sales and answers what sold, what is left and what to restock.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Abandoned carts', 'dox-pos' ); ?></b><?php esc_html_e( 'Whoever left the checkout half way gets an email that puts the cart back, and shows up in the register as something to do.', 'dox-pos' ); ?></span></li>
+							<li><?php echo wp_kses( dox_pos_icon( 'check' ), dox_pos_svg_tags() ); ?><span><b><?php esc_html_e( 'Performance and the daily summary', 'dox-pos' ); ?></b><?php esc_html_e( 'What each product leaves, the margin tips, and how the day went in an email every night.', 'dox-pos' ); ?></span></li>
+						</ul>
+						<a class="dp-btn dp-btn-primary dp-pro-cta" href="<?php echo esc_url( dox_pos_site_url( 'plans' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'See the plans', 'dox-pos' ); ?><?php echo wp_kses( dox_pos_icon( 'external' ), dox_pos_svg_tags() ); ?></a>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'How it works', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked.', 'dox-pos' ); ?></p>
+						</div>
+					</div>
+				</section>
+				<?php endif; ?>
 
 				<?php do_action( 'dox_pos_settings_panels' ); // Las pestañas de los añadidos (el Pro pone Asistente). ?>
 			</form>

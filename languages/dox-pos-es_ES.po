@@ -2643,3 +2643,51 @@ msgstr "Las ventas no descuentan existencias y los apartados no reservan nada ha
 #: includes/settings.php
 msgid "Open that setting"
 msgstr "Abrir ese ajuste"
+
+msgid "Pro"
+msgstr "Pro"
+
+msgid "Dox POS Pro"
+msgstr "Dox POS Pro"
+
+msgid "The register you already have, plus an assistant that reviews the shop for you: what is pending today, what is running out, what leaves the most, and the customers who left without paying."
+msgstr "La caja que ya tienes, con un asistente que revisa la tienda por ti: lo que está pendiente hoy, lo que se está acabando, lo que más deja y los clientes que se fueron sin pagar."
+
+msgid "What is pending today"
+msgstr "Lo que está pendiente hoy"
+
+msgid "Layaways about to expire, orders to ship, payments to confirm, with the WhatsApp message ready."
+msgstr "Apartados por vencer, pedidos por enviar y pagos por confirmar, con el mensaje de WhatsApp listo."
+
+msgid "A review of the shop"
+msgstr "Una revisión de la tienda"
+
+msgid "Products with no photo or no price, stock that does not add up, sizes nobody buys: each one with the fix one tap away."
+msgstr "Productos sin foto o sin precio, existencias que no cuadran, tallas que nadie compra: cada cosa con su arreglo a un toque."
+
+msgid "Ask it anything"
+msgstr "Pregúntale lo que sea"
+
+msgid "A chat that reads your own sales and answers what sold, what is left and what to restock."
+msgstr "Un chat que lee tus ventas y responde qué se vendió, qué queda y qué hay que volver a pedir."
+
+msgid "Abandoned carts"
+msgstr "Carritos abandonados"
+
+msgid "Whoever left the checkout half way gets an email that puts the cart back, and shows up in the register as something to do."
+msgstr "A quien dejó el pago a medias le llega un correo que devuelve el carrito, y aparece en la caja como algo por hacer."
+
+msgid "Performance and the daily summary"
+msgstr "Rendimiento y el resumen diario"
+
+msgid "What each product leaves, the margin tips, and how the day went in an email every night."
+msgstr "Lo que deja cada producto, los consejos de margen y cómo fue el día, en un correo cada noche."
+
+msgid "See the plans"
+msgstr "Ver los planes"
+
+msgid "How it works"
+msgstr "Cómo funciona"
+
+msgid "The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked."
+msgstr "El Pro es un plugin aparte que se cuelga de este: una licencia por tienda, y la puedes mover a otro dominio cuando quieras. Si la licencia vence, la caja que usas hoy sigue funcionando igual, sin nada bloqueado."

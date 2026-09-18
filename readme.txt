@@ -85,6 +85,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 = 0.37.2 =
 * The settings page is headed by the Dox POS logo instead of a letter in a box.
 * The plugin page is now doxstudio.com/dox-pos.
+* A "Pro" tab in the settings says what the paid add-on adds and links to the plans. It is not there if Dox POS Pro is already installed, and nothing else in the register changes.
 
 = 0.37.1 =
 * The Spanish translation is no longer bundled with the plugin: it comes from translate.wordpress.org, as the directory requires. The default address on a Spanish site (/caja) now follows the site language directly, so it does not depend on translation files.
