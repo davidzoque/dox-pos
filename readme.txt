@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.38.1
+Stable tag: 0.39.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -87,6 +87,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.39.0 =
+* The totals and the headings of the register now use the font of the phone or the computer, the same one as the rest of the screen, instead of always falling back to Georgia. A shop that prefers a serif picks it in WooCommerce > Dox POS > Brand from a list of fonts every device already has (Georgia, Charter, Iowan Old Style, Palatino, Baskerville, Times New Roman): nothing is downloaded and nothing is requested from outside. With Google Fonts on, the one you pick here is what shows if Google does not answer.
+* The register shows the site icon in the browser tab again, and carries it when you add the register to the home screen of a phone. It was missing on sites whose theme replaces the WordPress icon tags with its own, because the register is a page outside the theme; it now prints them itself, and falls back to the icon the theme stores if WordPress has none.
 
 = 0.38.1 =
 * Deleting the plugin no longer erases anything of yours. Until now, removing it from Plugins took the settings, the brand, the address of the register and the Cashier role with it, because that is what its uninstall file did. Now it keeps all of it, so installing it again picks up where you left off. WordPress asks nothing while it deletes a plugin, so a new switch in WooCommerce > Dox POS > Screen lets a shop say beforehand that it does want everything gone; with it on, the plugins list says so right next to the plugin. Orders, stock, the stock entries and the ledger were never touched and still are not.

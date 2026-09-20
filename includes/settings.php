@@ -39,6 +39,52 @@ function dox_pos_default_fonts() {
 }
 
 /**
+ * La familia de la interfaz: la del teléfono o el computador, sin descargar nada.
+ */
+function dox_pos_system_stack() {
+	return '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+}
+
+/**
+ * Las fuentes para los totales y los títulos que no hay que descargar: ya vienen con el sistema.
+ * Cada una lleva detrás las equivalentes de los demás sistemas, así que una tienda que elige
+ * Charter (Mac y iPhone) ve Cambria en Windows y Georgia donde no haya ninguna de las dos.
+ *
+ * @return array<string,array{0:string,1:string}> clave => [nombre, familias del CSS].
+ */
+function dox_pos_local_fonts() {
+	return array(
+		'system'      => array( __( 'The one from the system (no serif)', 'dox-pos' ), dox_pos_system_stack() ),
+		'georgia'     => array( 'Georgia', 'Georgia,serif' ),
+		'charter'     => array( 'Charter', 'Charter,Cambria,Georgia,serif' ),
+		'iowan'       => array( 'Iowan Old Style', '"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif' ),
+		'palatino'    => array( 'Palatino', 'Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif' ),
+		'baskerville' => array( 'Baskerville', 'Baskerville,Cambria,Georgia,serif' ),
+		'times'       => array( 'Times New Roman', '"Times New Roman",Times,serif' ),
+	);
+}
+
+/**
+ * Cuál de ellas usa la tienda para los totales y los títulos. De fábrica, la del sistema.
+ *
+ * @return string La clave.
+ */
+function dox_pos_local_font() {
+	$b   = dox_pos_brand();
+	$key = isset( $b['font_local'] ) ? (string) $b['font_local'] : '';
+	return isset( dox_pos_local_fonts()[ $key ] ) ? $key : 'system';
+}
+
+/**
+ * Las familias del CSS de esa elección, que son también el respaldo de la fuente de Google.
+ *
+ * @return string
+ */
+function dox_pos_local_font_stack() {
+	return dox_pos_local_fonts()[ dox_pos_local_font() ][1];
+}
+
+/**
  * Los canales de fábrica. Donde se usa WhatsApp, por ahí llega casi todo; donde no (Estados Unidos y
  * los demás de dox_pos_whatsapp_country), la venta por chat entra por Instagram, TikTok y Facebook.
  *
@@ -700,9 +746,10 @@ function dox_pos_theme_css() {
 	$on    = dox_pos_fonts_on();
 	$ui    = dox_pos_font_name( $f['ui'] ); // Limpias aquí mismo, justo antes de entrar en el CSS.
 	$serif = dox_pos_font_name( $f['serif'] );
+	$local = dox_pos_local_font_stack(); // La elegida en Marca: también es el respaldo si Google falla.
 	$vars  = array(
-		'--ui'    => ( $on && $ui ? '"' . $ui . '",' : '' ) . '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
-		'--serif' => ( $on && $serif ? '"' . $serif . '",' : '' ) . 'Georgia,serif',
+		'--ui'    => ( $on && $ui ? '"' . $ui . '",' : '' ) . dox_pos_system_stack(),
+		'--serif' => ( $on && $serif ? '"' . $serif . '",' : '' ) . $local,
 	);
 	if ( dox_pos_default_colors() !== $c ) {
 		$dark_bar   = dox_pos_is_dark( $c['bar'] );
@@ -871,7 +918,13 @@ function dox_pos_sanitize_delete_data( $in ) {
 function dox_pos_sanitize_brand( $in ) {
 	$in  = is_array( $in ) ? $in : array();
 	$old = dox_pos_brand();
-	$out = array( 'name' => sanitize_text_field( $in['name'] ?? '' ), 'colors' => array(), 'fonts_google' => empty( $in['fonts_google'] ) ? 0 : 1 );
+	$local = sanitize_key( $in['font_local'] ?? '' );
+	$out   = array(
+		'name'         => sanitize_text_field( $in['name'] ?? '' ),
+		'colors'       => array(),
+		'fonts_google' => empty( $in['fonts_google'] ) ? 0 : 1,
+		'font_local'   => isset( dox_pos_local_fonts()[ $local ] ) ? $local : 'system',
+	);
 	foreach ( dox_pos_default_colors() as $k => $default ) {
 		$out['colors'][ $k ] = dox_pos_hex( $in['colors'][ $k ] ?? '' ) ?: $default;
 	}
@@ -1269,6 +1322,8 @@ function dox_pos_admin_assets( $hook ) {
 				'slug'    => dox_pos_default_slug(),
 				'hours'   => 48,
 			),
+			'localFonts' => wp_list_pluck( dox_pos_local_fonts(), 1 ), // clave => familias del CSS.
+			'systemFont' => dox_pos_system_stack(),
 			'siteLogo' => dox_pos_site_logo_url(),
 			'siteName' => dox_pos_brand_name(),
 			'sample'   => array(
@@ -1449,10 +1504,19 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Fonts', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the total and the headings. Off, the fonts of the phone or the computer are used and nothing leaves the site. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), and this page asks Google whether a font name you type exists.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'Two fonts for the register: one for the interface and one for the totals and the headings. Off, it uses what the phone or the computer already has and nothing leaves the site; you only choose the one for the totals. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), this page asks Google whether a font name you type exists, and the one you picked below stays as the backup if Google does not answer.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_brand[fonts_google]" value="1" <?php checked( dox_pos_fonts_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Load the fonts from Google Fonts', 'dox-pos' ); ?></b><span><?php esc_html_e( 'On, the browser of whoever opens the register downloads the two fonts from Google.', 'dox-pos' ); ?></span></span></label>
-						<div class="dp-mt">
+						<div class="dp-mt dp-field dp-field-short" id="dp-fonts-local" <?php echo dox_pos_fonts_on() ? 'hidden' : ''; ?>>
+							<label class="dp-label" for="dp-font-local"><?php esc_html_e( 'Totals and headings', 'dox-pos' ); ?></label>
+							<select id="dp-font-local" name="dox_pos_brand[font_local]" class="dp-input">
+								<?php foreach ( dox_pos_local_fonts() as $key => $f ) : ?>
+								<option value="<?php echo esc_attr( $key ); ?>" <?php selected( dox_pos_local_font(), $key ); ?>><?php echo esc_html( $f[0] ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p class="dp-hint"><?php esc_html_e( 'The figures of the Dashboard, the total of the sale and the headings. They are all installed already, on any phone and any computer: nothing is downloaded and nothing is requested from outside.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-mt" id="dp-fonts-google" <?php echo dox_pos_fonts_on() ? '' : 'hidden'; ?>>
 						<div class="dp-grid-2">
 							<div class="dp-field">
 								<label class="dp-label" for="dp-font-ui"><?php esc_html_e( 'Interface', 'dox-pos' ); ?></label>
@@ -1886,7 +1950,7 @@ function dox_pos_settings_page() {
 					<span class="dp-side-title"><?php esc_html_e( 'Preview', 'dox-pos' ); ?></span>
 					<span class="dp-live"><i aria-hidden="true"></i><?php esc_html_e( 'Live', 'dox-pos' ); ?></span>
 				</div>
-				<div class="dp-device" id="dp-preview" style="--ui:<?php echo esc_attr( '"' . $fonts['ui'] . '",sans-serif' ); ?>;--serif:<?php echo esc_attr( '"' . $fonts['serif'] . '",serif' ); ?>">
+				<div class="dp-device" id="dp-preview" style="--ui:<?php echo esc_attr( ( dox_pos_fonts_on() ? '"' . $fonts['ui'] . '",' : '' ) . dox_pos_system_stack() ); ?>;--serif:<?php echo esc_attr( ( dox_pos_fonts_on() ? '"' . $fonts['serif'] . '",' : '' ) . dox_pos_local_font_stack() ); ?>">
 					<div class="dp-chrome"><span class="dp-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="dp-url" id="dp-preview-url"><?php echo esc_html( $host . '/' . $slug ); ?></span></div>
 
 					<div class="dp-mock" data-view="caja">

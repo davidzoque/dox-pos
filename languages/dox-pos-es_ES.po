@@ -749,9 +749,6 @@ msgstr "Elegir el color: %s"
 msgid "Fonts"
 msgstr "Fuentes"
 
-msgid "Two fonts for the register: one for the interface and one for the total and the headings. Off, the fonts of the phone or the computer are used and nothing leaves the site. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), and this page asks Google whether a font name you type exists."
-msgstr "Dos fuentes para la caja: una para la interfaz y otra para el total y los títulos. Apagado, se usan las fuentes del teléfono o del computador y nada sale del sitio. Encendido, se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com), y esta página le pregunta a Google si existe la fuente que escribas."
-
 msgid "Load the fonts from Google Fonts"
 msgstr "Cargar las fuentes desde Google Fonts"
 
@@ -2734,3 +2731,12 @@ msgstr "También lo dice junto al plugin en la lista de plugins, para que nadie 
 
 msgid "Deleting also erases your settings"
 msgstr "Al borrarlo se van tus ajustes"
+
+msgid "The one from the system (no serif)"
+msgstr "La del sistema (sin serifa)"
+
+msgid "Two fonts for the register: one for the interface and one for the totals and the headings. Off, it uses what the phone or the computer already has and nothing leaves the site; you only choose the one for the totals. On, they are downloaded from Google Fonts when the register opens, so the browser of whoever uses it connects to Google (fonts.googleapis.com and fonts.gstatic.com), this page asks Google whether a font name you type exists, and the one you picked below stays as the backup if Google does not answer."
+msgstr "Dos fuentes para la caja: una para la interfaz y otra para los totales y los títulos. Apagado, se usa lo que ya tiene el teléfono o el computador y nada sale del sitio; solo eliges la de los totales. Encendido, se descargan de Google Fonts al abrir la caja, así que el navegador de quien la use se conecta a Google (fonts.googleapis.com y fonts.gstatic.com), esta página le pregunta a Google si existe la fuente que escribas, y la que elijas aquí abajo queda de respaldo si Google no responde."
+
+msgid "The figures of the Dashboard, the total of the sale and the headings. They are all installed already, on any phone and any computer: nothing is downloaded and nothing is requested from outside."
+msgstr "Las cifras del Panel, el total de la venta y los títulos. Todas vienen ya instaladas en cualquier teléfono y cualquier computador: no se descarga nada ni se le pide nada a nadie de fuera."

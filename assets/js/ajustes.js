@@ -150,6 +150,23 @@
 		l.onerror = () => { cargadas[fam] = "no"; l.remove(); cb(false); };
 		document.head.appendChild(l);
 	}
+	// Con Google apagado solo se elige la de los totales (ya instalada); encendido, las dos de Google.
+	const local = $("#dp-font-local"), bloqueLocal = $("#dp-fonts-local"), bloqueGoogle = $("#dp-fonts-google");
+	const pilaLocal = () => (cfg.localFonts || {})[local ? local.value : "system"] || cfg.systemFont || "Georgia,serif";
+    function pintarFuentes() {
+		const on = googleOn();
+		if (bloqueLocal) bloqueLocal.hidden = on;
+		if (bloqueGoogle) bloqueGoogle.hidden = !on;
+		// La vista previa: la de Google delante si está encendida, y detrás siempre la elegida aquí.
+		const ui = $("#dp-font-ui"), serif = $("#dp-font-serif");
+		const nom = (el, k) => (el && el.value.trim() ? '"' + el.value.trim() + '",' : (on ? '"' + ((defaults.fonts || {})[k] || "") + '",' : ""));
+		prev.style.setProperty("--ui", (on ? nom(ui, "ui") : "") + (cfg.systemFont || "sans-serif"));
+		prev.style.setProperty("--serif", (on ? nom(serif, "serif") : "") + pilaLocal());
+	}
+	const swGoogle = $('input[name="dox_pos_brand[fonts_google]"]');
+	if (swGoogle) swGoogle.addEventListener("change", pintarFuentes);
+	if (local) local.addEventListener("change", () => { pintarFuentes(); sucio(); });
+
 	[["ui", "#dp-font-ui", "sans-serif"], ["serif", "#dp-font-serif", "serif"]].forEach(([k, sel, fallback]) => {
 		const el = $(sel);
 		if (!el) return;
@@ -165,7 +182,7 @@
 				cargarFuente(fam, (ok) => {
 					if (fam !== (el.value.trim().replace(/\s+/g, " ") || (defaults.fonts || {})[k] || el.placeholder)) return;
 					if (ok) {
-						prev.style.setProperty("--" + k, '"' + fam + '",' + fallback);
+						prev.style.setProperty("--" + k, '"' + fam + '",' + ("serif" === k ? pilaLocal() : (cfg.systemFont || fallback)));
 						if (el.value.trim()) { estado.textContent = i18n.fontOk || ""; estado.classList.add("ok"); }
 					} else {
 						estado.textContent = i18n.fontBad || "";

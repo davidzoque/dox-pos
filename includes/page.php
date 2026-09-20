@@ -171,6 +171,42 @@ function dox_pos_site_logo_url() {
 }
 
 /**
+ * El icono del sitio para la pestaña del navegador y para cuando la caja se añade a la pantalla de
+ * inicio del teléfono.
+ *
+ * No se usa wp_site_icon() a propósito: su filtro site_icon_meta_tags lo vacían temas que ponen el
+ * suyo dentro de wp_head (UiCore lo hace: devuelve un array vacío siempre), y la caja es una página
+ * fuera del tema que no llama a wp_head, así que se quedaba sin icono ninguno. Aquí se lee la URL
+ * directamente, y si WordPress no tiene icono propio se busca el del tema, como con el logo.
+ *
+ * @param int $size El lado en píxeles que se pide.
+ * @return string URL, o vacío.
+ */
+function dox_pos_site_icon_url( $size = 512 ) {
+	$url = has_site_icon() ? (string) get_site_icon_url( $size ) : '';
+	if ( '' === $url ) {
+		// [opción, clave]: donde guardan su icono los temas que no usan el de WordPress.
+		$places = array(
+			array( 'uicore_theme_options', 'fav' ), // UiCore.
+			array( 'flatsome_options', 'favicon' ), // Flatsome.
+			array( 'woodmart_options', 'favicon' ), // WoodMart.
+			array( 'fusion_options', 'favicon' ), // Avada.
+			array( 'et_divi', 'divi_favicon' ), // Divi.
+		);
+		foreach ( $places as $p ) {
+			$o = get_option( $p[0] );
+			if ( is_array( $o ) && isset( $o[ $p[1] ] ) ) {
+				$url = dox_pos_logo_from_value( $o[ $p[1] ] );
+				if ( '' !== $url ) {
+					break;
+				}
+			}
+		}
+	}
+	return (string) apply_filters( 'dox_pos_site_icon_url', $url, $size );
+}
+
+/**
  * Una URL a partir de lo que un tema guarda como logo: la URL misma, el id del adjunto, o un array
  * con "url" o "id" dentro.
  *
@@ -259,7 +295,13 @@ function dox_pos_head() {
 	<meta name="theme-color" content="<?php echo esc_attr( $colors['bar'] ); ?>">
 	<title><?php echo esc_html( dox_pos_screen_name() . ' · ' . dox_pos_brand_name() ); ?></title>
 	<?php
-	wp_site_icon();
+	$icon = dox_pos_site_icon_url( 512 );
+	if ( '' !== $icon ) {
+		$small = dox_pos_site_icon_url( 32 );
+		printf( '<link rel="icon" href="%s" sizes="32x32">' . "\n", esc_url( $small ? $small : $icon ) );
+		printf( '<link rel="icon" href="%s" sizes="192x192">' . "\n", esc_url( $icon ) );
+		printf( '<link rel="apple-touch-icon" href="%s">' . "\n", esc_url( dox_pos_site_icon_url( 180 ) ?: $icon ) ); // Al añadirla a la pantalla de inicio.
+	}
 	wp_print_styles( dox_pos_assets( 'style' ) ); // Solo lo de la caja (y la hoja de Google Fonts, si la tienda la encendió).
 	do_action( 'dox_pos_head' ); // Hojas de estilo de los añadidos.
 }
