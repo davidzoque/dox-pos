@@ -2,8 +2,9 @@ name: Build release ZIP
 
 # Al pushear una etiqueta v* se crea la release con dos zips: el de GitHub (con el actualizador y el
 # español en languages/, el que sirve Plugin Update Checker a los sitios) y el de WordPress.org (sin
-# vendor, sin Update URI, sin languages/ ni load_plugin_textdomain: el directorio exige que las
-# traducciones vayan por translate.wordpress.org).
+# vendor, sin Update URI, sin languages/ ni load_plugin_textdomain, y sin dox-core, que trae su
+# propio dominio de traducción y sus .mo: el directorio exige que las traducciones vayan por
+# translate.wordpress.org y que todo el texto use el slug del plugin).
 
 on:
   push:
@@ -36,7 +37,7 @@ jobs:
           rsync -a --exclude='.git*' --exclude='.wordpress-org' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' --exclude='phpcs.xml.dist' --exclude='tools' ./ build/dox-pos/
           cd build
           zip -rq dox-pos.zip dox-pos
-          rm -rf dox-pos/vendor dox-pos/includes/updater.php dox-pos/languages
+          rm -rf dox-pos/vendor dox-pos/includes/updater.php dox-pos/languages dox-pos/dox-core
           sed -i '/^ \* Update URI:/d; /^ \* Domain Path:/d' dox-pos/dox-pos.php
           sed -i '/dox-pos-repo-only:inicio/,/dox-pos-repo-only:fin/d' dox-pos/dox-pos.php dox-pos/includes/install.php
           zip -rq dox-pos-wordpress-org.zip dox-pos

@@ -39,6 +39,12 @@ el zip de WordPress.org va sin `languages/` y sin esa llamada (van dentro de los
 `dox-pos-repo-only`, que la Action quita), porque el directorio lo exige (revisión del 14/09/2026).
 Allí el español se sube a translate.wordpress.org y WordPress lo baja como paquete de idioma.
 
+El paquete trae un solo español, `es_ES`, y WordPress no pasa de `es_CO` o `es_MX` a `es_ES` por su
+cuenta. Desde la 0.40.0, `dox_pos_spanish_fallback_mo()` y `dox_pos_spanish_fallback_json()` (también
+dentro de `dox-pos-repo-only`) devuelven los archivos de `es_ES` cuando el sitio está en otra variante
+del español y no existe una traducción propia de esa variante. Antes, una tienda en "Español de
+Colombia" veía la caja en inglés.
+
 Al tocar un texto: cambiarlo en inglés en el código y añadir el par al `.po`, y regenerar el `.mo` y
 el `.l10n.php` (los tres tienen que decir lo mismo, y el `.l10n.php` gana). Un sitio en español no
 nota nada: la caja y los ajustes siguen en español palabra por palabra.

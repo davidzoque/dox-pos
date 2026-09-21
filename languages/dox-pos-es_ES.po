@@ -2740,3 +2740,6 @@ msgstr "Dos fuentes para la caja: una para la interfaz y otra para los totales y
 
 msgid "The figures of the Dashboard, the total of the sale and the headings. They are all installed already, on any phone and any computer: nothing is downloaded and nothing is requested from outside."
 msgstr "Las cifras del Panel, el total de la venta y los títulos. Todas vienen ya instaladas en cualquier teléfono y cualquier computador: no se descarga nada ni se le pide nada a nadie de fuera."
+
+msgid "A point of sale for WooCommerce: sell in person with the same catalogue and the same stock."
+msgstr "Un punto de venta para WooCommerce: vende en persona con el mismo catálogo y el mismo inventario."

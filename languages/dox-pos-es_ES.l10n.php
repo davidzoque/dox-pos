@@ -71,6 +71,7 @@ return array(
 		'A layaway needs the customer’s phone number.' => 'Para apartar hace falta el teléfono de la clienta.',
 		'A line whose placeholder ends up empty (no tracking number, no link) removes itself.' => 'Una línea cuyo comodín quede vacío (sin guía, sin enlace) se quita sola.',
 		'A photo could not be uploaded: tap it to try again, or remove it.' => 'Una foto no se pudo subir: tócala para reintentar, o quítala.',
+		'A point of sale for WooCommerce: sell in person with the same catalogue and the same stock.' => 'Un punto de venta para WooCommerce: vende en persona con el mismo catálogo y el mismo inventario.',
 		'Add' => 'Añadir',
 		'Add a known carrier' => 'Añadir una transportadora conocida',
 		'Add a known one…' => 'Añadir una conocida…',

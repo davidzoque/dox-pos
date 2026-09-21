@@ -46,14 +46,53 @@ add_action( 'init', 'dox_pos_textdomain', 1 );
 function dox_pos_textdomain() {
 	load_plugin_textdomain( 'dox-pos', false, dirname( plugin_basename( DOX_POS_FILE ) ) . '/languages' );
 }
-// dox-pos-repo-only:fin
+
+// El paquete trae un solo español (es_ES) y WordPress no pasa de es_CO, es_MX o es_AR a es_ES por su
+// cuenta: una tienda con el sitio en "Español de Colombia" veía la caja en inglés. Solo actúa cuando no
+// existe el archivo de esa variante, así que una traducción propia (Loco Translate, un paquete en
+// wp-content/languages) sigue mandando. Al devolver el .mo de es_ES, WordPress encuentra solo su .l10n.php.
+add_filter( 'load_textdomain_mofile', 'dox_pos_spanish_fallback_mo', 10, 2 );
+function dox_pos_spanish_fallback_mo( $mofile, $domain ) {
+	if ( 'dox-pos' !== $domain || ! preg_match( '/dox-pos-es(_[A-Za-z]+)?\.mo$/', (string) $mofile ) ) {
+		return $mofile;
+	}
+	if ( is_readable( $mofile ) || is_readable( substr( $mofile, 0, -3 ) . '.l10n.php' ) ) {
+		return $mofile;
+	}
+	$es = DOX_POS_PATH . 'languages/dox-pos-es_ES.mo';
+	return is_readable( $es ) ? $es : $mofile;
+}
+
+// Lo mismo para los textos de caja.js, que viajan en un JSON con el idioma en el nombre.
+add_filter( 'load_script_translation_file', 'dox_pos_spanish_fallback_json', 10, 3 );
+function dox_pos_spanish_fallback_json( $file, $handle, $domain ) {
+	if ( 'dox-pos' !== $domain || ! $file || is_readable( $file ) ) {
+		return $file;
+	}
+	$name = preg_replace( '/^dox-pos-es(_[A-Za-z]+)?-/', 'dox-pos-es_ES-', basename( $file ), 1, $hits );
+	if ( ! $hits ) {
+		return $file;
+	}
+	$es = DOX_POS_PATH . 'languages/' . $name;
+	return is_readable( $es ) ? $es : $file;
+}
 
 // Menú común de los plugins de Dox Studio: la caja sigue donde está, dentro de
 // WooCommerce, y solo se asoma a la portada de "Dox Plugins" cuando hay más
 // plugins Dox instalados. Cada plugin lleva su copia de dox-core y se ejecuta
 // solo la más nueva.
-require_once DOX_POS_PATH . 'dox-core/loader.php';
-Dox_Core_Loader::register( '1.0.0', DOX_POS_PATH . 'dox-core/dox-core.php' );
+//
+// Va dentro del bloque "repo-only" a propósito: dox-core trae su propio dominio
+// de traducción (dox-core, que no es el slug del plugin), sus .mo y un
+// load_textdomain, las tres cosas que la revisión de WordPress.org pidió quitar.
+// La copia del directorio no pierde nada: se sigue apuntando en
+// dox_core_register (includes/settings.php), así que sale en la portada en
+// cuanto otro plugin Dox traiga el core, y estando sola no había menú que crear.
+if ( file_exists( DOX_POS_PATH . 'dox-core/loader.php' ) ) {
+	require_once DOX_POS_PATH . 'dox-core/loader.php';
+	Dox_Core_Loader::register( require DOX_POS_PATH . 'dox-core/version.php', DOX_POS_PATH . 'dox-core/dox-core.php' );
+}
+// dox-pos-repo-only:fin
 
 require_once DOX_POS_PATH . 'includes/roles.php';
 require_once DOX_POS_PATH . 'includes/page.php';

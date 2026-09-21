@@ -90,6 +90,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.40.0 =
 * New: Dox POS now shows up in the shared **Dox Plugins** menu when other Dox Studio plugins are installed, with a link to its settings. The register itself does not move: it stays under WooCommerce > Dox POS, which is where anyone using it looks for it. On a site where Dox POS is the only Dox plugin, no extra menu is added at all.
+* Fixed (copy installed from GitHub): a site set to a Spanish variant other than Spain, such as Spanish (Colombia) or Spanish (Mexico), showed the register in English, because the bundled translation is es_ES and WordPress does not fall back between variants on its own. Any Spanish variant now gets the Spanish translation, unless the site has its own translation for that variant.
 
 = 0.39.0 =
 * The totals and the headings of the register now use the font of the phone or the computer, the same one as the rest of the screen, instead of always falling back to Georgia. A shop that prefers a serif picks it in WooCommerce > Dox POS > Brand from a list of fonts every device already has (Georgia, Charter, Iowan Old Style, Palatino, Baskerville, Times New Roman): nothing is downloaded and nothing is requested from outside. With Google Fonts on, the one you pick here is what shows if Google does not answer.
