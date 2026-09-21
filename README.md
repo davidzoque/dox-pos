@@ -70,6 +70,23 @@ La caja es una página completa fuera del tema, así que no llama a `wp_head()` 
 
 De fábrica la caja usa las fuentes del sistema y el plugin no habla con ningún servidor de fuera (desde la 0.37.0; antes Google Fonts venía encendido, y el directorio de WordPress.org no admite que nada salga del sitio sin que la tienda lo elija). El interruptor "Cargar las fuentes desde Google Fonts" (Ajustes > Marca, `dox_pos_fonts_on()`) las enciende: entonces `dox_pos_fonts_url()` arma la hoja de Google, la página de ajustes carga Inter y las dos fuentes, y el sanitizador le pregunta a Google si existe una fuente nueva. Los nombres de fuente pasan por `dox_pos_font_name()` (solo letras, números, espacios y guiones) al guardar y otra vez al entrar en el CSS y en la URL, para que unas comillas o un punto y coma no rompan la hoja.
 
+## Dónde están los ajustes
+
+En `admin.php?page=dox-pos`, siempre la misma dirección, pero colgando de un menú u otro:
+
+- **Dox Plugins > POS** cuando está el menú común de Dox Studio (`dox-core`, la carpeta que viaja
+  dentro de cada plugin Dox y que junta todos bajo un solo menú). Lo trae la copia de GitHub, y
+  también cualquier otro plugin Dox instalado en el sitio. El submenú lo crea ese menú a partir de
+  `dox_pos_register_in_dox_menu()` (`page`, con `manage_woocommerce` para que los gerentes de tienda
+  sigan entrando); `dox_pos_admin_menu()` no hace nada.
+- **WooCommerce > Dox POS** sin él: la copia de WordPress.org, que va sin `dox-core`, instalada sola.
+
+El hook de la pantalla cambia con el menú (`dox-plugins_page_dox-pos` o `woocommerce_page_dox-pos`),
+así que `dox_pos_admin_assets()` mira solo el final (`_page_dox-pos`). El Pro no depende de eso:
+se cuelga de los ganchos de la propia página (`dox_pos_settings_tabs`, `dox_pos_settings_assets`...).
+Ojo: los textos del Pro que dicen "WooCommerce > Dox POS > Assistant" solo son ciertos sin el menú
+común.
+
 ## Otra marca
 
 Todo se cambia en WooCommerce > Dox POS, una página con cinco pestañas y una vista previa que cambia al momento (colores, logo, nombre, dirección, canales, formas de pago, el mensaje de WhatsApp y la ventana de envío). La dirección se comprueba mientras se escribe por `/wp-json/dox-pos/v1/settings/slug`, y al guardar se vuelve a la misma pestaña (`?tab=`).

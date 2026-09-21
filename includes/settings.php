@@ -1,7 +1,7 @@
 <?php
 /**
- * Los ajustes: WooCommerce > Dox POS. Todo lo que cambia de una tienda a otra:
- * la marca (nombre, logo, colores, fuentes), la pantalla (nombre y ruta), las
+ * Los ajustes: Dox Plugins > POS, o WooCommerce > Dox POS sin el menú común. Todo lo que
+ * cambia de una tienda a otra: la marca (nombre, logo, colores, fuentes), la pantalla (nombre y ruta), las
  * ventas (canales y formas de pago), los apartados (plazo y mensaje) y los
  * envíos (transportadoras). Los valores de fábrica son los de Rosella, la
  * primera tienda; para otra marca se cambian desde aquí, sin tocar código.
@@ -841,29 +841,41 @@ function dox_pos_google_font_exists( $family ) {
 	return $ok;
 }
 /* =====================================================================
- * La página de ajustes (WooCommerce > Dox POS)
+ * La página de ajustes (Dox Plugins > POS, o WooCommerce > Dox POS)
  *
  * Una aplicación dentro de wp-admin: cabecera fija con las cinco pestañas
  * (marca, pantalla, ventas, apartados, envíos), tarjetas y una vista previa
  * que cambia al momento. Guarda por el Settings API de siempre (options.php).
  * ===================================================================== */
 
+// Con el menú común de Dox Studio (lo trae la copia de GitHub y cualquier otro plugin Dox), la página
+// cuelga de Dox Plugins > POS y el submenú lo crea ese menú. Sin él (la copia de WordPress.org sola),
+// se queda en WooCommerce > Dox POS. La dirección es la misma en los dos casos: admin.php?page=dox-pos.
 add_action( 'admin_menu', 'dox_pos_admin_menu' );
 function dox_pos_admin_menu() {
+	if ( function_exists( 'dox_core' ) ) {
+		return;
+	}
 	add_submenu_page( 'woocommerce', 'Dox POS', 'Dox POS', 'manage_woocommerce', 'dox-pos', 'dox_pos_settings_page' );
 }
 
-// La caja no se muda de WooCommerce, que es donde la busca quien la usa: solo
-// se apunta en la portada del menú común de Dox Studio, si es que existe.
 add_action( 'dox_core_register', 'dox_pos_register_in_dox_menu' );
 function dox_pos_register_in_dox_menu( $core ) {
-	$core->register_plugin( [
-		'slug'         => 'dox-pos',
-		'name'         => 'Dox POS',
-		'version'      => DOX_POS_VERSION,
-		'summary'      => __( 'A point of sale for WooCommerce: sell in person with the same catalogue and the same stock.', 'dox-pos' ),
-		'settings_url' => 'admin.php?page=dox-pos',
-	] );
+	$core->register_plugin(
+		array(
+			'slug'    => 'dox-pos',
+			'name'    => 'Dox POS',
+			'version' => DOX_POS_VERSION,
+			'summary' => __( 'A point of sale for WooCommerce: sell in person with the same catalogue and the same stock.', 'dox-pos' ),
+			'page'    => array(
+				'page_title' => 'Dox POS',
+				'menu_title' => 'POS',
+				'capability' => 'manage_woocommerce', // Los gerentes de tienda también entran, igual que cuando colgaba de WooCommerce.
+				'menu_slug'  => 'dox-pos',
+				'callback'   => 'dox_pos_settings_page',
+			),
+		)
+	);
 }
 
 // options.php pide manage_options si no se le dice otra cosa; los gerentes de tienda también guardan.
@@ -1322,7 +1334,7 @@ function dox_pos_icon( $name, $css = '' ) {
 
 add_action( 'admin_enqueue_scripts', 'dox_pos_admin_assets' );
 function dox_pos_admin_assets( $hook ) {
-	if ( 'woocommerce_page_dox-pos' !== $hook ) {
+	if ( ! preg_match( '/_page_dox-pos$/', (string) $hook ) ) { // woocommerce_page_dox-pos o dox-plugins_page_dox-pos, según de qué menú cuelgue.
 		return;
 	}
 	wp_enqueue_media();
