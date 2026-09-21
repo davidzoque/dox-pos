@@ -40,7 +40,13 @@ El zip de WordPress.org va sin esa carpeta y sin `load_plugin_textdomain`, porqu
 (revisión del 14/09/2026): allí el español se sube a translate.wordpress.org y WordPress lo baja como
 paquete de idioma. Mientras ese paquete no esté aprobado, una tienda lo pone en español de dos maneras:
 copiando los tres archivos generados a `wp-content/languages/plugins/` (con el nombre de su variante si
-no es `es_ES`), o importando el `.po` en Loco Translate.
+no es `es_ES`), o importando el `.po` en Loco Translate (Loco Translate > Plugins > Dox POS > Subir un
+archivo PO, ubicación "Personalizado", el archivo llamado `dox-pos-<locale>.po`).
+
+Loco arma el JSON de la caja solo con las entradas que traen la referencia `#: assets/js/caja.js:<línea>`,
+y la ignora si no lleva número de línea. Por eso el script pone esa referencia, con la línea real, en
+cada texto que usa `caja.js` (y se la quita a los que ya no): sin ella, la caja importada en Loco sale en
+inglés aunque los ajustes salgan en español. Comprobado el 21/09/2026 con Loco Translate 2.8.8.
 
 En `admin.php?page=dox-pos`, siempre la misma dirección, pero colgando de un menú u otro:
 

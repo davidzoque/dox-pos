@@ -6,6 +6,11 @@
 El .po es la única fuente. El JSON solo lleva las cadenas que aparecen en
 assets/js/caja.js, y su nombre es el que espera wp_set_script_translations:
 dox-pos-<locale>-<md5 de la ruta del js>.json
+
+Antes de generar, marca en el .po con "#: assets/js/caja.js:<línea>" las
+entradas que usa el JavaScript (y se la quita a las que ya no). Loco Translate
+arma el JSON solo con las entradas que traen esa referencia, y solo si lleva
+número de línea: sin ella, al importar el .po en Loco la caja sale en inglés.
 """
 import hashlib
 import json
@@ -109,7 +114,61 @@ def write_mo(path, pairs):
     return n
 
 
+def js_strings():
+    """Los textos que caja.js pasa a __() y _n(), ya sin los escapes de JavaScript, con la
+    línea donde aparecen por primera vez."""
+    js = open(os.path.join(BASE, JS), encoding='utf-8').read()
+    lit_re = re.compile(r"""\b_{1,2}n?\s*\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')""")
+    used = {}
+    for m in lit_re.finditer(js):
+        used.setdefault(js_unesc(m.group(1)[1:-1]), js.count('\n', 0, m.start()) + 1)
+    return used
+
+
+def sync_js_refs(used):
+    """Deja "#: assets/js/caja.js:<línea>" justo en las entradas del .po cuyo texto usa el JavaScript.
+
+    Es el mismo criterio con el que se arma el JSON (el texto sin el contexto), así que el JSON
+    que compila Loco Translate al importar el .po sale igual que el nuestro. Loco ignora la
+    referencia si no lleva número de línea. Solo cambia las líneas "#:" de las entradas que lo
+    necesitan; el resto del archivo queda igual.
+    """
+    blocks = open(PO, encoding='utf-8', newline='').read().split('\n\n')
+    changed = 0
+    for n, block in enumerate(blocks):
+        lines = block.split('\n')
+        at = next((i for i, l in enumerate(lines) if l.startswith('msgid ')), None)
+        if at is None:
+            continue
+        mid = re.match(r'^msgid\s+"(.*)"$', lines[at]).group(1)
+        for l in lines[at + 1:]:
+            if not l.startswith('"'):
+                break
+            mid += l[1:-1]
+        mid = unesc(mid)
+        if mid == '':
+            continue
+        refs = [r for l in lines if l.startswith('#:') for r in l[2:].split()]
+        others = [r for r in refs if re.sub(r':\d+$', '', r) != JS]
+        want = others + (['%s:%d' % (JS, used[mid])] if mid in used else [])
+        if want == refs:
+            continue
+        refs = want
+        lines = [l for l in lines if not l.startswith('#:')]
+        # Va después de los comentarios ("# " y "#.") y antes de las marcas ("#,") y del msgid.
+        pos = next(i for i, l in enumerate(lines) if not (l == '#' or l.startswith('# ') or l.startswith('#.')))
+        if refs:
+            lines.insert(pos, '#: ' + ' '.join(refs))
+        blocks[n] = '\n'.join(lines)
+        changed += 1
+    if changed:
+        open(PO, 'w', encoding='utf-8', newline='').write('\n\n'.join(blocks))
+    return changed
+
+
 def main():
+    used = js_strings()
+    marked = sync_js_refs(used)
     entries = parse_po(PO)
     header = ''
     items = []  # (clave, valor, es_plural)
@@ -152,11 +211,6 @@ def main():
     lines += ['\t),', ');']
     open(os.path.join(BASE, 'languages', 'dox-pos-%s.l10n.php' % LOCALE), 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
 
-    js = open(os.path.join(BASE, JS), encoding='utf-8').read()
-    used = set()
-    lit_re = re.compile(r"""\b_{1,2}n?\s*\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')""")
-    for m in lit_re.finditer(js):
-        used.add(js_unesc(m.group(1)[1:-1]))
     data = {'': {'domain': 'messages', 'lang': LOCALE, 'plural-forms': plural}}
     for k, v, pl in items:
         clean = k.split('\x04')[-1]  # sin el contexto, para ver si el .js usa ese texto
@@ -169,7 +223,8 @@ def main():
     name = 'dox-pos-%s-%s.json' % (LOCALE, hashlib.md5(JS.encode()).hexdigest())
     open(os.path.join(BASE, 'languages', name), 'w', encoding='utf-8').write(
         json.dumps(out, ensure_ascii=False, separators=(',', ':')))
-    print('mo: %d entradas | l10n.php: %d | %s: %d' % (n, len(items), name, len(data) - 1))
+    print('mo: %d entradas | l10n.php: %d | %s: %d | referencias a caja.js cambiadas: %d'
+          % (n, len(items), name, len(data) - 1, marked))
 
 
 main()
