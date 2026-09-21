@@ -22,13 +22,12 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
    `Stable tag`). Si cambia cómo está hecho algo, actualiza `README.md`.
 4. Commit a nombre de davidzoque, **sin Co-Authored-By ni firma de ninguna IA**, con un mensaje que
    empiece por la versión: `v0.21.0: qué cambió`. `git push origin main`.
-5. Solo si es una versión para publicar: etiqueta `vX.Y.Z` y `git push origin vX.Y.Z`. La Action de
-   `.github/workflows/release.yml` comprueba que la etiqueta y la versión coincidan, arma
-   `dox-pos.zip` (el que sirve el actualizador de GitHub, y el único que se adjunta a la release) y
-   `dox-pos-wordpress-org.zip` (queda como artefacto de la ejecución, en la pestaña Actions), y
-   publica la release. Tarda un minuto o dos. No muevas etiquetas ya publicadas. **A la release no
-   se le adjunta ningún otro archivo**: las copias anteriores a la 0.41.0 se actualizan con el
-   primer adjunto que encuentren.
+5. Solo si es una versión para publicar: etiqueta `vX.Y.Z` y `git push origin vX.Y.Z`. El plugin se
+   reparte **solo por WordPress.org**: la Action de `.github/workflows/release.yml` comprueba que la
+   etiqueta y la versión coincidan y deja `dox-pos.zip` (sin `languages/`) como artefacto de la
+   ejecución, en la pestaña Actions. **No se crean releases en GitHub**: las copias antiguas
+   instaladas desde GitHub se actualizarían con ellas. Después, SVN (`~/dev/dox-pos-svn`): trunk y
+   `tags/X.Y.Z` con el mismo contenido que ese zip. No muevas etiquetas ya publicadas.
 6. Desplegar a un sitio: `./subir.sh CUENTA` (el script no va en el repo; está en la carpeta de
    Drive). Después, lint dentro de la jaula del servidor y prueba con clics reales en el navegador.
    Los datos de prueba se borran en la misma sesión.
@@ -38,7 +37,7 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 - Nada de mu-plugins ni funciones escondidas. Nada de código bloqueado esperando una clave (WordPress.org
   no lo admite): lo de pago va en el Pro.
 - No pegar claves ni secretos en el chat ni en el código.
-- No subir a WordPress.org el zip que lleva `vendor/plugin-update-checker`: para eso está `dox-pos-wordpress-org.zip`.
+- `languages/` se queda en el repo (la fuente del español, para translate.wordpress.org y para Loco Translate) y no entra en el zip de WordPress.org, que no admite traducciones dentro.
 
 ## Las capturas del directorio
 

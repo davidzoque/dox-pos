@@ -1,23 +1,17 @@
-name: Build release ZIP
+name: Build WordPress.org ZIP
 
-# Al pushear una etiqueta v* se arman dos zips: el de GitHub (con el actualizador y el español en
-# languages/, el que sirve Plugin Update Checker a los sitios) y el de WordPress.org (sin vendor, sin
-# Update URI, sin languages/ ni load_plugin_textdomain, y sin dox-core, que trae su propio dominio de
-# traducción y sus .mo: el directorio exige que las traducciones vayan por translate.wordpress.org y
-# que todo el texto use el slug del plugin).
+# El plugin se reparte solo por WordPress.org. Al pushear una etiqueta v* se arma el zip del directorio
+# (sin languages/, que se queda en el repo como fuente del español para translate.wordpress.org y para
+# Loco Translate) y se guarda como artefacto de la ejecución (pestaña Actions).
 #
-# A la release solo se adjunta el de GitHub. El de WordPress.org se guarda como artefacto de la
-# ejecución (pestaña Actions), y no en la release, a propósito: los sitios con una copia anterior a
-# la 0.41.0 piden "el primer adjunto de la release", sin mirar el nombre, y GitHub ponía delante el
-# de WordPress.org. Una tienda que actualizara así se quedaba sin el español y sin el actualizador.
+# No se crea ninguna release en GitHub, a propósito: las copias antiguas instaladas desde GitHub
+# (hasta la 0.41.0) se actualizan con el primer adjunto de la última release, y no deben recibir nada
+# más por ahí. Se pasan a la copia del directorio con `wp plugin install dox-pos --force`.
 
 on:
   push:
     tags:
       - 'v*'
-
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -36,25 +30,15 @@ jobs:
             exit 1
           fi
 
-      - name: Construir los zips
+      - name: Construir el zip
         run: |
           mkdir -p build/dox-pos
-          rsync -a --exclude='.git*' --exclude='.wordpress-org' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' --exclude='phpcs.xml.dist' --exclude='tools' ./ build/dox-pos/
+          rsync -a --exclude='.git*' --exclude='.wordpress-org' --exclude='.github' --exclude='build' --exclude='*.zip' --exclude='subir.sh' --exclude='CLAUDE.md' --exclude='README.md' --exclude='phpcs.xml.dist' --exclude='tools' --exclude='languages' ./ build/dox-pos/
           cd build
           zip -rq dox-pos.zip dox-pos
-          rm -rf dox-pos/vendor dox-pos/includes/updater.php dox-pos/languages dox-pos/dox-core
-          sed -i '/^ \* Update URI:/d; /^ \* Domain Path:/d' dox-pos/dox-pos.php
-          sed -i '/dox-pos-repo-only:inicio/,/dox-pos-repo-only:fin/d' dox-pos/dox-pos.php dox-pos/includes/install.php
-          zip -rq dox-pos-wordpress-org.zip dox-pos
 
-      - name: Crear la release y adjuntar el zip de GitHub
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/dox-pos.zip
-          generate_release_notes: true
-
-      - name: Guardar el zip de WordPress.org como artefacto de la ejecución
+      - name: Guardar el zip como artefacto de la ejecución
         uses: actions/upload-artifact@v4
         with:
-          name: dox-pos-wordpress-org
-          path: build/dox-pos-wordpress-org.zip
+          name: dox-pos
+          path: build/dox-pos.zip

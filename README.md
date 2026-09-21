@@ -23,8 +23,6 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 | `includes/pools.php` | Las unidades compartidas por color ("bolsas"): las tallas de un mismo color que comparten existencias llevan el mismo número y se mantienen iguales al vender o al recibir mercancía. |
 | `includes/dashboard.php` | El Panel: las cifras del día, la semana y el mes para quien administra, y lo más vendido de los últimos treinta días, que Vender enseña antes de buscar nada. |
 | `includes/class-dox-pos-image-editor.php` | El editor de fotos de la caja: el de WordPress con ImageMagick, con un paso previo de muestreo para que una foto de 48 megapíxeles no tarde minutos. |
-| `includes/updater.php` | Las actualizaciones desde GitHub (Plugin Update Checker). Solo en la copia del repositorio: el zip de WordPress.org va sin este archivo y sin `vendor/`. |
-| `dox-core/` | El menú común "Dox Plugins" de los plugins de Dox Studio: cada plugin lleva su copia y se ejecuta solo la más nueva. Solo en la copia del repositorio. |
 | `includes/products.php` | Crear y editar productos desde la caja: el formulario (categorías, tallas, colores), las fotos a WebP, el código como lo arma la tienda, el producto variable con sus variaciones, y la edición (buscar, cargar el modelo talla × color, guardar cambios y añadir combinaciones). |
 | `includes/shipping.php` | El costo de envío lo dan las zonas de la tienda, como en el checkout. Evalúa costos escritos como `[qty] > 2 ? 24000 : 12000`, que WooCommerce no entiende. |
 | `includes/shipping-setup.php` | Los costos de envío puestos desde la caja (el engranaje): las zonas y los métodos de WooCommerce con cuatro casos (precio fijo, por peso, gratis desde un monto, recoger en tienda), y las rutas REST `/shipping/setup`, `/shipping/zones` y `/shipping/zones/{zona}/rates`. |
@@ -35,54 +33,22 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 
 ## El idioma
 
-Desde la 0.22.0 el código va **en inglés**, que es lo que espera WordPress.org, y el español viaja
-como traducción en `languages/`: `dox-pos-es_ES.po` (la fuente), `.mo` (el formato de siempre) y
-`.l10n.php` (el que WordPress 6.5 y posteriores prefieren y el que manda si está). Son cerca de mil entradas,
-plurales incluidos.
-`dox_pos_textdomain()` carga la carpeta en `init` con prioridad 1, **solo en la compilación de GitHub**:
-el zip de WordPress.org va sin `languages/` y sin esa llamada (van dentro de los marcadores
-`dox-pos-repo-only`, que la Action quita), porque el directorio lo exige (revisión del 14/09/2026).
-Allí el español se sube a translate.wordpress.org y WordPress lo baja como paquete de idioma.
-
-El paquete trae un solo español, `es_ES`, y WordPress no pasa de `es_CO` o `es_MX` a `es_ES` por su
-cuenta. Desde la 0.40.0, `dox_pos_spanish_fallback_mo()` y `dox_pos_spanish_fallback_json()` (también
-dentro de `dox-pos-repo-only`) devuelven los archivos de `es_ES` cuando el sitio está en otra variante
-del español y no existe una traducción propia de esa variante. Antes, una tienda en "Español de
-Colombia" veía la caja en inglés.
-
-Al tocar un texto: cambiarlo en inglés en el código y añadir el par al `.po`, y regenerar el `.mo` y
-el `.l10n.php` (los tres tienen que decir lo mismo, y el `.l10n.php` gana). Un sitio en español no
-nota nada: la caja y los ajustes siguen en español palabra por palabra.
-
-Los textos del JavaScript van por el mismo camino, con el sistema de traducción de scripts:
-`caja.js` se encola con dependencia de `wp-i18n` y `wp_set_script_translations()` le sirve
-`languages/dox-pos-<idioma>-<md5 de "assets/js/caja.js">.json`. Dentro del archivo, `__`, `_n` y
-`sprintf` salen de `window.wp.i18n` con un respaldo por si algún optimizador tira ese script: sin
-él la caja funciona en inglés, no se queda en blanco. `ajustes.js` no lo necesita: sus textos
-llegan del PHP en `DOX_POS_AJUSTES.i18n`.
-
-El `.po` lleva todo (PHP y JavaScript, 698 entradas); el `.mo` y el `.l10n.php` solo lo del PHP,
-y el `.json` solo lo del JavaScript, que es como lo reparte WordPress. El Pro sigue entero en
-español: no va a WordPress.org.
-
-## Cómo se cargan los archivos de la caja
-
-La caja es una página completa fuera del tema, así que no llama a `wp_head()` ni a `wp_footer()`: arrastrarían todo lo del tema y de los demás plugins. Aun así, la hoja de estilo y el JS se encolan con el sistema de WordPress (`dox_pos_enqueue_caja()`, en `page.php`): `dox-pos-caja` (con los colores de la marca como CSS en línea, `wp_add_inline_style`), `dox-pos-fonts` si las fuentes vienen de Google, y `dox-pos-caja` en JS con `window.DOX_POS` delante (`wp_add_inline_script`, posición `before`). La línea que arranca la caja (`DoxPOS.arrancar()`) es otro script en línea, en un handle sin archivo, `dox-pos-start`, que depende de todo lo encolado para la caja y por eso sale el último (`dox_pos_enqueue_start()`, que la plantilla llama después del gancho `dox_pos_scripts`); WordPress.org no admite etiquetas `<script>` sueltas en las plantillas. Lo que se imprime se acota a los archivos del plugin: `dox_pos_assets( 'style' | 'script' )` filtra la cola por el prefijo `dox-pos` (con el filtro `dox_pos_assets` para un añadido que use otro), la cabecera hace `wp_print_styles()` con esa lista y la plantilla `wp_print_scripts()` al final, después del gancho `dox_pos_scripts`. Sin eso se colaban en la caja la barra de administración y lo que otros plugins encolen pronto. Un añadido solo tiene que encolar en `dox_pos_scripts` con dependencia de `dox-pos-caja`.
-
-## Las fuentes y los servicios de fuera
-
-De fábrica la caja usa las fuentes del sistema y el plugin no habla con ningún servidor de fuera (desde la 0.37.0; antes Google Fonts venía encendido, y el directorio de WordPress.org no admite que nada salga del sitio sin que la tienda lo elija). El interruptor "Cargar las fuentes desde Google Fonts" (Ajustes > Marca, `dox_pos_fonts_on()`) las enciende: entonces `dox_pos_fonts_url()` arma la hoja de Google, la página de ajustes carga Inter y las dos fuentes, y el sanitizador le pregunta a Google si existe una fuente nueva. Los nombres de fuente pasan por `dox_pos_font_name()` (solo letras, números, espacios y guiones) al guardar y otra vez al entrar en el CSS y en la URL, para que unas comillas o un punto y coma no rompan la hoja.
-
-## Dónde están los ajustes
+Desde la 0.22.0 el código va **en inglés**, que es lo que espera WordPress.org. El español vive en
+`languages/` **solo en el repositorio**: `dox-pos-es_ES.po` es la fuente (cerca de mil entradas, plurales
+incluidos) y `python3 tools/build-translations.py` genera el `.mo`, el `.l10n.php` y el JSON de `caja.js`.
+El zip de WordPress.org va sin esa carpeta y sin `load_plugin_textdomain`, porque el directorio lo exige
+(revisión del 14/09/2026): allí el español se sube a translate.wordpress.org y WordPress lo baja como
+paquete de idioma. Mientras ese paquete no esté aprobado, una tienda lo pone en español de dos maneras:
+copiando los tres archivos generados a `wp-content/languages/plugins/` (con el nombre de su variante si
+no es `es_ES`), o importando el `.po` en Loco Translate.
 
 En `admin.php?page=dox-pos`, siempre la misma dirección, pero colgando de un menú u otro:
 
 - **Dox Plugins > POS** cuando está el menú común de Dox Studio (`dox-core`, la carpeta que viaja
-  dentro de cada plugin Dox y que junta todos bajo un solo menú). Lo trae la copia de GitHub, y
-  también cualquier otro plugin Dox instalado en el sitio. El submenú lo crea ese menú a partir de
+  dentro de cada plugin Dox y que junta todos bajo un solo menú). Lo trae cualquier otro plugin Dox instalado en el sitio (Dox POS no lleva su copia). El submenú lo crea ese menú a partir de
   `dox_pos_register_in_dox_menu()` (`page`, con `manage_woocommerce` para que los gerentes de tienda
   sigan entrando); `dox_pos_admin_menu()` no hace nada.
-- **WooCommerce > Dox POS** sin él: la copia de WordPress.org, que va sin `dox-core`, instalada sola.
+- **WooCommerce > Dox POS** sin él: Dox POS como único plugin Dox del sitio.
 
 El hook de la pantalla cambia con el menú (`dox-plugins_page_dox-pos` o `woocommerce_page_dox-pos`),
 así que `dox_pos_admin_assets()` mira solo el final (`_page_dox-pos`). El Pro no depende de eso:
@@ -100,22 +66,16 @@ Todo se cambia en WooCommerce > Dox POS, una página con cinco pestañas y una v
 - **Los apartados**: horas, la plantilla del mensaje de WhatsApp (`{nombre}`, `{productos}`, `{total}`, `{horas}`, `{link}`, `{tienda}`) y cómo pagar por fuera del link.
 - **Los envíos**: las transportadoras que se sugieren. Costos, país, departamentos y moneda salen de WooCommerce (y las ciudades de Colciudades, si está).
 
-## Actualizaciones desde GitHub
+## Cómo se publica
 
-La copia que se reparte desde GitHub carga `vendor/plugin-update-checker` (en `includes/updater.php`)
-apuntando al repositorio público `davidzoque/dox-pos` (rama `main`, con
-`enableReleaseAssets( '/^dox-pos\.zip$/' )`, que pide el zip por su nombre), y la cabecera `Update URI`
-evita que WordPress busque el slug en WordPress.org. La copia de WordPress.org no lleva nada de eso: se
-actualiza desde el directorio. Para sacar versión: subir la versión en
-la cabecera y en `DOX_POS_VERSION`, commit, y una etiqueta `vX.Y.Z` (`git tag vX.Y.Z && git push --tags`, o
-desde GitHub Desktop: History > clic derecho en el commit > Create tag > Push). El workflow
-`.github/workflows/release.yml` comprueba que la etiqueta y la versión coincidan, arma `dox-pos.zip` (el que
-sirve el actualizador, y el único adjunto de la release) y `dox-pos-wordpress-org.zip` (sin `vendor/`,
-`includes/updater.php`, `languages/`, `dox-core/` ni las cabeceras `Update URI` y `Domain Path`; queda como
-artefacto de la ejecución en la pestaña Actions, no en la release, porque las copias anteriores a la 0.41.0
-se actualizan con el primer adjunto que encuentren), y publica la release. Los sitios lo ven en Plugins en menos de 12 horas (o al pulsar
-"Comprobar de nuevo" en Actualizaciones). El Pro no se actualiza por GitHub (el repositorio es privado y
-haría falta un token dentro del plugin): irá por el servidor de licencias; mientras, `subir.sh`.
+Dox POS se reparte **solo por WordPress.org** (desde el 21/09/2026; hasta la 0.41.0 hubo además una copia
+con actualizador propio desde GitHub, que ya no existe). Para sacar versión: subir la versión en la cabecera
+y en `DOX_POS_VERSION`, la entrada del changelog y el `Stable tag`, commit, y una etiqueta `vX.Y.Z`. El
+workflow `.github/workflows/release.yml` comprueba que la etiqueta y la versión coincidan y deja `dox-pos.zip`
+(sin `languages/` ni archivos de desarrollo) como artefacto de la ejecución; ese mismo contenido va a `trunk/`
+y a `tags/X.Y.Z` del SVN. **No se crean releases en GitHub**: las copias antiguas de GitHub se actualizarían
+con ellas; se pasan a la del directorio con `wp plugin install dox-pos --force`, que no borra los ajustes.
+El Pro irá por el servidor de licencias; mientras, `subir.sh`.
 
 ## Subir a un servidor
 

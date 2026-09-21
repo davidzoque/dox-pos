@@ -30,13 +30,6 @@ function dox_pos_maybe_install() {
  * Deja todo lo que el plugin necesita. Repetirlo no hace daño.
  */
 function dox_pos_install() {
-	// dox-pos-repo-only:inicio
-	// Copia de GitHub: al activar desde la lista de plugins init ya pasó y la traducción no se cargó, y el
-	// rol "Caja" se crea con el nombre del idioma del sitio. El zip de WordPress.org va sin estas líneas.
-	if ( function_exists( 'dox_pos_textdomain' ) && ! is_textdomain_loaded( 'dox-pos' ) ) {
-		dox_pos_textdomain();
-	}
-	// dox-pos-repo-only:fin
 	dox_pos_install_roles();
 	dox_pos_install_tables();
 	dox_pos_freeze_slug();

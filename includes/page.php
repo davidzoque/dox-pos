@@ -246,7 +246,7 @@ function dox_pos_enqueue_caja( $cfg = null ) {
 		return;
 	}
 	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n' ), $ver, true );
-	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' ); // Los textos del JS: del languages/ del paquete si lo trae (copia de GitHub) o del paquete de idioma de WordPress.org.
+	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' ); // Los textos del JS: del paquete de idioma de WordPress.org (o de Loco Translate); languages/ solo existe en el repo.
 	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
 }
 
