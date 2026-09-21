@@ -834,6 +834,19 @@ function dox_pos_admin_menu() {
 	add_submenu_page( 'woocommerce', 'Dox POS', 'Dox POS', 'manage_woocommerce', 'dox-pos', 'dox_pos_settings_page' );
 }
 
+// La caja no se muda de WooCommerce, que es donde la busca quien la usa: solo
+// se apunta en la portada del menú común de Dox Studio, si es que existe.
+add_action( 'dox_core_register', 'dox_pos_register_in_dox_menu' );
+function dox_pos_register_in_dox_menu( $core ) {
+	$core->register_plugin( [
+		'slug'         => 'dox-pos',
+		'name'         => 'Dox POS',
+		'version'      => DOX_POS_VERSION,
+		'summary'      => __( 'A point of sale for WooCommerce: sell in person with the same catalogue and the same stock.', 'dox-pos' ),
+		'settings_url' => 'admin.php?page=dox-pos',
+	] );
+}
+
 // options.php pide manage_options si no se le dice otra cosa; los gerentes de tienda también guardan.
 add_filter( 'option_page_capability_dox_pos', 'dox_pos_option_page_capability' );
 function dox_pos_option_page_capability() {

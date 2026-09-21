@@ -3,7 +3,7 @@
  * Plugin Name:       Dox POS
  * Plugin URI:        https://doxstudio.com/dox-pos/
  * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
- * Version:           0.39.0
+ * Version:           0.40.0
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.39.0' );
+define( 'DOX_POS_VERSION', '0.40.0' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -47,6 +47,13 @@ function dox_pos_textdomain() {
 	load_plugin_textdomain( 'dox-pos', false, dirname( plugin_basename( DOX_POS_FILE ) ) . '/languages' );
 }
 // dox-pos-repo-only:fin
+
+// Menú común de los plugins de Dox Studio: la caja sigue donde está, dentro de
+// WooCommerce, y solo se asoma a la portada de "Dox Plugins" cuando hay más
+// plugins Dox instalados. Cada plugin lleva su copia de dox-core y se ejecuta
+// solo la más nueva.
+require_once DOX_POS_PATH . 'dox-core/loader.php';
+Dox_Core_Loader::register( '1.0.0', DOX_POS_PATH . 'dox-core/dox-core.php' );
 
 require_once DOX_POS_PATH . 'includes/roles.php';
 require_once DOX_POS_PATH . 'includes/page.php';

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.39.0
+Stable tag: 0.40.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -87,6 +87,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.40.0 =
+* New: Dox POS now shows up in the shared **Dox Plugins** menu when other Dox Studio plugins are installed, with a link to its settings. The register itself does not move: it stays under WooCommerce > Dox POS, which is where anyone using it looks for it. On a site where Dox POS is the only Dox plugin, no extra menu is added at all.
 
 = 0.39.0 =
 * The totals and the headings of the register now use the font of the phone or the computer, the same one as the rest of the screen, instead of always falling back to Georgia. A shop that prefers a serif picks it in WooCommerce > Dox POS > Brand from a list of fonts every device already has (Georgia, Charter, Iowan Old Style, Palatino, Baskerville, Times New Roman): nothing is downloaded and nothing is requested from outside. With Google Fonts on, the one you pick here is what shows if Google does not answer.
