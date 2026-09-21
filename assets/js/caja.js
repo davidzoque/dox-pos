@@ -85,6 +85,7 @@
 		catOn: false,                             // ¿la lista de Inventario enseña eso ahora?
 		vars: {},                                 // id de variación -> {v, p}
 		rates: [],                                // opciones de envío que dio la tienda
+		sinTarifa: false,                         // se preguntó por ese destino y la tienda no cobra nada ahí
 		rate: null,                               // la elegida
 		pedidos: [],
 		entradas: [],
@@ -154,7 +155,7 @@
 			return;
 		}
 		p.ctrl = new AbortController();
-		if (!st.res[modo].length) ul.innerHTML = vacio("Buscando…");
+		if (!st.res[modo].length) ul.innerHTML = vacio(__("Searching\u2026", "dox-pos"));
 		try {
 			const data = await api("search?q=" + encodeURIComponent(q), { signal: p.ctrl.signal });
 			data.items.forEach((prod) => prod.variations.forEach((v) => { st.vars[v.id] = { v: v, p: prod }; }));
@@ -319,7 +320,7 @@
 					const eb = document.createElement("button");
 					eb.type = "button";
 					eb.className = "var editlink";
-					eb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Editar este producto';
+					eb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' + esc(__("Edit this product", "dox-pos"));
 					eb.onclick = () => editarDesdeLista(p.id);
 					box.appendChild(eb);
 				}
@@ -435,18 +436,21 @@
 		clearTimeout(envioTimer);
 		envioTimer = setTimeout(cargarEnvio, 400);
 	}
+	const codigoPostal = () => ($("#f-cp") ? $("#f-cp").value.trim() : "");
 	async function cargarEnvio() {
 		const state = $("#f-dep").value;
 		const city = $("#f-ciu").value.trim();
-		if (sinEnvio() || !st.lineas.length || (!state && !city)) {
+		if (sinEnvio() || !st.lineas.length || (!state && !city && !codigoPostal())) {
 			st.rates = [];
 			st.rate = null;
+			st.sinTarifa = false;
 			pintarEnvio();
 			return;
 		}
 		try {
-			const data = await post("shipping", { state: state, city: city, address: $("#f-dir").value.trim(), lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })) });
+			const data = await post("shipping", { state: state, city: city, postcode: codigoPostal(), address: $("#f-dir").value.trim(), lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })) });
 			st.rates = data.rates || [];
+			st.sinTarifa = !st.rates.length; // Se preguntó y la tienda no cobra nada a ese destino: se dice, en vez de seguir pidiendo la ciudad.
 			st.rate = st.rates.find((r) => st.rate && r.id === st.rate.id) || st.rates[0] || null;
 			if (st.rate) $("#f-env").value = miles(redondear(st.rate.cost)) || "0";
 			pintarEnvio();
@@ -460,6 +464,10 @@
 		const box = $("#f-envio");
 		box.innerHTML = "";
 		if (!st.rates.length) {
+			if (st.sinTarifa && st.lineas.length) {
+				box.innerHTML = '<span class="hint">' + esc(cfg.shipping_setup ? __("The store has no shipping cost for this place yet. Type it below for this sale, or set it up once in Shipping costs.", "dox-pos") : __("The store has no shipping cost for this place. Type it below.", "dox-pos")) + "</span>";
+				return;
+			}
 			box.innerHTML = '<span class="hint">' + (st.lineas.length ? esc(sprintf(__("Choose the %s and the city to see the store\u2019s shipping options.", "dox-pos"), (cfg.state_label || "state").toLowerCase())) : esc(__("Add products and set the city to see the shipping.", "dox-pos"))) + "</span>";
 			return;
 		}
@@ -472,6 +480,434 @@
 			});
 			box.appendChild(b);
 		});
+	}
+
+	// ---------- la hoja: lo que se ajusta sin salir de la caja ----------
+	// En el teléfono sube desde abajo y se baja arrastrándola por la cabecera (sigue al dedo, y al
+	// soltarla decide por la velocidad: un empujón corto basta); en pantalla ancha es una tarjeta
+	// centrada. Dentro lleva una pila de vistas que entran por la derecha y salen por donde vinieron.
+	const hoja = { pila: [], foco: null, timer: 0 };
+	const hojaAbierta = () => !!$("#sheet") && !$("#sheet").hidden;
+	const hojaMovil = () => $("#app").clientWidth <= 760;
+	function abrirHoja(vista) {
+		const sh = $("#sheet");
+		if (!sh) return;
+		clearTimeout(hoja.timer);
+		hoja.pila = [];
+		hoja.foco = document.activeElement;
+		$("#sheet-views").innerHTML = "";
+		const card = $("#sheet-card");
+		card.style.transform = "";
+		sh.style.removeProperty("--drag");
+		sh.classList.remove("out", "dragging");
+		sh.hidden = false;
+		empujar(vista);
+	}
+	function cerrarHoja() {
+		const sh = $("#sheet");
+		if (!sh || sh.hidden || sh.classList.contains("out")) return;
+		$("#sheet-card").style.transform = ""; // Si venía arrastrada, sale desde donde está: la transición parte de lo que hay en pantalla.
+		sh.style.removeProperty("--drag");
+		sh.classList.remove("dragging");
+		sh.classList.add("out");
+		hoja.timer = setTimeout(() => {
+			sh.hidden = true;
+			sh.classList.remove("out");
+			$("#sheet-views").innerHTML = "";
+			hoja.pila = [];
+			if (hoja.foco && hoja.foco.focus && document.contains(hoja.foco)) hoja.foco.focus();
+		}, 300);
+	}
+	function empujar(vista) {
+		const actual = hoja.pila[hoja.pila.length - 1];
+		if (actual) actual.scroll = ($("#sheet-views").lastElementChild || {}).scrollTop || 0;
+		hoja.pila.push(vista);
+		pintarVista(actual ? "der" : "");
+	}
+	// Vuelve una vista atrás (o varias). La que queda se pinta de nuevo, con lo que haya cambiado.
+	function volver(n) {
+		if (hoja.pila.length < 2) { cerrarHoja(); return; }
+		for (let i = 0; i < (n || 1) && hoja.pila.length > 1; i++) hoja.pila.pop();
+		pintarVista("izq");
+	}
+	function repintarVista() { pintarVista("igual"); }
+	function pintarVista(desde) {
+		const cont = $("#sheet-views");
+		const vista = hoja.pila[hoja.pila.length - 1];
+		const vieja = cont.lastElementChild;
+		const el = document.createElement("div");
+		el.className = "sheet-view";
+		vista.pintar(el);
+		const anim = desde === "der" || desde === "izq";
+		if (anim) el.classList.add(desde === "der" ? "from-right" : "from-left");
+		cont.appendChild(el);
+		$("#sheet-title").textContent = vista.titulo;
+		const atras = hoja.pila.length > 1;
+		$("#sheet-back").hidden = !atras;
+		$("#sheet-back-txt").textContent = atras ? (hoja.pila[hoja.pila.length - 2].corto || __("Back", "dox-pos")) : "";
+		$("#sheet-done").hidden = atras;
+		if (vieja) {
+			if (anim) { vieja.classList.add(desde === "der" ? "to-left" : "to-right"); vieja.setAttribute("inert", ""); setTimeout(() => vieja.remove(), 340); }
+			else vieja.remove();
+		}
+		if (anim) { void el.offsetWidth; el.classList.remove("from-right", "from-left"); } // Leer el ancho fija el punto de partida; al quitar la clase, entra.
+		if (desde !== "der" && vista.scroll) el.scrollTop = vista.scroll;
+		if (desde !== "igual") { const f = el.querySelector("[data-foco]"); if (f && !hojaMovil()) f.focus(); } // En el teléfono no se abre el teclado sin que lo pidan.
+	}
+	// Hacia dónde va un arrastre que se suelta con esa velocidad (px/s), como frena un desplazamiento.
+	const proyectar = (v) => (v / 1000) * 0.998 / (1 - 0.998) * 0.12;
+	// Más allá del tope sigue al dedo cada vez menos, en vez de pararse en seco.
+	const gomita = (d, dim) => (d * dim * 0.55) / (dim + 0.55 * Math.abs(d));
+	function armarHoja() {
+		const sh = $("#sheet");
+		if (!sh) return;
+		const top = $("#sheet-top"), card = $("#sheet-card");
+		let y0 = 0, dy = 0, activo = false, id = null, muestras = [];
+		top.addEventListener("pointerdown", (e) => {
+			if (activo || !hojaMovil() || e.target.closest("button")) return;
+			activo = true; id = e.pointerId; y0 = e.clientY; dy = 0;
+			muestras = [{ t: e.timeStamp, y: e.clientY }];
+			try { top.setPointerCapture(id); } catch (err) { /* sin captura se sigue igual */ }
+			sh.classList.add("dragging");
+		});
+		top.addEventListener("pointermove", (e) => {
+			if (!activo || e.pointerId !== id) return; // Un segundo dedo no mueve la hoja.
+			dy = e.clientY - y0;
+			muestras.push({ t: e.timeStamp, y: e.clientY });
+			if (muestras.length > 6) muestras.shift();
+			const h = card.offsetHeight || 1;
+			card.style.transform = "translateY(" + (dy >= 0 ? dy : -gomita(-dy, h) * 0.35) + "px)";
+			sh.style.setProperty("--drag", String(Math.max(0, Math.min(1, dy / h))));
+		});
+		const soltar = (e) => {
+			if (!activo || e.pointerId !== id) return;
+			activo = false;
+			const a = muestras[0], b = muestras[muestras.length - 1];
+			const v = b.t > a.t ? ((b.y - a.y) / (b.t - a.t)) * 1000 : 0;
+			sh.classList.remove("dragging");
+			// Manda el sentido del gesto, no la posición: si al soltar iba hacia arriba, se queda.
+			if (v >= 0 && dy + proyectar(v) > (card.offsetHeight || 1) * 0.4) cerrarHoja();
+			else { card.style.transform = ""; sh.style.removeProperty("--drag"); }
+		};
+		top.addEventListener("pointerup", soltar);
+		top.addEventListener("pointercancel", soltar);
+		sh.addEventListener("click", (e) => { if (e.target === sh) cerrarHoja(); });
+		$("#sheet-done").onclick = cerrarHoja;
+		$("#sheet-back").onclick = () => volver();
+	}
+
+	// ---------- el engranaje ----------
+	function armarEngranaje() {
+		const g = $("#gear"), m = $("#gearmenu");
+		if (!g || !m) return;
+		let timer = 0;
+		const cerrar = () => {
+			if (m.hidden || m.classList.contains("out")) return;
+			g.setAttribute("aria-expanded", "false");
+			m.classList.add("out");
+			timer = setTimeout(() => { m.hidden = true; m.classList.remove("out"); }, 130);
+		};
+		g.onclick = () => {
+			if (!m.hidden && !m.classList.contains("out")) { cerrar(); return; }
+			clearTimeout(timer);
+			m.classList.remove("out");
+			// Sale pegado al botón y crece desde él: hacia la izquierda si el botón está a la derecha (lo normal), o al revés.
+			const a = $("#app").getBoundingClientRect(), r = g.getBoundingClientRect();
+			const derecha = r.left + r.width / 2 - a.left >= a.width / 2;
+			m.style.top = Math.round(r.bottom - a.top + 8) + "px";
+			m.style.right = derecha ? Math.max(8, Math.round(a.right - r.right)) + "px" : "auto";
+			m.style.left = derecha ? "auto" : Math.max(8, Math.round(r.left - a.left)) + "px";
+			m.style.transformOrigin = derecha ? "top right" : "top left";
+			m.hidden = false;
+			g.setAttribute("aria-expanded", "true");
+		};
+		document.addEventListener("pointerdown", (e) => { if (!m.hidden && !m.contains(e.target) && !g.contains(e.target)) cerrar(); });
+		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !m.hidden) { cerrar(); g.focus(); } });
+		m.addEventListener("click", (e) => { if (e.target.closest("[role=menuitem]")) cerrar(); });
+		$("#gm-envios").onclick = abrirCostos;
+	}
+
+	// ---------- los costos de envío, puestos desde la caja ----------
+	// No hay tarifas propias: son las zonas y los métodos de envío de WooCommerce, con los cuatro casos
+	// que usa casi cualquier tienda. Por eso cobra lo mismo el checkout de la web que la caja.
+	const en = { data: null };
+	const IC = {
+		flat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg>',
+		weight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.9 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.93-2.54L19.4 9.5A2 2 0 0 0 17.48 8z"/></svg>',
+		free: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>',
+		pickup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>',
+		other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+		go: '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+		plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+		check: '<span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>',
+		minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>',
+	};
+	const tiposEnvio = () => [
+		{ id: "flat", nombre: __("Fixed price", "dox-pos"), que: __("The same for every order.", "dox-pos"), titulo: __("Shipping", "dox-pos") },
+		{ id: "weight", nombre: __("By weight", "dox-pos"), que: __("Heavier orders pay more.", "dox-pos"), titulo: __("Shipping", "dox-pos") },
+		{ id: "free", nombre: __("Free shipping", "dox-pos"), que: __("Always, or from an amount.", "dox-pos"), titulo: __("Free shipping", "dox-pos") },
+		{ id: "pickup", nombre: __("Store pickup", "dox-pos"), que: __("The customer collects it.", "dox-pos"), titulo: __("Store pickup", "dox-pos") }, // "Pickup" a secas ya es otra cosa en los ajustes (un canal que se entrega en mano).
+	];
+	const nombreTipo = (r) => { const t = tiposEnvio().find((x) => x.id === r.type); return t ? t.nombre : (r.label || ""); };
+	const nombreZona = (z) => (z.scope === "rest" ? __("Everywhere else", "dox-pos") : (z.name || z.where));
+	// Un importe sin los decimales cuando son ceros ("$6", no "$6.00"): en una fila estrecha se lee mejor.
+	const dineroCorto = (n) => {
+		const v = Number(n) || 0;
+		return M.decimals > 0 && v === Math.round(v) ? dinero(v).replace(M.decimal + "0".repeat(M.decimals), "") : dinero(v);
+	};
+	// Lo que dice una fila a la derecha: "$6", "from $150", "$6 to $16"...
+	function resumenCosto(r) {
+		if (!r.editable) return r.why === "formula" ? __("Formula", "dox-pos") : (r.why === "coupon" ? __("With coupon", "dox-pos") : "");
+		if (r.type === "flat") return dineroCorto(r.cost);
+		if (r.type === "pickup") return r.cost ? dineroCorto(r.cost) : __("Free", "dox-pos");
+		if (r.type === "free") return r.min ? sprintf(__("from %s", "dox-pos"), dineroCorto(r.min)) : __("Always", "dox-pos");
+		const v = (r.tiers || []).map((t) => t.cost);
+		if (r.over !== "" && r.over != null) v.push(r.over);
+		if (!v.length) return "";
+		const a = Math.min.apply(null, v), b = Math.max.apply(null, v);
+		return a === b ? dineroCorto(a) : sprintf(__("%1$s to %2$s", "dox-pos"), dineroCorto(a), dineroCorto(b));
+	}
+	async function abrirCostos() {
+		if (!navigator.onLine) { toast(__("Setting the shipping costs needs a connection.", "dox-pos")); return; }
+		abrirHoja(vistaCostos());
+		try {
+			en.data = await api("shipping/setup");
+			if (hojaAbierta()) repintarVista();
+		} catch (e) {
+			if (e.message !== "sesion") { toast(e.message); cerrarHoja(); }
+		}
+	}
+	// Guardar o borrar devuelve la pantalla entera ya con el cambio: se vuelve a la lista y la venta
+	// que esté abierta pregunta otra vez cuánto cuesta su envío.
+	async function mandarCostos(btn, texto, fn, atras) {
+		if (btn.getAttribute("aria-busy") === "true") return;
+		const soltar = ocupar(btn, texto);
+		btn.disabled = true;
+		try {
+			en.data = await fn();
+			st.rate = null;
+			programarEnvio();
+			volver(atras || 1);
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+		}
+		soltar();
+		btn.disabled = false;
+	}
+	function vistaCostos() {
+		return {
+			titulo: __("Shipping costs", "dox-pos"),
+			corto: __("Costs", "dox-pos"),
+			pintar(el) {
+				const d = en.data;
+				if (!d) { el.innerHTML = '<div class="sh-load"><span class="spin" aria-hidden="true"></span>' + esc(__("Loading…", "dox-pos")) + "</div>"; return; }
+				const zonas = d.zones || [];
+				const resto = zonas.find((z) => z.scope === "rest");
+				const vacio = zonas.length <= 1 && !(resto && resto.rates.length);
+				let h = '<p class="sh-lead">' + esc(__("What shipping costs. The register and the web store checkout charge the same, because both read it from here.", "dox-pos")) + "</p>";
+				if (vacio) {
+					h += '<div class="sh-empty"><span class="sh-empty-ic">' + IC.other + "</span><h4>" + esc(__("No shipping costs yet", "dox-pos")) + "</h4><p>" + esc(sprintf(__("Start with all of %s: one price, by weight, or free from an amount. You can split it by region later.", "dox-pos"), d.country_name)) + '</p><button type="button" class="go" id="sh-start">' + esc(sprintf(__("Start with %s", "dox-pos"), d.country_name)) + "</button></div>";
+				} else {
+					zonas.forEach((z) => {
+						h += '<section class="sh-zone"><div class="sh-zhead"><h4>' + esc(nombreZona(z)) + "</h4>" + (z.scope !== "rest" ? '<button type="button" class="undo" data-zona="' + z.id + '">' + esc(__("Edit", "dox-pos")) + "</button>" : "") + "</div>" +
+							(z.scope !== "rest" && z.where && z.where !== z.name ? '<p class="sh-where">' + esc(z.where) + "</p>" : "") + '<div class="rows">';
+						z.rates.forEach((r) => {
+							h += '<button type="button" class="row' + (r.enabled ? "" : " off") + '" data-z="' + z.id + '" data-r="' + r.id + '"><span class="row-ic">' + (IC[r.type] || IC.other) + '</span><span class="row-main"><b>' + esc(r.title || nombreTipo(r)) + "</b>" + ((t2) => (t2 ? "<i>" + esc(t2) + "</i>" : ""))([r.title && r.title !== nombreTipo(r) ? nombreTipo(r) : "", r.enabled ? "" : __("Off", "dox-pos")].filter(Boolean).join(" · ")) + '</span><span class="row-val">' + esc(resumenCosto(r)) + "</span>" + IC.go + "</button>";
+						});
+						h += '<button type="button" class="row add" data-add="' + z.id + '"><span class="row-ic">' + IC.plus + '</span><span class="row-main"><b>' + esc(__("Add a cost", "dox-pos")) + "</b></span></button></div>" +
+							(z.rates.some((r) => r.enabled) ? "" : '<p class="hint">' + esc(z.scope === "rest" ? __("Without a cost here, a place that no zone covers gets no shipping option.", "dox-pos") : __("Without a cost here, these places get no shipping option: the store does not fall back to another zone.", "dox-pos")) + "</p>") + "</section>";
+					});
+					h += '<button type="button" class="go alt" id="sh-zona">' + esc(__("Add a zone", "dox-pos")) + "</button>";
+				}
+				h += '<p class="sh-note">' + esc(__("Formulas, coupons and zones for other countries are set in WooCommerce.", "dox-pos")) + ' <a href="' + esc(d.wc_url) + '" target="_blank" rel="noopener">' + esc(__("Open it", "dox-pos")) + "</a></p>";
+				el.innerHTML = h;
+				const zona = (id) => zonas.find((z) => String(z.id) === String(id));
+				el.querySelectorAll("[data-r]").forEach((b) => { b.onclick = () => { const z = zona(b.dataset.z); empujar(vistaCosto(z, z.rates.find((r) => String(r.id) === b.dataset.r), null)); }; });
+				el.querySelectorAll("[data-add]").forEach((b) => { b.onclick = () => empujar(vistaTipos(zona(b.dataset.add))); });
+				el.querySelectorAll("[data-zona]").forEach((b) => { b.onclick = () => empujar(vistaZona(zona(b.dataset.zona))); });
+				// Ojo: la vista se pinta antes de colgarse del documento, así que todo se busca dentro de ella (el), no con $().
+				const masZona = el.querySelector("#sh-zona"), empezar = el.querySelector("#sh-start");
+				if (masZona) masZona.onclick = () => empujar(vistaZona(null));
+				if (empezar) empezar.onclick = async (e) => {
+					const btn = e.currentTarget;
+					const soltar = ocupar(btn, __("Saving…", "dox-pos"));
+					btn.disabled = true;
+					try {
+						en.data = await post("shipping/zones", { scope: "country" });
+						const z = en.data.zones.find((x) => x.scope === "country") || en.data.zones[0];
+						repintarVista();
+						empujar(vistaTipos(z));
+					} catch (err) {
+						if (err.message !== "sesion") toast(err.message);
+						soltar();
+						btn.disabled = false;
+					}
+				};
+			},
+		};
+	}
+	// Cómo se cobra: las cuatro maneras, cada una con lo que hace.
+	function vistaTipos(z) {
+		return {
+			titulo: __("New cost", "dox-pos"),
+			corto: __("Back", "dox-pos"),
+			pintar(el) {
+				el.innerHTML = '<p class="sh-lead">' + esc(sprintf(__("%s: how is shipping charged?", "dox-pos"), nombreZona(z))) + '</p><div class="rows">' +
+					tiposEnvio().map((t) => '<button type="button" class="row tall" data-t="' + t.id + '"><span class="row-ic">' + IC[t.id] + '</span><span class="row-main"><b>' + esc(t.nombre) + "</b><i>" + esc(t.que) + "</i></span>" + IC.go + "</button>").join("") + "</div>";
+				el.querySelectorAll("[data-t]").forEach((b) => { b.onclick = () => empujar(vistaCosto(z, null, b.dataset.t)); });
+			},
+		};
+	}
+	// Un campo de importe, con el símbolo de la moneda dentro y del lado que lo pone la tienda.
+	function campoImporte(id, valor, extra) {
+		const izq = String(M.pos).indexOf("left") === 0;
+		return '<span class="uwrap' + (izq ? " pre" : "") + '"><input id="' + id + '" inputmode="' + IM + '" autocomplete="off" placeholder="0" value="' + esc(valor === "" || valor == null ? "" : (miles(redondear(valor)) || "0")) + '"' + (extra || "") + "><i>" + esc(M.symbol) + "</i></span>";
+	}
+	// Un costo: nuevo (r null, con su tipo) o uno que ya existe.
+	function vistaCosto(z, r, tipo) {
+		const nuevo = !r;
+		const t = nuevo ? tipo : r.type;
+		const def = tiposEnvio().find((x) => x.id === t);
+		const u = (en.data && en.data.weight_unit) || (cfg.units || {}).weight || "kg";
+		// Los tramos con que se empieza: los pesos ya puestos, para que solo falte el precio.
+		const arranque = { g: [500, 2000], oz: [8, 32] }[u] || [1, 5];
+		let tramos = nuevo ? arranque.map((x) => ({ up_to: x, cost: "" })) : (r.tiers || []).map((x) => ({ up_to: x.up_to, cost: x.cost }));
+		return {
+			titulo: nuevo ? def.nombre : (r.title || nombreTipo(r)),
+			corto: __("Back", "dox-pos"),
+			pintar(el) {
+				let h = "";
+				if (!nuevo && !r.editable) {
+					const por = r.why === "formula" ? sprintf(__("Its price is a formula (%s), so it is changed in WooCommerce. Here you can turn it on or off.", "dox-pos"), r.formula) : (r.why === "coupon" ? __("It asks for a coupon, so it is changed in WooCommerce. Here you can turn it on or off.", "dox-pos") : sprintf(__("It comes from another plugin (%s) and is set up there. Here you can turn it on or off.", "dox-pos"), r.label));
+					h += '<p class="fwarn">' + esc(por) + "</p>";
+				} else {
+					h += '<div class="grp"><div class="field"><label for="sh-nom">' + esc(__("Name", "dox-pos")) + '</label><input id="sh-nom" autocomplete="off" value="' + esc(nuevo ? def.titulo : r.title) + '"><p class="hint">' + esc(__("What the customer reads when choosing the shipping.", "dox-pos")) + "</p></div></div>";
+					if (t === "flat" || t === "pickup") {
+						h += '<div class="grp"><div class="field"><label for="sh-cost">' + esc(__("Price", "dox-pos")) + "</label>" + campoImporte("sh-cost", nuevo ? "" : r.cost, " data-foco") + (t === "pickup" ? '<p class="hint">' + esc(__("Most stores leave it at zero.", "dox-pos")) + "</p>" : "") + "</div></div>";
+					} else if (t === "free") {
+						h += '<div class="grp"><div class="field"><label for="sh-min">' + esc(__("Free from", "dox-pos")) + "</label>" + campoImporte("sh-min", nuevo || !r.min ? "" : r.min, " data-foco") + '<p class="hint">' + esc(__("The order has to reach this amount. Empty: shipping is always free.", "dox-pos")) + "</p></div></div>";
+					} else {
+						h += '<div class="grp"><h4>' + esc(__("Weight ranges", "dox-pos")) + '</h4><div id="sh-tramos"></div><p class="ferr" id="sh-terr" role="alert" hidden></p><button type="button" class="undo sh-mas" id="sh-mas">' + IC.plus + esc(__("Add a range", "dox-pos")) + "</button></div>" +
+							'<div class="grp"><h4>' + esc(__("Heavier than that", "dox-pos")) + '</h4><div class="g2k"><div class="field"><label for="sh-over">' + esc(__("Price", "dox-pos")) + "</label>" + campoImporte("sh-over", nuevo ? "" : r.over) + '</div><div class="field"><label for="sh-extra">' + esc(sprintf(__("Plus, per extra %s", "dox-pos"), u)) + "</label>" + campoImporte("sh-extra", nuevo ? "" : r.extra) + '</div></div><p class="hint">' + esc(__("Empty: an order heavier than the last range pays what the last range says.", "dox-pos")) + "</p></div>";
+					}
+				}
+				h += '<div class="grp"><label class="switch"><input type="checkbox" id="sh-on"' + (nuevo || r.enabled ? " checked" : "") + '><span class="switch-ui" aria-hidden="true"></span><span>' + esc(__("Offer it to customers", "dox-pos")) + "<i>" + esc(__("Off: it stays saved, but nobody sees it.", "dox-pos")) + "</i></span></label></div>" +
+					'<div class="sh-foot"><button type="button" class="go" id="sh-ok">' + esc(nuevo ? __("Add this cost", "dox-pos") : __("Save", "dox-pos")) + "</button>" + (nuevo || !r.editable ? "" : '<button type="button" class="sh-del" id="sh-del">' + esc(__("Delete this cost", "dox-pos")) + "</button>") + "</div>"; // Lo que aquí no se sabe volver a armar (una fórmula, el método de otro plugin) no se borra desde aquí: se apaga, que tiene vuelta.
+				el.innerHTML = h;
+				el.querySelectorAll(".uwrap input").forEach((i) => i.addEventListener("input", () => formatearMiles(i)));
+				const caja = el.querySelector("#sh-tramos");
+				const leer = () => Array.from(caja.querySelectorAll(".tramo")).map((f) => ({ up_to: f.querySelector(".tw").value, cost: f.querySelector(".tc").value }));
+				const pintarTramos = (foco) => {
+					caja.innerHTML = tramos.map((x, i) => '<div class="tramo"><span class="tl">' + esc(__("Up to", "dox-pos")) + '</span><span class="uwrap"><input class="tw" inputmode="decimal" autocomplete="off" aria-label="' + esc(sprintf(__("Weight of range %d", "dox-pos"), i + 1)) + '" value="' + esc(verMedida(medida(x.up_to))) + '"><i>' + esc(u) + "</i></span>" +
+						campoImporte("sh-t" + i, x.cost === "" ? "" : num(x.cost), ' class="tc" aria-label="' + esc(sprintf(__("Price of range %d", "dox-pos"), i + 1)) + '"') +
+						'<button type="button" class="tx" data-i="' + i + '" aria-label="' + esc(sprintf(__("Remove range %d", "dox-pos"), i + 1)) + '">' + IC.minus + "</button></div>").join("");
+					caja.querySelectorAll(".tc").forEach((i) => i.addEventListener("input", () => formatearMiles(i)));
+					caja.querySelectorAll("input").forEach((i) => i.addEventListener("input", () => { i.closest(".tramo").classList.remove("bad"); el.querySelector("#sh-terr").hidden = true; }));
+					caja.querySelectorAll(".tx").forEach((b) => { b.onclick = () => { tramos = leer(); tramos.splice(+b.dataset.i, 1); pintarTramos(); }; });
+					if (foco) { const f = caja.querySelectorAll(".tw"); if (f.length) f[f.length - 1].focus(); }
+				};
+				if (caja) {
+					pintarTramos();
+					el.querySelector("#sh-mas").onclick = () => { tramos = leer(); tramos.push({ up_to: "", cost: "" }); pintarTramos(true); };
+				}
+				el.querySelector("#sh-ok").onclick = (e) => {
+					const body = { enabled: el.querySelector("#sh-on").checked };
+					if (nuevo) body.type = t;
+					if (nuevo || r.editable) {
+						body.title = el.querySelector("#sh-nom").value.trim() || def.titulo;
+						if (t === "flat" || t === "pickup") body.cost = num(el.querySelector("#sh-cost").value);
+						else if (t === "free") body.min = num(el.querySelector("#sh-min").value);
+						else {
+							const filas = leer().filter((f) => f.up_to.trim() || f.cost.trim());
+							const over = el.querySelector("#sh-over").value.trim();
+							// Lo que falta se dice junto a los tramos, y el tramo que falla se marca: un aviso flotante no dice cuál es.
+							const avisar = (msg, malas) => {
+								const pe = el.querySelector("#sh-terr");
+								pe.textContent = msg;
+								pe.hidden = false;
+								(malas || []).forEach((f) => f.classList.add("bad"));
+								const foco = malas && malas.length ? (malas[0].querySelector(".tw").value.trim() && medida(malas[0].querySelector(".tw").value) ? malas[0].querySelector(".tc") : malas[0].querySelector(".tw")) : caja.querySelector(".tw");
+								if (foco) foco.focus(); else pe.scrollIntoView({ block: "center" });
+							};
+							const malas = Array.from(caja.querySelectorAll(".tramo")).filter((f) => { const w = f.querySelector(".tw").value.trim(), c = f.querySelector(".tc").value.trim(); return (w || c) && (!medida(w) || !c); });
+							if (malas.length) { avisar(__("Every range needs its weight and its price.", "dox-pos"), malas); return; }
+							if (!filas.length && !over) { avisar(__("Add at least one weight range with its price.", "dox-pos")); return; }
+							body.tiers = filas.map((f) => [medida(f.up_to), num(f.cost)]);
+							body.over = over ? num(over) : "";
+							body.extra = el.querySelector("#sh-extra").value.trim() ? num(el.querySelector("#sh-extra").value) : "";
+						}
+					}
+					mandarCostos(e.currentTarget, __("Saving…", "dox-pos"), () => post("shipping/zones/" + z.id + "/rates" + (nuevo ? "" : "/" + r.id), body), nuevo ? 2 : 1);
+				};
+				const del = el.querySelector("#sh-del");
+				if (del) del.onclick = async (e) => {
+					const btn = e.currentTarget;
+					if (!(await preguntar(sprintf(__("Delete %s? The web store stops offering it too.", "dox-pos"), r.title || nombreTipo(r)), __("Yes, delete it", "dox-pos"), __("No", "dox-pos")))) return;
+					mandarCostos(btn, __("Deleting…", "dox-pos"), () => api("shipping/zones/" + z.id + "/rates/" + r.id, { method: "DELETE" }));
+				};
+			},
+		};
+	}
+	// Una zona: todo el país de la tienda, o solo algunas de sus regiones.
+	function vistaZona(z) {
+		const d = en.data;
+		const nueva = !z;
+		const estados = Object.keys(d.states || {});
+		const hayPais = d.zones.some((x) => x.scope === "country" && (nueva || x.id !== z.id));
+		const fija = !nueva && z.scope === "custom"; // Otros países o códigos postales: sus lugares se cambian en WooCommerce.
+		let scope = nueva ? (hayPais && estados.length ? "states" : "country") : z.scope;
+		let elegidos = nueva ? [] : (z.states || []).slice();
+		let busca = "";
+		return {
+			titulo: nueva ? __("New zone", "dox-pos") : nombreZona(z),
+			corto: __("Back", "dox-pos"),
+			pintar(el) {
+				let h = "";
+				if (fija) h += '<p class="fwarn">' + esc(sprintf(__("This zone covers %s. Its places are changed in WooCommerce; here you can rename it, and set its costs from the list.", "dox-pos"), z.where)) + "</p>";
+				else {
+					h += '<div class="grp"><h4>' + esc(__("Where", "dox-pos")) + '</h4><div class="rows" role="radiogroup">' +
+						'<button type="button" class="row" role="radio" data-s="country"' + (hayPais ? " disabled" : "") + '><span class="row-main"><b>' + esc(sprintf(__("All of %s", "dox-pos"), d.country_name)) + "</b>" + (hayPais ? "<i>" + esc(__("It already has its zone.", "dox-pos")) + "</i>" : "") + "</span>" + IC.check + "</button>" +
+						(estados.length ? '<button type="button" class="row" role="radio" data-s="states"><span class="row-main"><b>' + esc(sprintf(__("Only part of %s", "dox-pos"), d.country_name)) + "</b><i>" + esc(__("It goes before the zone of the whole country: those places pay what this one says.", "dox-pos")) + "</i></span>" + IC.check + "</button>" : "") + "</div></div>" +
+						'<div class="grp" id="sh-estados" hidden><h4>' + esc(d.state_label) + ' <span class="cnt" id="sh-nsel"></span></h4>' + (estados.length > 12 ? '<input type="search" id="sh-busca" placeholder="' + esc(__("Search", "dox-pos")) + '" autocomplete="off" aria-label="' + esc(__("Search", "dox-pos")) + '">' : "") + '<div class="rows checks mt" id="sh-lista"></div><p class="ferr" id="sh-zerr" role="alert" hidden></p></div>';
+				}
+				h += '<div class="grp"><div class="field"><label for="sh-znom">' + esc(__("Name", "dox-pos")) + ' <span class="cnt">' + esc(fija ? "" : __("optional", "dox-pos")) + '</span></label><input id="sh-znom" autocomplete="off" value="' + esc(nueva ? "" : z.name) + '"><p class="hint">' + esc(__("Only you see it. Empty: it takes the name of its places.", "dox-pos")) + "</p></div></div>" +
+					'<div class="sh-foot"><button type="button" class="go" id="sh-zok">' + esc(nueva ? __("Create the zone", "dox-pos") : __("Save", "dox-pos")) + "</button>" + (nueva ? "" : '<button type="button" class="sh-del" id="sh-zdel">' + esc(__("Delete this zone", "dox-pos")) + "</button>") + "</div>";
+				el.innerHTML = h;
+				const pintarLista = () => {
+					const box = el.querySelector("#sh-lista");
+					if (!box) return;
+					const q = busca.trim().toLowerCase();
+					const otras = {}; // Las regiones que ya tiene otra zona, con su nombre.
+					d.zones.forEach((x) => { if (x.scope === "states" && (nueva || x.id !== z.id)) x.states.forEach((s) => { otras[s] = x.name; }); });
+					box.innerHTML = estados.filter((k) => !q || d.states[k].toLowerCase().indexOf(q) >= 0).map((k) => '<button type="button" class="row" role="checkbox" aria-checked="' + (elegidos.includes(k) ? "true" : "false") + '" data-k="' + esc(k) + '"' + (otras[k] ? " disabled" : "") + '><span class="row-main"><b>' + esc(d.states[k]) + "</b>" + (otras[k] ? "<i>" + esc(sprintf(__("Already in %s", "dox-pos"), otras[k])) + "</i>" : "") + "</span>" + IC.check + "</button>").join("") || '<p class="hint">' + esc(__("Nothing matches.", "dox-pos")) + "</p>";
+					box.querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => { const k = b.dataset.k; if (elegidos.includes(k)) elegidos = elegidos.filter((x) => x !== k); else elegidos.push(k); b.setAttribute("aria-checked", elegidos.includes(k) ? "true" : "false"); el.querySelector("#sh-zerr").hidden = true; contar(); }; });
+				};
+				const contar = () => { const n = el.querySelector("#sh-nsel"); if (n) n.textContent = elegidos.length ? sprintf(_n("%d chosen", "%d chosen", elegidos.length, "dox-pos"), elegidos.length) : ""; };
+				const pintarScope = () => {
+					el.querySelectorAll("[data-s]").forEach((b) => b.setAttribute("aria-checked", b.dataset.s === scope ? "true" : "false"));
+					const g = el.querySelector("#sh-estados");
+					if (g) g.hidden = scope !== "states";
+				};
+				el.querySelectorAll("[data-s]").forEach((b) => { b.onclick = () => { scope = b.dataset.s; pintarScope(); }; });
+				const bq = el.querySelector("#sh-busca");
+				if (bq) bq.addEventListener("input", () => { busca = bq.value; pintarLista(); });
+				pintarScope();
+				pintarLista();
+				contar();
+				el.querySelector("#sh-zok").onclick = (e) => {
+					if (!fija && scope === "states" && !elegidos.length) { const pe = el.querySelector("#sh-zerr"); pe.textContent = sprintf(__("Choose at least one: %s.", "dox-pos"), d.state_label); pe.hidden = false; pe.scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+					mandarCostos(e.currentTarget, __("Saving…", "dox-pos"), () => post("shipping/zones" + (nueva ? "" : "/" + z.id), { name: el.querySelector("#sh-znom").value.trim(), scope: scope, states: elegidos }));
+				};
+				const del = el.querySelector("#sh-zdel");
+				if (del) del.onclick = async (e) => {
+					const btn = e.currentTarget;
+					const n = z.rates.length;
+					if (!(await preguntar(n ? sprintf(_n("Delete the zone %1$s with its %2$d cost? The web store stops offering it too.", "Delete the zone %1$s with its %2$d costs? The web store stops offering them too.", n, "dox-pos"), nombreZona(z), n) : sprintf(__("Delete the zone %s?", "dox-pos"), nombreZona(z)), __("Yes, delete it", "dox-pos"), __("No", "dox-pos")))) return;
+					mandarCostos(btn, __("Deleting…", "dox-pos"), () => api("shipping/zones/" + z.id, { method: "DELETE" }));
+				};
+			},
+		};
 	}
 
 	// Mientras se guarda, el botón lo dice y no se puede volver a tocar.
@@ -502,7 +938,7 @@
 			payment: st.pago,
 			discount: num($("#f-desc").value),
 			note: $("#f-nota").value.trim(),
-			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: $("#f-ciu").value.trim(), address: $("#f-dir").value.trim() },
+			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: $("#f-ciu").value.trim(), address: $("#f-dir").value.trim(), postcode: codigoPostal() },
 			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
 		};
 		const tipo = hold ? "apartado" : "venta";
@@ -540,7 +976,8 @@
 		st.lineas = [];
 		st.rate = null;
 		st.rates = [];
-		["#f-nom", "#f-tel", "#f-dir", "#f-nota", "#f-ciu"].forEach((s) => { $(s).value = ""; });
+		st.sinTarifa = false;
+		["#f-nom", "#f-tel", "#f-dir", "#f-nota", "#f-ciu", "#f-cp"].forEach((s) => { if ($(s)) $(s).value = ""; });
 		$("#f-desc").value = "0";
 		$("#f-env").value = "0";
 		pintarTodo();
@@ -704,6 +1141,8 @@
 		}
 		if (d.categories && d.categories.length) h += "<span>" + esc(__("Category", "dox-pos")) + "</span><span>" + esc(d.categories.join(", ")) + "</span>";
 		h += "<span>" + esc(__("Units", "dox-pos")) + "</span><span>" + (d.units === null ? '<span class="sub">' + esc(__("not tracked", "dox-pos")) + "</span>" : "<b>" + esc(sprintf(_n("%d unit", "%d units", d.units, "dox-pos"), d.units)) + "</b>" + (d.shared !== null ? ' <span class="sub">· ' + esc(__("shared by all sizes", "dox-pos")) + "</span>" : (d.pool_names && d.pool_names.length ? ' <span class="sub">· ' + esc(sprintf(__("%s: units shared among their sizes", "dox-pos"), d.pool_names.join(", "))) + "</span>" : ""))) + "</span>";
+		// El paquete (peso y medidas), si lo tiene: es lo que usa el envío por peso.
+		if (d.package && (d.package.mixed || !paqueteVacio(d.package))) h += "<span>" + esc(__("Package", "dox-pos")) + "</span><span>" + esc(d.package.mixed ? __("varies by size", "dox-pos") : paqueteTexto(d.package)) + "</span>";
 		h += "</div></div>";
 		if (d.variations.length > 1 || (d.variations.length === 1 && d.variations[0].talla)) {
 			h += '<table class="tot pc-var"><thead><tr><th>' + esc(conTalla ? __("Size", "dox-pos") : __("Option", "dox-pos")) + "</th><th>" + esc(__("Code", "dox-pos")) + '</th><th class="num">' + esc(__("Units", "dox-pos")) + "</th></tr></thead><tbody>";
@@ -787,7 +1226,7 @@
 		if (st.ocupado || !st.entrada.length) return;
 		st.ocupado = true;
 		pintarSum();
-		const soltar = ocupar($("#reg2"), "Guardando…");
+		const soltar = ocupar($("#reg2"), __("Saving\u2026", "dox-pos"));
 		const payload = { ref: uuid(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n, cost: l.c || "" })), supplier: $("#e-prov").value.trim(), invoice: $("#e-fac").value.trim(), date: $("#e-fec").value, note: $("#e-nota").value.trim() };
 		const resumen = resumenLineas(st.entrada);
 		const limpiar = () => {
@@ -980,7 +1419,7 @@
 	function pintarDepartamentos() {
 		const sel = $("#f-dep");
 		const states = cfg.states || {};
-		sel.innerHTML = '<option value="">' + esc(cfg.state_label || "Departamento") + "</option>" +
+		sel.innerHTML = '<option value="">' + esc(cfg.state_label || __("State", "dox-pos")) + "</option>" +
 			Object.keys(states).map((k) => '<option value="' + esc(k) + '">' + esc(states[k]) + "</option>").join("");
 		sel.onchange = () => { pintarCiudades(); programarEnvio(); };
 	}
@@ -1125,6 +1564,7 @@
 		masTallas: false,   // enseñar todas las tallas, no solo las de la categoría
 		dup: null,          // un producto que ya se llama así: {id, sku, name}
 		restaurando: false, // mientras se vuelve a cargar el borrador no se guarda otra vez
+		paquete0: null,     // el peso y las medidas con que llegó el producto que se edita: si no cambian, no se mandan
 	};
 	const hayProducto = () => !!$("#t-producto");
 	let uidN = 0;
@@ -1155,6 +1595,7 @@
 		pintarColores();
 		pintarTallas();
 		pintarCantidades();
+		pintarPaquetes();
 		pintarResumenProducto();
 	}
 
@@ -1182,7 +1623,7 @@
 			if (i === 0) {
 				const b = document.createElement("span");
 				b.className = "badge";
-				b.textContent = "Principal";
+				b.textContent = __("Main", "dox-pos");
 				d.appendChild(b);
 			}
 			const x = document.createElement("button");
@@ -1343,7 +1784,7 @@
 		const box = $("#p-cats");
 		box.innerHTML = "";
 		const cats = (pr.form && pr.form.categories) || [];
-		if (!cats.length) { box.innerHTML = '<span class="hint">La tienda no tiene categorías con productos.</span>'; return; }
+		if (!cats.length) { box.innerHTML = '<span class="hint">' + esc(__("The store has no categories with products.", "dox-pos")) + "</span>"; return; }
 		const grupos = gruposDeCategorias();
 		if (pr.grupo === null && pr.cats.length) { // Con una elegida y ningún grupo abierto, se abre el suyo.
 			const c = cats.find((x) => x.id === pr.cats[0]);
@@ -1378,7 +1819,7 @@
 		sel.className = "catsel";
 		if (pr.cats.length) {
 			const s = document.createElement("span");
-			s.textContent = pr.cats.length === 1 ? "Elegida:" : "Elegidas:";
+			s.textContent = _n("Chosen:", "Chosen:", pr.cats.length, "dox-pos");
 			sel.appendChild(s);
 			pr.cats.forEach((id) => {
 				const c = cats.find((x) => x.id === id);
@@ -1388,12 +1829,12 @@
 				b.className = "chip on";
 				b.setAttribute("aria-pressed", "true");
 				b.innerHTML = esc(c.name) + " <b>×</b>";
-				b.setAttribute("aria-label", "Quitar " + c.name);
+				b.setAttribute("aria-label", sprintf(__("Remove %s", "dox-pos"), c.name));
 				b.onclick = () => toggleCat(c);
 				sel.appendChild(b);
 			});
 		} else {
-			sel.innerHTML = '<span class="hint">Toca un grupo y elige la categoría. Puedes marcar más de una.</span>';
+			sel.innerHTML = '<span class="hint">' + esc(__("Tap a group and choose the category. You can pick more than one.", "dox-pos")) + "</span>";
 		}
 		box.appendChild(sel);
 	}
@@ -1521,6 +1962,60 @@
 		const g = precio - costo;
 		el.textContent = sprintf(__("%1$s per unit (%2$d %%)", "dox-pos"), dinero(g), Math.round(g / precio * 100)) + (g < 0 ? __(": sold at a loss", "dox-pos") : "");
 		if (g < 0) el.className = "margen bad";
+	}
+
+	// ---------- el paquete: lo que pesa y mide el producto ya empacado ----------
+	// Una medida escrita ("0,8", "12.5") como la guarda la tienda: con punto, sin ceros de sobra. Vacío si no es un número mayor que cero.
+	const medida = (v) => {
+		const n = parseFloat(String(v == null ? "" : v).replace(",", ".").replace(/[^\d.]/g, ""));
+		return n > 0 ? String(Math.round(n * 1000) / 1000) : "";
+	};
+	// Y como se enseña: con el separador decimal de la tienda.
+	const verMedida = (v) => (v === "" || v == null ? "" : String(v).replace(".", M.decimal === "," ? "," : "."));
+	const PAQ = [["weight", "#p-peso"], ["length", "#p-largo"], ["width", "#p-ancho"], ["height", "#p-alto"]];
+	function paqueteForm() {
+		const o = {};
+		PAQ.forEach((c) => { const el = $(c[1]); o[c[0]] = el ? medida(el.value) : ""; });
+		return o;
+	}
+	const paqueteClave = (p) => (p ? PAQ.map((c) => p[c[0]] || "").join("|") : "|||");
+	const paqueteVacio = (p) => paqueteClave(p) === "|||";
+	// "0.8 lb · 6 × 4 × 3 in": lo que haya.
+	function paqueteTexto(p) {
+		const u = cfg.units || { weight: "kg", dimension: "cm" };
+		const partes = [];
+		if (p.weight) partes.push(verMedida(p.weight) + " " + u.weight);
+		if (p.length || p.width || p.height) partes.push([p.length, p.width, p.height].map((x) => verMedida(x) || "–").join(" × ") + " " + u.dimension);
+		return partes.join(" · ");
+	}
+	function ponerPaquete(p) {
+		PAQ.forEach((c) => { const el = $(c[1]); if (el) el.value = verMedida((p || {})[c[0]] || ""); });
+	}
+	// Los paquetes que más se repiten en la tienda, de un toque. El que coincide con lo escrito sale marcado.
+	function pintarPaquetes() {
+		const box = $("#p-paquetes");
+		if (!box) return;
+		const lista = (pr.form && pr.form.packages) || [];
+		const ahora = paqueteClave(paqueteForm());
+		box.innerHTML = "";
+		box.hidden = !lista.length;
+		lista.forEach((p) => {
+			box.appendChild(chip(paqueteTexto(p), paqueteClave(p) === ahora, () => {
+				ponerPaquete(paqueteClave(p) === paqueteClave(paqueteForm()) ? null : p); // Tocar el que ya está lo quita.
+				pintarPaquetes();
+				pintarResumenProducto();
+			}));
+		});
+		const hint = $("#p-paquete-hint");
+		if (hint) hint.textContent = pr.edit && pr.edit.package && pr.edit.package.mixed
+			? __("The sizes of this product do not all weigh or measure the same. Leave it empty to keep them as they are; what you type here goes to all of them.", "dox-pos")
+			: __("The product already packed, ready to ship. It is what the shipping by weight and the carriers\u2019 labels use.", "dox-pos");
+	}
+	// Qué paquete se manda: al crear, el escrito (si hay algo); al editar, solo si cambió.
+	function paquetePayload() {
+		const p = paqueteForm();
+		if (!pr.edit) return paqueteVacio(p) ? undefined : p;
+		return paqueteClave(p) === paqueteClave(pr.paquete0) ? undefined : p;
 	}
 
 	// Colores: los más usados (doce) y "Más colores…" para el resto; "Otro color…" crea uno nuevo con su tono.
@@ -1784,6 +2279,12 @@
 		if (num($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: __("Set a price.", "dox-pos"), sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
 		if (!pr.edit && pr.form && pr.form.sku_format !== "none" && !$("#p-sku").value.trim()) return { msg: __("The SKU is missing.", "dox-pos"), sel: "#p-sku" };
 		if (!pr.edit && pr.skuOk === false) return { msg: __("That SKU is already taken.", "dox-pos"), sel: "#p-sku" };
+		const paq = paqueteForm(), nmed = [paq.length, paq.width, paq.height].filter(Boolean).length;
+		if (nmed > 0 && nmed < 3) {
+			// Faltan medidas: se marcan las que faltan y el aviso va debajo de las cuatro casillas, a todo el ancho.
+			const faltan = [["length", "#p-largo"], ["width", "#p-ancho"], ["height", "#p-alto"]].filter((c) => !paq[c[0]]).map((c) => c[1]);
+			return { msg: __("Enter the three measures (length, width and height), or leave them empty.", "dox-pos"), sel: faltan[0], malos: faltan, bajo: "#g-paquete .pack" };
+		}
 		if (pr.fotos.some((f) => f.estado === "error")) return { msg: __("A photo could not be uploaded: tap it to try again, or remove it.", "dox-pos"), sel: "#p-fotos" };
 		if (pr.fotos.some((f) => f.estado !== "ok")) return { msg: __("Wait for the photos to finish uploading.", "dox-pos"), sel: "#p-fotos" };
 		return null;
@@ -1793,11 +2294,13 @@
 		const el = $(p.sel);
 		const cont = el.closest(".field") || el.closest(".grp") || el;
 		cont.classList.add("bad");
+		(p.malos || []).forEach((q) => { const f = $(q) && $(q).closest(".field"); if (f) f.classList.add("bad"); }); // Varios campos a la vez (las medidas que faltan).
 		const e = document.createElement("p");
 		e.className = "ferr";
 		e.setAttribute("role", "alert");
 		e.textContent = p.msg;
-		if (cont.classList.contains("field")) cont.appendChild(e);
+		if (p.bajo && $(p.bajo)) $(p.bajo).insertAdjacentElement("afterend", e); // El aviso es de varios campos: va debajo del bloque, no dentro de uno.
+		else if (cont.classList.contains("field")) cont.appendChild(e);
 		else { const h = cont.querySelector("h4"); if (h) h.insertAdjacentElement("afterend", e); else cont.prepend(e); }
 		cont.scrollIntoView({ block: "center", behavior: "smooth" });
 		if (el.matches("input, textarea")) setTimeout(() => el.focus({ preventScroll: true }), 250);
@@ -1806,7 +2309,7 @@
 		document.querySelectorAll("#p-form .bad").forEach((x) => x.classList.remove("bad"));
 		document.querySelectorAll("#p-form .ferr").forEach((x) => x.remove());
 	}
-	const formularioTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || num($("#p-precio").value) || costoForm());
+	const formularioTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || num($("#p-precio").value) || costoForm() || !paqueteVacio(paqueteForm()));
 	function pintarResumenProducto() {
 		const nt = pr.tallas.length, nc = pr.colores.length, u = unidadesTotales();
 		const vars = (nt || 1) * (nc || 1);
@@ -1846,6 +2349,8 @@
 			if (pr0[0] > 0 && (precio < pr0[0] / 2 || precio > pr0[1] * 2)) avisos.push(sprintf(__("The price is outside what is usual: in the store it goes from %1$s to %2$s. Check the zeros.", "dox-pos"), dinero(pr0[0]), dinero(pr0[1])));
 			if (pr.dup) avisos.push(sprintf(__("There is already a product called %s.", "dox-pos"), pr.dup.name + (pr.dup.sku ? " (" + pr.dup.sku + ")" : "")));
 			if (cfg.costs && costoForm() > precio) avisos.push(__("The cost is higher than the price: it would sell at a loss.", "dox-pos"));
+			const paq = paqueteForm();
+			if (form.weight_matters && !paq.weight) avisos.push(__("No weight: the shipping by weight will charge it as if it weighed nothing.", "dox-pos"));
 			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
 			let tabla = "";
 			const vivas = new Set(compartidasVivas());
@@ -1866,6 +2371,7 @@
 				li(esc(__("Category", "dox-pos")), esc(cats.join(", "))) +
 				(pr.colores.length ? li(esc(__("Colors", "dox-pos")), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
 				li(esc(__("Units", "dox-pos")), esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + tabla) +
+				li(esc(__("Package", "dox-pos")), esc(paqueteVacio(paq) ? __("No weight or size", "dox-pos") : paqueteTexto(paq))) +
 				li(esc(__("Photos", "dox-pos")), fotosOk.length ? esc(sprintf(_n("%d photo", "%d photos", fotosOk.length, "dox-pos"), fotosOk.length)) : esc(__("No photo", "dox-pos"))) +
 				li(esc(__("Store", "dox-pos")), esc($("#p-pub").checked ? __("It is published now", "dox-pos") : __("It stays hidden", "dox-pos"))) +
 				"</dl>" +
@@ -1890,7 +2396,7 @@
 		} else if (!pr.fotos.length && !(await preguntar(__("The product will have no photo. Save it like that?", "dox-pos"), __("Yes, save it", "dox-pos"), __("No", "dox-pos")))) return;
 		pr.creando = true;
 		pintarResumenProducto();
-		const soltar = ocupar($("#p-crear"), pr.edit ? "Guardando…" : "Creando…");
+		const soltar = ocupar($("#p-crear"), pr.edit ? __("Saving\u2026", "dox-pos") : __("Creating\u2026", "dox-pos"));
 		const rows = tallasOrdenadas();
 		const qty = {};
 		columnas().forEach((c) => { qty[c.key] = {}; filas().forEach((r) => { qty[c.key][r.id] = cantidad(c.key, r.id); }); });
@@ -1899,6 +2405,7 @@
 			name: $("#p-nom").value.trim(),
 			price: num($("#p-precio").value),
 			cost: costoPayload(),
+			package: paquetePayload(),
 			sku: $("#p-sku").value.trim(),
 			categories: pr.cats.slice(),
 			description: $("#p-desc").value.trim(),
@@ -1935,7 +2442,8 @@
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
-		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
+		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
+		pr.paquete0 = null;
 		$("#p-pub").checked = true;
 		$("#p-nuevocolor").hidden = true;
 		$("#p-nom-dup").hidden = true;
@@ -1965,7 +2473,7 @@
 		const b = {
 			ts: Date.now(), nombre: $("#p-nom").value, precio: $("#p-precio").value, costo: $("#p-costo") ? $("#p-costo").value : "", sku: $("#p-sku").value, manual: pr.manual,
 			cats: pr.cats, colores: pr.colores, tallas: pr.tallas, tocadas: pr.tallasTocadas, qty: pr.qty,
-			desc: $("#p-desc").value, pub: $("#p-pub").checked,
+			desc: $("#p-desc").value, pub: $("#p-pub").checked, paquete: paqueteForm(),
 			fotos: pr.fotos.filter((f) => f.estado === "ok" && f.id).map((f) => ({ id: f.id, url: f.url, color: f.color, kb: f.kb })),
 		};
 		try {
@@ -1995,6 +2503,7 @@
 		$("#p-sku").value = b.sku || "";
 		$("#p-desc").value = b.desc || "";
 		$("#p-pub").checked = b.pub !== false;
+		ponerPaquete(b.paquete || null);
 		pr.manual = !!b.manual;
 		pr.cats = (b.cats || []).slice();
 		pr.colores = (b.colores || []).slice();
@@ -2047,7 +2556,7 @@
 		const q = $("#p-q").value.trim();
 		const n = ++pqReq;
 		pr.ppage = page;
-		if (!$("#p-res").children.length) $("#p-res").innerHTML = vacio("Buscando…");
+		if (!$("#p-res").children.length) $("#p-res").innerHTML = vacio(__("Searching\u2026", "dox-pos"));
 		try {
 			const d = await api("products/find?q=" + encodeURIComponent(q) + "&page=" + page);
 			if (n !== pqReq) return;
@@ -2112,6 +2621,8 @@
 		$("#p-sku").disabled = true;
 		estadoSku(d.sku ? __("The SKU is only changed in WooCommerce.", "dox-pos") : __("No SKU.", "dox-pos"), "");
 		$("#p-desc").value = d.description || "";
+		pr.paquete0 = d.package && !d.package.mixed ? d.package : null;
+		ponerPaquete(pr.paquete0);
 		$("#p-pub").checked = d.status === "publish";
 		$("#p-pub-text").textContent = __("Published in the store", "dox-pos");
 		$("#p-pub-hint").textContent = __("Off: it stays hidden, not shown and not sold.", "dox-pos");
@@ -2251,7 +2762,7 @@
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
 		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals) + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("By day", "dox-pos")) + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
-		if (!d.days.length) h += '<p class="empty">Nada en este periodo.</p>';
+		if (!d.days.length) h += '<p class="empty">' + esc(__("Nothing in this period.", "dox-pos")) + "</p>";
 		else {
 			const tot = (m) => (d.method_totals.find((x) => x.name === m) || {}).total || 0;
 			h += '<div class="wrapx2"><table class="ped hped"><thead><tr><th>' + esc(__("Day", "dox-pos")) + '</th><th class="num">' + esc(__("Sales", "dox-pos")) + '</th><th class="num">' + esc(__("Sold", "dox-pos")) + "</th>" + (conCosto ? '<th class="num">' + esc(__("Cost", "dox-pos")) + '</th><th class="num">' + esc(__("Profit", "dox-pos")) + "</th>" : "") + (conPerdida ? '<th class="num">' + esc(__("Losses", "dox-pos")) + "</th>" : "") + d.methods.map((m) => '<th class="num">' + esc(m) + "</th>").join("") + '<th class="num">' + esc(__("To collect", "dox-pos")) + '</th><th class="num">' + esc(__("Layaway", "dox-pos")) + "</th></tr></thead><tbody>";
@@ -2531,6 +3042,7 @@
 			$("#p-nom").addEventListener("input", () => { pintarResumenProducto(); programarNombre(); });
 			$("#p-precio").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
 			if ($("#p-costo")) $("#p-costo").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
+			["#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((q) => { if ($(q)) $(q).addEventListener("input", () => { pintarPaquetes(); pintarResumenProducto(); }); });
 			$("#p-desc").addEventListener("input", programarBorrador);
 			$("#p-pub").addEventListener("change", programarBorrador);
 			$("#p-sku").addEventListener("input", comprobarCodigo);
@@ -2593,7 +3105,12 @@
 		// Inventario: al llegar abajo de la lista del catálogo, la siguiente página.
 		listaDe("entrada").parentElement.addEventListener("scroll", (e) => { const el = e.target; if (st.catOn && st.cat.more && !st.cat.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 240) mostrarCatalogo(true); });
 		["#f-desc", "#f-env"].forEach((s) => $(s).addEventListener("input", pintarSum));
-		["#f-ciu", "#f-dir"].forEach((s) => $(s).addEventListener("input", programarEnvio));
+		["#f-ciu", "#f-dir", "#f-cp"].forEach((s) => { if ($(s)) $(s).addEventListener("input", programarEnvio); });
+		// Los costos de envío se ponen sin salir de la caja (quien administra): el engranaje y el enlace del envío de la venta.
+		armarHoja();
+		armarEngranaje();
+		if ($("#f-envio-cfg")) $("#f-envio-cfg").onclick = abrirCostos;
+		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && hojaAbierta() && $("#modal").hidden && (!$("#gearmenu") || $("#gearmenu").hidden)) volver(); });
 		$("#reg").onclick = () => cerrar(false);
 		$("#apartar").onclick = () => cerrar(true);
 		$("#reg2").onclick = guardarEntrada;

@@ -44,6 +44,9 @@ dox_pos_enqueue_caja( $cfg );
 			<?php do_action( 'dox_pos_tabs', $cfg ); // Pestañas de los añadidos (el Pro pone Asistente). ?>
 		</nav>
 		<span class="user"><?php echo esc_html( $cfg['user'] ); ?> · <a href="<?php echo esc_url( $cfg['logout'] ); ?>"><?php esc_html_e( 'Sign out', 'dox-pos' ); ?></a></span>
+		<?php if ( $cfg['shipping_setup'] ) : // Lo que se ajusta sin salir de la caja (quien administra). ?>
+		<button type="button" class="gear" id="gear" aria-haspopup="menu" aria-expanded="false" aria-controls="gearmenu" aria-label="<?php esc_attr_e( 'Settings', 'dox-pos' ); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+		<?php endif; ?>
 	</header>
 	<?php do_action( 'dox_pos_after_header', $cfg ); // Avisos bajo la cabecera (el Pro pone el de datos de demostración). ?>
 	<div class="cola" id="cola" hidden></div>
@@ -78,7 +81,14 @@ dox_pos_enqueue_caja( $cfg );
 								<div class="field"><label for="f-dep"><?php echo esc_html( $cfg['state_label'] ); ?></label><select id="f-dep"></select></div>
 								<div class="field"><label for="f-ciu"><?php esc_html_e( 'City', 'dox-pos' ); ?></label><input id="f-ciu" list="ciudades" autocomplete="off"><datalist id="ciudades"></datalist></div>
 							</div>
+							<?php if ( '' !== $cfg['postcode'] ) : // El país de la tienda usa código postal: va con la dirección. ?>
+							<div class="gaz mt">
+								<div class="field"><label for="f-dir"><?php esc_html_e( 'Address', 'dox-pos' ); ?></label><input id="f-dir" autocomplete="off"></div>
+								<div class="field"><label for="f-cp"><?php echo esc_html( $cfg['postcode'] ); ?></label><input id="f-cp" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+							</div>
+							<?php else : ?>
 							<div class="field mt"><label for="f-dir"><?php esc_html_e( 'Address', 'dox-pos' ); ?></label><input id="f-dir" autocomplete="off"></div>
+							<?php endif; ?>
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Payment', 'dox-pos' ); ?></h4>
@@ -86,7 +96,12 @@ dox_pos_enqueue_caja( $cfg );
 							<div class="field mt"><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
 						<div class="grp" id="g-envio">
-							<h4><?php esc_html_e( 'Shipping', 'dox-pos' ); ?></h4>
+							<h4>
+								<?php esc_html_e( 'Shipping', 'dox-pos' ); ?>
+								<?php if ( $cfg['shipping_setup'] ) : // Quien administra pone los costos de envío desde aquí mismo. ?>
+								<button type="button" class="undo" id="f-envio-cfg"><?php esc_html_e( 'Shipping costs', 'dox-pos' ); ?></button>
+								<?php endif; ?>
+							</h4>
 							<div class="chips" id="f-envio"></div>
 							<div class="field mt"><label for="f-env"><?php esc_html_e( 'Shipping cost', 'dox-pos' ); ?></label><input id="f-env" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
@@ -242,6 +257,17 @@ dox_pos_enqueue_caja( $cfg );
 							<div class="qcards" id="p-qty"></div><?php // Una tarjeta por color: sus tallas y, debajo, las unidades que comparten (las pinta el JS). ?>
 							<p class="hint" id="p-qty-shared" hidden></p>
 						</div>
+						<div class="grp" id="g-paquete">
+							<h4><?php esc_html_e( 'Weight and size', 'dox-pos' ); ?> <span class="cnt"><?php esc_html_e( 'optional', 'dox-pos' ); ?></span></h4>
+							<div class="chips row" id="p-paquetes" hidden></div><?php // Los paquetes que más se repiten en la tienda: un toque y quedan puestos (los pinta el JS). ?>
+							<div class="pack">
+								<div class="field"><label for="p-peso"><?php esc_html_e( 'Weight', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-peso" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['weight'] ); ?></i></span></div>
+								<div class="field"><label for="p-largo"><?php esc_html_e( 'Length', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-largo" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['dimension'] ); ?></i></span></div>
+								<div class="field"><label for="p-ancho"><?php esc_html_e( 'Width', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-ancho" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['dimension'] ); ?></i></span></div>
+								<div class="field"><label for="p-alto"><?php esc_html_e( 'Height', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-alto" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['dimension'] ); ?></i></span></div>
+							</div>
+							<p class="hint" id="p-paquete-hint"><?php esc_html_e( 'The product already packed, ready to ship. It is what the shipping by weight and the carriers’ labels use.', 'dox-pos' ); ?></p>
+						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Description', 'dox-pos' ); ?> <span class="cnt"><?php esc_html_e( 'optional', 'dox-pos' ); ?></span></h4>
 							<textarea id="p-desc" aria-label="<?php esc_attr_e( 'Description', 'dox-pos' ); ?>" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea>
@@ -301,6 +327,25 @@ dox_pos_enqueue_caja( $cfg );
 		<?php do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente. ?>
 	</div>
 	<div class="toasts" id="toasts" aria-live="polite"></div>
+	<?php if ( $cfg['shipping_setup'] ) : ?>
+	<div class="gearmenu" id="gearmenu" role="menu" aria-labelledby="gear" hidden>
+		<button type="button" role="menuitem" id="gm-envios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg><?php esc_html_e( 'Shipping costs', 'dox-pos' ); ?></button>
+		<a role="menuitem" href="<?php echo esc_url( $cfg['settings_url'] ); ?>" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><?php esc_html_e( 'All the settings', 'dox-pos' ); ?></a>
+	</div>
+	<div class="sheet" id="sheet" hidden>
+		<div class="sheet-card" id="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+			<div class="sheet-top" id="sheet-top">
+				<span class="sheet-grab" aria-hidden="true"></span>
+				<div class="sheet-head">
+					<button type="button" class="sheet-nav" id="sheet-back" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span id="sheet-back-txt"></span></button>
+					<h3 id="sheet-title"></h3>
+					<button type="button" class="sheet-nav end" id="sheet-done"><?php esc_html_e( 'Done', 'dox-pos' ); ?></button>
+				</div>
+			</div>
+			<div class="sheet-views" id="sheet-views"></div>
+		</div>
+	</div>
+	<?php endif; ?>
 	<div class="modal" id="modal" hidden><div class="card" id="modal-card" role="dialog" aria-modal="true"></div></div>
 </div>
 <?php

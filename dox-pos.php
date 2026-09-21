@@ -3,7 +3,7 @@
  * Plugin Name:       Dox POS
  * Plugin URI:        https://doxstudio.com/dox-pos/
  * Description:       The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant.
- * Version:           0.40.0
+ * Version:           0.41.0
  * Requires at least: 6.5
  * Requires PHP:      8.0
  * Author:            Dox Studio
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DOX_POS_VERSION', '0.40.0' );
+define( 'DOX_POS_VERSION', '0.41.0' );
 define( 'DOX_POS_FILE', __FILE__ );
 define( 'DOX_POS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DOX_POS_URL', plugin_dir_url( __FILE__ ) );
@@ -99,6 +99,7 @@ require_once DOX_POS_PATH . 'includes/page.php';
 require_once DOX_POS_PATH . 'includes/catalog.php';
 require_once DOX_POS_PATH . 'includes/settings.php';
 require_once DOX_POS_PATH . 'includes/shipping.php';
+require_once DOX_POS_PATH . 'includes/shipping-setup.php';
 require_once DOX_POS_PATH . 'includes/orders.php';
 require_once DOX_POS_PATH . 'includes/entries.php';
 require_once DOX_POS_PATH . 'includes/stock-log.php';

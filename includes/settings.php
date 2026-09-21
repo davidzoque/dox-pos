@@ -686,6 +686,25 @@ function dox_pos_state_label() {
 }
 
 /**
+ * El rótulo del código postal en el país de la tienda ("ZIP Code", "Postcode"), o vacío donde no se
+ * usa o no se exige (Colombia, por ejemplo): la venta solo lo pregunta si lo hay. Sin él, las zonas
+ * de envío por código postal no encajan y a la transportadora le falta un dato.
+ *
+ * @return string
+ */
+function dox_pos_postcode_label() {
+	if ( ! function_exists( 'WC' ) ) {
+		return '';
+	}
+	$locale = WC()->countries->get_country_locale();
+	$pc     = (array) ( $locale[ dox_pos_country() ]['postcode'] ?? array() );
+	if ( ! empty( $pc['hidden'] ) || ( isset( $pc['required'] ) && ! $pc['required'] ) ) {
+		return '';
+	}
+	return ! empty( $pc['label'] ) ? (string) $pc['label'] : __( 'Postcode', 'dox-pos' );
+}
+
+/**
  * Un importe como texto plano ("$189.000"), con el formato de la tienda.
  */
 function dox_pos_money( $amount ) {
@@ -1803,7 +1822,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Costs and zones', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'The register has no rates of its own: it charges shipping just like the checkout, with WooCommerce zones. The country, the states and the cities come from the store settings.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'The register has no rates of its own: it charges shipping just like the checkout, with the WooCommerce zones. You set them without leaving the register, from the gear at the top (Shipping costs): a fixed price, by weight, free from an amount or store pickup. The country, the states and the cities come from the store settings.', 'dox-pos' ); ?></p>
 							<a class="dp-btn dp-btn-soft dp-card-action" href="<?php echo esc_url( admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ); ?>"><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Shipping zones', 'dox-pos' ); ?></a>
 						</div>
 						<dl class="dp-facts">

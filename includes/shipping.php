@@ -18,9 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $city    Ciudad, tal como la escribió.
  * @param string $address Dirección.
  * @param array  $lines   [ [ 'id' => id de variación o producto, 'qty' => n ], ... ].
+ * @param string $postcode Código postal, en los países que lo usan (las zonas pueden ir por él).
  * @return array [ [ 'id', 'method_id', 'instance_id', 'label', 'cost' ], ... ]
  */
-function dox_pos_shipping_rates( $state, $city, $address, $lines ) {
+function dox_pos_shipping_rates( $state, $city, $address, $lines, $postcode = '' ) {
 	$contents = array();
 	$cost     = 0;
 	foreach ( (array) $lines as $l ) {
@@ -56,7 +57,7 @@ function dox_pos_shipping_rates( $state, $city, $address, $lines ) {
 		'destination'     => array(
 			'country'   => dox_pos_country(),
 			'state'     => $state,
-			'postcode'  => '',
+			'postcode'  => wc_format_postcode( (string) $postcode, dox_pos_country() ),
 			'city'      => $city,
 			'address'   => $address,
 			'address_1' => $address,
@@ -77,7 +78,11 @@ function dox_pos_shipping_rates( $state, $city, $address, $lines ) {
 			continue;
 		}
 		$method->rates = array();
+		// Lo que un método escriba mientras calcula no puede colarse en la respuesta: con WP_DEBUG, WooCommerce
+		// imprime "Error found in..." cuando no sabe evaluar un costo (los de "[qty] > 2 ? ..."), y eso rompía el JSON.
+		ob_start();
 		$method->calculate_shipping( $package );
+		ob_end_clean();
 		$qty = dox_pos_package_qty( $package );
 		foreach ( $method->rates as $rate ) {
 			// Algunos plugins dan a todas sus tarifas el mismo id y se pisan entre sí: aquí cada instancia es una.

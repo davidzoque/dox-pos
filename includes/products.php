@@ -120,6 +120,8 @@ function dox_pos_product_form() {
 		'has_size'   => '' !== $s['size_attr'],  // Sin atributo de talla en la tienda, la pantalla no lo pregunta.
 		'has_color'  => '' !== $s['color_attr'],
 		'price_range' => dox_pos_price_range(),  // Lo que cuesta lo más barato y lo más caro: para avisar de un precio raro.
+		'packages'   => dox_pos_common_packages(), // Los paquetes (peso y medidas) que más se repiten en la tienda: se eligen con un toque.
+		'weight_matters' => dox_pos_weight_matters(), // ¿Alguna zona cobra el envío por peso? Entonces crear un producto sin peso se avisa.
 	);
 	set_transient( 'dox_pos_product_form', $out, HOUR_IN_SECONDS );
 	return $out;
@@ -140,6 +142,123 @@ function dox_pos_price_range() {
 		ARRAY_A
 	);
 	return array( (float) ( $r['mn'] ?? 0 ), (float) ( $r['mx'] ?? 0 ) );
+}
+
+/**
+ * Una medida (peso, largo, ancho o alto) como la guarda WooCommerce: con punto decimal y sin ceros
+ * de sobra. Vale la coma como decimal. Vacío si no es un número mayor que cero.
+ *
+ * @param mixed $v Lo que llegó.
+ * @return string
+ */
+function dox_pos_measure( $v ) {
+	$v = str_replace( ',', '.', trim( (string) $v ) );
+	if ( '' === $v || ! is_numeric( $v ) || (float) $v <= 0 ) {
+		return '';
+	}
+	return (string) wc_format_decimal( min( (float) $v, 999999.0 ), 3, true );
+}
+
+/**
+ * El paquete que manda el formulario (package: weight, length, width, height). Null si no lo manda:
+ * al editar significa "no se tocó", y el producto se queda como está.
+ *
+ * @param array $data Lo que llegó.
+ * @return array|null
+ */
+function dox_pos_package_from( $data ) {
+	if ( ! isset( $data['package'] ) || ! is_array( $data['package'] ) ) {
+		return null;
+	}
+	$out = array();
+	foreach ( array( 'weight', 'length', 'width', 'height' ) as $k ) {
+		$out[ $k ] = dox_pos_measure( $data['package'][ $k ] ?? '' );
+	}
+	return $out;
+}
+
+/**
+ * Pone el paquete a un producto.
+ *
+ * @param WC_Product $p   El producto (o una variación).
+ * @param array      $pkg weight, length, width, height.
+ */
+function dox_pos_set_package( $p, $pkg ) {
+	$p->set_weight( $pkg['weight'] );
+	$p->set_length( $pkg['length'] );
+	$p->set_width( $pkg['width'] );
+	$p->set_height( $pkg['height'] );
+}
+
+/**
+ * El paquete de un producto para el formulario. En uno con tallas manda lo que de verdad lleva cada
+ * variación (la suya, o la del producto si no tiene): si todas coinciden es ese; si no, mixed, y el
+ * formulario lo deja vacío para no pisar lo que alguien afinó en WooCommerce.
+ *
+ * @param WC_Product $p El producto.
+ * @return array{weight:string,length:string,width:string,height:string,mixed:bool}
+ */
+function dox_pos_product_package( $p ) {
+	$of = fn( $x ) => array(
+		'weight' => dox_pos_measure( $x->get_weight() ),
+		'length' => dox_pos_measure( $x->get_length() ),
+		'width'  => dox_pos_measure( $x->get_width() ),
+		'height' => dox_pos_measure( $x->get_height() ),
+	);
+	$own = $of( $p );
+	if ( $p->is_type( 'variable' ) ) {
+		$seen = array();
+		foreach ( $p->get_children() as $vid ) {
+			$v = wc_get_product( $vid );
+			if ( $v ) {
+				$seen[ implode( '|', $of( $v ) ) ] = $of( $v ); // La variación ya devuelve la del producto cuando no tiene la suya.
+			}
+		}
+		if ( count( $seen ) > 1 ) {
+			return array( 'weight' => '', 'length' => '', 'width' => '', 'height' => '', 'mixed' => true );
+		}
+		if ( 1 === count( $seen ) ) {
+			$own = reset( $seen );
+		}
+	}
+	return $own + array( 'mixed' => false );
+}
+
+/**
+ * Los paquetes (peso y medidas) que más se repiten entre los productos de la tienda, para ponerlos
+ * con un toque: quien vende ropa manda casi todo en la misma bolsa. Como mucho cinco.
+ *
+ * @return array [ [ 'weight', 'length', 'width', 'height' ], ... ]
+ */
+function dox_pos_common_packages() {
+	global $wpdb;
+	$rows = $wpdb->get_results(
+		"SELECT w.meta_value weight, l.meta_value length, a.meta_value width, h.meta_value height, COUNT(*) n
+		FROM {$wpdb->posts} p
+		LEFT JOIN {$wpdb->postmeta} w ON w.post_id = p.ID AND w.meta_key = '_weight'
+		LEFT JOIN {$wpdb->postmeta} l ON l.post_id = p.ID AND l.meta_key = '_length'
+		LEFT JOIN {$wpdb->postmeta} a ON a.post_id = p.ID AND a.meta_key = '_width'
+		LEFT JOIN {$wpdb->postmeta} h ON h.post_id = p.ID AND h.meta_key = '_height'
+		WHERE p.post_type = 'product' AND p.post_status IN ( 'publish', 'private' )
+		AND ( w.meta_value > '' OR l.meta_value > '' OR a.meta_value > '' OR h.meta_value > '' )
+		GROUP BY w.meta_value, l.meta_value, a.meta_value, h.meta_value
+		ORDER BY n DESC LIMIT 12",
+		ARRAY_A
+	);
+	$out = array();
+	foreach ( (array) $rows as $r ) {
+		$pkg = array(
+			'weight' => dox_pos_measure( $r['weight'] ?? '' ),
+			'length' => dox_pos_measure( $r['length'] ?? '' ),
+			'width'  => dox_pos_measure( $r['width'] ?? '' ),
+			'height' => dox_pos_measure( $r['height'] ?? '' ),
+		);
+		if ( '' === implode( '', $pkg ) ) {
+			continue;
+		}
+		$out[ implode( '|', $pkg ) ] = $pkg; // "0.5" y "0.50" son el mismo paquete.
+	}
+	return array_slice( array_values( $out ), 0, 5 );
 }
 
 /**
@@ -900,6 +1019,10 @@ function dox_pos_create_product( $data ) {
 	if ( null !== $cost && $cost > 0 ) {
 		$product->set_cogs_value( round( $cost, 2 ) ); // El costo por unidad va en el producto; cada talla lo hereda.
 	}
+	$pkg = dox_pos_package_from( $data );
+	if ( $pkg ) {
+		dox_pos_set_package( $product, $pkg ); // El peso y las medidas van en el producto; cada talla los hereda.
+	}
 	if ( $main ) {
 		$product->set_image_id( $main );
 	}
@@ -1390,6 +1513,7 @@ function dox_pos_product_edit_data( $id ) {
 		'cost'        => $cs ? $cs['cost'] : null, // Uno solo; '' si las tallas cuestan distinto; null sin costo (o sin permiso para verlo).
 		'cost_min'    => $cs ? $cs['min'] : 0,
 		'cost_max'    => $cs ? $cs['max'] : 0,
+		'package'     => dox_pos_product_package( $p ), // Peso y medidas; mixed si las tallas no llevan todas lo mismo.
 		'sizes'       => $model['sizes'],
 		'colors'      => $model['colors'],
 		'qty'         => (object) $qty,
@@ -1467,6 +1591,7 @@ function dox_pos_product_card( $id ) {
 		'price_max'    => $prices ? max( $prices ) : 0.0,
 		'editable'     => in_array( $p->get_type(), array( 'simple', 'variable' ), true ) && current_user_can( dox_pos_products_cap() ),
 		'description'  => wp_trim_words( dox_pos_plain_text( $p->get_description( 'edit' ) ), 40 ),
+		'package'      => dox_pos_product_package( $p ), // Peso y medidas, para el envío.
 	);
 	if ( dox_pos_can_see_costs() ) {
 		$cs              = dox_pos_product_cost_summary( $p );
@@ -1701,6 +1826,10 @@ function dox_pos_update_product( $id, $data ) {
 	if ( null !== $cost ) {
 		$p->set_cogs_value( $cost > 0 ? round( $cost, 2 ) : null );
 	}
+	$pkg = dox_pos_package_from( $data ); // Null: el formulario no lo tocó.
+	if ( null !== $pkg ) {
+		dox_pos_set_package( $p, $pkg );
+	}
 	try {
 		$pid = $p->save();
 	} catch ( Exception $e ) {
@@ -1727,6 +1856,11 @@ function dox_pos_update_product( $id, $data ) {
 			$changed = false;
 			if ( '' !== $price && (float) $vr['price'] !== (float) $price ) {
 				$v->set_regular_price( $price );
+				$changed = true;
+			}
+			// El paquete escrito va a todo el producto: la talla que llevaba el suyo lo suelta y hereda el nuevo.
+			if ( null !== $pkg && '' !== $v->get_weight( 'edit' ) . $v->get_length( 'edit' ) . $v->get_width( 'edit' ) . $v->get_height( 'edit' ) ) {
+				dox_pos_set_package( $v, array( 'weight' => '', 'length' => '', 'width' => '', 'height' => '' ) );
 				$changed = true;
 			}
 			// Comparte unidades (el total del producto, o la bolsa de su color) o lleva las suyas: lo que diga el

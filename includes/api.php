@@ -49,6 +49,27 @@ function dox_pos_register_routes() {
 		)
 	);
 	register_rest_route( $ns, '/shipping', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_shipping', 'permission_callback' => $perm ) );
+	// Los costos de envío, puestos desde la caja: las zonas y los métodos de WooCommerce. Solo quien administra.
+	$sperm = 'dox_pos_rest_shipping_setup_permission';
+	register_rest_route( $ns, '/shipping/setup', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_shipping_setup', 'permission_callback' => $sperm ) );
+	register_rest_route( $ns, '/shipping/zones', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_shipping_save_zone', 'permission_callback' => $sperm ) );
+	register_rest_route(
+		$ns,
+		'/shipping/zones/(?P<zone>\d+)',
+		array(
+			array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_shipping_save_zone', 'permission_callback' => $sperm ),
+			array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => 'dox_pos_rest_shipping_delete_zone', 'permission_callback' => $sperm ),
+		)
+	);
+	register_rest_route( $ns, '/shipping/zones/(?P<zone>\d+)/rates', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_shipping_save_rate', 'permission_callback' => $sperm ) );
+	register_rest_route(
+		$ns,
+		'/shipping/zones/(?P<zone>\d+)/rates/(?P<rate>\d+)',
+		array(
+			array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_shipping_save_rate', 'permission_callback' => $sperm ),
+			array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => 'dox_pos_rest_shipping_delete_rate', 'permission_callback' => $sperm ),
+		)
+	);
 	register_rest_route(
 		$ns,
 		'/orders',
@@ -226,10 +247,47 @@ function dox_pos_rest_shipping( WP_REST_Request $request ) {
 				sanitize_text_field( $b['state'] ?? '' ),
 				sanitize_text_field( $b['city'] ?? '' ),
 				sanitize_text_field( $b['address'] ?? '' ),
-				(array) ( $b['lines'] ?? array() )
+				(array) ( $b['lines'] ?? array() ),
+				sanitize_text_field( $b['postcode'] ?? '' )
 			),
 		)
 	);
+}
+
+/**
+ * Poner los costos de envío pide, además de la caja, administrar la tienda.
+ *
+ * @return bool|WP_Error
+ */
+function dox_pos_rest_shipping_setup_permission() {
+	$ok = dox_pos_rest_permission();
+	if ( true !== $ok ) {
+		return $ok;
+	}
+	if ( ! dox_pos_can_manage_shipping() ) {
+		return new WP_Error( 'dox_pos_sin_permiso', __( 'Only administrators and shop managers can set the shipping costs.', 'dox-pos' ), array( 'status' => 403 ) );
+	}
+	return true;
+}
+
+function dox_pos_rest_shipping_setup() {
+	return rest_ensure_response( dox_pos_shipping_setup() );
+}
+
+function dox_pos_rest_shipping_save_zone( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_shipping_save_zone( (int) $request['zone'], (array) $request->get_json_params() ) );
+}
+
+function dox_pos_rest_shipping_delete_zone( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_shipping_delete_zone( (int) $request['zone'] ) );
+}
+
+function dox_pos_rest_shipping_save_rate( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_shipping_save_rate( (int) $request['zone'], (int) $request['rate'], (array) $request->get_json_params() ) );
+}
+
+function dox_pos_rest_shipping_delete_rate( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_shipping_delete_rate( (int) $request['zone'], (int) $request['rate'] ) );
 }
 
 function dox_pos_rest_orders() {

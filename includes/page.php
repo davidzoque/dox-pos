@@ -333,6 +333,7 @@ function dox_pos_js_config() {
 		'messaging'       => dox_pos_messaging(),                           // "whatsapp" o "sms": por dónde se le escribe a la clienta.
 		'messaging_name'  => dox_pos_messaging_name(),                      // Cómo se llama en los botones ("WhatsApp" o "Text message").
 		'state_label'     => dox_pos_state_label(),
+		'postcode'        => dox_pos_postcode_label(),                     // El rótulo del código postal, o vacío en los países que no lo usan (Colombia): la venta solo lo pregunta si lo hay.
 		'states'          => function_exists( 'WC' ) ? WC()->countries->get_states( $country ) : array(),
 		'cities'          => 'CO' === $country && function_exists( 'colciu_get_ciudades' ) ? colciu_get_ciudades() : array(),
 		'money'           => array(
@@ -350,6 +351,9 @@ function dox_pos_js_config() {
 		'margin_good'     => 40,                                          // La ganancia sale en verde desde este margen; el Pro pone el de sus ajustes.
 		'margin_low'      => 20,                                          // Y en rojo por debajo de este.
 		'costs'           => dox_pos_can_see_costs(),                     // ¿Ve costos y ganancia? (administradores y gerentes, con los costos encendidos)
+		'units'           => array( 'weight' => dox_pos_weight_unit(), 'dimension' => dox_pos_dimension_unit() ), // Las unidades de la tienda, para el peso y las medidas del producto.
+		'shipping_setup'  => dox_pos_can_manage_shipping(),               // ¿Pone los costos de envío desde la caja? (el engranaje: administradores y gerentes)
+		'settings_url'    => dox_pos_can_manage_shipping() ? admin_url( 'admin.php?page=dox-pos' ) : '', // "Todos los ajustes", en el mismo engranaje.
 		'url'             => dox_pos_url(),
 		'today'           => wp_date( 'Y-m-d' ),                          // El día de la tienda, para los periodos.
 		'max_upload'      => (int) wp_max_upload_size(),

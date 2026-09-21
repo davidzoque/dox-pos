@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.40.0
+Stable tag: 0.41.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -24,7 +24,8 @@ It follows the country of the store (WooCommerce > Settings > General): the paym
 * **Sell and put on layaway.** Channel, customer, city, shipping, discount and payment method. A sale becomes a WooCommerce order, so the stock, the reports and the emails are the ones the store already had. A layaway holds the stock and cancels itself if it is not paid within the deadline you set.
 * **Inventory.** Record what arrives with supplier, invoice and cost. It adds to the stock and warns you if the same invoice was already recorded from another phone.
 * **Orders.** The ones from the register and, if you want, the ones from the website, with their status and the WhatsApp message ready. Mark them shipped with a carrier and a tracking number, and the customer gets an email with the tracking link, using the store's own email design.
-* **Products.** Create and edit products from the phone: photos (iPhone HEIC included, stored as WebP), sizes, colors, units per size and an automatic SKU that follows the one the store already uses.
+* **Products.** Create and edit products from the phone: photos (iPhone HEIC included, stored as WebP), sizes, colors, units per size, weight and size for shipping, and an automatic SKU that follows the one the store already uses.
+* **Shipping costs.** Set what shipping costs without opening wp-admin: a fixed price, by weight, free from an amount or store pickup, for the whole country or for some of its regions. They are saved as WooCommerce shipping zones, so the web checkout and the register charge the same.
 * **History.** Sales, the daily cash, the stock ledger and, with costs on, what each product leaves. Everything downloads as a real Excel file.
 * **Costs and profit.** A cost per unit for each product, stored in the WooCommerce cost field. Every purchase recalculates the weighted average cost, and every sale freezes the cost in the order, so raising a cost later does not rewrite past sales.
 * **A Cashier role.** Whoever sells gets into the register and never sees the WordPress dashboard.
@@ -69,6 +70,10 @@ Administrators and shop managers. Someone with only the Cashier role sells and r
 
 In the WooCommerce cost field ("Cost of Goods Sold"), so it also shows in the WooCommerce product editor and other plugins can read it. The plugin turns that feature on when you save the settings with the costs switch on.
 
+= How do I charge shipping by weight? =
+
+Open the register, tap the gear at the top and choose Shipping costs. Add a cost "By weight" and write the ranges ("up to 1 lb, 6", "up to 5 lb, 10") and what a heavier order pays. It is a regular WooCommerce shipping method, so the web checkout charges the same, with no table rate plugin. Each product gets its weight and its size in the Products tab of the register; a product with no weight counts as zero.
+
 = I am not in Colombia. Does it fit my shop? =
 
 Yes. The register reads the store country from WooCommerce. A Colombian store gets Nequi, the local carriers (Coordinadora, Servientrega, Interrapidísimo, TCC...) and WhatsApp; a US store gets Zelle and Venmo, USPS, UPS, FedEx and DHL, and text messages instead of WhatsApp; Mexico, Spain, Argentina, Chile, Peru and Ecuador have their own carriers, and any other country starts with DHL, UPS and FedEx. Card, cash, bank transfer and cash on delivery are there everywhere, and you can rename, turn off or add payment methods, carriers and channels in WooCommerce > Dox POS > Sales.
@@ -87,6 +92,15 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.41.0 =
+* New: **shipping costs, set from the register.** The gear at the top of the screen (administrators and shop managers) opens Shipping costs: a fixed price, by weight, free from an amount or store pickup, for the whole country or for some of its regions. Nothing is kept apart: they are the WooCommerce shipping zones and methods, so the web checkout and the register charge the same. What the screen cannot edit (a price written as a formula, free shipping that asks for a coupon, the method of another plugin) is shown as it is and can only be turned on or off.
+* New: **shipping by weight**, a WooCommerce shipping method with ranges ("up to 1 lb, 6; up to 5 lb, 10"), a price for heavier orders and an optional amount per extra unit of weight. It works in the web checkout too, with no table rate plugin.
+* New: **weight and size of the product** in the Products tab, in the units of the store. The packages the store uses the most show up as buttons, so a shop that ships almost everything in the same bag sets them with one tap. They go to the product and its sizes inherit them; if someone gave a size its own weight in WooCommerce, the form leaves it alone unless you type a new one.
+* New: the sale asks for the **postcode** in the countries that use one (ZIP Code in the United States), saves it in the order and uses it to find the shipping zone. A country that does not require it, such as Colombia, sees no change.
+* When the store charges nothing for the place of a sale, the register now says so instead of asking for the city again, and the amount can still be typed by hand.
+* Fixed: with WP_DEBUG on, a shipping cost written as a formula WooCommerce cannot evaluate ("[qty] > 2 ? 24000 : 12000") made WooCommerce print a notice into the answer, and the sale showed no shipping options at all. What a shipping method prints while it calculates no longer reaches the register.
+* Fixed: a few texts of the register showed up in Spanish on a site in another language ("Editar este producto", "Buscando…", "Guardando…", the hint under the categories and the badge of the main photo).
 
 = 0.40.0 =
 * New: Dox POS now shows up in the shared **Dox Plugins** menu when other Dox Studio plugins are installed, with a link to its settings. The register itself does not move: it stays under WooCommerce > Dox POS, which is where anyone using it looks for it. On a site where Dox POS is the only Dox plugin, no extra menu is added at all.

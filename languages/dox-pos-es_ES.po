@@ -893,8 +893,8 @@ msgstr "Una línea cuyo comodín quede vacío (sin guía, sin enlace) se quita s
 msgid "Costs and zones"
 msgstr "Costos y zonas"
 
-msgid "The register has no rates of its own: it charges shipping just like the checkout, with WooCommerce zones. The country, the states and the cities come from the store settings."
-msgstr "La caja no tiene tarifas propias: cobra el envío igual que el checkout, con las zonas de WooCommerce. Y el país, los departamentos y las ciudades salen de los ajustes de la tienda."
+msgid "The register has no rates of its own: it charges shipping just like the checkout, with the WooCommerce zones. You set them without leaving the register, from the gear at the top (Shipping costs): a fixed price, by weight, free from an amount or store pickup. The country, the states and the cities come from the store settings."
+msgstr "La caja no tiene tarifas propias: cobra el envío igual que el checkout, con las zonas de WooCommerce. Se ponen sin salir de la caja, desde el engranaje de arriba (Costos de envío): precio fijo, por peso, gratis desde un monto o recoger en tienda. Y el país, los departamentos y las ciudades salen de los ajustes de la tienda."
 
 msgid "Shipping zones"
 msgstr "Zonas de envío"
@@ -2743,3 +2743,345 @@ msgstr "Las cifras del Panel, el total de la venta y los títulos. Todas vienen 
 
 msgid "A point of sale for WooCommerce: sell in person with the same catalogue and the same stock."
 msgstr "Un punto de venta para WooCommerce: vende en persona con el mismo catálogo y el mismo inventario."
+
+msgid "Postcode"
+msgstr "Código postal"
+
+msgid "That shipping zone no longer exists."
+msgstr "Esa zona de envío ya no existe."
+
+msgid "Choose at least one: %s."
+msgstr "Elige al menos un lugar (%s)."
+
+msgid "All of %1$s already has its zone: %2$s."
+msgstr "Todo %1$s ya tiene su zona: %2$s."
+
+msgid "%1$s is already in another zone: %2$s."
+msgstr "%1$s ya está en otra zona: %2$s."
+
+msgid "That zone cannot be deleted."
+msgstr "Esa zona no se puede borrar."
+
+msgid "Choose how this shipping is charged."
+msgstr "Elige cómo se cobra este envío."
+
+msgid "That shipping cost no longer exists."
+msgstr "Ese costo de envío ya no existe."
+
+msgid "Add at least one weight range with its price."
+msgstr "Añade al menos un tramo de peso con su precio."
+
+msgid "Only administrators and shop managers can set the shipping costs."
+msgstr "Poner los costos de envío es cosa de administradores y gerentes de tienda."
+
+msgid "Shipping by weight (Dox POS)"
+msgstr "Envío por peso (Dox POS)"
+
+msgid "Charges by the total weight of the order, in ranges. It is easier to set up from the register: the gear at the top, then Shipping costs."
+msgstr "Cobra según el peso total del pedido, por tramos. Es más fácil armarlo desde la caja: el engranaje de arriba y luego Costos de envío."
+
+msgid "Tax status"
+msgstr "Estado del impuesto"
+
+msgid "Taxable"
+msgstr "Imponible"
+
+msgid "None"
+msgstr "Ninguno"
+
+msgid "Weight ranges"
+msgstr "Tramos de peso"
+
+msgid "One range per line: the weight it goes up to (%s), a bar and what it costs. For example: 1 | 6"
+msgstr "Un tramo por línea: el peso hasta el que llega (%s), una barra y lo que cuesta. Por ejemplo: 1 | 6"
+
+msgid "Heavier than the last range"
+msgstr "Más pesado que el último tramo"
+
+msgid "What an order heavier than the last range pays. Empty: the last range applies."
+msgstr "Lo que paga un pedido más pesado que el último tramo. Vacío: vale el último tramo."
+
+msgid "Plus, for each extra %s"
+msgstr "Más, por cada %s de más"
+
+msgid "Added for every unit of weight above the last range. Empty: nothing extra."
+msgstr "Se suma por cada unidad de peso por encima del último tramo. Vacío: nada de más."
+
+msgid "Shipping costs"
+msgstr "Costos de envío"
+
+msgid "Weight and size"
+msgstr "Peso y medidas"
+
+msgid "Weight"
+msgstr "Peso"
+
+msgid "Length"
+msgstr "Largo"
+
+msgid "Width"
+msgstr "Ancho"
+
+msgid "Height"
+msgstr "Alto"
+
+msgid "The product already packed, ready to ship. It is what the shipping by weight and the carriers’ labels use."
+msgstr "El producto ya empacado, listo para enviar. Es lo que usan el envío por peso y las guías de las transportadoras."
+
+msgid "All the settings"
+msgstr "Todos los ajustes"
+
+msgid "Searching…"
+msgstr "Buscando…"
+
+msgid "Edit this product"
+msgstr "Editar este producto"
+
+msgid "The store has no shipping cost for this place yet. Type it below for this sale, or set it up once in Shipping costs."
+msgstr "La tienda todavía no tiene costo de envío para este lugar. Escríbelo abajo para esta venta, o déjalo puesto de una vez en Costos de envío."
+
+msgid "The store has no shipping cost for this place. Type it below."
+msgstr "La tienda no tiene costo de envío para este lugar. Escríbelo abajo."
+
+msgid "Fixed price"
+msgstr "Precio fijo"
+
+msgid "The same for every order."
+msgstr "El mismo para todos los pedidos."
+
+msgid "By weight"
+msgstr "Por peso"
+
+msgid "Heavier orders pay more."
+msgstr "Los pedidos más pesados pagan más."
+
+msgid "Free shipping"
+msgstr "Envío gratis"
+
+msgid "Always, or from an amount."
+msgstr "Siempre, o desde un monto."
+
+msgid "Store pickup"
+msgstr "Recoger en tienda"
+
+msgid "The customer collects it."
+msgstr "La clienta pasa a recogerlo."
+
+msgid "Everywhere else"
+msgstr "Todo lo demás"
+
+msgid "Formula"
+msgstr "Fórmula"
+
+msgid "With coupon"
+msgstr "Con cupón"
+
+msgid "Free"
+msgstr "Gratis"
+
+msgid "Always"
+msgstr "Siempre"
+
+msgid "Setting the shipping costs needs a connection."
+msgstr "Para poner los costos de envío hace falta conexión."
+
+msgid "No signal. Try again when the connection is back."
+msgstr "Sin señal. Vuelve a intentarlo cuando vuelva la conexión."
+
+msgid "Costs"
+msgstr "Costos"
+
+msgid "What shipping costs. The register and the web store checkout charge the same, because both read it from here."
+msgstr "Lo que cuesta enviar. La caja y el checkout de la tienda web cobran lo mismo, porque los dos lo leen de aquí."
+
+msgid "No shipping costs yet"
+msgstr "Todavía no hay costos de envío"
+
+msgid "Start with all of %s: one price, by weight, or free from an amount. You can split it by region later."
+msgstr "Empieza por todo %s: un precio fijo, por peso o gratis desde un monto. Después lo puedes partir por regiones."
+
+msgid "Start with %s"
+msgstr "Empezar por %s"
+
+msgid "Off"
+msgstr "Apagado"
+
+msgid "Add a cost"
+msgstr "Añadir un costo"
+
+msgid "Without a cost here, a place that no zone covers gets no shipping option."
+msgstr "Sin un costo aquí, un lugar que ninguna zona cubre se queda sin opción de envío."
+
+msgid "Without a cost here, these places get no shipping option: the store does not fall back to another zone."
+msgstr "Sin un costo aquí, estos lugares se quedan sin opción de envío: la tienda no pasa a otra zona."
+
+msgid "Add a zone"
+msgstr "Añadir una zona"
+
+msgid "Formulas, coupons and zones for other countries are set in WooCommerce."
+msgstr "Las fórmulas, los cupones y las zonas de otros países se ponen en WooCommerce."
+
+msgid "Open it"
+msgstr "Abrirlo"
+
+msgid "New cost"
+msgstr "Nuevo costo"
+
+msgid "%s: how is shipping charged?"
+msgstr "%s: ¿cómo se cobra el envío?"
+
+msgid "Its price is a formula (%s), so it is changed in WooCommerce. Here you can turn it on or off."
+msgstr "Su precio es una fórmula (%s), así que se cambia en WooCommerce. Aquí lo puedes encender o apagar."
+
+msgid "It asks for a coupon, so it is changed in WooCommerce. Here you can turn it on or off."
+msgstr "Pide un cupón, así que se cambia en WooCommerce. Aquí lo puedes encender o apagar."
+
+msgid "It comes from another plugin (%s) and is set up there. Here you can turn it on or off."
+msgstr "Viene de otro plugin (%s) y se ajusta allí. Aquí lo puedes encender o apagar."
+
+msgid "What the customer reads when choosing the shipping."
+msgstr "Lo que lee la clienta al elegir el envío."
+
+msgid "Most stores leave it at zero."
+msgstr "Casi todas las tiendas lo dejan en cero."
+
+msgid "Free from"
+msgstr "Gratis desde"
+
+msgid "The order has to reach this amount. Empty: shipping is always free."
+msgstr "El pedido tiene que llegar a este monto. Vacío: el envío siempre es gratis."
+
+msgid "Add a range"
+msgstr "Añadir un tramo"
+
+msgid "Heavier than that"
+msgstr "Más pesado que eso"
+
+msgid "Plus, per extra %s"
+msgstr "Más, por cada %s de más"
+
+msgid "Empty: an order heavier than the last range pays what the last range says."
+msgstr "Vacío: un pedido más pesado que el último tramo paga lo que diga el último tramo."
+
+msgid "Offer it to customers"
+msgstr "Ofrecerlo a las clientas"
+
+msgid "Off: it stays saved, but nobody sees it."
+msgstr "Apagado: se queda guardado, pero nadie lo ve."
+
+msgid "Add this cost"
+msgstr "Añadir este costo"
+
+msgid "Delete this cost"
+msgstr "Borrar este costo"
+
+msgid "Up to"
+msgstr "Hasta"
+
+msgid "Weight of range %d"
+msgstr "Peso del tramo %d"
+
+msgid "Price of range %d"
+msgstr "Precio del tramo %d"
+
+msgid "Remove range %d"
+msgstr "Quitar el tramo %d"
+
+msgid "Every range needs its weight and its price."
+msgstr "Cada tramo necesita su peso y su precio."
+
+msgid "Delete %s? The web store stops offering it too."
+msgstr "¿Borrar %s? La tienda web también deja de ofrecerlo."
+
+msgid "Yes, delete it"
+msgstr "Sí, borrarlo"
+
+msgid "Deleting…"
+msgstr "Borrando…"
+
+msgid "New zone"
+msgstr "Nueva zona"
+
+msgid "This zone covers %s. Its places are changed in WooCommerce; here you can rename it, and set its costs from the list."
+msgstr "Esta zona cubre %s. Sus lugares se cambian en WooCommerce; aquí le puedes cambiar el nombre, y poner sus costos desde la lista."
+
+msgid "Where"
+msgstr "Dónde"
+
+msgid "All of %s"
+msgstr "Todo %s"
+
+msgid "It already has its zone."
+msgstr "Ya tiene su zona."
+
+msgid "Only part of %s"
+msgstr "Solo una parte de %s"
+
+msgid "It goes before the zone of the whole country: those places pay what this one says."
+msgstr "Va antes que la zona de todo el país: esos lugares pagan lo que diga esta."
+
+msgid "Search"
+msgstr "Buscar"
+
+msgid "Only you see it. Empty: it takes the name of its places."
+msgstr "Solo lo ves tú. Vacío: toma el nombre de sus lugares."
+
+msgid "Create the zone"
+msgstr "Crear la zona"
+
+msgid "Delete this zone"
+msgstr "Borrar esta zona"
+
+msgid "Already in %s"
+msgstr "Ya está en %s"
+
+msgid "Nothing matches."
+msgstr "No hay coincidencias."
+
+msgid "Delete the zone %s?"
+msgstr "¿Borrar la zona %s?"
+
+msgid "Package"
+msgstr "Paquete"
+
+msgid "varies by size"
+msgstr "cambia según la talla"
+
+msgid "Main"
+msgstr "Principal"
+
+msgid "The store has no categories with products."
+msgstr "La tienda no tiene categorías con productos."
+
+msgid "Tap a group and choose the category. You can pick more than one."
+msgstr "Toca un grupo y elige la categoría. Puedes marcar más de una."
+
+msgid "The sizes of this product do not all weigh or measure the same. Leave it empty to keep them as they are; what you type here goes to all of them."
+msgstr "Las tallas de este producto no pesan o miden todas lo mismo. Déjalo vacío para que sigan como están; lo que escribas aquí va a todas."
+
+msgid "Enter the three measures (length, width and height), or leave them empty."
+msgstr "Escribe las tres medidas (largo, ancho y alto), o déjalas vacías."
+
+msgid "No weight: the shipping by weight will charge it as if it weighed nothing."
+msgstr "Sin peso: el envío por peso lo cobrará como si no pesara nada."
+
+msgid "No weight or size"
+msgstr "Sin peso ni medidas"
+
+msgid "Creating…"
+msgstr "Creando…"
+
+msgid "%d chosen"
+msgid_plural "%d chosen"
+msgstr[0] "%d elegido"
+msgstr[1] "%d elegidos"
+
+msgid "Delete the zone %1$s with its %2$d cost? The web store stops offering it too."
+msgid_plural "Delete the zone %1$s with its %2$d costs? The web store stops offering them too."
+msgstr[0] "¿Borrar la zona %1$s con su costo? La tienda web también deja de ofrecerlo."
+msgstr[1] "¿Borrar la zona %1$s con sus %2$d costos? La tienda web también deja de ofrecerlos."
+
+msgid "Chosen:"
+msgid_plural "Chosen:"
+msgstr[0] "Elegida:"
+msgstr[1] "Elegidas:"

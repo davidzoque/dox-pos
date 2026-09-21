@@ -107,7 +107,7 @@ function dox_pos_disable_admin_mail( $enabled, $order ) {
 /**
  * Crea el pedido. Si $hold, queda en espera (apartado) con su plazo; si no, es una venta.
  *
- * @param array $data lines, channel, customer{name, phone, state, city, address}, payment, discount, shipping{label, method_id, instance_id, cost}, note, ref.
+ * @param array $data lines, channel, customer{name, phone, state, city, address, postcode}, payment, discount, shipping{label, method_id, instance_id, cost}, note, ref.
  * @param bool  $hold Apartado en vez de venta.
  * @return array|WP_Error El pedido formateado, con el mensaje de WhatsApp.
  */
@@ -178,6 +178,7 @@ function dox_pos_create_order( $data, $hold ) {
 		'address_1'  => sanitize_text_field( $cust['address'] ?? '' ),
 		'city'       => sanitize_text_field( $cust['city'] ?? '' ),
 		'state'      => sanitize_text_field( $cust['state'] ?? '' ),
+		'postcode'   => wc_format_postcode( sanitize_text_field( $cust['postcode'] ?? '' ), dox_pos_country() ),
 		'country'    => dox_pos_country(),
 	);
 

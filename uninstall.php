@@ -9,7 +9,8 @@
  * "caja", el permiso, todos los ajustes (la clave de OpenAI incluida) y los pedidos de prueba.
  *
  * Los pedidos, el stock y las tablas de entradas, del kardex y del asistente (el histórico de lo
- * que hizo) no se tocan en ningún caso.
+ * que hizo) no se tocan en ningún caso. Tampoco las zonas ni los costos de envío puestos desde la
+ * caja: son de WooCommerce (un envío por peso sin el plugin queda inerte y vuelve si se reinstala).
  *
  * @package DoxPos
  */
