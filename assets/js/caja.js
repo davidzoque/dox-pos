@@ -1562,6 +1562,8 @@
 		grupo: null,        // el grupo de categorías desplegado
 		masColores: false,  // enseñar todos los colores, no solo los más usados
 		masTallas: false,   // enseñar todas las tallas, no solo las de la categoría
+		masCats: false,     // enseñar también las categorías que todavía no tienen productos
+		catsNuevas: [],     // las categorías creadas en esta sesión: salen siempre, aunque estén vacías
 		dup: null,          // un producto que ya se llama así: {id, sku, name}
 		restaurando: false, // mientras se vuelve a cargar el borrador no se guarda otra vez
 		paquete0: null,     // el peso y las medidas con que llegó el producto que se edita: si no cambian, no se mandan
@@ -1771,9 +1773,17 @@
 	// Categorías: por grupos (la de arriba y las suyas), para no enseñar treinta y seis botones de golpe.
 	// Se toca el grupo y salen las suyas; lo elegido queda en una línea aparte con su ×. La primera que se
 	// elige sugiere las tallas que usan sus productos y el siguiente código libre de su prefijo.
+	// Las categorías que se enseñan: las que ya tienen productos, las elegidas y las recién creadas. Las vacías
+	// quedan detrás de "Más categorías…", para no llenar la pantalla de una tienda con muchas sin usar; si
+	// ninguna tiene productos (una tienda que empieza), salen todas.
+	function categoriasVisibles() {
+		const cats = (pr.form && pr.form.categories) || [];
+		if (pr.masCats || !cats.some((c) => c.count > 0)) return cats;
+		return cats.filter((c) => c.count > 0 || pr.cats.includes(c.id) || pr.catsNuevas.includes(c.id));
+	}
 	function gruposDeCategorias() {
 		const grupos = [];
-		((pr.form && pr.form.categories) || []).forEach((c) => {
+		categoriasVisibles().forEach((c) => {
 			let g = grupos.find((x) => x.id === c.group_id);
 			if (!g) { g = { id: c.group_id, name: c.group, cats: [] }; grupos.push(g); }
 			g.cats.push(c);
@@ -1784,7 +1794,11 @@
 		const box = $("#p-cats");
 		box.innerHTML = "";
 		const cats = (pr.form && pr.form.categories) || [];
-		if (!cats.length) { box.innerHTML = '<span class="hint">' + esc(__("The store has no categories with products.", "dox-pos")) + "</span>"; return; }
+		if (!cats.length) { // Una tienda sin categorías: se crea la primera aquí mismo.
+			box.innerHTML = '<span class="hint">' + esc(__("The store has no categories yet. Create the first one here.", "dox-pos")) + "</span>";
+			abrirNuevaCategoria(false);
+			return;
+		}
 		const grupos = gruposDeCategorias();
 		if (pr.grupo === null && pr.cats.length) { // Con una elegida y ningún grupo abierto, se abre el suyo.
 			const c = cats.find((x) => x.id === pr.cats[0]);
@@ -1801,6 +1815,15 @@
 			if (pr.grupo === g.id) ch.classList.add("open");
 			heads.appendChild(ch);
 		});
+		const ocultas = cats.length - categoriasVisibles().length;
+		if (ocultas > 0) {
+			const mas = chip(sprintf(__("More categories (%d)\u2026", "dox-pos"), ocultas), false, () => { pr.masCats = true; pintarCategorias(); });
+			mas.classList.add("plus");
+			heads.appendChild(mas);
+		}
+		const nueva = chip(__("New category\u2026", "dox-pos"), false, () => { if ($("#p-nuevacat").hidden) abrirNuevaCategoria(true); else $("#p-nuevacat").hidden = true; });
+		nueva.classList.add("plus");
+		heads.appendChild(nueva);
 		box.appendChild(heads);
 		const g = grupos.find((x) => x.id === pr.grupo);
 		if (g) {
@@ -1837,6 +1860,40 @@
 			sel.innerHTML = '<span class="hint">' + esc(__("Tap a group and choose the category. You can pick more than one.", "dox-pos")) + "</span>";
 		}
 		box.appendChild(sel);
+	}
+	// La fila de la categoría nueva: el nombre y dentro de cuál va (por defecto, de ninguna: es la que menos sorpresas da en la tienda).
+	function abrirNuevaCategoria(foco) {
+		const cats = (pr.form && pr.form.categories) || [];
+		const sel = $("#p-cat-padre");
+		sel.innerHTML = '<option value="0">' + esc(__("Not inside another one", "dox-pos")) + "</option>" +
+			cats.map((c) => '<option value="' + c.id + '">' + esc(sprintf(__("Inside %s", "dox-pos"), (c.path ? c.path + " \u203a " : "") + c.name)) + "</option>").join("");
+		sel.hidden = !cats.length;
+		$("#p-nuevacat").hidden = false;
+		if (foco) $("#p-cat-nom").focus();
+	}
+	async function añadirCategoriaNueva() {
+		const name = $("#p-cat-nom").value.trim();
+		if (!name) { $("#p-cat-nom").focus(); return; }
+		const parent = parseInt($("#p-cat-padre").value, 10) || 0;
+		if (!navigator.onLine) { toast(__("Creating a category needs a connection.", "dox-pos")); return; }
+		const btn = $("#p-cat-add");
+		if (btn.getAttribute("aria-busy") === "true") return;
+		const soltar = ocupar(btn, __("Creating\u2026", "dox-pos"));
+		try {
+			const d = await post("products/categories", { name: name, parent: parent });
+			const c = d.category;
+			const i = pr.form.categories.findIndex((x) => x.id === c.id);
+			if (i >= 0) pr.form.categories[i] = c; else pr.form.categories.push(c);
+			if (!pr.catsNuevas.includes(c.id)) pr.catsNuevas.push(c.id);
+			$("#p-cat-nom").value = "";
+			$("#p-nuevacat").hidden = true;
+			pr.grupo = c.group_id;
+			if (pr.cats.includes(c.id)) pintarCategorias(); else toggleCat(c); // Queda elegida: para eso se creó.
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+		}
+		soltar();
 	}
 	function toggleCat(c) {
 		const i = pr.cats.indexOf(c.id);
@@ -2446,6 +2503,8 @@
 		pr.paquete0 = null;
 		$("#p-pub").checked = true;
 		$("#p-nuevocolor").hidden = true;
+		$("#p-nuevacat").hidden = true;
+		$("#p-cat-nom").value = "";
 		$("#p-nom-dup").hidden = true;
 		estadoSku("", "");
 		pr.edit = null;
@@ -3048,6 +3107,8 @@
 			$("#p-sku").addEventListener("input", comprobarCodigo);
 			$("#p-vaciar").onclick = vaciarProducto;
 			$("#p-color-add").onclick = añadirColorNuevo;
+			$("#p-cat-add").onclick = añadirCategoriaNueva;
+			$("#p-cat-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirCategoriaNueva(); } });
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-crear").onclick = crearProducto;
 			document.querySelectorAll("#pmode button").forEach((b) => { b.onclick = () => ponerModo(b.dataset.m); });

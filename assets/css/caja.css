@@ -684,6 +684,11 @@ table.ped .lnk.items{white-space:normal}
 .chips.row .chip{flex:none;font-variant-numeric:tabular-nums}
 .gaz{display:grid;grid-template-columns:minmax(0,1fr) 118px;gap:10px} /* la dirección con su código postal */
 
+/* una categoría nueva desde el formulario: el nombre a todo el ancho y, debajo, dentro de cuál va y el botón */
+.nuevacat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:4px}
+.nuevacat #p-cat-nom{grid-column:1/-1}
+.nuevacat .mini{min-height:42px;padding-left:16px;padding-right:16px}
+
 /* ---------- el engranaje: lo que se ajusta sin salir de la caja ---------- */
 .gear{appearance:none;border:0;background:none;color:var(--bar-ink);opacity:.85;width:36px;height:36px;margin-left:2px;border-radius:10px;
   display:grid;place-items:center;cursor:pointer;flex:none;transition:var(--press),opacity 150ms ease}

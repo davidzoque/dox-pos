@@ -3050,9 +3050,6 @@ msgstr "cambia según la talla"
 msgid "Main"
 msgstr "Principal"
 
-msgid "The store has no categories with products."
-msgstr "La tienda no tiene categorías con productos."
-
 msgid "Tap a group and choose the category. You can pick more than one."
 msgstr "Toca un grupo y elige la categoría. Puedes marcar más de una."
 
@@ -3085,3 +3082,39 @@ msgid "Chosen:"
 msgid_plural "Chosen:"
 msgstr[0] "Elegida:"
 msgstr[1] "Elegidas:"
+
+msgid "Give the category a name."
+msgstr "Ponle nombre a la categoría."
+
+msgid "The category %1$s could not be created: %2$s"
+msgstr "No se pudo crear la categoría %1$s: %2$s"
+
+msgid "The category was created, but it could not be read back. Reload the page."
+msgstr "La categoría se creó, pero no se pudo leer de vuelta. Recarga la página."
+
+msgid "Category name"
+msgstr "Nombre de la categoría"
+
+msgid "Name of the new category"
+msgstr "Nombre de la categoría nueva"
+
+msgid "Inside another category"
+msgstr "Dentro de otra categoría"
+
+msgid "The store has no categories yet. Create the first one here."
+msgstr "La tienda todavía no tiene categorías. Crea la primera aquí."
+
+msgid "More categories (%d)…"
+msgstr "Más categorías (%d)…"
+
+msgid "New category…"
+msgstr "Nueva categoría…"
+
+msgid "Not inside another one"
+msgstr "No va dentro de otra"
+
+msgid "Inside %s"
+msgstr "Dentro de %s"
+
+msgid "Creating a category needs a connection."
+msgstr "Para crear una categoría hace falta conexión."

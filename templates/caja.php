@@ -224,7 +224,13 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp">
 							<h4><?php esc_html_e( 'The product', 'dox-pos' ); ?></h4>
 							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><p class="fwarn" id="p-nom-dup" hidden></p></div>
-							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div></div>
+							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div>
+								<div class="nuevacat" id="p-nuevacat" hidden><?php // Una categoría nueva: se crea al momento y queda elegida (la abre el botón "Nueva categoría…", que pinta el JS). ?>
+									<input id="p-cat-nom" placeholder="<?php esc_attr_e( 'Category name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new category', 'dox-pos' ); ?>">
+									<select id="p-cat-padre" aria-label="<?php esc_attr_e( 'Inside another category', 'dox-pos' ); ?>"></select>
+									<button type="button" class="mini" id="p-cat-add"><?php esc_html_e( 'Add', 'dox-pos' ); ?></button>
+								</div>
+							</div>
 							<div class="g2 mt">
 								<div class="field"><label for="p-precio"><?php esc_html_e( 'Price', 'dox-pos' ); ?></label><input id="p-precio" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
 								<div class="field"><label for="p-sku"><?php esc_html_e( 'SKU', 'dox-pos' ); ?></label><input id="p-sku" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="pstatus" id="p-sku-st" aria-live="polite"></span></div>

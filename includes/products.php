@@ -344,8 +344,11 @@ function dox_pos_term_hex( $term_id ) {
 }
 
 /**
- * Las categorías con productos, agrupadas por su categoría de arriba, con el prefijo de
- * código y las tallas que usan sus productos (para sugerirlos al elegirla).
+ * Las categorías de la tienda, agrupadas por su categoría de arriba, con el prefijo de código y
+ * las tallas que usan sus productos (para sugerirlos al elegirla). Van todas, también las vacías
+ * (count dice cuántos productos tiene cada una): la pantalla enseña primero las que se usan y deja
+ * las demás detrás de "Más categorías", y una tienda recién instalada, sin productos, puede crear
+ * el primero. La de "sin categoría" no sale: elegirla es no elegir ninguna.
  *
  * @param array $sizes Las tallas, para pasar de slug a id.
  * @return array
@@ -362,9 +365,10 @@ function dox_pos_product_categories( $sizes ) {
 	$prefix = dox_pos_category_prefixes();
 	$sets   = dox_pos_category_size_sets( $sizes );
 	$plain  = fn( $s ) => html_entity_decode( (string) $s, ENT_QUOTES, 'UTF-8' ); // "Lazos &amp; pinzas" se guarda así en la base.
+	$none   = (int) get_option( 'default_product_cat', 0 ); // "Sin categoría", se llame como se llame en el idioma de la tienda.
 	$out    = array();
 	foreach ( $all as $t ) {
-		if ( $t->count < 1 || 'uncategorized' === $t->slug ) {
+		if ( 'uncategorized' === $t->slug || ( (int) $t->term_id === $none && $t->count < 1 ) ) {
 			continue;
 		}
 		$path = array();
@@ -1197,6 +1201,42 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	delete_transient( 'dox_pos_product_form' );
 	return get_term( (int) $r['term_id'], $tax );
+}
+
+/**
+ * Crea una categoría de productos desde el formulario (o devuelve la que ya se llama así en ese
+ * mismo sitio). Se crea al momento, no con el producto: así queda lista para los siguientes.
+ *
+ * @param array $data name y, si va dentro de otra, parent (id).
+ * @return array|WP_Error La categoría, como la pinta el formulario.
+ */
+function dox_pos_create_category( $data ) {
+	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
+	if ( '' === $name ) {
+		return new WP_Error( 'dox_pos_sin_nombre', __( 'Give the category a name.', 'dox-pos' ) );
+	}
+	$parent = (int) ( $data['parent'] ?? 0 );
+	if ( $parent && ! term_exists( $parent, 'product_cat' ) ) {
+		$parent = 0;
+	}
+	$found = term_exists( $name, 'product_cat', $parent );
+	if ( $found ) {
+		$id = (int) ( is_array( $found ) ? $found['term_id'] : $found );
+	} else {
+		$r = wp_insert_term( $name, 'product_cat', array( 'parent' => $parent ) );
+		if ( is_wp_error( $r ) ) {
+			return new WP_Error( 'dox_pos_categoria', sprintf( /* translators: 1: category, 2: reason */ __( 'The category %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
+		}
+		$id = (int) $r['term_id'];
+	}
+	delete_transient( 'dox_pos_product_form' );
+	$s = dox_pos_products_settings();
+	foreach ( dox_pos_product_categories( dox_pos_attribute_terms( $s['size_attr'], 'size' ) ) as $c ) {
+		if ( $c['id'] === $id ) {
+			return array( 'category' => $c );
+		}
+	}
+	return new WP_Error( 'dox_pos_categoria', __( 'The category was created, but it could not be read back. Reload the page.', 'dox-pos' ) );
 }
 
 /**
