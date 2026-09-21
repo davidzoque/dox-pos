@@ -265,7 +265,7 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp" id="g-paquete">
 							<h4><?php esc_html_e( 'Weight and size', 'dox-pos' ); ?> <span class="cnt"><?php esc_html_e( 'optional', 'dox-pos' ); ?></span></h4>
-							<div class="chips row" id="p-paquetes" hidden></div><?php // Los paquetes que más se repiten en la tienda: un toque y quedan puestos (los pinta el JS). ?>
+							<div class="chips tira" id="p-paquetes" hidden></div><?php // Los paquetes que más se repiten en la tienda: un toque y quedan puestos (los pinta el JS). ?>
 							<div class="pack">
 								<div class="field"><label for="p-peso"><?php esc_html_e( 'Weight', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-peso" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['weight'] ); ?></i></span></div>
 								<div class="field"><label for="p-largo"><?php esc_html_e( 'Length', 'dox-pos' ); ?></label><span class="uwrap"><input id="p-largo" inputmode="decimal" autocomplete="off" placeholder="0"><i><?php echo esc_html( $cfg['units']['dimension'] ); ?></i></span></div>
@@ -339,7 +339,7 @@ dox_pos_enqueue_caja( $cfg );
 		<a role="menuitem" href="<?php echo esc_url( $cfg['settings_url'] ); ?>" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><?php esc_html_e( 'All the settings', 'dox-pos' ); ?></a>
 	</div>
 	<div class="sheet" id="sheet" hidden>
-		<div class="sheet-card" id="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+		<div class="sheet-card" id="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
 			<div class="sheet-top" id="sheet-top">
 				<span class="sheet-grab" aria-hidden="true"></span>
 				<div class="sheet-head">

@@ -77,17 +77,17 @@ function dox_pos_spanish_fallback_json( $file, $handle, $domain ) {
 	return is_readable( $es ) ? $es : $file;
 }
 
-// Menú común de los plugins de Dox Studio: la caja sigue donde está, dentro de
-// WooCommerce, y solo se asoma a la portada de "Dox Plugins" cuando hay más
-// plugins Dox instalados. Cada plugin lleva su copia de dox-core y se ejecuta
-// solo la más nueva.
+// Menú común de los plugins de Dox Studio ("Dox Plugins"): con él, los ajustes
+// de la caja cuelgan de Dox Plugins > POS, junto a los demás plugins Dox. Cada
+// plugin lleva su copia de dox-core y se ejecuta solo la más nueva.
 //
 // Va dentro del bloque "repo-only" a propósito: dox-core trae su propio dominio
 // de traducción (dox-core, que no es el slug del plugin), sus .mo y un
 // load_textdomain, las tres cosas que la revisión de WordPress.org pidió quitar.
 // La copia del directorio no pierde nada: se sigue apuntando en
-// dox_core_register (includes/settings.php), así que sale en la portada en
-// cuanto otro plugin Dox traiga el core, y estando sola no había menú que crear.
+// dox_core_register (includes/settings.php), así que entra en ese menú en
+// cuanto otro plugin Dox traiga el core, y estando sola se queda en
+// WooCommerce > Dox POS, sin ningún menú de más.
 if ( file_exists( DOX_POS_PATH . 'dox-core/loader.php' ) ) {
 	require_once DOX_POS_PATH . 'dox-core/loader.php';
 	Dox_Core_Loader::register( require DOX_POS_PATH . 'dox-core/version.php', DOX_POS_PATH . 'dox-core/dox-core.php' );

@@ -28,7 +28,7 @@
 
 	// Los canales y las formas de pago vienen de los ajustes (WooCommerce > Dox POS).
 	const CANALES = (cfg.channels && cfg.channels.length) ? cfg.channels : [{ name: "WhatsApp", pickup: false }];
-	const PAGOS = (cfg.payments && cfg.payments.length) ? cfg.payments.map((p) => [p.key, p.title]) : [["transferencia", "Transferencia"]];
+	const PAGOS = (cfg.payments && cfg.payments.length) ? cfg.payments.map((p) => [p.key, p.title]) : [["transferencia", __("Bank transfer", "dox-pos")]];
 	const pagoInicial = PAGOS.some((p) => p[0] === cfg.default_payment) ? cfg.default_payment : PAGOS[0][0];
 
 	// Un importe con el formato de la tienda ($189.000, 189.000 $, etc.).
@@ -437,7 +437,9 @@
 		envioTimer = setTimeout(cargarEnvio, 400);
 	}
 	const codigoPostal = () => ($("#f-cp") ? $("#f-cp").value.trim() : "");
+	let envioSeq = 0;
 	async function cargarEnvio() {
+		const seq = ++envioSeq; // Si mientras tanto se pregunta otra vez, esta respuesta ya no vale.
 		const state = $("#f-dep").value;
 		const city = $("#f-ciu").value.trim();
 		if (sinEnvio() || !st.lineas.length || (!state && !city && !codigoPostal())) {
@@ -449,6 +451,7 @@
 		}
 		try {
 			const data = await post("shipping", { state: state, city: city, postcode: codigoPostal(), address: $("#f-dir").value.trim(), lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })) });
+			if (seq !== envioSeq) return;
 			st.rates = data.rates || [];
 			st.sinTarifa = !st.rates.length; // Se preguntó y la tienda no cobra nada a ese destino: se dice, en vez de seguir pidiendo la ciudad.
 			st.rate = st.rates.find((r) => st.rate && r.id === st.rate.id) || st.rates[0] || null;
@@ -456,7 +459,7 @@
 			pintarEnvio();
 			pintarSum();
 		} catch (e) {
-			if (e.message !== "sesion") { st.rates = []; pintarEnvio(); }
+			if (e.message !== "sesion" && seq === envioSeq) { st.rates = []; st.sinTarifa = false; pintarEnvio(); } // No se sabe si cobra o no: no se dice que no.
 		}
 	}
 	function pintarEnvio() {
@@ -494,7 +497,10 @@
 		if (!sh) return;
 		clearTimeout(hoja.timer);
 		hoja.pila = [];
-		hoja.foco = document.activeElement;
+		// Al cerrar, el foco vuelve a quien la abrió; si fue una opción del menú del engranaje, que para entonces ya
+		// está escondida, vuelve al engranaje.
+		const act = document.activeElement;
+		hoja.foco = act && act.closest && act.closest("#gearmenu") ? $("#gear") : act;
 		$("#sheet-views").innerHTML = "";
 		const card = $("#sheet-card");
 		card.style.transform = "";
@@ -502,6 +508,7 @@
 		sh.classList.remove("out", "dragging");
 		sh.hidden = false;
 		empujar(vista);
+		if (!card.contains(document.activeElement)) card.focus({ preventScroll: true }); // El foco entra en el diálogo: el lector de pantalla lo anuncia y Tab empieza dentro.
 	}
 	function cerrarHoja() {
 		const sh = $("#sheet");
@@ -515,7 +522,8 @@
 			sh.classList.remove("out");
 			$("#sheet-views").innerHTML = "";
 			hoja.pila = [];
-			if (hoja.foco && hoja.foco.focus && document.contains(hoja.foco)) hoja.foco.focus();
+			const f = hoja.foco && hoja.foco.focus && document.contains(hoja.foco) && hoja.foco.getClientRects().length ? hoja.foco : $("#gear");
+			if (f) f.focus({ preventScroll: true });
 		}, 300);
 	}
 	function empujar(vista) {
@@ -534,12 +542,16 @@
 	function pintarVista(desde) {
 		const cont = $("#sheet-views");
 		const vista = hoja.pila[hoja.pila.length - 1];
+		if (!vista) return; // La hoja se cerró mientras llegaba una respuesta: no hay nada que pintar.
 		const vieja = cont.lastElementChild;
 		const el = document.createElement("div");
 		el.className = "sheet-view";
 		vista.pintar(el);
 		const anim = desde === "der" || desde === "izq";
-		if (anim) el.classList.add(desde === "der" ? "from-right" : "from-left");
+		if (anim) {
+			el.classList.add(desde === "der" ? "from-right" : "from-left", "entering"); // Mientras entra no se puede pulsar: un doble toque en la fila anterior caía en la que llegaba.
+			setTimeout(() => el.classList.remove("entering"), 340);
+		}
 		cont.appendChild(el);
 		$("#sheet-title").textContent = vista.titulo;
 		const atras = hoja.pila.length > 1;
@@ -552,7 +564,10 @@
 		}
 		if (anim) { void el.offsetWidth; el.classList.remove("from-right", "from-left"); } // Leer el ancho fija el punto de partida; al quitar la clase, entra.
 		if (desde !== "der" && vista.scroll) el.scrollTop = vista.scroll;
-		if (desde !== "igual") { const f = el.querySelector("[data-foco]"); if (f && !hojaMovil()) f.focus(); } // En el teléfono no se abre el teclado sin que lo pidan.
+		if (desde !== "igual") { const f = el.querySelector("[data-foco]"); if (f && !hojaMovil()) f.focus({ preventScroll: true }); } // En el teléfono no se abre el teclado sin que lo pidan. Sin desplazar: la vista todavía está entrando.
+		// La fila que se pulsó se va con la vista vieja: si el foco se quedó en ella (o fuera), vuelve a la tarjeta, o el siguiente Tab caería en la página de detrás.
+		const card = $("#sheet-card"), act = document.activeElement;
+		if (!card.contains(act) || (vieja && vieja.contains(act))) card.focus({ preventScroll: true });
 	}
 	// Hacia dónde va un arrastre que se suelta con esa velocidad (px/s), como frena un desplazamiento.
 	const proyectar = (v) => (v / 1000) * 0.998 / (1 - 0.998) * 0.12;
@@ -583,7 +598,7 @@
 			if (!activo || e.pointerId !== id) return;
 			activo = false;
 			const a = muestras[0], b = muestras[muestras.length - 1];
-			const v = b.t > a.t ? ((b.y - a.y) / (b.t - a.t)) * 1000 : 0;
+			const v = b.t > a.t && e.timeStamp - b.t < 100 ? ((b.y - a.y) / (b.t - a.t)) * 1000 : 0; // Si el dedo se paró antes de soltar, ya no lleva velocidad.
 			sh.classList.remove("dragging");
 			// Manda el sentido del gesto, no la posición: si al soltar iba hacia arriba, se queda.
 			if (v >= 0 && dy + proyectar(v) > (card.offsetHeight || 1) * 0.4) cerrarHoja();
@@ -591,7 +606,20 @@
 		};
 		top.addEventListener("pointerup", soltar);
 		top.addEventListener("pointercancel", soltar);
-		sh.addEventListener("click", (e) => { if (e.target === sh) cerrarHoja(); });
+		// El fondo cierra con un toque suyo, no con el final de un arrastre que empezó dentro: al soltar fuera una
+		// selección de texto, el clic cae en el fondo y se llevaba lo escrito.
+		let abajoEnFondo = false;
+		sh.addEventListener("pointerdown", (e) => { abajoEnFondo = e.target === sh; });
+		sh.addEventListener("click", (e) => { if (e.target === sh && abajoEnFondo) cerrarHoja(); });
+		// Tab da la vuelta dentro de la hoja mientras está abierta.
+		sh.addEventListener("keydown", (e) => {
+			if (e.key !== "Tab") return;
+			const f = Array.from(card.querySelectorAll('button, a[href], input, select, textarea')).filter((x) => !x.disabled && !x.closest("[inert]") && x.getClientRects().length);
+			if (!f.length) { e.preventDefault(); return; }
+			const act = document.activeElement;
+			if (e.shiftKey && (act === f[0] || act === card)) { e.preventDefault(); f[f.length - 1].focus(); }
+			else if (!e.shiftKey && act === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+		});
 		$("#sheet-done").onclick = cerrarHoja;
 		$("#sheet-back").onclick = () => volver();
 	}
@@ -604,6 +632,7 @@
 		const cerrar = () => {
 			if (m.hidden || m.classList.contains("out")) return;
 			g.setAttribute("aria-expanded", "false");
+			if (m.contains(document.activeElement)) g.focus({ preventScroll: true }); // El foco no se queda en una opción que se esconde.
 			m.classList.add("out");
 			timer = setTimeout(() => { m.hidden = true; m.classList.remove("out"); }, 130);
 		};
@@ -620,7 +649,17 @@
 			m.style.transformOrigin = derecha ? "top right" : "top left";
 			m.hidden = false;
 			g.setAttribute("aria-expanded", "true");
+			const primera = m.querySelector("[role=menuitem]");
+			if (primera) primera.focus({ preventScroll: true }); // El menú está al final de la página: sin esto, con el teclado no se llega.
 		};
+		m.addEventListener("keydown", (e) => {
+			const its = Array.from(m.querySelectorAll("[role=menuitem]")), i = its.indexOf(document.activeElement), n = its.length;
+			if (!n) return;
+			if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const baja = e.key === "ArrowDown"; its[i < 0 ? (baja ? 0 : n - 1) : (i + (baja ? 1 : n - 1)) % n].focus(); }
+			else if (e.key === "Home") { e.preventDefault(); its[0].focus(); }
+			else if (e.key === "End") { e.preventDefault(); its[n - 1].focus(); }
+			else if (e.key === "Tab") cerrar();
+		});
 		document.addEventListener("pointerdown", (e) => { if (!m.hidden && !m.contains(e.target) && !g.contains(e.target)) cerrar(); });
 		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !m.hidden) { cerrar(); g.focus(); } });
 		m.addEventListener("click", (e) => { if (e.target.closest("[role=menuitem]")) cerrar(); });
@@ -630,7 +669,7 @@
 	// ---------- los costos de envío, puestos desde la caja ----------
 	// No hay tarifas propias: son las zonas y los métodos de envío de WooCommerce, con los cuatro casos
 	// que usa casi cualquier tienda. Por eso cobra lo mismo el checkout de la web que la caja.
-	const en = { data: null };
+	const en = { data: null, ocupado: false };
 	const IC = {
 		flat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg>',
 		weight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.9 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.93-2.54L19.4 9.5A2 2 0 0 0 17.48 8z"/></svg>',
@@ -669,29 +708,44 @@
 	}
 	async function abrirCostos() {
 		if (!navigator.onLine) { toast(__("Setting the shipping costs needs a connection.", "dox-pos")); return; }
-		abrirHoja(vistaCostos());
+		// Siempre se pide de nuevo (pudo cambiar en WooCommerce o en otra pestaña), y mientras llega la lista dice que
+		// está cargando: con los datos de la vez anterior a la vista, la respuesta repintaba la pantalla en la que ya se
+		// estaba escribiendo y se llevaba lo escrito.
+		en.data = null;
+		en.ocupado = false; // Si una petición anterior se quedó colgada (mala señal), abrir de nuevo la hoja devuelve los botones.
+		const vista = vistaCostos();
+		abrirHoja(vista);
 		try {
-			en.data = await api("shipping/setup");
-			if (hojaAbierta()) repintarVista();
+			const d = await api("shipping/setup");
+			if (!hojaAbierta() || hoja.pila[0] !== vista) return; // Se cerró, o se volvió a abrir y esta respuesta es de la vez anterior.
+			en.data = d;
+			if (hoja.pila.length === 1) repintarVista();
 		} catch (e) {
-			if (e.message !== "sesion") { toast(e.message); cerrarHoja(); }
+			if (e.message !== "sesion" && hoja.pila[0] === vista) { toast(e.message); cerrarHoja(); }
 		}
 	}
 	// Guardar o borrar devuelve la pantalla entera ya con el cambio: se vuelve a la lista y la venta
 	// que esté abierta pregunta otra vez cuánto cuesta su envío.
 	async function mandarCostos(btn, texto, fn, atras) {
-		if (btn.getAttribute("aria-busy") === "true") return;
+		if (en.ocupado) { toast(__("Saving\u2026", "dox-pos")); return; } // Uno cada vez (Guardar y Borrar son dos botones de la misma pantalla), y se dice: un botón que no hace nada parece roto.
+		en.ocupado = true;
+		const vista = hoja.pila[hoja.pila.length - 1];
 		const soltar = ocupar(btn, texto);
 		btn.disabled = true;
 		try {
 			en.data = await fn();
 			st.rate = null;
 			programarEnvio();
-			volver(atras || 1);
+			// El aviso de "sin peso" del formulario de producto, al día sin recargar la página.
+			if (pr.form) pr.form.weight_matters = (en.data.zones || []).some((z) => z.rates.some((r) => r.type === "weight" && r.enabled));
+			// Se vuelve a la lista desde la pantalla que guardó. Si mientras tanto se pulsó Atrás, ya no es la de arriba:
+			// no se retrocede otra vez (cerraba la hoja sola).
+			if (hojaAbierta() && hoja.pila.length) { if (hoja.pila[hoja.pila.length - 1] === vista) volver(atras || 1); else if (hoja.pila.length === 1) repintarVista(); } // Otra pantalla abierta encima no se repinta: se llevaría lo que se esté escribiendo; la lista se pone al día al volver a ella.
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
 		}
+		en.ocupado = false;
 		soltar();
 		btn.disabled = false;
 	}
@@ -718,7 +772,7 @@
 						h += '<button type="button" class="row add" data-add="' + z.id + '"><span class="row-ic">' + IC.plus + '</span><span class="row-main"><b>' + esc(__("Add a cost", "dox-pos")) + "</b></span></button></div>" +
 							(z.rates.some((r) => r.enabled) ? "" : '<p class="hint">' + esc(z.scope === "rest" ? __("Without a cost here, a place that no zone covers gets no shipping option.", "dox-pos") : __("Without a cost here, these places get no shipping option: the store does not fall back to another zone.", "dox-pos")) + "</p>") + "</section>";
 					});
-					h += '<button type="button" class="go alt" id="sh-zona">' + esc(__("Add a zone", "dox-pos")) + "</button>";
+					if (Object.keys(d.states || {}).length || !zonas.some((z) => z.scope === "country")) h += '<button type="button" class="go alt" id="sh-zona">' + esc(__("Add a zone", "dox-pos")) + "</button>"; // En un país sin regiones y con su zona ya puesta no queda nada que añadir desde aquí.
 				}
 				h += '<p class="sh-note">' + esc(__("Formulas, coupons and zones for other countries are set in WooCommerce.", "dox-pos")) + ' <a href="' + esc(d.wc_url) + '" target="_blank" rel="noopener">' + esc(__("Open it", "dox-pos")) + "</a></p>";
 				el.innerHTML = h;
@@ -735,6 +789,7 @@
 					btn.disabled = true;
 					try {
 						en.data = await post("shipping/zones", { scope: "country" });
+						if (!hojaAbierta() || !hoja.pila.length) return; // La cerraron mientras guardaba.
 						const z = en.data.zones.find((x) => x.scope === "country") || en.data.zones[0];
 						repintarVista();
 						empujar(vistaTipos(z));
@@ -795,14 +850,16 @@
 				h += '<div class="grp"><label class="switch"><input type="checkbox" id="sh-on"' + (nuevo || r.enabled ? " checked" : "") + '><span class="switch-ui" aria-hidden="true"></span><span>' + esc(__("Offer it to customers", "dox-pos")) + "<i>" + esc(__("Off: it stays saved, but nobody sees it.", "dox-pos")) + "</i></span></label></div>" +
 					'<div class="sh-foot"><button type="button" class="go" id="sh-ok">' + esc(nuevo ? __("Add this cost", "dox-pos") : __("Save", "dox-pos")) + "</button>" + (nuevo || !r.editable ? "" : '<button type="button" class="sh-del" id="sh-del">' + esc(__("Delete this cost", "dox-pos")) + "</button>") + "</div>"; // Lo que aquí no se sabe volver a armar (una fórmula, el método de otro plugin) no se borra desde aquí: se apaga, que tiene vuelta.
 				el.innerHTML = h;
-				el.querySelectorAll(".uwrap input").forEach((i) => i.addEventListener("input", () => formatearMiles(i)));
+				el.querySelectorAll(".uwrap input").forEach((i) => i.addEventListener("input", () => formatearMiles(i, true)));
 				const caja = el.querySelector("#sh-tramos");
 				const leer = () => Array.from(caja.querySelectorAll(".tramo")).map((f) => ({ up_to: f.querySelector(".tw").value, cost: f.querySelector(".tc").value }));
+				// El precio de un tramo llega del servidor como número (6.5) y de los campos como texto con el formato de la
+				// tienda ("6,5"): num() solo sabe leer lo segundo, y con punto de miles un 6.5 pasado por él sería 65.
 				const pintarTramos = (foco) => {
 					caja.innerHTML = tramos.map((x, i) => '<div class="tramo"><span class="tl">' + esc(__("Up to", "dox-pos")) + '</span><span class="uwrap"><input class="tw" inputmode="decimal" autocomplete="off" aria-label="' + esc(sprintf(__("Weight of range %d", "dox-pos"), i + 1)) + '" value="' + esc(verMedida(medida(x.up_to))) + '"><i>' + esc(u) + "</i></span>" +
-						campoImporte("sh-t" + i, x.cost === "" ? "" : num(x.cost), ' class="tc" aria-label="' + esc(sprintf(__("Price of range %d", "dox-pos"), i + 1)) + '"') +
+						campoImporte("sh-t" + i, x.cost === "" ? "" : (typeof x.cost === "number" ? x.cost : num(x.cost)), ' class="tc" aria-label="' + esc(sprintf(__("Price of range %d", "dox-pos"), i + 1)) + '"') +
 						'<button type="button" class="tx" data-i="' + i + '" aria-label="' + esc(sprintf(__("Remove range %d", "dox-pos"), i + 1)) + '">' + IC.minus + "</button></div>").join("");
-					caja.querySelectorAll(".tc").forEach((i) => i.addEventListener("input", () => formatearMiles(i)));
+					caja.querySelectorAll(".tc").forEach((i) => i.addEventListener("input", () => formatearMiles(i, true))); // Un tramo puede costar cero.
 					caja.querySelectorAll("input").forEach((i) => i.addEventListener("input", () => { i.closest(".tramo").classList.remove("bad"); el.querySelector("#sh-terr").hidden = true; }));
 					caja.querySelectorAll(".tx").forEach((b) => { b.onclick = () => { tramos = leer(); tramos.splice(+b.dataset.i, 1); pintarTramos(); }; });
 					if (foco) { const f = caja.querySelectorAll(".tw"); if (f.length) f[f.length - 1].focus(); }
@@ -892,6 +949,7 @@
 				el.querySelectorAll("[data-s]").forEach((b) => { b.onclick = () => { scope = b.dataset.s; pintarScope(); }; });
 				const bq = el.querySelector("#sh-busca");
 				if (bq) bq.addEventListener("input", () => { busca = bq.value; pintarLista(); });
+				if (bq) bq.addEventListener("keydown", (e) => { if (e.key === "Escape" && bq.value) { e.stopPropagation(); bq.value = ""; busca = ""; pintarLista(); } }); // Con algo escrito, Escape lo borra; sin nada, vuelve atrás como en el resto de la hoja.
 				pintarScope();
 				pintarLista();
 				contar();
@@ -1142,7 +1200,8 @@
 		if (d.categories && d.categories.length) h += "<span>" + esc(__("Category", "dox-pos")) + "</span><span>" + esc(d.categories.join(", ")) + "</span>";
 		h += "<span>" + esc(__("Units", "dox-pos")) + "</span><span>" + (d.units === null ? '<span class="sub">' + esc(__("not tracked", "dox-pos")) + "</span>" : "<b>" + esc(sprintf(_n("%d unit", "%d units", d.units, "dox-pos"), d.units)) + "</b>" + (d.shared !== null ? ' <span class="sub">· ' + esc(__("shared by all sizes", "dox-pos")) + "</span>" : (d.pool_names && d.pool_names.length ? ' <span class="sub">· ' + esc(sprintf(__("%s: units shared among their sizes", "dox-pos"), d.pool_names.join(", "))) + "</span>" : ""))) + "</span>";
 		// El paquete (peso y medidas), si lo tiene: es lo que usa el envío por peso.
-		if (d.package && (d.package.mixed || !paqueteVacio(d.package))) h += "<span>" + esc(__("Package", "dox-pos")) + "</span><span>" + esc(d.package.mixed ? __("varies by size", "dox-pos") : paqueteTexto(d.package)) + "</span>";
+		// Lo que todas las tallas comparten se enseña, y lo que no, se dice ("10 × 5 × 3 cm · varies by size").
+		if (d.package && (d.package.mixed || !paqueteVacio(d.package))) h += "<span>" + esc(__("Package", "dox-pos")) + "</span><span>" + esc([paqueteVacio(d.package) ? "" : paqueteTexto(d.package), d.package.mixed ? __("varies by size", "dox-pos") : ""].filter(Boolean).join(" · ")) + "</span>";
 		h += "</div></div>";
 		if (d.variations.length > 1 || (d.variations.length === 1 && d.variations[0].talla)) {
 			h += '<table class="tot pc-var"><thead><tr><th>' + esc(conTalla ? __("Size", "dox-pos") : __("Option", "dox-pos")) + "</th><th>" + esc(__("Code", "dox-pos")) + '</th><th class="num">' + esc(__("Units", "dox-pos")) + "</th></tr></thead><tbody>";
@@ -1882,6 +1941,8 @@
 		try {
 			const d = await post("products/categories", { name: name, parent: parent });
 			const c = d.category;
+			if (!pr.form) pr.form = {};
+			if (!pr.form.categories) pr.form.categories = [];
 			const i = pr.form.categories.findIndex((x) => x.id === c.id);
 			if (i >= 0) pr.form.categories[i] = c; else pr.form.categories.push(c);
 			if (!pr.catsNuevas.includes(c.id)) pr.catsNuevas.push(c.id);
@@ -1981,7 +2042,8 @@
 	}
 
 	// El importe con el separador de miles mientras se escribe (miles(), arriba).
-	function formatearMiles(el) {
+	// Con ceroVale un cero escrito se queda (el precio de un tramo de envío gratis); sin él se vacía, como siempre en el precio de un producto.
+	function formatearMiles(el, ceroVale) {
 		if (!el) return;
 		const raw = el.value;
 		// Con decimales, mientras se escribe la parte decimal ("12," o "12,5") se deja como está: si no, la coma se iría al teclearla.
@@ -1992,7 +2054,7 @@
 			if (raw !== s) el.value = s;
 			return;
 		}
-		const s = miles(num(raw));
+		const s = miles(num(raw)) || (ceroVale && /\d/.test(raw) ? "0" : "");
 		if (raw !== s) el.value = s;
 	}
 	function formatearPrecio() { formatearMiles($("#p-precio")); formatearMiles($("#p-costo")); }
@@ -2025,7 +2087,8 @@
 	// Una medida escrita ("0,8", "12.5") como la guarda la tienda: con punto, sin ceros de sobra. Vacío si no es un número mayor que cero.
 	const medida = (v) => {
 		const n = parseFloat(String(v == null ? "" : v).replace(",", ".").replace(/[^\d.]/g, ""));
-		return n > 0 ? String(Math.round(n * 1000) / 1000) : "";
+		const r = Math.round(n * 1000) / 1000; // 0,0004 redondea a cero: tampoco es una medida (el servidor dice lo mismo).
+		return r > 0 ? String(r) : "";
 	};
 	// Y como se enseña: con el separador decimal de la tienda.
 	const verMedida = (v) => (v === "" || v == null ? "" : String(v).replace(".", M.decimal === "," ? "," : "."));
@@ -2068,11 +2131,19 @@
 			? __("The sizes of this product do not all weigh or measure the same. Leave it empty to keep them as they are; what you type here goes to all of them.", "dox-pos")
 			: __("The product already packed, ready to ship. It is what the shipping by weight and the carriers\u2019 labels use.", "dox-pos");
 	}
-	// Qué paquete se manda: al crear, el escrito (si hay algo); al editar, solo si cambió.
+	// Las medidas que cambiaron respecto a como llegó el producto que se edita (al crear, todas las escritas).
+	function paqueteCambios() {
+		const p = paqueteForm(), o = {};
+		PAQ.forEach((c) => { const k = c[0]; if ((p[k] || "") !== String((pr.paquete0 || {})[k] || "")) o[k] = p[k]; });
+		return o;
+	}
+	// Qué paquete se manda: al crear, el escrito (si hay algo); al editar, solo las medidas que cambiaron. Así escribir el
+	// peso de un producto cuyas tallas pesan distinto no borra el largo, el ancho y el alto, que no se tocaron.
 	function paquetePayload() {
 		const p = paqueteForm();
 		if (!pr.edit) return paqueteVacio(p) ? undefined : p;
-		return paqueteClave(p) === paqueteClave(pr.paquete0) ? undefined : p;
+		const o = paqueteCambios();
+		return Object.keys(o).length ? o : undefined;
 	}
 
 	// Colores: los más usados (doce) y "Más colores…" para el resto; "Otro color…" crea uno nuevo con su tono.
@@ -2336,10 +2407,15 @@
 		if (num($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: __("Set a price.", "dox-pos"), sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
 		if (!pr.edit && pr.form && pr.form.sku_format !== "none" && !$("#p-sku").value.trim()) return { msg: __("The SKU is missing.", "dox-pos"), sel: "#p-sku" };
 		if (!pr.edit && pr.skuOk === false) return { msg: __("That SKU is already taken.", "dox-pos"), sel: "#p-sku" };
-		const paq = paqueteForm(), nmed = [paq.length, paq.width, paq.height].filter(Boolean).length;
-		if (nmed > 0 && nmed < 3) {
+		// Las tres medidas o ninguna. Al editar solo se exige si se tocó alguna (un producto que llegó de WooCommerce con dos
+		// medidas deja cambiar el nombre), y una medida que varía entre las tallas cuenta como puesta aunque salga vacía.
+		const paq = paqueteForm(), varian = (pr.edit && pr.edit.package && pr.edit.package.mixed_fields) || [];
+		const DIM = [["length", "#p-largo"], ["width", "#p-ancho"], ["height", "#p-alto"]];
+		const escritas = DIM.filter((c) => paq[c[0]]).length; // Sin ninguna escrita no hay nada que pedir (también si se vaciaron para dejarlo sin medidas).
+		const faltan = DIM.filter((c) => !paq[c[0]] && !varian.includes(c[0])).map((c) => c[1]); // La que varía entre las tallas no falta: vacía se queda como está.
+		const medidasTocadas = !pr.edit || DIM.some((c) => c[0] in paqueteCambios());
+		if (medidasTocadas && escritas > 0 && faltan.length) {
 			// Faltan medidas: se marcan las que faltan y el aviso va debajo de las cuatro casillas, a todo el ancho.
-			const faltan = [["length", "#p-largo"], ["width", "#p-ancho"], ["height", "#p-alto"]].filter((c) => !paq[c[0]]).map((c) => c[1]);
 			return { msg: __("Enter the three measures (length, width and height), or leave them empty.", "dox-pos"), sel: faltan[0], malos: faltan, bajo: "#g-paquete .pack" };
 		}
 		if (pr.fotos.some((f) => f.estado === "error")) return { msg: __("A photo could not be uploaded: tap it to try again, or remove it.", "dox-pos"), sel: "#p-fotos" };
@@ -2630,7 +2706,7 @@
 		pager.hidden = !total || pages <= 1;
 		if (!pager.hidden) {
 			const desde = (page - 1) * 20 + 1, hasta = Math.min(total, page * 20);
-			$("#p-pager-txt").textContent = desde + "-" + hasta + " de " + total;
+			$("#p-pager-txt").textContent = sprintf(__("%1$s-%2$s of %3$s", "dox-pos"), desde, hasta, total);
 			$("#p-prev").disabled = page <= 1;
 			$("#p-next").disabled = page >= pages;
 			$("#p-prev").onclick = () => { buscarProductos(page - 1); $("#t-producto .scroll").scrollTop = 0; };
@@ -2680,7 +2756,7 @@
 		$("#p-sku").disabled = true;
 		estadoSku(d.sku ? __("The SKU is only changed in WooCommerce.", "dox-pos") : __("No SKU.", "dox-pos"), "");
 		$("#p-desc").value = d.description || "";
-		pr.paquete0 = d.package && !d.package.mixed ? d.package : null;
+		pr.paquete0 = d.package || null; // Lo que varía entre las tallas llega vacío (mixed_fields): si se deja así, no se manda y no se toca.
 		ponerPaquete(pr.paquete0);
 		$("#p-pub").checked = d.status === "publish";
 		$("#p-pub-text").textContent = __("Published in the store", "dox-pos");

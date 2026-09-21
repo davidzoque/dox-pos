@@ -1,10 +1,15 @@
 name: Build release ZIP
 
-# Al pushear una etiqueta v* se crea la release con dos zips: el de GitHub (con el actualizador y el
-# español en languages/, el que sirve Plugin Update Checker a los sitios) y el de WordPress.org (sin
-# vendor, sin Update URI, sin languages/ ni load_plugin_textdomain, y sin dox-core, que trae su
-# propio dominio de traducción y sus .mo: el directorio exige que las traducciones vayan por
-# translate.wordpress.org y que todo el texto use el slug del plugin).
+# Al pushear una etiqueta v* se arman dos zips: el de GitHub (con el actualizador y el español en
+# languages/, el que sirve Plugin Update Checker a los sitios) y el de WordPress.org (sin vendor, sin
+# Update URI, sin languages/ ni load_plugin_textdomain, y sin dox-core, que trae su propio dominio de
+# traducción y sus .mo: el directorio exige que las traducciones vayan por translate.wordpress.org y
+# que todo el texto use el slug del plugin).
+#
+# A la release solo se adjunta el de GitHub. El de WordPress.org se guarda como artefacto de la
+# ejecución (pestaña Actions), y no en la release, a propósito: los sitios con una copia anterior a
+# la 0.41.0 piden "el primer adjunto de la release", sin mirar el nombre, y GitHub ponía delante el
+# de WordPress.org. Una tienda que actualizara así se quedaba sin el español y sin el actualizador.
 
 on:
   push:
@@ -42,10 +47,14 @@ jobs:
           sed -i '/dox-pos-repo-only:inicio/,/dox-pos-repo-only:fin/d' dox-pos/dox-pos.php dox-pos/includes/install.php
           zip -rq dox-pos-wordpress-org.zip dox-pos
 
-      - name: Crear la release y adjuntar los zips
+      - name: Crear la release y adjuntar el zip de GitHub
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            build/dox-pos.zip
-            build/dox-pos-wordpress-org.zip
+          files: build/dox-pos.zip
           generate_release_notes: true
+
+      - name: Guardar el zip de WordPress.org como artefacto de la ejecución
+        uses: actions/upload-artifact@v4
+        with:
+          name: dox-pos-wordpress-org
+          path: build/dox-pos-wordpress-org.zip

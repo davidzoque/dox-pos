@@ -2375,10 +2375,6 @@ msgid "On the way"
 msgstr "En camino"
 
 #: assets/js/caja.js
-msgid "Layaways"
-msgstr "Apartados"
-
-#: assets/js/caja.js
 msgid "Payments to confirm"
 msgstr "Pagos por confirmar"
 
@@ -3091,6 +3087,10 @@ msgstr "No se pudo crear la categoría %1$s: %2$s"
 
 msgid "The category was created, but it could not be read back. Reload the page."
 msgstr "La categoría se creó, pero no se pudo leer de vuelta. Recarga la página."
+
+#. translators: %s: category name
+msgid "%s is the category WooCommerce gives to products that have none, so it is not chosen here. Use another name."
+msgstr "%s es la categoría que WooCommerce les pone a los productos que no tienen ninguna, así que aquí no se elige. Usa otro nombre."
 
 msgid "Category name"
 msgstr "Nombre de la categoría"

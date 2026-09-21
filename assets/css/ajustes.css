@@ -1,9 +1,11 @@
-/* Dox POS: la página de ajustes (WooCommerce > Dox POS).
+/* Dox POS: la página de ajustes (Dox Plugins > POS, o WooCommerce > Dox POS sin el menú común).
    Una aplicación dentro de wp-admin: cabecera fija con las pestañas, tarjetas y una vista previa
    que cambia al momento. Todo cuelga de .dp-app para no tocar el resto del escritorio. */
 
-body.woocommerce_page_dox-pos #wpcontent{padding-left:0}
-body.woocommerce_page_dox-pos #wpbody-content{padding-bottom:0}
+/* La página va a sangre. La clase del body empieza por el menú del que cuelga (woocommerce_page_dox-pos
+   o dox-plugins_page_dox-pos), así que se mira solo el final, que es el mismo en los dos. */
+body[class*="_page_dox-pos"] #wpcontent{padding-left:0}
+body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 
 .dp-app{
   --dp-bg:#F4F5F7; --dp-surface:#FFFFFF; --dp-ink:#111318; --dp-text:#2A2E36; --dp-muted:#5D6470; --dp-faint:#9AA0AB;

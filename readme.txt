@@ -46,7 +46,7 @@ Google privacy: https://policies.google.com/privacy
 
 1. Upload the `dox-pos` folder to `/wp-content/plugins/` and activate the plugin.
 2. Open `/pos` (`/caja` on a Spanish site) and sign in with an administrator, a shop manager or a user with the "Cashier" role.
-3. Set the brand, the colors, the address of the screen, the sales channels and the payment methods in WooCommerce > Dox POS.
+3. Set the brand, the colors, the address of the screen, the sales channels and the payment methods in WooCommerce > Dox POS. If you use other Dox Studio plugins, the same page is in their shared menu: Dox Plugins > POS.
 
 == Frequently Asked Questions ==
 
@@ -98,11 +98,12 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * New: **shipping by weight**, a WooCommerce shipping method with ranges ("up to 1 lb, 6; up to 5 lb, 10"), a price for heavier orders and an optional amount per extra unit of weight. It works in the web checkout too, with no table rate plugin.
 * New: **weight and size of the product** in the Products tab, in the units of the store. The packages the store uses the most show up as buttons, so a shop that ships almost everything in the same bag sets them with one tap. They go to the product and its sizes inherit them; if someone gave a size its own weight in WooCommerce, the form leaves it alone unless you type a new one.
 * New: **categories from the register.** The product form has a "New category…" button: a name and, if it goes inside another one, which. It is created on the spot and stays chosen. Categories with no products yet now show up too, behind "More categories", so a store that is just starting (no products at all) can create its first product from the register.
-* Changed: when other Dox Studio plugins are installed, the settings of Dox POS move into the shared **Dox Plugins** menu (Dox Plugins > POS), next to the rest. Installed on its own from WordPress.org nothing changes: they stay in WooCommerce > Dox POS. The address is the same either way, and shop managers still get in.
+* Changed: when other Dox Studio plugins are installed, the settings of Dox POS move into the shared **Dox Plugins** menu (Dox Plugins > POS), next to the rest. Installed on its own from WordPress.org nothing changes: they stay in WooCommerce > Dox POS. The copy installed from GitHub carries that shared menu with it, so there the settings always live in Dox Plugins > POS. The address is the same either way, and shop managers still get in.
 * New: the sale asks for the **postcode** in the countries that use one (ZIP Code in the United States), saves it in the order and uses it to find the shipping zone. A country that does not require it, such as Colombia, sees no change.
 * When the store charges nothing for the place of a sale, the register now says so instead of asking for the city again, and the amount can still be typed by hand.
 * Fixed: with WP_DEBUG on, a shipping cost written as a formula WooCommerce cannot evaluate ("[qty] > 2 ? 24000 : 12000") made WooCommerce print a notice into the answer, and the sale showed no shipping options at all. What a shipping method prints while it calculates no longer reaches the register.
-* Fixed: a few texts of the register showed up in Spanish on a site in another language ("Editar este producto", "Buscando…", "Guardando…", the hint under the categories and the badge of the main photo).
+* Fixed: a few texts of the register showed up in Spanish on a site in another language ("Editar este producto", "Buscando…", "Guardando…", the hint under the categories, the badge of the main photo and the page count of the product search, "1-20 de 134").
+* Fixed (copy installed from GitHub): the updater took the first file attached to a release, whatever it was, and releases carried the WordPress.org zip first, which has no Spanish translation and no updater. It now asks for its own zip by name, and releases attach only that one.
 
 = 0.40.0 =
 * New: Dox POS now shows up in the shared **Dox Plugins** menu when other Dox Studio plugins are installed, with a link to its settings. The register itself does not move: it stays under WooCommerce > Dox POS, which is where anyone using it looks for it. On a site where Dox POS is the only Dox plugin, no extra menu is added at all.

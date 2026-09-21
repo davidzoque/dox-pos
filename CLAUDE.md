@@ -24,8 +24,11 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
    empiece por la versión: `v0.21.0: qué cambió`. `git push origin main`.
 5. Solo si es una versión para publicar: etiqueta `vX.Y.Z` y `git push origin vX.Y.Z`. La Action de
    `.github/workflows/release.yml` comprueba que la etiqueta y la versión coincidan, arma
-   `dox-pos.zip` (el que sirve el actualizador de GitHub) y `dox-pos-wordpress-org.zip`, y publica
-   la release. Tarda un minuto o dos. No muevas etiquetas ya publicadas.
+   `dox-pos.zip` (el que sirve el actualizador de GitHub, y el único que se adjunta a la release) y
+   `dox-pos-wordpress-org.zip` (queda como artefacto de la ejecución, en la pestaña Actions), y
+   publica la release. Tarda un minuto o dos. No muevas etiquetas ya publicadas. **A la release no
+   se le adjunta ningún otro archivo**: las copias anteriores a la 0.41.0 se actualizan con el
+   primer adjunto que encuentren.
 6. Desplegar a un sitio: `./subir.sh CUENTA` (el script no va en el repo; está en la carpeta de
    Drive). Después, lint dentro de la jaula del servidor y prueba con clics reales en el navegador.
    Los datos de prueba se borran en la misma sesión.

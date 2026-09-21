@@ -234,7 +234,9 @@ function dox_pos_logo_from_value( $v ) {
  * @param array|null $cfg Lo que va al navegador, o null en el login (que no lleva JS).
  */
 function dox_pos_enqueue_caja( $cfg = null ) {
-	$ver = DOX_POS_VERSION;
+	// Con la fecha de los archivos, como en la página de ajustes: volver a subir la misma versión a una tienda
+	// (al probar antes de publicar) no deja el JS viejo en la caché del navegador ni en la de Cloudflare.
+	$ver = DOX_POS_VERSION . '.' . (int) filemtime( DOX_POS_PATH . 'assets/css/caja.css' ) . (int) filemtime( DOX_POS_PATH . 'assets/js/caja.js' );
 	if ( dox_pos_fonts_on() ) {
 		wp_enqueue_style( 'dox-pos-fonts', dox_pos_fonts_url(), array(), null ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- La hoja de Google lleva su propia versión.
 	}

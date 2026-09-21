@@ -156,12 +156,15 @@ function dox_pos_measure( $v ) {
 	if ( '' === $v || ! is_numeric( $v ) || (float) $v <= 0 ) {
 		return '';
 	}
-	return (string) wc_format_decimal( min( (float) $v, 999999.0 ), 3, true );
+	$out = (string) wc_format_decimal( min( (float) $v, 999999.0 ), 3, true );
+	return (float) $out > 0 ? $out : ''; // 0,0004 redondea a cero: tampoco es una medida.
 }
 
 /**
- * El paquete que manda el formulario (package: weight, length, width, height). Null si no lo manda:
- * al editar significa "no se tocó", y el producto se queda como está.
+ * El paquete que manda el formulario (package: weight, length, width, height), solo con las medidas
+ * que llegan. Null si no manda ninguna: al editar significa "no se tocó", y el producto se queda
+ * como está. Al crear llegan las cuatro; al editar, solo las que cambiaron, para que escribir el
+ * peso de un producto no le borre unas medidas que el formulario ni siquiera enseñaba.
  *
  * @param array $data Lo que llegó.
  * @return array|null
@@ -172,56 +175,68 @@ function dox_pos_package_from( $data ) {
 	}
 	$out = array();
 	foreach ( array( 'weight', 'length', 'width', 'height' ) as $k ) {
-		$out[ $k ] = dox_pos_measure( $data['package'][ $k ] ?? '' );
+		if ( array_key_exists( $k, $data['package'] ) ) {
+			$out[ $k ] = dox_pos_measure( $data['package'][ $k ] );
+		}
 	}
-	return $out;
+	return $out ? $out : null;
 }
 
 /**
- * Pone el paquete a un producto.
+ * Pone el paquete a un producto: las medidas que vengan, y las demás se quedan como están.
  *
  * @param WC_Product $p   El producto (o una variación).
- * @param array      $pkg weight, length, width, height.
+ * @param array      $pkg Alguna de weight, length, width, height.
  */
 function dox_pos_set_package( $p, $pkg ) {
-	$p->set_weight( $pkg['weight'] );
-	$p->set_length( $pkg['length'] );
-	$p->set_width( $pkg['width'] );
-	$p->set_height( $pkg['height'] );
+	foreach ( array( 'weight', 'length', 'width', 'height' ) as $k ) {
+		if ( array_key_exists( $k, $pkg ) ) {
+			$p->{"set_$k"}( $pkg[ $k ] );
+		}
+	}
 }
 
 /**
  * El paquete de un producto para el formulario. En uno con tallas manda lo que de verdad lleva cada
- * variación (la suya, o la del producto si no tiene): si todas coinciden es ese; si no, mixed, y el
- * formulario lo deja vacío para no pisar lo que alguien afinó en WooCommerce.
+ * variación (la suya, o la del producto si no tiene), medida por medida: la que coincide en todas
+ * es esa; la que no, sale vacía y apuntada en mixed_fields, y el formulario la deja sin tocar para
+ * no pisar lo que alguien afinó en WooCommerce. Así unas tallas que pesan distinto no esconden el
+ * largo, el ancho y el alto que sí comparten.
  *
  * @param WC_Product $p El producto.
- * @return array{weight:string,length:string,width:string,height:string,mixed:bool}
+ * @return array{weight:string,length:string,width:string,height:string,mixed:bool,mixed_fields:string[]}
  */
 function dox_pos_product_package( $p ) {
-	$of = fn( $x ) => array(
+	$keys = array( 'weight', 'length', 'width', 'height' );
+	$of   = fn( $x ) => array(
 		'weight' => dox_pos_measure( $x->get_weight() ),
 		'length' => dox_pos_measure( $x->get_length() ),
 		'width'  => dox_pos_measure( $x->get_width() ),
 		'height' => dox_pos_measure( $x->get_height() ),
 	);
-	$own = $of( $p );
+	$own   = $of( $p );
+	$mixed = array();
 	if ( $p->is_type( 'variable' ) ) {
-		$seen = array();
+		$seen = array_fill_keys( $keys, array() );
 		foreach ( $p->get_children() as $vid ) {
 			$v = wc_get_product( $vid );
-			if ( $v ) {
-				$seen[ implode( '|', $of( $v ) ) ] = $of( $v ); // La variación ya devuelve la del producto cuando no tiene la suya.
+			if ( ! $v ) {
+				continue;
+			}
+			foreach ( $of( $v ) as $k => $val ) { // La variación ya devuelve la del producto cuando no tiene la suya.
+				$seen[ $k ][ 'v' . $val ] = $val; // Con prefijo: PHP convertiría en número una clave como "5".
 			}
 		}
-		if ( count( $seen ) > 1 ) {
-			return array( 'weight' => '', 'length' => '', 'width' => '', 'height' => '', 'mixed' => true );
-		}
-		if ( 1 === count( $seen ) ) {
-			$own = reset( $seen );
+		foreach ( $keys as $k ) {
+			if ( count( $seen[ $k ] ) > 1 ) {
+				$own[ $k ] = '';
+				$mixed[]   = $k;
+			} elseif ( 1 === count( $seen[ $k ] ) ) {
+				$own[ $k ] = (string) reset( $seen[ $k ] );
+			}
 		}
 	}
-	return $own + array( 'mixed' => false );
+	return $own + array( 'mixed' => (bool) $mixed, 'mixed_fields' => $mixed );
 }
 
 /**
@@ -1236,6 +1251,11 @@ function dox_pos_create_category( $data ) {
 			return array( 'category' => $c );
 		}
 	}
+	if ( $found ) {
+		// Ya existía y la lista no la enseña: es la de "sin categoría" de WooCommerce, que aquí no se elige.
+		/* translators: %s: category name */
+		return new WP_Error( 'dox_pos_categoria', sprintf( __( '%s is the category WooCommerce gives to products that have none, so it is not chosen here. Use another name.', 'dox-pos' ), $name ) );
+	}
 	return new WP_Error( 'dox_pos_categoria', __( 'The category was created, but it could not be read back. Reload the page.', 'dox-pos' ) );
 }
 
@@ -1898,10 +1918,19 @@ function dox_pos_update_product( $id, $data ) {
 				$v->set_regular_price( $price );
 				$changed = true;
 			}
-			// El paquete escrito va a todo el producto: la talla que llevaba el suyo lo suelta y hereda el nuevo.
-			if ( null !== $pkg && '' !== $v->get_weight( 'edit' ) . $v->get_length( 'edit' ) . $v->get_width( 'edit' ) . $v->get_height( 'edit' ) ) {
-				dox_pos_set_package( $v, array( 'weight' => '', 'length' => '', 'width' => '', 'height' => '' ) );
-				$changed = true;
+			// Cada medida escrita va a todo el producto: la talla que llevaba la suya la suelta y hereda la nueva.
+			// Las que no se tocaron se quedan como estaban, también en las tallas.
+			if ( null !== $pkg ) {
+				$drop = array();
+				foreach ( array_keys( $pkg ) as $k ) {
+					if ( '' !== (string) $v->{"get_$k"}( 'edit' ) ) {
+						$drop[ $k ] = '';
+					}
+				}
+				if ( $drop ) {
+					dox_pos_set_package( $v, $drop );
+					$changed = true;
+				}
 			}
 			// Comparte unidades (el total del producto, o la bolsa de su color) o lleva las suyas: lo que diga el
 			// formulario (shared_cells); si no lo manda, cada talla se queda como está y solo se escriben las suyas.

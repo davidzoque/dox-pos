@@ -81,8 +81,11 @@ function dox_pos_shipping_rates( $state, $city, $address, $lines, $postcode = ''
 		// Lo que un método escriba mientras calcula no puede colarse en la respuesta: con WP_DEBUG, WooCommerce
 		// imprime "Error found in..." cuando no sabe evaluar un costo (los de "[qty] > 2 ? ..."), y eso rompía el JSON.
 		ob_start();
-		$method->calculate_shipping( $package );
-		ob_end_clean();
+		try {
+			$method->calculate_shipping( $package );
+		} finally {
+			ob_end_clean(); // También si el método de otro plugin lanza una excepción: el búfer no se queda abierto.
+		}
 		$qty = dox_pos_package_qty( $package );
 		foreach ( $method->rates as $rate ) {
 			// Algunos plugins dan a todas sus tarifas el mismo id y se pisan entre sí: aquí cada instancia es una.

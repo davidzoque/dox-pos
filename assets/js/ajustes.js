@@ -153,15 +153,19 @@
 	// Con Google apagado solo se elige la de los totales (ya instalada); encendido, las dos de Google.
 	const local = $("#dp-font-local"), bloqueLocal = $("#dp-fonts-local"), bloqueGoogle = $("#dp-fonts-google");
 	const pilaLocal = () => (cfg.localFonts || {})[local ? local.value : "system"] || cfg.systemFont || "Georgia,serif";
-    function pintarFuentes() {
+	function pintarFuentes() {
 		const on = googleOn();
 		if (bloqueLocal) bloqueLocal.hidden = on;
 		if (bloqueGoogle) bloqueGoogle.hidden = !on;
 		// La vista previa: la de Google delante si está encendida, y detrás siempre la elegida aquí.
 		const ui = $("#dp-font-ui"), serif = $("#dp-font-serif");
-		const nom = (el, k) => (el && el.value.trim() ? '"' + el.value.trim() + '",' : (on ? '"' + ((defaults.fonts || {})[k] || "") + '",' : ""));
-		prev.style.setProperty("--ui", (on ? nom(ui, "ui") : "") + (cfg.systemFont || "sans-serif"));
-		prev.style.setProperty("--serif", (on ? nom(serif, "serif") : "") + pilaLocal());
+		const fam = (el, k) => (el && el.value.trim().replace(/\s+/g, " ")) || (defaults.fonts || {})[k] || "";
+		const nom = (el, k) => (on && fam(el, k) ? '"' + fam(el, k) + '",' : "");
+		prev.style.setProperty("--ui", nom(ui, "ui") + (cfg.systemFont || "sans-serif"));
+		prev.style.setProperty("--serif", nom(serif, "serif") + pilaLocal());
+		// Si Google se enciende aquí mismo (la página cargó con él apagado), las dos fuentes se piden ahora: sin esto la
+		// vista previa decía su nombre y seguía pintando la del sistema hasta que se escribía en un campo.
+		if (on) [[ui, "ui"], [serif, "serif"]].forEach(([el, k]) => { if (fam(el, k)) cargarFuente(fam(el, k), () => {}); });
 	}
 	const swGoogle = $('input[name="dox_pos_brand[fonts_google]"]');
 	if (swGoogle) swGoogle.addEventListener("change", pintarFuentes);

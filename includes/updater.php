@@ -19,5 +19,7 @@ if ( file_exists( $dox_pos_puc ) ) {
 	require_once $dox_pos_puc;
 	$dox_pos_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 'https://github.com/davidzoque/dox-pos/', DOX_POS_FILE, 'dox-pos' );
 	$dox_pos_updater->setBranch( 'main' );
-	$dox_pos_updater->getVcsApi()->enableReleaseAssets();
+	// El zip se pide por su nombre: sin filtro, el actualizador se queda con el primer adjunto de la release,
+	// sea el que sea, y una release con otro archivo delante le serviría ese a la tienda.
+	$dox_pos_updater->getVcsApi()->enableReleaseAssets( '/^dox-pos\.zip$/' );
 }

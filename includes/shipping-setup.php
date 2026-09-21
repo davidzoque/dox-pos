@@ -25,8 +25,26 @@ function dox_pos_load_weight_method() {
 
 add_filter( 'woocommerce_shipping_methods', 'dox_pos_register_weight_method' );
 function dox_pos_register_weight_method( $methods ) {
-	$methods['dox_pos_weight'] = 'Dox_POS_Shipping_Weight';
+	// La clase se carga también aquí: con los envíos desactivados en la tienda, WooCommerce no dispara
+	// woocommerce_shipping_init, y al armar los métodos de una zona daría con un nombre de clase que no existe.
+	dox_pos_load_weight_method();
+	if ( class_exists( 'Dox_POS_Shipping_Weight' ) ) {
+		$methods['dox_pos_weight'] = 'Dox_POS_Shipping_Weight';
+	}
 	return $methods;
+}
+
+/**
+ * El formulario de producto guarda una hora si alguna zona cobra por peso (weight_matters, para avisar
+ * de un producto sin peso). Esa respuesta caduca en cuanto cambian los métodos de envío, se cambien
+ * desde la caja o en WooCommerce > Ajustes > Envío.
+ */
+add_action( 'woocommerce_shipping_zone_method_added', 'dox_pos_forget_product_form' );
+add_action( 'woocommerce_shipping_zone_method_deleted', 'dox_pos_forget_product_form' );
+add_action( 'woocommerce_shipping_zone_method_status_toggled', 'dox_pos_forget_product_form' );
+add_action( 'woocommerce_delete_shipping_zone', 'dox_pos_forget_product_form' );
+function dox_pos_forget_product_form() {
+	delete_transient( 'dox_pos_product_form' );
 }
 
 /**
@@ -77,8 +95,8 @@ function dox_pos_parse_weight_tiers( $text ) {
 	$out = array();
 	foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
 		$parts = preg_split( '/\s*[|;:=\t]\s*/', trim( $line ) );
-		if ( count( $parts ) < 2 ) {
-			continue;
+		if ( count( $parts ) < 2 || false !== strpos( $parts[0] . $parts[1], '-' ) ) {
+			continue; // Sin precio, o con un número negativo: esa línea no vale.
 		}
 		$up   = str_replace( ',', '.', preg_replace( '/[^\d.,]/', '', $parts[0] ) );
 		$cost = str_replace( ',', '.', preg_replace( '/[^\d.,]/', '', $parts[1] ) );
@@ -325,6 +343,10 @@ function dox_pos_shipping_save_zone( $id, $data ) {
 		$now = dox_pos_shipping_zone_data( $zone );
 		if ( 'custom' === $now['scope'] ) {
 			$scope = 'custom'; // Otros países o códigos postales: aquí solo se le cambia el nombre.
+		} elseif ( ! isset( $data['scope'] ) ) {
+			// Llegó solo el nombre: los lugares se quedan como estaban (sin esto, una zona de regiones pasaba a ser de todo el país).
+			$scope  = $now['scope'];
+			$states = $now['states'];
 		}
 	} else {
 		$zone = new WC_Shipping_Zone();
@@ -351,14 +373,17 @@ function dox_pos_shipping_save_zone( $id, $data ) {
 			}
 		}
 	}
-	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
+	$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 200 ); // Lo que cabe en la columna de WooCommerce.
+	if ( $id && ! array_key_exists( 'name', $data ) ) {
+		$name = (string) $zone->get_zone_name(); // No llegó nombre: se queda el que tenía (la caja siempre lo manda; otro cliente de la API puede que no).
+	}
+	// El nombre que la caja puso sola a partir de los lugares se rehace cuando los lugares cambian ("Antioquia, Caldas"
+	// no puede seguir llamándose así con otras regiones); el que escribió alguien se respeta.
+	if ( $id && 'custom' !== $scope && dox_pos_shipping_zone_auto_name( $now['scope'], $now['states'], $all ) === $name ) {
+		$name = '';
+	}
 	if ( '' === $name ) {
-		if ( 'states' === $scope ) {
-			$picked = array_map( fn( $s ) => html_entity_decode( (string) $all[ $s ], ENT_QUOTES, 'UTF-8' ), array_slice( $states, 0, 3 ) );
-			$name   = implode( ', ', $picked ) . ( count( $states ) > 3 ? '…' : '' );
-		} else {
-			$name = $id ? $zone->get_zone_name() : dox_pos_country_name();
-		}
+		$name = 'custom' === $scope ? $zone->get_zone_name() : dox_pos_shipping_zone_auto_name( $scope, $states, $all );
 	}
 	$zone->set_zone_name( $name );
 	if ( 'custom' !== $scope ) {
@@ -380,37 +405,116 @@ function dox_pos_shipping_save_zone( $id, $data ) {
 }
 
 /**
- * WooCommerce cobra la primera zona que encaja con el destino, por orden. Una zona de algunos
- * estados tiene que ir antes que la del país entero, o no se usaría nunca: se coloca ahí sin
- * cambiar el orden que las demás tenían entre sí.
+ * El nombre que la caja le pone a una zona cuando nadie escribe uno: el país, o sus primeras regiones.
+ *
+ * @param string $scope  country o states.
+ * @param array  $states Códigos de las regiones.
+ * @param array  $all    Las regiones del país: código => nombre.
+ * @return string
+ */
+function dox_pos_shipping_zone_auto_name( $scope, $states, $all ) {
+	if ( 'states' !== $scope ) {
+		return dox_pos_country_name();
+	}
+	$picked = array_map( fn( $s ) => html_entity_decode( (string) ( $all[ $s ] ?? $s ), ENT_QUOTES, 'UTF-8' ), array_slice( (array) $states, 0, 3 ) );
+	return implode( ', ', $picked ) . ( count( (array) $states ) > 3 ? '…' : '' );
+}
+
+/**
+ * Qué es otra zona respecto a la que se acaba de guardar: wider (cubre sus destinos y más, así que tiene
+ * que ir después), narrower (cubre solo una parte, así que tiene que ir antes) o nada (no se pisan).
+ *
+ * @param array  $locs    Los lugares de la otra zona (objetos con type y code).
+ * @param string $scope   Lo que cubre la guardada: country o states.
+ * @param string $country El país de la tienda.
+ * @return string wider, narrower o vacío.
+ */
+function dox_pos_shipping_zone_relation( $locs, $scope, $country ) {
+	if ( ! $locs ) {
+		return 'wider'; // Una zona sin lugares encaja con cualquier destino ("Everywhere").
+	}
+	$continent   = function_exists( 'WC' ) ? (string) WC()->countries->get_continent_code_for_country( $country ) : '';
+	$in_cont     = false; // Un continente que incluye el país.
+	$has_country = false; // El país entero.
+	$our_states  = 0;     // Regiones de este país.
+	$foreign     = 0;     // Lugares de fuera: otros países, sus regiones, otros continentes.
+	$postcodes   = false;
+	foreach ( $locs as $l ) {
+		$code = (string) $l->code;
+		if ( 'postcode' === $l->type ) {
+			$postcodes = true;
+		} elseif ( 'continent' === $l->type && $code === $continent ) {
+			$in_cont = true;
+		} elseif ( 'country' === $l->type && $code === $country ) {
+			$has_country = true;
+		} elseif ( 'state' === $l->type && 0 === strpos( $code, $country . ':' ) ) {
+			++$our_states;
+		} else {
+			++$foreign;
+		}
+	}
+	$covers = $has_country || $in_cont; // Encaja con cualquier destino del país.
+	if ( $postcodes ) {
+		// Los códigos postales recortan la zona a una parte de sus lugares: si esos lugares son de aquí, va antes. Una
+		// zona que solo tiene códigos postales encaja en cualquier país (WooCommerce no le mira el país), así que también.
+		$only_postcodes = ! $covers && ! $our_states && ! $foreign;
+		return ( $covers || $our_states || $only_postcodes ) ? 'narrower' : '';
+	}
+	if ( 'states' === $scope ) {
+		return $covers ? 'wider' : ''; // El país entero, solo o junto a otros lugares.
+	}
+	if ( $covers ) {
+		return ( $in_cont || $foreign ) ? 'wider' : ''; // El país y algo más (otros países, un continente, regiones de otro país).
+	}
+	return $our_states ? 'narrower' : ''; // Regiones de este país.
+}
+
+/**
+ * WooCommerce cobra la primera zona que encaja con el destino, por orden, y no pasa a la siguiente. La
+ * zona guardada tiene que ir antes que cualquiera más amplia que ella (el país entero para una de
+ * regiones; varios países, un continente o una zona sin lugares para cualquiera) y después de las más
+ * estrechas (las regiones del país, para la del país entero). Si ya está en un sitio que vale no se
+ * mueve, y las demás conservan el orden que tenían entre sí.
  *
  * @param int    $id    La zona recién guardada.
  * @param string $scope country o states.
  */
 function dox_pos_shipping_place_zone( $id, $scope ) {
 	$country = dox_pos_country();
-	$ids     = array();
-	$before  = null; // La primera zona que cubre más que la nuestra.
+	$others  = array(); // Las demás zonas, en su orden.
+	$rel     = array(); // Qué es cada una respecto a la guardada.
+	$cur     = 0;       // Cuántas tiene delante ahora.
+	$found   = false;
 	foreach ( WC_Shipping_Zones::get_zones() as $z ) {
 		$zid = (int) $z['zone_id'];
 		if ( $zid === $id ) {
+			$found = true;
 			continue;
 		}
-		$ids[] = $zid;
-		if ( null !== $before ) {
-			continue;
+		if ( ! $found ) {
+			++$cur;
 		}
-		foreach ( (array) $z['zone_locations'] as $l ) {
-			$wider = 'continent' === $l->type || ( 'states' === $scope && 'country' === $l->type && $country === $l->code );
-			if ( $wider ) {
-				$before = $zid;
-				break;
-			}
+		$others[] = $zid;
+		$rel[]    = dox_pos_shipping_zone_relation( (array) $z['zone_locations'], $scope, $country );
+	}
+	if ( ! $found ) {
+		return;
+	}
+	$hi = array_search( 'wider', $rel, true ); // Como mucho, justo antes de la primera más amplia.
+	$hi = false === $hi ? count( $others ) : (int) $hi;
+	$lo = 0;                                   // Como poco, justo después de la última más estrecha.
+	foreach ( $rel as $i => $r ) {
+		if ( 'narrower' === $r ) {
+			$lo = $i + 1;
 		}
 	}
-	$pos = null === $before ? count( $ids ) : (int) array_search( $before, $ids, true );
-	array_splice( $ids, $pos, 0, array( $id ) );
-	foreach ( $ids as $order => $zid ) {
+	$lo   = min( $lo, $hi ); // Si el orden ya venía torcido, manda ir antes que la más amplia.
+	$slot = min( max( $cur, $lo ), $hi );
+	if ( $slot === $cur ) {
+		return; // Ya está donde vale.
+	}
+	array_splice( $others, $slot, 0, array( $id ) );
+	foreach ( $others as $order => $zid ) {
 		$zone = new WC_Shipping_Zone( $zid );
 		if ( (int) $zone->get_zone_order() !== $order + 1 ) {
 			$zone->set_zone_order( $order + 1 );
@@ -472,6 +576,9 @@ function dox_pos_shipping_save_rate( $zone_id, $instance_id, $data ) {
 		}
 	}
 	if ( ! $method ) {
+		if ( $created && $instance_id ) {
+			$zone->delete_shipping_method( $instance_id ); // Se creó la fila pero el método no carga: no se deja huérfana.
+		}
 		return new WP_Error( 'dox_pos_sin_costo', __( 'That shipping cost no longer exists.', 'dox-pos' ) );
 	}
 	$now   = dox_pos_shipping_rate_data( $method );
@@ -502,7 +609,7 @@ function dox_pos_shipping_save_rate( $zone_id, $instance_id, $data ) {
 					$tiers = array();
 					foreach ( (array) ( $data['tiers'] ?? array() ) as $t ) {
 						$t  = array_values( (array) $t );
-						$up = (float) str_replace( ',', '.', (string) ( $t[0] ?? '' ) );
+						$up = round( (float) str_replace( ',', '.', (string) ( $t[0] ?? '' ) ), 3 ); // Con los tres decimales con que se guarda.
 						if ( $up > 0 ) {
 							$tiers[ (string) $up ] = array( 'up_to' => $up, 'cost' => max( 0.0, (float) dox_pos_parse_money( $t[1] ?? 0 ) ) );
 						}
@@ -547,7 +654,17 @@ function dox_pos_shipping_delete_rate( $zone_id, $instance_id ) {
 	if ( is_wp_error( $zone ) ) {
 		return $zone;
 	}
-	if ( ! $zone->delete_shipping_method( (int) $instance_id ) ) {
+	// WooCommerce borra la instancia que se le diga sin mirar de qué zona es, y responde true aunque no exista:
+	// aquí se comprueba antes que de verdad es un costo de esta zona.
+	$instance_id = (int) $instance_id;
+	$ours        = false;
+	foreach ( $zone->get_shipping_methods( false ) as $m ) {
+		if ( (int) $m->instance_id === $instance_id ) {
+			$ours = true;
+			break;
+		}
+	}
+	if ( ! $ours || ! $zone->delete_shipping_method( $instance_id ) ) {
 		return new WP_Error( 'dox_pos_sin_costo', __( 'That shipping cost no longer exists.', 'dox-pos' ) );
 	}
 	WC_Cache_Helper::get_transient_version( 'shipping', true );

@@ -679,9 +679,10 @@ table.ped .lnk.items{white-space:normal}
 .uwrap.pre{flex-direction:row-reverse} /* el símbolo de la moneda, del lado que lo pone la tienda */
 .field.bad .uwrap{border-color:#8E2B21;box-shadow:0 0 0 3px rgba(142,43,33,.12)}
 .field.bad .uwrap input{box-shadow:none} /* el aro del error va en el marco, no en la casilla de dentro */
-.chips.row{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
-.chips.row::-webkit-scrollbar{display:none}
-.chips.row .chip{flex:none;font-variant-numeric:tabular-nums}
+/* La tira de paquetes. No se llama "row": esa clase es la de las filas de la hoja, y sus reglas le caían encima. */
+.chips.tira{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
+.chips.tira::-webkit-scrollbar{display:none}
+.chips.tira .chip{flex:none;font-variant-numeric:tabular-nums}
 .gaz{display:grid;grid-template-columns:minmax(0,1fr) 118px;gap:10px} /* la dirección con su código postal */
 
 /* una categoría nueva desde el formulario: el nombre a todo el ancho y, debajo, dentro de cuál va y el botón */
@@ -756,6 +757,8 @@ table.ped .lnk.items{white-space:normal}
 .sheet-view{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 16px calc(24px + env(safe-area-inset-bottom));
   transform:translateX(0);opacity:1;transition:transform 340ms cubic-bezier(.32,.72,0,1),opacity 240ms ease}
 .sheet-view.from-right,.sheet-view.to-right{transform:translateX(100%)}
+.sheet-view.entering{pointer-events:none} /* Mientras entra no se pulsa: un doble toque caía en la vista que llegaba. */
+.sheet-card:focus{outline:none} /* Recibe el foco al abrirse solo para que el teclado y el lector de pantalla empiecen dentro. */
 .sheet-view.from-left,.sheet-view.to-left{transform:translateX(-28%);opacity:0}
 .sheet-view .grp:first-child{padding-top:6px}
 
