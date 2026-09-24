@@ -43,6 +43,13 @@ copiando los tres archivos generados a `wp-content/languages/plugins/` (con el n
 no es `es_ES`), o importando el `.po` en Loco Translate (Loco Translate > Plugins > Dox POS > Subir un
 archivo PO, ubicación "Personalizado", el archivo llamado `dox-pos-<locale>.po`).
 
+`dox-pos-es_AR.po` es la versión de Argentina: voseo y el glosario de es_AR (agregar, stock, talle, SKU,
+Escritorio, iniciar sesión, contrarreembolso, empresa de envíos, número de seguimiento, provincia). Se hizo
+el 24/09/2026 porque el editor de Argentina en translate.wordpress.org rechazó la de Colombia; está subida
+en el proyecto es-ar. Solo sirve para translate.wordpress.org y para Loco: el script le mantiene las
+referencias de `caja.js`, pero no genera archivos a partir de ella. Cada texto nuevo del código va en los
+dos `.po`.
+
 Loco arma el JSON de la caja solo con las entradas que traen la referencia `#: assets/js/caja.js:<línea>`,
 y la ignora si no lleva número de línea. Por eso el script pone esa referencia, con la línea real, en
 cada texto que usa `caja.js` (y se la quita a los que ya no): sin ella, la caja importada en Loco sale en

@@ -11,7 +11,10 @@ Antes de generar, marca en el .po con "#: assets/js/caja.js:<línea>" las
 entradas que usa el JavaScript (y se la quita a las que ya no). Loco Translate
 arma el JSON solo con las entradas que traen esa referencia, y solo si lleva
 número de línea: sin ella, al importar el .po en Loco la caja sale en inglés.
+Esas referencias se mantienen en todos los .po de languages/ (también el de
+Argentina, dox-pos-es_AR.po), pero los archivos se generan solo del de es_ES.
 """
+import glob
 import hashlib
 import json
 import os
@@ -125,7 +128,7 @@ def js_strings():
     return used
 
 
-def sync_js_refs(used):
+def sync_js_refs(used, po):
     """Deja "#: assets/js/caja.js:<línea>" justo en las entradas del .po cuyo texto usa el JavaScript.
 
     Es el mismo criterio con el que se arma el JSON (el texto sin el contexto), así que el JSON
@@ -133,7 +136,7 @@ def sync_js_refs(used):
     referencia si no lleva número de línea. Solo cambia las líneas "#:" de las entradas que lo
     necesitan; el resto del archivo queda igual.
     """
-    blocks = open(PO, encoding='utf-8', newline='').read().split('\n\n')
+    blocks = open(po, encoding='utf-8', newline='').read().split('\n\n')
     changed = 0
     for n, block in enumerate(blocks):
         lines = block.split('\n')
@@ -162,13 +165,13 @@ def sync_js_refs(used):
         blocks[n] = '\n'.join(lines)
         changed += 1
     if changed:
-        open(PO, 'w', encoding='utf-8', newline='').write('\n\n'.join(blocks))
+        open(po, 'w', encoding='utf-8', newline='').write('\n\n'.join(blocks))
     return changed
 
 
 def main():
     used = js_strings()
-    marked = sync_js_refs(used)
+    marked = sum(sync_js_refs(used, po) for po in sorted(glob.glob(os.path.join(BASE, 'languages', 'dox-pos-*.po'))))
     entries = parse_po(PO)
     header = ''
     items = []  # (clave, valor, es_plural)
