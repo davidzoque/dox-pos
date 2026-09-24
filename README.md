@@ -47,8 +47,14 @@ archivo PO, ubicación "Personalizado", el archivo llamado `dox-pos-<locale>.po`
 Escritorio, iniciar sesión, contrarreembolso, empresa de envíos, número de seguimiento, provincia). Se hizo
 el 24/09/2026 porque el editor de Argentina en translate.wordpress.org rechazó la de Colombia; está subida
 en el proyecto es-ar. Solo sirve para translate.wordpress.org y para Loco: el script le mantiene las
-referencias de `caja.js`, pero no genera archivos a partir de ella. Cada texto nuevo del código va en los
-dos `.po`.
+referencias de `caja.js`, pero no genera archivos a partir de ella.
+
+`dox-pos-es_ES-espana.po` es la versión de España, hecha el 24/09/2026 con la guía de traductores del
+equipo de España (tuteo, comillas «») y su glosario y el de WooCommerce (acceder, Escritorio, perfil,
+coste, contra reembolso, número de seguimiento, SKU, transportista, ordenador, móvil, provincia). Está
+subida en el proyecto es, que es el que da el paquete de "Español", y sirve igual que la de Argentina:
+para translate.wordpress.org y para Loco (renombrada a `dox-pos-es_ES.po`). Cada texto nuevo del código
+va en los tres `.po`.
 
 Loco arma el JSON de la caja solo con las entradas que traen la referencia `#: assets/js/caja.js:<línea>`,
 y la ignora si no lleva número de línea. Por eso el script pone esa referencia, con la línea real, en

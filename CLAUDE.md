@@ -37,7 +37,7 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 - Nada de mu-plugins ni funciones escondidas. Nada de código bloqueado esperando una clave (WordPress.org
   no lo admite): lo de pago va en el Pro.
 - No pegar claves ni secretos en el chat ni en el código.
-- `languages/` se queda en el repo (la fuente del español, para translate.wordpress.org y para Loco Translate) y no entra en el zip de WordPress.org, que no admite traducciones dentro. Hay dos fuentes: `dox-pos-es_ES.po` (español de Colombia, de donde salen el `.mo`, el `.l10n.php` y el JSON) y `dox-pos-es_AR.po` (Argentina, con voseo). Cada texto nuevo va en las dos.
+- `languages/` se queda en el repo (la fuente del español, para translate.wordpress.org y para Loco Translate) y no entra en el zip de WordPress.org, que no admite traducciones dentro. Hay tres: `dox-pos-es_ES.po` (español de Colombia, de donde salen el `.mo`, el `.l10n.php` y el JSON), `dox-pos-es_AR.po` (Argentina, con voseo) y `dox-pos-es_ES-espana.po` (España, para el proyecto es de translate.wordpress.org). Cada texto nuevo va en los tres.
 
 ## Las capturas del directorio
 

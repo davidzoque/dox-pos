@@ -11,8 +11,9 @@ Antes de generar, marca en el .po con "#: assets/js/caja.js:<línea>" las
 entradas que usa el JavaScript (y se la quita a las que ya no). Loco Translate
 arma el JSON solo con las entradas que traen esa referencia, y solo si lleva
 número de línea: sin ella, al importar el .po en Loco la caja sale en inglés.
-Esas referencias se mantienen en todos los .po de languages/ (también el de
-Argentina, dox-pos-es_AR.po), pero los archivos se generan solo del de es_ES.
+Esas referencias se mantienen en todos los .po de languages/ (también los de
+Argentina y España, dox-pos-es_AR.po y dox-pos-es_ES-espana.po), pero los
+archivos se generan solo del de es_ES.
 """
 import glob
 import hashlib
