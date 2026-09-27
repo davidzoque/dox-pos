@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.41.0
+Stable tag: 0.41.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.41.1 =
+* Since WooCommerce 11.0, an order that goes to failed payment gives back the stock it had taken. The stock history now records that movement under its order ("Payment failed #1234"), among the returned ones, instead of as a change with no order and a guessed reason.
+* The order history in the register leaves out the notes that WooCommerce 10.9 and later adds for every email it sends ("Email "Completed order" sent."), which pushed the shop's own notes out of the list. They are still in the order in WooCommerce.
 
 = 0.41.0 =
 * New: **shipping costs, set from the register.** The gear at the top of the screen (administrators and shop managers) opens Shipping costs: a fixed price, by weight, free from an amount or store pickup, for the whole country or for some of its regions. Nothing is kept apart: they are the WooCommerce shipping zones and methods, so the web checkout and the register charge the same. What the screen cannot edit (a price written as a formula, free shipping that asks for a coupon, the method of another plugin) is shown as it is and can only be turned on or off.

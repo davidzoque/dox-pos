@@ -31,7 +31,7 @@ function dox_pos_stock_log_table() {
  * Abre un contexto: todo cambio de existencias hasta dox_pos_stock_context_end() se apunta
  * con este motivo. Devuelve el contexto anterior, para restaurarlo.
  *
- * @param string $reason sale | hold | web | cancel | release | refund | entry | entry_undo | create | edit | admin | import | api | cli | other.
+ * @param string $reason sale | hold | web | cancel | failed | release | refund | entry | entry_undo | create | edit | admin | import | api | cli | other.
  * @param int    $ref_id El pedido o la entrada, si lo hay.
  * @param string $note   Un detalle corto (el proveedor, la factura).
  * @param array  $costs  Solo una entrada: el costo de compra por unidad de cada producto o talla (id => costo).
@@ -75,12 +75,13 @@ function dox_pos_stock_log_set_ref( $ids, $ref_id ) {
  * El pedido que está cambiando de estado: WooCommerce descuenta o devuelve en ese momento
  * ===================================================================== */
 
-// Descuenta al pagar, al pasar a procesando, completado o en espera; devuelve al cancelar o volver a pendiente.
+// Descuenta al pagar, al pasar a procesando, completado o en espera; devuelve al cancelar, al volver a
+// pendiente y, desde WooCommerce 11.0, al pasar a fallido un pedido que ya había descontado.
 foreach ( array( 'woocommerce_payment_complete', 'woocommerce_order_status_processing', 'woocommerce_order_status_completed', 'woocommerce_order_status_on-hold' ) as $dox_pos_hook ) {
 	add_action( $dox_pos_hook, 'dox_pos_stock_order_reduce', 9 );
 	add_action( $dox_pos_hook, 'dox_pos_stock_order_done', 11 );
 }
-foreach ( array( 'woocommerce_order_status_cancelled', 'woocommerce_order_status_pending', 'woocommerce_order_status_refunded' ) as $dox_pos_hook ) {
+foreach ( array( 'woocommerce_order_status_cancelled', 'woocommerce_order_status_pending', 'woocommerce_order_status_refunded', 'woocommerce_order_status_failed' ) as $dox_pos_hook ) {
 	add_action( $dox_pos_hook, 'dox_pos_stock_order_restore', 9 );
 	add_action( $dox_pos_hook, 'dox_pos_stock_order_done', 11 );
 }
@@ -110,7 +111,7 @@ function dox_pos_stock_order_context( $order_id, $restore ) {
 	}
 	$caja = DOX_POS_VIA === $order->get_created_via();
 	if ( $restore ) {
-		$reason = $order->has_status( 'refunded' ) ? 'refund' : 'cancel';
+		$reason = $order->has_status( 'refunded' ) ? 'refund' : ( $order->has_status( 'failed' ) ? 'failed' : 'cancel' );
 	} elseif ( $caja ) {
 		$reason = $order->has_status( 'on-hold' ) ? 'hold' : 'sale';
 	} else {
@@ -309,6 +310,8 @@ function dox_pos_stock_reason_label( $reason, $ref = 0 ) {
 			return __( 'Online order', 'dox-pos' ) . $n;
 		case 'cancel':
 			return __( 'Cancelled', 'dox-pos' ) . $n;
+		case 'failed':
+			return __( 'Payment failed', 'dox-pos' ) . $n;
 		case 'release':
 			return __( 'Layaway', 'dox-pos' ) . $n . ' ' . __( 'released', 'dox-pos' );
 		case 'refund':
@@ -343,7 +346,7 @@ function dox_pos_stock_kinds() {
 	return array(
 		'ventas'    => array( 'sale', 'hold', 'web' ),
 		'entradas'  => array( 'entry', 'entry_undo' ),
-		'devueltos' => array( 'cancel', 'release', 'refund' ),
+		'devueltos' => array( 'cancel', 'failed', 'release', 'refund' ),
 		'ajustes'   => array( 'create', 'edit', 'admin', 'import', 'api', 'cli', 'other' ),
 	);
 }

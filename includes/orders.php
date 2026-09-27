@@ -953,13 +953,22 @@ function dox_pos_order_detail( $id ) {
 	foreach ( $order->get_shipping_methods() as $sm ) {
 		$ship_method = (string) $sm->get_method_title();
 	}
+	// Las doce últimas notas, sin las que WooCommerce (desde la 10.9) deja por cada correo que manda
+	// ("Correo «Pedido completado» enviado"): siguen en el pedido en WooCommerce, pero en la caja
+	// empujaban fuera de la lista las de la tienda. Llevan el grupo en la meta note_group.
 	$notes = array();
-	foreach ( wc_get_order_notes( array( 'order_id' => $order->get_id(), 'limit' => 12 ) ) as $n ) {
+	foreach ( wc_get_order_notes( array( 'order_id' => $order->get_id(), 'limit' => 40 ) ) as $n ) {
+		if ( 'email_notification' === get_comment_meta( (int) $n->id, 'note_group', true ) ) {
+			continue;
+		}
 		$notes[] = array(
 			'date'     => $n->date_created ? $n->date_created->date_i18n( 'd/m H:i' ) : '',
 			'text'     => trim( html_entity_decode( wp_strip_all_tags( (string) $n->content ), ENT_QUOTES, 'UTF-8' ) ), // WooCommerce escribe "4&rarr;3" en sus notas.
 			'customer' => ! empty( $n->customer_note ),
 		);
+		if ( count( $notes ) >= 12 ) {
+			break;
+		}
 	}
 	$ship  = $order->has_shipping_address();
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
