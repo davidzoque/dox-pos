@@ -9,7 +9,7 @@ Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstal
 | Carpeta | Qué hay |
 |---|---|
 | `dox-pos.php` | Cabecera, constantes, activación (rol + ruta). |
-| `includes/settings.php` | Los ajustes (WooCommerce > Dox POS) y las funciones que el resto del plugin pregunta: marca, colores, fuentes, nombre y ruta de la pantalla, canales, formas de pago, plazo y mensaje del apartado, transportadoras, país y moneda de la tienda. También arma el `<style>` con los colores. |
+| `includes/settings.php` | Los ajustes (WooCommerce > Dox POS) y las funciones que el resto del plugin pregunta: marca, colores, fuentes, nombre y ruta de la pantalla, canales, formas de pago, plazo y mensaje del apartado, transportadoras, país y moneda de la tienda. También arma el `<style>` con los colores. El enlace "Help" de la cabecera (y "Guide" en el engranaje de la caja) lleva a la guía del centro de ayuda con `dox_pos_help_url()`: `help.doxstudio.com/es/caja-dox-pos/` si el idioma del usuario es cualquier `es_*` y `help.doxstudio.com/dox-pos/` si no; es un enlace normal, sin llamadas a fuera. |
 | `includes/roles.php` | El rol `caja` y el permiso `dox_pos_use`. Quien es solo de caja no entra a wp-admin. |
 | `includes/page.php` | La ruta (la del ajuste; de fábrica `/pos` en inglés y `/caja` en español, `dox_pos_default_slug()`, que mira el locale del sitio y no la traducción, y desde la 0.37.0 se escribe en el ajuste al instalar con `dox_pos_freeze_slug()` para que no se mueva al cambiar el idioma; las tiendas anteriores se quedan en `/caja`), el login propio, el `<head>` común y las plantillas. Sin caché. |
 | `includes/catalog.php` | El buscador: usa el motor de WooCommerce (nombre y SKU, con variaciones). |

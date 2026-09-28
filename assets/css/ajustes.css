@@ -39,6 +39,10 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-head-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:14px 32px 0;min-height:64px}
 .dp-brandmark{display:flex;align-items:center;gap:12px}
 .dp-wordmark{height:25px;width:auto;display:block;flex:none}
+/* El enlace a la guía del centro de ayuda, discreto al lado de la versión. */
+.dp-app a.dp-help{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;color:var(--dp-muted);text-decoration:none;border-radius:6px;padding:3px 6px;margin-left:-4px}
+.dp-app a.dp-help:hover,.dp-app a.dp-help:focus-visible{color:var(--dp-ink);background:var(--dp-sunk);text-decoration:none}
+.dp-help .dp-i{width:14px;height:14px}
 /* La pestaña Pro: lo que añade el añadido de pago, en lista, y su botón. */
 .dp-pro-list{margin:0;padding:0;list-style:none;display:grid;gap:14px}
 .dp-pro-list li{display:flex;gap:10px;align-items:flex-start}

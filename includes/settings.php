@@ -289,6 +289,17 @@ function dox_pos_default_slug() {
 	return preg_match( '/^es(_|$)/', get_locale() ) ? 'caja' : DOX_POS_SLUG;
 }
 
+/**
+ * La guía de Dox POS en el centro de ayuda, en el idioma de quien mira los ajustes: la española en
+ * cualquier es_* (es_ES, es_CO, es_MX...) y la inglesa en los demás. get_user_locale() cae en el idioma
+ * del sitio cuando el usuario no eligió otro. Es un enlace normal: el plugin no llama a ningún servidor.
+ */
+function dox_pos_help_url() {
+	return preg_match( '/^es(_|$)/', get_user_locale() )
+		? 'https://help.doxstudio.com/es/caja-dox-pos/'
+		: 'https://help.doxstudio.com/dox-pos/';
+}
+
 function dox_pos_sales() {
 	$s = get_option( 'dox_pos_sales', array() );
 	return is_array( $s ) ? $s : array();
@@ -709,6 +720,31 @@ function dox_pos_postcode_label() {
  */
 function dox_pos_money( $amount ) {
 	return html_entity_decode( wp_strip_all_tags( wc_price( (float) $amount ) ), ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * El total de ejemplo de la vista previa y del mensaje del apartado: lo que costaría un vestido en la
+ * moneda de la tienda. Un solo número fijo (189.000) quedaba bien en pesos y salía "$189,000.00" en dólares.
+ */
+function dox_pos_sample_total() {
+	$amounts = array(
+		'COP' => 189000,
+		'CLP' => 45000,
+		'ARS' => 65000,
+		'PYG' => 350000,
+		'UYU' => 2000,
+		'MXN' => 899,
+		'PEN' => 179,
+		'BOB' => 350,
+		'DOP' => 2900,
+		'CRC' => 25000,
+		'JPY' => 7900,
+		'KRW' => 69000,
+		'INR' => 3999,
+		'BRL' => 249,
+	);
+	$currency = get_woocommerce_currency();
+	return dox_pos_money( $amounts[ $currency ] ?? 49 );
 }
 
 /* =====================================================================
@@ -1373,7 +1409,7 @@ function dox_pos_admin_assets( $hook ) {
 			'sample'   => array(
 				'name'     => __( 'Ana', 'dox-pos' ),
 				'products' => __( 'Ella dress (M · Pink)', 'dox-pos' ),
-				'total'    => dox_pos_money( 189000 ),
+				'total'    => dox_pos_sample_total(),
 				'link'     => add_query_arg( array( 'pay_for_order' => 'true', 'key' => 'wc_order_ejemplo' ), wc_get_endpoint_url( 'order-pay', 1234, wc_get_checkout_url() ) ),
 			),
 			'notices'  => dox_pos_settings_notices(),
@@ -1472,6 +1508,7 @@ function dox_pos_settings_page() {
 			<div class="dp-head-row">
 				<div class="dp-brandmark">
 					<h1 class="dp-title"><?php echo wp_kses( dox_pos_wordmark_svg(), dox_pos_svg_tags() ); ?> <span class="dp-pill"><?php echo esc_html( DOX_POS_VERSION ); ?></span></h1>
+					<a class="dp-help" href="<?php echo esc_url( dox_pos_help_url() ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( dox_pos_icon( 'info' ), dox_pos_svg_tags() ); ?><span><?php esc_html_e( 'Help', 'dox-pos' ); ?></span></a>
 				</div>
 				<div class="dp-head-actions">
 					<a class="dp-btn dp-btn-ghost dp-urlchip" href="<?php echo esc_url( dox_pos_url() ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( dox_pos_icon( 'external' ), dox_pos_svg_tags() ); ?><span><?php echo esc_html( $host . '/' . $slug ); ?></span></a>
@@ -2008,10 +2045,10 @@ function dox_pos_settings_page() {
 							<div class="dp-card-prev">
 								<p class="dp-lbl"><?php esc_html_e( 'How the sale came in', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev" id="dp-preview-channels"></p>
-								<p class="dp-line"><span class="dp-thumb">VE</span><span><?php esc_html_e( 'Ella dress', 'dox-pos' ); ?><i>M · Rosa</i></span><span class="dp-tag-prev"><?php esc_html_e( 'Layaway', 'dox-pos' ); ?></span></p>
+								<p class="dp-line"><span class="dp-thumb">VE</span><span><?php esc_html_e( 'Ella dress', 'dox-pos' ); ?><i><?php esc_html_e( 'M · Pink', 'dox-pos' ); ?></i></span><span class="dp-tag-prev"><?php esc_html_e( 'Layaway', 'dox-pos' ); ?></span></p>
 								<p class="dp-lbl"><?php esc_html_e( 'How they pay', 'dox-pos' ); ?></p>
 								<p class="dp-chips-prev" id="dp-preview-payments"></p>
-								<p class="dp-total"><span><?php esc_html_e( 'Total', 'dox-pos' ); ?></span><b><?php echo esc_html( dox_pos_money( 189000 ) ); ?></b></p>
+								<p class="dp-total"><span><?php esc_html_e( 'Total', 'dox-pos' ); ?></span><b><?php echo esc_html( dox_pos_sample_total() ); ?></b></p>
 								<span class="dp-go"><?php esc_html_e( 'Paid: record the sale', 'dox-pos' ); ?></span>
 								<span class="dp-go alt"><?php esc_html_e( 'Not paid yet: put on layaway', 'dox-pos' ); ?></span>
 							</div>

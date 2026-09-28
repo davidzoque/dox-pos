@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.41.1
+Stable tag: 0.42.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.42.0 =
+* New: a **Help** link at the top of the settings, next to the version, opens the Dox POS guide in the Dox Studio help center (in Spanish on a site in Spanish). Administrators also find it as "Guide" in the gear menu of the register. It is a plain link: the plugin still calls no outside server.
+* Fixed: the sample total in the settings preview and in the layaway message was a fixed 189,000, which reads well in Colombian pesos but showed "$189,000.00" in a store that sells in dollars. It is now a believable price in the currency of the store.
+* Fixed: the size and color of the sample product in the settings preview ("M · Pink") was written in Spanish on sites in any language.
 
 = 0.41.1 =
 * Since WooCommerce 11.0, an order that goes to failed payment gives back the stock it had taken. The stock history now records that movement under its order ("Payment failed #1234"), among the returned ones, instead of as a change with no order and a guessed reason.

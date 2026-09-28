@@ -635,6 +635,15 @@ msgstr "El enlace de %s no es válido: tiene que empezar con https://"
 msgid "Ella dress (M · Pink)"
 msgstr "Vestido Ella (M · Rosa)"
 
+msgid "M · Pink"
+msgstr "M · Rosa"
+
+msgid "Help"
+msgstr "Ayuda"
+
+msgid "Guide"
+msgstr "Guía"
+
 msgid "POS logo"
 msgstr "Logo de la caja"
 
