@@ -13,7 +13,16 @@ arma el JSON solo con las entradas que traen esa referencia, y solo si lleva
 número de línea: sin ella, al importar el .po en Loco la caja sale en inglés.
 Esas referencias se mantienen en todos los .po de languages/ (también los de
 Argentina y España, dox-pos-es_AR.po y dox-pos-es_ES-espana.po), pero los
-archivos se generan solo del de es_ES.
+archivos de languages/ se generan solo del de es_ES.
+
+Además arma en translations/ un zip por cada variante del español que tiene
+WordPress (dox-pos-es_PE.zip, dox-pos-es_MX.zip...), con el .mo, el .l10n.php,
+el JSON y el .po ya con el nombre de ese país. Son para quien los baja a mano
+desde GitHub mientras translate.wordpress.org no tenga su paquete (la guía
+"Dox POS en tu idioma" de help.doxstudio.com enlaza aquí). Argentina sale de
+dox-pos-es_AR.po, España de dox-pos-es_ES-espana.po y las demás del es_ES.po
+(español neutro). No son Releases de GitHub a propósito: las copias viejas
+instaladas desde GitHub se actualizan con el primer adjunto de la última Release.
 """
 import glob
 import hashlib
@@ -22,11 +31,21 @@ import os
 import re
 import struct
 import sys
+import zipfile
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCALE = 'es_ES'
 JS = 'assets/js/caja.js'
 PO = os.path.join(BASE, 'languages', 'dox-pos-%s.po' % LOCALE)
+PACKS = os.path.join(BASE, 'translations')
+# Las variantes del español que tiene WordPress y de qué .po sale cada una.
+VARIANTS = {
+    'es_AR': 'dox-pos-es_AR.po', 'es_ES': 'dox-pos-es_ES-espana.po',
+    'es_CL': 'dox-pos-es_ES.po', 'es_CO': 'dox-pos-es_ES.po', 'es_CR': 'dox-pos-es_ES.po',
+    'es_DO': 'dox-pos-es_ES.po', 'es_EC': 'dox-pos-es_ES.po', 'es_GT': 'dox-pos-es_ES.po',
+    'es_HN': 'dox-pos-es_ES.po', 'es_MX': 'dox-pos-es_ES.po', 'es_PE': 'dox-pos-es_ES.po',
+    'es_PR': 'dox-pos-es_ES.po', 'es_UY': 'dox-pos-es_ES.po', 'es_VE': 'dox-pos-es_ES.po',
+}
 
 
 def parse_po(path):
@@ -99,7 +118,7 @@ def php_key(s):
     return ' . "\\0" . '.join(php_str(p) for p in s.split('\0'))
 
 
-def write_mo(path, pairs):
+def mo_bytes(pairs):
     pairs = sorted(pairs, key=lambda p: p[0])
     n = len(pairs)
     off_o, off_t = 28, 28 + n * 8
@@ -114,8 +133,7 @@ def write_mo(path, pairs):
         mo += struct.pack('<II', l, o)
     for l, o in vals:
         mo += struct.pack('<II', l, o)
-    open(path, 'wb').write(mo + bytes(data))
-    return n
+    return mo + bytes(data)
 
 
 def js_strings():
@@ -170,10 +188,9 @@ def sync_js_refs(used, po):
     return changed
 
 
-def main():
-    used = js_strings()
-    marked = sum(sync_js_refs(used, po) for po in sorted(glob.glob(os.path.join(BASE, 'languages', 'dox-pos-*.po'))))
-    entries = parse_po(PO)
+def compile_po(po, locale, used):
+    """Los tres archivos de una traducción, como {nombre: bytes}, con el nombre de ese locale."""
+    entries = parse_po(po)
     header = ''
     items = []  # (clave, valor, es_plural)
     for e in entries:
@@ -200,22 +217,23 @@ def main():
     if m:
         plural = m.group(1).strip()
 
+    header = re.sub(r'Language: [^\n]*', 'Language: ' + locale, header)
     mo_pairs = [(k.encode(), v.encode()) for k, v, _ in items]
     mo_pairs.append((b'', header.encode()))
-    n = write_mo(os.path.join(BASE, 'languages', 'dox-pos-%s.mo' % LOCALE), mo_pairs)
+    files = {'dox-pos-%s.mo' % locale: mo_bytes(mo_pairs)}
 
     lines = ['<?php', '/**', ' * Traducción al español de Dox POS (generada del .po).', ' *',
              ' * @package DoxPos', ' */', '', 'return array(',
              "\t'domain'       => 'dox-pos',",
              "\t'plural-forms' => '%s'," % plural,
-             "\t'language'     => '%s'," % LOCALE,
+             "\t'language'     => '%s'," % locale,
              "\t'messages'     => array("]
     for k, v, _ in sorted(items, key=lambda x: x[0]):
         lines.append('\t\t' + php_key(k) + ' => ' + php_key(v) + ',')
     lines += ['\t),', ');']
-    open(os.path.join(BASE, 'languages', 'dox-pos-%s.l10n.php' % LOCALE), 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+    files['dox-pos-%s.l10n.php' % locale] = ('\n'.join(lines) + '\n').encode()
 
-    data = {'': {'domain': 'messages', 'lang': LOCALE, 'plural-forms': plural}}
+    data = {'': {'domain': 'messages', 'lang': locale, 'plural-forms': plural}}
     for k, v, pl in items:
         clean = k.split('\x04')[-1]  # sin el contexto, para ver si el .js usa ese texto
         if clean.split('\0')[0] in used:
@@ -224,11 +242,38 @@ def main():
             data[k.split('\0')[0]] = v.split('\0')
     out = {'translation-revision-date': '2026-09-08 00:00:00+0000', 'generator': 'Dox POS',
            'source': JS, 'domain': 'messages', 'locale_data': {'messages': data}}
-    name = 'dox-pos-%s-%s.json' % (LOCALE, hashlib.md5(JS.encode()).hexdigest())
-    open(os.path.join(BASE, 'languages', name), 'w', encoding='utf-8').write(
-        json.dumps(out, ensure_ascii=False, separators=(',', ':')))
-    print('mo: %d entradas | l10n.php: %d | %s: %d | referencias a caja.js cambiadas: %d'
-          % (n, len(items), name, len(data) - 1, marked))
+    name = 'dox-pos-%s-%s.json' % (locale, hashlib.md5(JS.encode()).hexdigest())
+    files[name] = json.dumps(out, ensure_ascii=False, separators=(',', ':')).encode()
+    return files, len(items), len(data) - 1
+
+
+def write_pack(locale, po, used):
+    """El zip de una variante, siempre igual byte a byte si no cambia nada (fecha fija), para
+    que git no vea cambios donde no los hay."""
+    files, _, _ = compile_po(os.path.join(BASE, 'languages', po), locale, used)
+    text = open(os.path.join(BASE, 'languages', po), encoding='utf-8').read()
+    files['dox-pos-%s.po' % locale] = re.sub(r'"Language: [^\\]*\\n"', '"Language: %s\\n"' % locale, text, count=1).encode()
+    path = os.path.join(PACKS, 'dox-pos-%s.zip' % locale)
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for name in sorted(files):
+            info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            z.writestr(info, files[name])
+    return path
+
+
+def main():
+    used = js_strings()
+    marked = sum(sync_js_refs(used, po) for po in sorted(glob.glob(os.path.join(BASE, 'languages', 'dox-pos-*.po'))))
+    files, n_items, n_js = compile_po(PO, LOCALE, used)
+    for name, data in files.items():
+        open(os.path.join(BASE, 'languages', name), 'wb').write(data)
+    os.makedirs(PACKS, exist_ok=True)
+    for locale in sorted(VARIANTS):
+        write_pack(locale, VARIANTS[locale], used)
+    print('mo y l10n.php: %d entradas | JSON: %d | referencias a caja.js cambiadas: %d | zips: %d en translations/'
+          % (n_items, n_js, marked, len(VARIANTS)))
 
 
 main()

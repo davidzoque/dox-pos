@@ -3,3 +3,6 @@
 subir.sh
 *.zip
 node_modules/
+
+# Los zips de traducción para bajar a mano (los arma tools/build-translations.py)
+!translations/*.zip
