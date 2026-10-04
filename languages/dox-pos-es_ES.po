@@ -2504,6 +2504,10 @@ msgid "Add payment method"
 msgstr "Añadir forma de pago"
 
 #: includes/settings.php
+msgid "Also active on your website:"
+msgstr "En tu web también tienes:"
+
+#: includes/settings.php
 msgid "Name of the payment method"
 msgstr "Nombre de la forma de pago"
 

@@ -103,6 +103,7 @@ return array(
 		'All sizes share' => 'Todas las tallas comparten',
 		'All the settings' => 'Todos los ajustes',
 		'Already in %s' => 'Ya está en %s',
+		'Also active on your website:' => 'En tu web también tienes:',
 		'Also delete my settings when the plugin is deleted' => 'Borrar también mis ajustes cuando se borre el plugin',
 		'Always' => 'Siempre',
 		'Always, or from an amount.' => 'Siempre, o desde un monto.',

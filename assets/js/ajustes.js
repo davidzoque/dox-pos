@@ -381,21 +381,48 @@
 	const pagoTpl = $("#dp-pago-tpl");
 	let np = $$(".dp-pay-own", pagos).length; // Los índices nuevos siguen contando aunque se quiten filas.
 	const claveNueva = () => "p_" + Array.from({ length: 6 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
+	function nuevoPago(title, gateway) {
+		const row = pagoTpl.content.cloneNode(true).querySelector(".dp-pay");
+		const key = claveNueva();
+		$$("input", row).forEach((i) => { i.name = i.name.replace("__i__", String(np)); });
+		row.dataset.key = key;
+		$(".dp-pay-key", row).value = key;
+		$(".dp-pay-gateway", row).value = gateway || "";
+		$('input[type="radio"]', row).value = key;
+		row.classList.add("is-new");
+		np++;
+		pagos.appendChild(row);
+		const input = $(".dp-input", row);
+		if (title) input.value = title;
+		else input.focus();
+		pintarPagos();
+		sincronizarTienda();
+		sucio();
+	}
+	// Las pasarelas de la web que la caja todavía no tiene: un botón cada una, que se esconde
+	// cuando ya hay una fila con esa pasarela o con su mismo nombre, y vuelve si se quita.
+	const tienda = $("#dp-pago-tienda");
+	function sincronizarTienda() {
+		if (!tienda) return;
+		const filas = $$(".dp-pay", pagos);
+		const pasarelas = filas.map((r) => { const g = $(".dp-pay-gateway", r); return g ? g.value : ""; });
+		const nombres = filas.map((r) => $(".dp-input", r).value.trim().toLowerCase());
+		let alguna = false;
+		$$(".dp-pay-sug", tienda).forEach((b) => {
+			const ya = pasarelas.includes(b.dataset.gateway) || nombres.includes(b.dataset.title.toLowerCase());
+			b.hidden = ya;
+			alguna = alguna || !ya;
+		});
+		tienda.hidden = !alguna;
+	}
 	if (pagoTpl) {
-		$("#dp-pago-add").addEventListener("click", () => {
-			const row = pagoTpl.content.cloneNode(true).querySelector(".dp-pay");
-			const key = claveNueva();
-			$$("input", row).forEach((i) => { i.name = i.name.replace("__i__", String(np)); });
-			row.dataset.key = key;
-			$(".dp-pay-key", row).value = key;
-			$('input[type="radio"]', row).value = key;
-			row.classList.add("is-new");
-			np++;
-			pagos.appendChild(row);
-			$(".dp-input", row).focus();
-			sucio();
+		$("#dp-pago-add").addEventListener("click", () => nuevoPago("", ""));
+		if (tienda) tienda.addEventListener("click", (e) => {
+			const b = e.target.closest(".dp-pay-sug");
+			if (b) nuevoPago(b.dataset.title, b.dataset.gateway);
 		});
 	}
+	pagos.addEventListener("input", (e) => { if (e.target.classList.contains("dp-input")) sincronizarTienda(); });
 	pagos.addEventListener("click", (e) => {
 		const b = e.target.closest(".dp-quitar");
 		if (!b) return;
@@ -409,6 +436,7 @@
 				if (primera) $('input[type="radio"]', primera.closest(".dp-pay")).checked = true;
 			}
 			pintarPagos();
+			sincronizarTienda();
 			sucio();
 		}, 140);
 	});

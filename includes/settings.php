@@ -384,7 +384,38 @@ function dox_pos_custom_payments() {
 		$key   = sanitize_key( is_array( $m ) ? ( $m['key'] ?? '' ) : '' );
 		$title = sanitize_text_field( is_array( $m ) ? ( $m['title'] ?? '' ) : '' );
 		if ( '' !== $key && '' !== $title ) {
-			$out[] = array( 'key' => $key, 'title' => $title, 'on' => ! empty( $m['on'] ) );
+			$out[] = array( 'key' => $key, 'title' => $title, 'on' => ! empty( $m['on'] ), 'gateway' => sanitize_key( $m['gateway'] ?? '' ) );
+		}
+	}
+	return $out;
+}
+
+/**
+ * Las pasarelas encendidas en WooCommerce (Ajustes > Pagos) que la caja todavía no tiene, para
+ * proponerlas en Ajustes > Ventas. No se añaden solas: muchas solo tienen sentido en la web
+ * (PSE, Wompi), y la tienda elige. Contra reembolso y transferencia ya vienen de fábrica.
+ * Al añadirla, la caja la apunta como una forma de pago propia, con su propia clave: el pedido no
+ * lleva el código de la pasarela para que WooCommerce no ofrezca reembolsarlo por ella ni la
+ * pasarela lo trate como un cobro suyo.
+ *
+ * @return array<string,string> id de la pasarela => nombre.
+ */
+function dox_pos_store_gateways() {
+	if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways() ) {
+		return array();
+	}
+	$out = array();
+	foreach ( (array) WC()->payment_gateways()->payment_gateways() as $id => $g ) {
+		if ( ! is_object( $g ) || 'yes' !== ( $g->enabled ?? '' ) || in_array( $id, array( 'cod', 'bacs' ), true ) ) {
+			continue;
+		}
+		// El nombre de la pasarela (Wompi, Addi), no el título que ve el cliente en el pago, que suele
+		// ser una frase ("Paga con tarjeta, PSE o Nequi"). Si es largo, el corto de los dos.
+		$name  = trim( wp_strip_all_tags( (string) $g->get_method_title() ) );
+		$shown = trim( wp_strip_all_tags( (string) $g->get_title() ) );
+		$title = ( '' === $name || ( '' !== $shown && mb_strlen( $shown ) < mb_strlen( $name ) ) ) ? $shown : $name;
+		if ( '' !== $title ) {
+			$out[ sanitize_key( $id ) ] = $title;
 		}
 	}
 	return $out;
@@ -408,7 +439,7 @@ function dox_pos_new_payment_key( $used ) {
  * con el índice __i__ que el JS sustituye al añadirla.
  *
  * @param int|string $i       Índice en el formulario.
- * @param array      $m       key, title, on.
+ * @param array      $m       key, title, on y, si vino de la tienda, gateway.
  * @param string     $chosen  La forma de pago por defecto.
  */
 function dox_pos_custom_payment_row( $i, $m, $chosen ) {
@@ -416,6 +447,7 @@ function dox_pos_custom_payment_row( $i, $m, $chosen ) {
 	?>
 	<div class="dp-pay dp-pay-own<?php echo ! empty( $m['on'] ) ? '' : ' off'; ?>" data-key="<?php echo esc_attr( $m['key'] ); ?>">
 		<input type="hidden" name="<?php echo esc_attr( $name ); ?>[key]" value="<?php echo esc_attr( $m['key'] ); ?>" class="dp-pay-key">
+		<input type="hidden" name="<?php echo esc_attr( $name ); ?>[gateway]" value="<?php echo esc_attr( $m['gateway'] ?? '' ); ?>" class="dp-pay-gateway">
 		<label class="dp-switch"><input type="checkbox" role="switch" name="<?php echo esc_attr( $name ); ?>[on]" value="1" <?php checked( ! empty( $m['on'] ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $m['title'] ); ?></span></label>
 		<div class="dp-pay-main">
 			<input type="text" name="<?php echo esc_attr( $name ); ?>[title]" value="<?php echo esc_attr( $m['title'] ); ?>" class="dp-input" placeholder="<?php esc_attr_e( 'Name of the payment method', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Name of the payment method', 'dox-pos' ); ?>">
@@ -1120,7 +1152,7 @@ function dox_pos_sanitize_sales( $in ) {
 		$used[] = $key;
 		$on     = ! empty( $row['on'] );
 		$any    = $any || $on;
-		$out['custom_payments'][] = array( 'key' => $key, 'title' => $title, 'on' => $on );
+		$out['custom_payments'][] = array( 'key' => $key, 'title' => $title, 'on' => $on, 'gateway' => sanitize_key( $row['gateway'] ?? '' ) );
 	}
 	if ( ! $any ) {
 		add_settings_error( 'dox_pos', 'payments', __( 'At least one payment method is needed. All of them were turned on.', 'dox-pos' ) );
@@ -1454,6 +1486,7 @@ function dox_pos_settings_page() {
 	$channels = dox_pos_channels();
 	$payments = dox_pos_builtin_payments();
 	$customs  = dox_pos_custom_payments();
+	$gateways = dox_pos_store_gateways();
 	$active   = dox_pos_payment_methods();
 	$default  = dox_pos_default_payment();
 	$logo     = dox_pos_logo_url();
@@ -1750,7 +1783,27 @@ function dox_pos_settings_page() {
 							<?php endforeach; ?>
 						</div>
 						<button type="button" class="dp-btn dp-btn-soft" id="dp-pago-add"><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Add payment method', 'dox-pos' ); ?></button>
-						<template id="dp-pago-tpl"><?php dox_pos_custom_payment_row( '__i__', array( 'key' => '', 'title' => '', 'on' => true ), '-' ); ?></template>
+						<template id="dp-pago-tpl"><?php dox_pos_custom_payment_row( '__i__', array( 'key' => '', 'title' => '', 'on' => true, 'gateway' => '' ), '-' ); ?></template>
+						<?php
+						if ( $gateways ) :
+							// Las que ya tiene (por la pasarela o por el mismo nombre) salen escondidas; el JS las vuelve a enseñar si se quitan.
+							$taken = array();
+							foreach ( $customs as $m ) {
+								$taken[] = $m['gateway'];
+								$taken[] = strtolower( $m['title'] );
+							}
+							foreach ( $payments as $key => $m ) {
+								$taken[] = strtolower( $active[ $key ]['title'] ?? ( $sales['payments'][ $key ]['title'] ?? $m['title'] ) );
+							}
+							$left = array_filter( $gateways, fn( $title, $id ) => ! in_array( $id, $taken, true ) && ! in_array( strtolower( $title ), $taken, true ), ARRAY_FILTER_USE_BOTH );
+							?>
+						<div class="dp-pay-suggest" id="dp-pago-tienda"<?php echo $left ? '' : ' hidden'; ?>>
+							<span class="dp-hint"><?php esc_html_e( 'Also active on your website:', 'dox-pos' ); ?></span>
+							<?php foreach ( $gateways as $id => $title ) : ?>
+							<button type="button" class="dp-pay-sug" data-gateway="<?php echo esc_attr( $id ); ?>" data-title="<?php echo esc_attr( $title ); ?>"<?php echo isset( $left[ $id ] ) ? '' : ' hidden'; ?>><?php echo wp_kses( dox_pos_icon( 'plus' ), dox_pos_svg_tags() ); ?><?php echo esc_html( $title ); ?></button>
+							<?php endforeach; ?>
+						</div>
+						<?php endif; ?>
 					</div>
 
 					<?php if ( 'yes' !== get_option( 'woocommerce_manage_stock' ) ) : // Sin esto, ninguna venta descuenta y ningún apartado reserva. ?>
