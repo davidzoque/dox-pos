@@ -3558,3 +3558,7 @@ msgstr "Dentro de %s"
 #: assets/js/caja.js:1937
 msgid "Creating a category needs a connection."
 msgstr "Para crear una categoría hace falta conexión."
+
+#. Description of the plugin
+msgid "The register for a shop that sells on WhatsApp and Instagram: record sales, layaways and incoming stock from the frontend (/pos), without wp-admin, with orders, products, history, a stock ledger and Excel files. Every sale is a WooCommerce order, so stock goes down on its own. With Dox POS Pro, the business assistant."
+msgstr "La caja para la tienda que vende por WhatsApp e Instagram: registra ventas, apartados y entradas de mercancía desde la parte pública del sitio (/caja), sin entrar a wp-admin, con pedidos, productos, historial, registro de movimientos de inventario y archivos de Excel. Cada venta es un pedido de WooCommerce, así que el inventario baja solo. Con Dox POS Pro, el asistente de negocio."
