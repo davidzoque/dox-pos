@@ -570,7 +570,7 @@ function dox_pos_sku_code( $kind, $slug ) {
 
 /**
  * El código de talla de un producto sin tallas: el de la "talla única" de la tienda
- * ("0- Siempre" en Rosella), o 00 si no hay ninguna.
+ * (por ejemplo "0- Siempre"), o 00 si no hay ninguna.
  */
 function dox_pos_sku_code_no_size() {
 	foreach ( dox_pos_attribute_terms( dox_pos_size_attribute(), 'size' ) as $t ) {

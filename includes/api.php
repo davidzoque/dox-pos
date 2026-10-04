@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Las respuestas de la API no van a caché. LiteSpeed guarda las peticiones REST de un
  * usuario con sesión en su caché privada (hasta 30 minutos) cuando "Cache REST API" está
  * activo, y la caja se quedaría viendo existencias y pedidos viejos hasta que ese mismo
- * usuario mande algo (comprobado en rosella: x-litespeed-cache: hit,private).
+ * usuario mande algo (comprobado en la primera tienda: x-litespeed-cache: hit,private).
  */
 add_filter( 'rest_pre_dispatch', 'dox_pos_rest_nocache', 10, 3 );
 function dox_pos_rest_nocache( $result, $server, $request ) {

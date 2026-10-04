@@ -2,7 +2,7 @@
 
 Plugin de WordPress para registrar pedidos y mercancía desde el frontend, en `/pos` (`/caja` en español), sin entrar a wp-admin, con el historial de ventas, la caja del día, el kardex y un asistente de negocio (la API de OpenAI). Escribe en WooCommerce: cada venta es un pedido y el inventario baja solo.
 
-Primera instalación: rosella.com.co (septiembre de 2026). Pensado para reinstalarlo en otras tiendas: todo lo que cambia de una marca a otra se ajusta en WooCommerce > Dox POS, sin tocar código.
+Primera instalación: septiembre de 2026, en una tienda de ropa infantil. Pensado para reinstalarlo en otras tiendas: todo lo que cambia de una marca a otra se ajusta en WooCommerce > Dox POS, sin tocar código.
 
 ## Cómo está hecho
 

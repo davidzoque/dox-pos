@@ -3,8 +3,8 @@
  * Los ajustes: Dox Plugins > POS, o WooCommerce > Dox POS sin el menú común. Todo lo que
  * cambia de una tienda a otra: la marca (nombre, logo, colores, fuentes), la pantalla (nombre y ruta), las
  * ventas (canales y formas de pago), los apartados (plazo y mensaje) y los
- * envíos (transportadoras). Los valores de fábrica son los de Rosella, la
- * primera tienda; para otra marca se cambian desde aquí, sin tocar código.
+ * envíos (transportadoras). Los valores de fábrica son los de la primera
+ * tienda; para otra marca se cambian desde aquí, sin tocar código.
  *
  * @package DoxPos
  */
@@ -186,8 +186,8 @@ function dox_pos_brand() {
 }
 
 /**
- * El nombre de la marca: el del ajuste, o el del sitio sin su lema ("Rosella | Vistiendo con
- * Encanto" se queda en "Rosella").
+ * El nombre de la marca: el del ajuste, o el del sitio sin su lema ("Mi Tienda | Ropa para
+ * niños" se queda en "Mi Tienda").
  */
 function dox_pos_brand_name() {
 	$b = dox_pos_brand();
