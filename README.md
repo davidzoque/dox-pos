@@ -154,7 +154,7 @@ demostración) es otro plugin, `dox-pos-pro`, que se cuelga de este por ganchos.
 funciona completo sin él. Lo que el gratuito abre para los añadidos:
 
 - **En la caja**: el filtro `dox_pos_cfg` (lo que va al navegador en `window.DOX_POS`), y las acciones
-  `dox_pos_head` (hojas de estilo), `dox_pos_tabs` (botones en la barra), `dox_pos_after_header`
+  `dox_pos_head` (hojas de estilo), `dox_pos_tabs` (botones en la barra; en el teléfono bajan solos a la barra de abajo o a "Más", con su contador), `dox_pos_after_header`
   (avisos bajo la cabecera), `dox_pos_sections` (las secciones `section.tab#t-<id>`), `dox_pos_scripts`
   (scripts, después de `caja.js`) y `dox_pos_caja_open` (al abrir la caja, antes de pintar).
 - **En el JS**: `caja.js` expone `window.DoxPOS` con sus utilidades (`api`, `post`, `modal`, `confirmar`,

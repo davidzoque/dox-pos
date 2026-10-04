@@ -666,6 +666,114 @@
 		$("#gm-envios").onclick = abrirCostos;
 	}
 
+	// ---------- la barra de abajo del teléfono ----------
+	// En pantalla estrecha las pestañas de arriba no caben y no se nota que se deslizan, así que bajan
+	// a una barra como la de una app: las de todos los días a la vista y, si hay más de cinco, "Más"
+	// abre una hoja con el resto. Cada botón solo pulsa su pestaña de #tabs, que sigue mandando
+	// (la dirección, los enlaces del correo y las pestañas del Pro funcionan igual). El CSS decide
+	// cuándo se ve: en el computador y la tableta se queda la fila de arriba.
+	const ICONO = {
+		panel: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+		vender: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+		entrada: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/>',
+		pedidos: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>',
+		producto: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+		historial: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+		asistente: '<path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 2v4M17 4h4"/>',
+		mas: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+		otra: '<circle cx="12" cy="12" r="8"/>',
+	};
+	const icono = (id) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONO[id] || ICONO.otra) + "</svg>";
+	function armarBarraMovil() {
+		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button"));
+		if (!nav || !tabs.length) return;
+		// Las de todos los días primero; las que traigan los añadidos, detrás.
+		const ORDEN = ["vender", "pedidos", "entrada", "panel", "historial", "producto"];
+		const pos = (b) => { const i = ORDEN.indexOf(b.dataset.t); return i < 0 ? 99 : i; };
+		const orden = tabs.slice().sort((a, b) => pos(a) - pos(b));
+		const cabe = orden.length <= 5;
+		const abajo = cabe ? orden : orden.slice(0, 4);
+		const resto = cabe ? [] : tabs.filter((b) => !abajo.includes(b)); // En "Más", en el orden de arriba.
+		// El nombre de la pestaña sin su contador (Pedidos · 3): el contador va aparte, como globito.
+		const nombre = (b) => { const c = b.cloneNode(true); c.querySelectorAll("span").forEach((x) => x.remove()); return c.textContent.trim(); };
+		const boton = (b) => '<button type="button" data-t="' + esc(b.dataset.t) + '" aria-pressed="false"><span class="tb-ic">' + icono(b.dataset.t) + '<span class="tb-n" hidden></span></span><span class="tb-l">' + esc(nombre(b)) + "</span></button>";
+		nav.innerHTML = abajo.map(boton).join("") + (resto.length ? '<button type="button" data-t="mas" aria-pressed="false" aria-haspopup="dialog"><span class="tb-ic">' + icono("mas") + '<span class="tb-n" hidden></span></span><span class="tb-l">' + esc(nav.dataset.more || __("More", "dox-pos")) + "</span></button>" : "");
+		nav.style.setProperty("--tb-cols", String(abajo.length + (resto.length ? 1 : 0)));
+		document.body.classList.add("con-tabbar");
+
+		// "Más": una hoja que sube desde abajo con las demás pestañas en grande.
+		let mas = null;
+		// El foco vuelve a "Más" solo si se cerró con el teclado: con el dedo no hace falta y se veía el anillo.
+		const cerrarMas = (teclado) => {
+			if (!mas || mas.hidden || mas.classList.contains("out")) return;
+			mas.classList.add("out");
+			setTimeout(() => { mas.hidden = true; mas.classList.remove("out"); mas.style.removeProperty("--y"); }, 260);
+			const b = nav.querySelector('[data-t="mas"]');
+			if (teclado === true && b) b.focus({ preventScroll: true });
+			else if (mas.contains(document.activeElement)) document.activeElement.blur();
+		};
+		if (resto.length) {
+			mas = document.createElement("div");
+			mas.className = "masheet";
+			mas.id = "masheet";
+			mas.hidden = true;
+			mas.innerHTML = '<div class="mas-card" role="dialog" aria-modal="true" aria-label="' + esc(nav.dataset.more || __("More", "dox-pos")) + '"><span class="sheet-grab" aria-hidden="true"></span><div class="mas-grid">' +
+				resto.map((b) => '<button type="button" class="mas-it" data-t="' + esc(b.dataset.t) + '" aria-pressed="false"><span class="tb-ic">' + icono(b.dataset.t) + '<span class="tb-n" hidden></span></span>' + esc(nombre(b)) + "</button>").join("") + "</div></div>";
+			$("#app").appendChild(mas);
+			mas.addEventListener("click", (e) => {
+				const it = e.target.closest(".mas-it");
+				if (it) { const t = tabs.find((x) => x.dataset.t === it.dataset.t); if (t) t.click(); cerrarMas(); return; }
+				if (e.target === mas) cerrarMas(); // Tocar fuera de la tarjeta.
+			});
+			// Bajarla arrastrando, como las hojas de iOS.
+			const card = mas.firstElementChild;
+			let y0 = null;
+			card.addEventListener("touchstart", (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+			card.addEventListener("touchmove", (e) => { if (y0 === null) return; const dy = Math.max(0, e.touches[0].clientY - y0); mas.style.setProperty("--y", dy + "px"); }, { passive: true });
+			card.addEventListener("touchend", (e) => { if (y0 === null) return; const dy = e.changedTouches[0].clientY - y0; y0 = null; if (dy > 70) cerrarMas(); else mas.style.removeProperty("--y"); });
+			document.addEventListener("keydown", (e) => { if (e.key === "Escape" && mas && !mas.hidden) cerrarMas(true); });
+		}
+		nav.addEventListener("click", (e) => {
+			const b = e.target.closest("button");
+			if (!b) return;
+			if (b.dataset.t === "mas") {
+				if (!mas.hidden) { cerrarMas(); return; }
+				mas.hidden = false;
+				// Con el teclado (Enter o espacio: detail 0) el foco entra en la hoja; con el dedo, no.
+				const p = mas.querySelector('.mas-it[aria-pressed="true"]') || mas.querySelector(".mas-it");
+				if (p && e.detail === 0) p.focus({ preventScroll: true });
+				return;
+			}
+			const t = tabs.find((x) => x.dataset.t === b.dataset.t);
+			if (t) t.click();
+			cerrarMas();
+		});
+		// Lo marcado sigue a la pestaña abierta, venga del toque, de un enlace o de "atrás".
+		const marcar = (tab) => {
+			const enMas = resto.some((b) => b.dataset.t === tab);
+			nav.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === tab || (enMas && b.dataset.t === "mas"))));
+			if (mas) mas.querySelectorAll(".mas-it").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === tab)));
+		};
+		on("pestaña", marcar);
+		marcar(st.tab || "vender");
+		// Los contadores (pedidos por atender, avisos del asistente) se copian de la pestaña de arriba.
+		const contar = () => {
+			let enMas = 0;
+			tabs.forEach((b) => {
+				const n = parseInt(Array.from(b.querySelectorAll("span")).map((x) => x.textContent).join("").replace(/\D/g, ""), 10) || 0;
+				[nav, mas].forEach((root) => {
+					const el = root && root.querySelector('[data-t="' + b.dataset.t + '"] .tb-n');
+					if (el) { el.textContent = n > 99 ? "99+" : String(n); el.hidden = !n; }
+				});
+				if (resto.includes(b)) enMas += n;
+			});
+			const m = nav.querySelector('[data-t="mas"] .tb-n');
+			if (m) { m.textContent = ""; m.hidden = !enMas; m.classList.toggle("dot", !!enMas); } // En "Más", un punto: el número está dentro.
+		};
+		new MutationObserver(contar).observe($("#tabs"), { subtree: true, childList: true, characterData: true });
+		contar();
+	}
+
 	// ---------- los costos de envío, puestos desde la caja ----------
 	// No hay tarifas propias: son las zonas y los métodos de envío de WooCommerce, con los cuatro casos
 	// que usa casi cualquier tienda. Por eso cobra lo mismo el checkout de la web que la caja.
@@ -3220,6 +3328,7 @@
 			let hqTimer = null;
 			$("#h-q").addEventListener("input", () => { clearTimeout(hqTimer); hqTimer = setTimeout(() => { hi.q = $("#h-q").value.trim(); hi.page = 1; cargarHistorial(); }, 300); });
 		}
+		armarBarraMovil();
 		emit("arranque"); // Los añadidos enganchan lo suyo (el Pro: el chat, la insignia, el aviso de demostración).
 		abrirDesdeHash(true);
 		// Y si cambia el # con la caja ya abierta (el enlace del correo cae en esta misma pestaña, o

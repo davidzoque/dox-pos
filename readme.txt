@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.43.0
+Stable tag: 0.44.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.44.0 =
+* New: on a phone, the register sections move to a bar at the bottom of the screen, like an app. The four used every day (Sell, Orders, Inventory and the Dashboard, or My day for the cashier) are always in view and within reach of the thumb; when there are more than five sections, "More" opens a sheet with the rest. Orders shows the number of orders waiting on its icon. On a tablet or a computer the tabs stay at the top as before.
+* Improved: while typing on a phone, the bottom bar steps aside so the keyboard and the order total have room.
 
 = 0.43.0 =
 * New: Settings > Sales suggests the payment methods that are turned on in WooCommerce and the register does not have yet (Addi, Wompi, Mercado Pago...), as one button each under "Add payment method". One click adds it with its name, ready to rename. Nothing is added on its own: many of them only make sense on the website. A sale recorded with one counts as paid and keeps its own key, so WooCommerce never offers to refund it through that gateway.

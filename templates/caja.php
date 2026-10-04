@@ -332,6 +332,8 @@ dox_pos_enqueue_caja( $cfg );
 
 		<?php do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente. ?>
 	</div>
+	<?php // En el teléfono las pestañas bajan aquí, como en una app: las cuatro de cada día y "Más" con el resto. La arma caja.js con las de #tabs. ?>
+	<nav class="tabbar" id="tabbar" aria-label="<?php esc_attr_e( 'Sections', 'dox-pos' ); ?>" data-more="<?php esc_attr_e( 'More', 'dox-pos' ); ?>"></nav>
 	<div class="toasts" id="toasts" aria-live="polite"></div>
 	<?php if ( $cfg['shipping_setup'] ) : ?>
 	<div class="gearmenu" id="gearmenu" role="menu" aria-labelledby="gear" hidden>
