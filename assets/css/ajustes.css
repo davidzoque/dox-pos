@@ -210,7 +210,7 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-toggle+.dp-callout{margin-top:12px}
 
 /* ---------- formas de pago ---------- */
-.dp-pays{display:flex;flex-direction:column;gap:8px}
+.dp-pays{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
 .dp-pay{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--dp-line);border-radius:12px;transition:background-color 150ms ease}
 .dp-pay.off{background:var(--dp-sunk)}
 .dp-pay.off .dp-pay-main,.dp-pay.off .dp-def{opacity:.45}
