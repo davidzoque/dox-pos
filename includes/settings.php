@@ -811,16 +811,53 @@ function dox_pos_mix( $a, $b, $t ) {
 }
 
 /**
- * ¿Es oscuro? Sirve para decidir si el texto que va encima es blanco o de color.
+ * La luminancia relativa de un color (0 negro, 1 blanco), como la mide la WCAG.
  */
-function dox_pos_is_dark( $hex ) {
+function dox_pos_luminance( $hex ) {
 	list( $r, $g, $b ) = sscanf( ltrim( $hex, '#' ), '%02x%02x%02x' );
 	$lin = function ( $c ) {
 		$c /= 255;
 		return $c <= 0.03928 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
 	};
-	$l = 0.2126 * $lin( $r ) + 0.7152 * $lin( $g ) + 0.0722 * $lin( $b );
-	return $l < 0.25;
+	return 0.2126 * $lin( $r ) + 0.7152 * $lin( $g ) + 0.0722 * $lin( $b );
+}
+
+/**
+ * ¿Es oscuro? Sirve para decidir si el texto que va encima es blanco o de color.
+ */
+function dox_pos_is_dark( $hex ) {
+	return dox_pos_luminance( $hex ) < 0.25;
+}
+
+/**
+ * El contraste entre dos colores, de 1 (iguales) a 21 (negro sobre blanco).
+ */
+function dox_pos_contrast( $a, $b ) {
+	$la = dox_pos_luminance( $a );
+	$lb = dox_pos_luminance( $b );
+	return ( max( $la, $lb ) + 0.05 ) / ( min( $la, $lb ) + 0.05 );
+}
+
+/**
+ * El primero de los candidatos que se lee sobre el fondo; si ninguno llega, el que más contrasta.
+ * Así la marca manda cuando se ve (el principal sobre la barra) y, cuando no (un verde sobre el
+ * mismo verde), entra el siguiente color de la marca antes que un negro genérico.
+ *
+ * @param string   $bg    El fondo.
+ * @param string[] $cands Los colores, por orden de preferencia.
+ * @param float    $min   El contraste que basta.
+ */
+function dox_pos_readable( $bg, $cands, $min ) {
+	$best = $cands[0];
+	foreach ( $cands as $c ) {
+		if ( dox_pos_contrast( $c, $bg ) >= $min ) {
+			return $c;
+		}
+		if ( dox_pos_contrast( $c, $bg ) > dox_pos_contrast( $best, $bg ) ) {
+			$best = $c;
+		}
+	}
+	return $best;
 }
 
 /**
@@ -842,6 +879,11 @@ function dox_pos_theme_css() {
 		$dark_bar   = dox_pos_is_dark( $c['bar'] );
 		$dark_prim  = dox_pos_is_dark( $c['primary'] );
 		$dark_soft  = dox_pos_is_dark( $c['soft'] );
+		// El principal hace de letra sobre la barra clara, sobre el fondo y sobre el suave: solo si se
+		// lee. Si no (Cakto: barra y principal del mismo verde), el suave o el texto. Mismas reglas en ajustes.js.
+		$brand      = array( $c['primary'], $c['soft'], $c['ink'] );
+		$bar_ink    = $dark_bar ? '#FFFFFF' : dox_pos_readable( $c['bar'], $brand, 4.5 );
+		$tab_on     = $dark_bar ? '#FFFFFF' : dox_pos_readable( $c['bar'], $brand, 1.6 ); // Una píldora: basta con que se distinga.
 		$vars      += array(
 			'--paper'       => $c['bg'],
 			'--bar'         => $c['bar'],
@@ -849,12 +891,13 @@ function dox_pos_theme_css() {
 			'--soft'        => $c['soft'],
 			'--ink'         => $c['ink'],
 			'--primary-ink' => $dark_prim ? '#FFFFFF' : $c['ink'],
-			'--bar-ink'     => $dark_bar ? '#FFFFFF' : $c['primary'],
+			'--bar-ink'     => $bar_ink,
+			'--primary-text' => dox_pos_readable( $c['bg'], $brand, 3 ),
 			'--soft-ink'    => $dark_soft ? '#FFFFFF' : $c['ink'],
-			'--soft-accent' => $dark_soft ? '#FFFFFF' : $c['primary'],
+			'--soft-accent' => $dark_soft ? '#FFFFFF' : dox_pos_readable( $c['soft'], array( $c['primary'], $c['ink'] ), 3 ),
 			// Con la barra oscura, la pestaña activa se pinta al revés para que siempre se vea.
-			'--tab-on'      => $dark_bar ? '#FFFFFF' : $c['primary'],
-			'--tab-on-ink'  => $dark_bar ? $c['bar'] : ( $dark_prim ? '#FFFFFF' : $c['ink'] ),
+			'--tab-on'      => $tab_on,
+			'--tab-on-ink'  => $dark_bar ? $c['bar'] : ( dox_pos_is_dark( $tab_on ) ? '#FFFFFF' : $c['ink'] ),
 			'--sunk'        => dox_pos_mix( $c['bg'], $c['ink'], 0.03 ),
 			'--line'        => dox_pos_mix( $c['bg'], $c['ink'], 0.12 ),
 			'--faint'       => dox_pos_mix( $c['bg'], $c['ink'], 0.5 ),

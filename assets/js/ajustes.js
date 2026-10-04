@@ -90,10 +90,21 @@
 		const A = rgb(a), B = rgb(b);
 		return "#" + A.map((c, i) => Math.round(c * (1 - t) + B[i] * t).toString(16).padStart(2, "0")).join("").toUpperCase();
 	}
-	function isDark(h) {
+	function luma(h) {
 		const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
 		const [r, g, b] = rgb(h);
-		return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) < 0.25;
+		return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+	}
+	const isDark = (h) => luma(h) < 0.25;
+	const contraste = (a, b) => { const x = luma(a), y = luma(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+	// El primero que se lee sobre el fondo; si ninguno llega, el que más contrasta (dox_pos_readable).
+	function legible(bg, cands, min) {
+		let best = cands[0];
+		for (const c of cands) {
+			if (contraste(c, bg) >= min) return c;
+			if (contraste(c, bg) > contraste(best, bg)) best = c;
+		}
+		return best;
 	}
 	const swatches = $$(".dp-swatch");
 	swatches.forEach((t) => { t.dataset.last = hex($(".dp-hex", t).value) || t.dataset.default; });
@@ -107,13 +118,16 @@
 			$('input[type="color"]', t).value = c[t.dataset.key];
 		});
 		const darkBar = isDark(c.bar), darkPrim = isDark(c.primary), darkSoft = isDark(c.soft);
+		const brand = [c.primary, c.soft, c.ink];
+		const tabOn = darkBar ? "#FFFFFF" : legible(c.bar, brand, 1.6);
 		const vars = {
 			"--bg": c.bg, "--bar": c.bar, "--primary": c.primary, "--soft": c.soft, "--ink": c.ink,
 			"--primary-ink": darkPrim ? "#FFFFFF" : c.ink,
-			"--bar-ink": darkBar ? "#FFFFFF" : c.primary,
-			"--soft-accent": darkSoft ? "#FFFFFF" : c.primary,
-			"--tab-on": darkBar ? "#FFFFFF" : c.primary,
-			"--tab-on-ink": darkBar ? c.bar : (darkPrim ? "#FFFFFF" : c.ink),
+			"--bar-ink": darkBar ? "#FFFFFF" : legible(c.bar, brand, 4.5),
+			"--primary-text": legible(c.bg, brand, 3),
+			"--soft-accent": darkSoft ? "#FFFFFF" : legible(c.soft, [c.primary, c.ink], 3),
+			"--tab-on": tabOn,
+			"--tab-on-ink": darkBar ? c.bar : (isDark(tabOn) ? "#FFFFFF" : c.ink),
 			"--sunk": mix(c.bg, c.ink, 0.03),
 			"--line": mix(c.bg, c.ink, 0.12),
 			"--muted": mix(c.ink, c.bg, 0.12),

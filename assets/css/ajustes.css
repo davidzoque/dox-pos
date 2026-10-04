@@ -285,7 +285,7 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-live i{width:6px;height:6px;border-radius:50%;background:var(--dp-ok);animation:dp-pulse 2.2s infinite}
 @keyframes dp-pulse{0%,100%{box-shadow:0 0 0 0 rgba(27,127,59,.4)}60%{box-shadow:0 0 0 5px rgba(27,127,59,0)}}
 .dp-device{--bg:#FEF8F4;--bar:#F4C1C0;--primary:#731C2A;--soft:#F4C1C0;--ink:#38352F;--bar-ink:#731C2A;--primary-ink:#fff;--soft-accent:#731C2A;
-  --tab-on:#731C2A;--tab-on-ink:#fff;--sunk:#FBF9F1;--line:#E7DCD4;--muted:#4C4C4C;
+  --tab-on:#731C2A;--tab-on-ink:#fff;--primary-text:#731C2A;--sunk:#FBF9F1;--line:#E7DCD4;--muted:#4C4C4C;
   border-radius:18px;background:#fff;border:1px solid var(--dp-line);box-shadow:var(--dp-shadow),0 24px 48px -24px rgba(17,19,24,.28);overflow:hidden}
 .dp-chrome{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#F1F2F4;border-bottom:1px solid var(--dp-line)}
 .dp-dots{display:flex;gap:5px}
@@ -318,7 +318,7 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-total span{font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;color:var(--muted)}
 .dp-total b{font-family:var(--serif);font-weight:600;font-size:20px}
 .dp-go{display:block;text-align:center;background:var(--primary);color:var(--primary-ink);border-radius:10px;padding:10px;font-weight:600;font-size:13px}
-.dp-go.alt{background:#fff;color:var(--primary);border:1px solid var(--primary);margin-top:6px;padding:7px;font-size:12px;font-weight:500}
+.dp-go.alt{background:#fff;color:var(--primary-text);border:1px solid var(--primary-text);margin-top:6px;padding:7px;font-size:12px;font-weight:500}
 
 /* El mensaje, como se ve en WhatsApp. */
 .dp-wa{background:#EFE7DD;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
@@ -353,7 +353,7 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-photos{display:flex;gap:6px;margin:0 0 12px}
 .dp-photo{flex:1;aspect-ratio:3/4;border-radius:8px;background:linear-gradient(160deg,var(--soft),#fff 85%);border:1px solid var(--line);display:grid;place-items:end center;overflow:hidden}
 .dp-photo i{font-style:normal;font-size:9px;font-weight:500;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:2px 7px;margin-bottom:5px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.dp-photo.add{border-style:dashed;place-items:center;color:var(--primary);background:#fff}
+.dp-photo.add{border-style:dashed;place-items:center;color:var(--primary-text);background:#fff}
 .dp-photo.add .dp-i{width:20px;height:20px}
 .dp-fake-input.dp-mono{display:flex;align-items:center;padding:0 10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:600;color:var(--ink);letter-spacing:.02em}
 .dp-radio{cursor:pointer;grid-template-columns:auto minmax(0,1fr);gap:12px;margin:0}
