@@ -46,9 +46,15 @@ function dox_pos_render() {
 		exit;
 	}
 
-	$error = '';
+	$error      = '';
+	$code_step  = ''; // Entrar con código: '' (contraseña), 'ask' (pide el correo) o 'code' (pide el código).
+	$code_login = '';
 	if ( isset( $_POST['dox_pos_login'] ) ) {
 		$error = dox_pos_handle_login(); // Si entra bien, redirige y no vuelve.
+	} elseif ( isset( $_POST['dox_pos_code'] ) && dox_pos_login_code_enabled() ) {
+		list( $error, $code_step, $code_login ) = dox_pos_handle_code_login(); // Igual: si entra, redirige.
+	} elseif ( isset( $_GET['codigo'] ) && dox_pos_login_code_enabled() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$code_step = 'ask';
 	}
 
 	if ( ! is_user_logged_in() || ! current_user_can( DOX_POS_CAP ) ) {
@@ -105,6 +111,51 @@ function dox_pos_handle_login() {
 	if ( ! user_can( $user, DOX_POS_CAP ) ) {
 		wp_logout();
 		return __( 'That user does not have access to the register.', 'dox-pos' );
+	}
+	wp_safe_redirect( dox_pos_url() );
+	exit;
+}
+
+/**
+ * ¿Hay otro plugin que da códigos de un solo uso por correo? Dox POS no los envía:
+ * los pide por estos filtros (Dox Care, de Dox Studio, los implementa). Sin ese
+ * plugin, la caja solo pide usuario y contraseña, como siempre.
+ *
+ * @return bool
+ */
+function dox_pos_login_code_enabled() {
+	return (bool) apply_filters( 'dox_pos_login_code_enabled', false );
+}
+
+/**
+ * Procesa los dos pasos de entrar con código: enviarlo y comprobarlo.
+ * Devuelve [ error, paso, usuario escrito ], o redirige si entró.
+ *
+ * @return array
+ */
+function dox_pos_handle_code_login() {
+	$login = sanitize_text_field( wp_unslash( is_scalar( $_POST['log'] ?? '' ) ? ( $_POST['log'] ?? '' ) : '' ) );
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ?? '' ) ), 'dox_pos_code' ) ) {
+		return array( __( 'The page expired. Please try again.', 'dox-pos' ), 'ask', $login );
+	}
+	$unavailable = new WP_Error( 'dox_pos_code', __( 'Signing in with a code is not available. Use your password.', 'dox-pos' ) );
+
+	if ( ! isset( $_POST['verify'] ) ) { // Con Enter en el paso del correo también se envía.
+		$sent = apply_filters( 'dox_pos_login_code_send', $unavailable, $login );
+		if ( is_wp_error( $sent ) ) {
+			return array( $sent->get_error_message(), 'ask', $login );
+		}
+		return array( '', 'code', $login );
+	}
+
+	$code = sanitize_text_field( wp_unslash( is_scalar( $_POST['code'] ?? '' ) ? ( $_POST['code'] ?? '' ) : '' ) );
+	$user = apply_filters( 'dox_pos_login_code_verify', $unavailable, $login, $code );
+	if ( ! $user instanceof WP_User ) {
+		return array( is_wp_error( $user ) ? $user->get_error_message() : $unavailable->get_error_message(), 'code', $login );
+	}
+	if ( ! user_can( $user, DOX_POS_CAP ) ) {
+		wp_logout();
+		return array( __( 'That user does not have access to the register.', 'dox-pos' ), 'ask', '' );
 	}
 	wp_safe_redirect( dox_pos_url() );
 	exit;

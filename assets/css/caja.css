@@ -607,6 +607,8 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .login-sub{margin:-10px 0 0;color:var(--muted);font-size:13px}
 .login-err{background:var(--soft);color:var(--soft-accent);border-radius:10px;padding:10px 12px;margin:0;font-size:13px;font-weight:500}
 .login-alt{font-size:13px;color:var(--muted);text-align:center;padding:6px}
+.login-ok{background:var(--soft);border-radius:10px;padding:10px 12px;margin:0;font-size:13px}
+.login-code{font-size:24px;letter-spacing:6px;text-align:center}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}

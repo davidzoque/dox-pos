@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.44.0
+Stable tag: 0.45.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.45.0 =
+* New: the register sign-in screen can offer "Sign in with a code by email" next to the password, when another plugin on the site provides one-time codes (it asks through the `dox_pos_login_code_enabled`, `dox_pos_login_code_send` and `dox_pos_login_code_verify` filters). The cashier types the 6-digit code from their phone into the register, with no password. Without such a plugin nothing changes: the register asks for username and password as always, and Dox POS still sends no email of its own for this.
 
 = 0.44.0 =
 * New: on a phone, the register sections move to a bar at the bottom of the screen, like an app. The four used every day (Sell, Orders, Inventory and the Dashboard, or My day for the cashier) are always in view and within reach of the thumb; when there are more than five sections, "More" opens a sheet with the rest. Orders shows the number of orders waiting on its icon. On a tablet or a computer the tabs stay at the top as before.
