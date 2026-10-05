@@ -166,12 +166,15 @@ function dox_pos_handle_code_login() {
 	}
 	// Se decide con la sesión que de verdad quedó abierta, no con lo que devolvió el filtro.
 	$current = wp_get_current_user();
-	if ( ! $current->exists() || $current->ID !== $user->ID || ! user_can( $current, DOX_POS_CAP ) ) {
+	if ( ! $current->exists() || $current->ID !== $user->ID ) {
+		// El filtro devolvió una cuenta que no es la de la sesión: no se toca la sesión de
+		// nadie (podría ser la de otro cajero en este navegador), solo no se deja pasar.
+		return array( __( 'That user does not have access to the register.', 'dox-pos' ), 'ask', '' );
+	}
+	if ( ! user_can( $current, DOX_POS_CAP ) ) {
 		// wp_logout() no sirve aquí: busca la sesión en la cookie de esta petición, que
 		// todavía no la trae. Se cierran las sesiones de esa cuenta y se borra la cookie.
-		if ( $current->exists() ) {
-			WP_Session_Tokens::get_instance( $current->ID )->destroy_all();
-		}
+		WP_Session_Tokens::get_instance( $current->ID )->destroy_all();
 		wp_clear_auth_cookie();
 		wp_set_current_user( 0 );
 		return array( __( 'That user does not have access to the register.', 'dox-pos' ), 'ask', '' );
