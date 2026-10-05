@@ -3576,8 +3576,8 @@ msgid "Signing in with a code is not available. Use your password."
 msgstr "No está disponible entrar con código. Usa tu clave."
 
 #: templates/login.php
-msgid "If that account exists, we sent a 6-digit code to its email. It may take a minute; check spam too."
-msgstr "Si esa cuenta existe, enviamos un código de 6 números a su correo. Puede tardar un minuto; revisa también el spam."
+msgid "If that account can use the register, we sent a 6-digit code to its email. It may take a minute; check spam too."
+msgstr "Si esa cuenta puede usar la caja, enviamos un código de 6 números a su correo. Puede tardar un minuto; revisa también el spam."
 
 #: templates/login.php
 msgid "Send me a code"

@@ -312,7 +312,7 @@ return array(
 		'How to pay outside the link' => 'Cómo pagar por fuera del link',
 		'Identity' => 'Identidad',
 		'If it is the same one, better ' => 'Si es el mismo, mejor ',
-		'If that account exists, we sent a 6-digit code to its email. It may take a minute; check spam too.' => 'Si esa cuenta existe, enviamos un código de 6 números a su correo. Puede tardar un minuto; revisa también el spam.',
+		'If that account can use the register, we sent a 6-digit code to its email. It may take a minute; check spam too.' => 'Si esa cuenta puede usar la caja, enviamos un código de 6 números a su correo. Puede tardar un minuto; revisa también el spam.',
 		'If you delete the plugin' => 'Si borras el plugin',
 		'If you have any questions, just reply to this email.' => 'Si tienes cualquier duda, responde a este correo.',
 		'If you want, tell them on WhatsApp too: the message already carries the tracking number.' => 'Si quieres, avísale también por WhatsApp: el mensaje ya va con la guía.',

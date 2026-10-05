@@ -46,21 +46,22 @@ dox_pos_enqueue_caja();
 		<?php if ( ! empty( $code_step ) ) : ?>
 			<?php wp_nonce_field( 'dox_pos_code' ); ?>
 			<input type="hidden" name="dox_pos_code" value="1">
+			<input type="hidden" name="step" value="<?php echo 'code' === $code_step ? 'verify' : 'send'; ?>">
 			<?php if ( 'code' === $code_step ) : ?>
-				<p class="login-ok" role="status"><?php esc_html_e( 'If that account exists, we sent a 6-digit code to its email. It may take a minute; check spam too.', 'dox-pos' ); ?></p>
+				<p class="login-ok" role="status"><?php esc_html_e( 'If that account can use the register, we sent a 6-digit code to its email. It may take a minute; check spam too.', 'dox-pos' ); ?></p>
 				<input type="hidden" name="log" value="<?php echo esc_attr( $code_login ); ?>">
 				<div class="field">
 					<label for="code"><?php esc_html_e( 'Code', 'dox-pos' ); ?></label>
 					<input id="code" name="code" class="login-code" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" required autofocus>
 				</div>
-				<button class="go" type="submit" name="verify" value="1"><?php esc_html_e( 'Sign in', 'dox-pos' ); ?></button>
+				<button class="go" type="submit"><?php esc_html_e( 'Sign in', 'dox-pos' ); ?></button>
 				<a class="login-alt" href="<?php echo esc_url( add_query_arg( 'codigo', 1, dox_pos_url() ) ); ?>"><?php esc_html_e( 'Request another code', 'dox-pos' ); ?></a>
 			<?php else : ?>
 				<div class="field">
 					<label for="log"><?php esc_html_e( 'Username or email', 'dox-pos' ); ?></label>
 					<input id="log" name="log" type="text" autocomplete="username" value="<?php echo esc_attr( $code_login ); ?>" required autofocus>
 				</div>
-				<button class="go" type="submit" name="send" value="1"><?php esc_html_e( 'Send me a code', 'dox-pos' ); ?></button>
+				<button class="go" type="submit"><?php esc_html_e( 'Send me a code', 'dox-pos' ); ?></button>
 			<?php endif; ?>
 			<a class="login-alt" href="<?php echo esc_url( dox_pos_url() ); ?>"><?php esc_html_e( 'Sign in with your password', 'dox-pos' ); ?></a>
 		<?php else : ?>

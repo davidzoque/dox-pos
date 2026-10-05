@@ -49,9 +49,9 @@ function dox_pos_render() {
 	$error      = '';
 	$code_step  = ''; // Entrar con código: '' (contraseña), 'ask' (pide el correo) o 'code' (pide el código).
 	$code_login = '';
-	if ( isset( $_POST['dox_pos_login'] ) ) {
+	if ( isset( $_POST['dox_pos_login'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- El nonce se comprueba dentro.
 		$error = dox_pos_handle_login(); // Si entra bien, redirige y no vuelve.
-	} elseif ( isset( $_POST['dox_pos_code'] ) && dox_pos_login_code_enabled() ) {
+	} elseif ( isset( $_POST['dox_pos_code'] ) && dox_pos_login_code_enabled() ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- El nonce se comprueba dentro.
 		list( $error, $code_step, $code_login ) = dox_pos_handle_code_login(); // Igual: si entra, redirige.
 	} elseif ( isset( $_GET['codigo'] ) && dox_pos_login_code_enabled() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$code_step = 'ask';
@@ -121,6 +121,14 @@ function dox_pos_handle_login() {
  * los pide por estos filtros (Dox Care, de Dox Studio, los implementa). Sin ese
  * plugin, la caja solo pide usuario y contraseña, como siempre.
  *
+ * El contrato de los filtros, para quien los implemente:
+ * - dox_pos_login_code_send( $result, $login, $cap ): envía un código solo si la cuenta
+ *   tiene el permiso $cap (el de usar la caja), y responde igual exista o no, para no
+ *   delatar cuentas. Devuelve true, o WP_Error para mostrar un error.
+ * - dox_pos_login_code_verify( $result, $login, $code, $cap ): comprueba el código y,
+ *   si vale y la cuenta tiene $cap, ABRE LA SESIÓN y devuelve ese WP_User. Si no,
+ *   WP_Error. Dox POS comprueba después la sesión real, no solo lo que se devuelve.
+ *
  * @return bool
  */
 function dox_pos_login_code_enabled() {
@@ -140,8 +148,11 @@ function dox_pos_handle_code_login() {
 	}
 	$unavailable = new WP_Error( 'dox_pos_code', __( 'Signing in with a code is not available. Use your password.', 'dox-pos' ) );
 
-	if ( ! isset( $_POST['verify'] ) ) { // Con Enter en el paso del correo también se envía.
-		$sent = apply_filters( 'dox_pos_login_code_send', $unavailable, $login );
+	// El paso va en un campo oculto y no en el nombre del botón: con Enter, algunos
+	// navegadores no mandan el botón.
+	$step = sanitize_key( is_scalar( $_POST['step'] ?? '' ) ? wp_unslash( $_POST['step'] ?? '' ) : '' );
+	if ( 'verify' !== $step ) {
+		$sent = apply_filters( 'dox_pos_login_code_send', $unavailable, $login, DOX_POS_CAP );
 		if ( is_wp_error( $sent ) ) {
 			return array( $sent->get_error_message(), 'ask', $login );
 		}
@@ -149,12 +160,20 @@ function dox_pos_handle_code_login() {
 	}
 
 	$code = sanitize_text_field( wp_unslash( is_scalar( $_POST['code'] ?? '' ) ? ( $_POST['code'] ?? '' ) : '' ) );
-	$user = apply_filters( 'dox_pos_login_code_verify', $unavailable, $login, $code );
+	$user = apply_filters( 'dox_pos_login_code_verify', $unavailable, $login, $code, DOX_POS_CAP );
 	if ( ! $user instanceof WP_User ) {
 		return array( is_wp_error( $user ) ? $user->get_error_message() : $unavailable->get_error_message(), 'code', $login );
 	}
-	if ( ! user_can( $user, DOX_POS_CAP ) ) {
-		wp_logout();
+	// Se decide con la sesión que de verdad quedó abierta, no con lo que devolvió el filtro.
+	$current = wp_get_current_user();
+	if ( ! $current->exists() || $current->ID !== $user->ID || ! user_can( $current, DOX_POS_CAP ) ) {
+		// wp_logout() no sirve aquí: busca la sesión en la cookie de esta petición, que
+		// todavía no la trae. Se cierran las sesiones de esa cuenta y se borra la cookie.
+		if ( $current->exists() ) {
+			WP_Session_Tokens::get_instance( $current->ID )->destroy_all();
+		}
+		wp_clear_auth_cookie();
+		wp_set_current_user( 0 );
 		return array( __( 'That user does not have access to the register.', 'dox-pos' ), 'ask', '' );
 	}
 	wp_safe_redirect( dox_pos_url() );

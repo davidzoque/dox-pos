@@ -174,6 +174,16 @@ funciona completo sin él. Lo que el gratuito abre para los añadidos:
 El guardián que impide que un pedido de demostración toque el inventario se queda aquí
 (`dox_pos_demo_no_stock`, en `orders.php`): vale aunque el Pro se desactive con pedidos de ejemplo vivos.
 
+## Entrar con un código por correo (0.45.0)
+
+La pantalla de entrada de la caja ofrece "Entrar con un código por correo" solo si otro plugin lo da: Dox POS no envía códigos ni correos por su cuenta. Lo pregunta por tres filtros (`includes/page.php`, `dox_pos_handle_code_login()`):
+
+- `dox_pos_login_code_enabled`: `false` de fábrica. Sin nada enganchado, la caja pide usuario y contraseña como siempre.
+- `dox_pos_login_code_send( $result, $login, $cap )`: enviar un código solo si la cuenta tiene `$cap` (`DOX_POS_CAP`) y responder igual exista o no.
+- `dox_pos_login_code_verify( $result, $login, $code, $cap )`: comprobar el código y, si vale y la cuenta tiene `$cap`, abrir la sesión y devolver ese `WP_User`.
+
+Después del filtro, la caja decide con la sesión que de verdad quedó abierta (`wp_get_current_user()`), no con lo que devolvió el filtro; si no cuadra, cierra las sesiones de esa cuenta y borra la cookie (`wp_logout()` no sirve ahí: busca la sesión en la cookie de la petición, que todavía no la trae). Hoy lo implementa Dox Care, de Dox Studio; podría hacerlo también el Pro.
+
 ## El detalle de un pedido
 
 `GET orders/{id}` (`dox_pos_order_detail`): lo mismo que la fila más `items_list` (por renglón: foto de la variación o del producto, código de la variación o del padre, cantidad, precio unitario, total, existencias, enlace a la ficha si está publicada, si existe y si se puede editar desde la caja), totales, dirección completa, fechas de creación, pago y entrega, hasta cuándo el apartado, las últimas doce notas del pedido (`wc_get_order_notes`), sin las que WooCommerce deja desde la 10.9 por cada correo que manda (meta `note_group` = `email_notification`) y, para quien administra la tienda, la dirección de edición en WooCommerce. En la caja lo abre `verPedido` en un modal ancho; los botones de acción son los mismos de la lista (`botonesPedido`) y cierran el detalle antes de actuar.

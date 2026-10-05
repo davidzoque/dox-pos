@@ -94,7 +94,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 == Changelog ==
 
 = 0.45.0 =
-* New: the register sign-in screen can offer "Sign in with a code by email" next to the password, when another plugin on the site provides one-time codes (it asks through the `dox_pos_login_code_enabled`, `dox_pos_login_code_send` and `dox_pos_login_code_verify` filters). The cashier types the 6-digit code from their phone into the register, with no password. Without such a plugin nothing changes: the register asks for username and password as always, and Dox POS still sends no email of its own for this.
+* New: the register sign-in screen can offer "Sign in with a code by email" next to the password, when another plugin on the site provides one-time codes (through the `dox_pos_login_code_enabled`, `dox_pos_login_code_send` and `dox_pos_login_code_verify` filters). The cashier types the 6-digit code from their phone into the register, with no password. Codes are only sent to accounts that can use the register, and the register checks the session that was really opened before letting anyone in. Without such a plugin nothing changes: the register asks for username and password as always, and Dox POS sends no email of its own for this.
 
 = 0.44.0 =
 * New: on a phone, the register sections move to a bar at the bottom of the screen, like an app. The four used every day (Sell, Orders, Inventory and the Dashboard, or My day for the cashier) are always in view and within reach of the thumb; when there are more than five sections, "More" opens a sheet with the rest. Orders shows the number of orders waiting on its icon. On a tablet or a computer the tabs stay at the top as before.
