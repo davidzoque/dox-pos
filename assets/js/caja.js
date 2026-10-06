@@ -489,7 +489,7 @@
 	async function cargarEnvio() {
 		const seq = ++envioSeq; // Si mientras tanto se pregunta otra vez, esta respuesta ya no vale.
 		const state = $("#f-dep").value;
-		const city = $("#f-ciu").value.trim();
+		const city = ciudadDeLista();
 		if (sinEnvio() || !st.lineas.length || (!state && !city && !codigoPostal())) {
 			st.rates = [];
 			st.rate = null;
@@ -1153,7 +1153,7 @@
 			payment: st.pago,
 			discount: num($("#f-desc").value),
 			note: $("#f-nota").value.trim(),
-			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: $("#f-ciu").value.trim(), address: $("#f-dir").value.trim(), postcode: codigoPostal() },
+			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: fijarCiudad(), address: $("#f-dir").value.trim(), postcode: codigoPostal() },
 			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
 		};
 		const tipo = hold ? "apartado" : "venta";
@@ -1641,12 +1641,28 @@
 		const states = cfg.states || {};
 		sel.innerHTML = '<option value="">' + esc(cfg.state_label || __("State", "dox-pos")) + "</option>" +
 			Object.keys(states).map((k) => '<option value="' + esc(k) + '">' + esc(states[k]) + "</option>").join("");
-		sel.onchange = () => { pintarCiudades(); programarEnvio(); };
+		sel.onchange = () => { pintarCiudades(); fijarCiudad(); programarEnvio(); };
 	}
 	// Las ciudades del departamento elegido, si el sitio tiene Colciudades.
 	function pintarCiudades() {
 		const lista = (cfg.cities || {})[$("#f-dep").value] || [];
 		$("#ciudades").innerHTML = lista.map((c) => '<option value="' + esc(c) + '"></option>').join("");
+	}
+	// La ciudad escrita a mano pasa al nombre de la lista si es la misma sin contar tildes, mayúsculas ni
+	// espacios de más ("medellin" -> "Medellín"). Si no está (veredas, corregimientos), se deja como se escribió.
+	function ciudadDeLista() {
+		const v = $("#f-ciu").value.trim();
+		const lista = (cfg.cities || {})[$("#f-dep").value] || [];
+		if (!v || !lista.length) return v;
+		const p = plegar(v);
+		return lista.find((c) => plegar(c) === p) || v;
+	}
+	// Solo al salir del campo, al cambiar el departamento y al guardar: mientras se escribe no se toca.
+	function fijarCiudad() {
+		const el = $("#f-ciu");
+		const c = ciudadDeLista();
+		if (c && c !== el.value) el.value = c;
+		return c;
 	}
 
 	// ---------- avisos y ventanas ----------
@@ -3491,6 +3507,7 @@
 		listaDe("entrada").parentElement.addEventListener("scroll", (e) => { const el = e.target; if (st.catOn && st.cat.more && !st.cat.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 240) mostrarCatalogo(true); });
 		["#f-desc", "#f-env"].forEach((s) => $(s).addEventListener("input", pintarSum));
 		["#f-ciu", "#f-dir", "#f-cp"].forEach((s) => { if ($(s)) $(s).addEventListener("input", programarEnvio); });
+		$("#f-ciu").addEventListener("change", fijarCiudad); // Al salir del campo o al elegir la sugerencia.
 		// Los costos de envío se ponen sin salir de la caja (quien administra): el engranaje y el enlace del envío de la venta.
 		armarHoja();
 		armarEngranaje();

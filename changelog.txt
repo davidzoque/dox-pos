@@ -2,6 +2,9 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.47.1 =
+* Improved: with Colciudades on a store in Colombia, a city typed by hand in the register ("medellin", "MEDELLIN", "bogota") is saved with its name from the list ("Medellín", "Bogotá"), ignoring accents, capital letters and extra spaces. The register fixes it when you leave the field, and the server does it again when the order is saved. A place that is not on the list (a rural district, for instance) is saved as typed.
+
 = 0.47.0 =
 * Changed: on the phone, Sell and Inventory no longer have the two tabs at the top. When you add something, a bar appears at the bottom ("View the order" or "Review and save") that opens what you picked, with an arrow to keep searching and an "Empty all" button that asks first.
 * New: a size that is already in the order (or in what arrived) shows how many with a "+2" and has a minus button next to it to remove one without going to review.

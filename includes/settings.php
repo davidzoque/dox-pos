@@ -661,6 +661,38 @@ function dox_pos_country() {
 }
 
 /**
+ * Las ciudades de cada departamento, si la tienda está en Colombia y el sitio tiene Colciudades.
+ *
+ * @return array<string,string[]> Código del departamento (CO-ANT) => nombres de sus ciudades.
+ */
+function dox_pos_cities() {
+	return 'CO' === dox_pos_country() && function_exists( 'colciu_get_ciudades' ) ? (array) colciu_get_ciudades() : array();
+}
+
+/**
+ * La ciudad escrita a mano, con el nombre de la lista si es la misma sin contar tildes, mayúsculas ni
+ * espacios de más ("medellin" -> "Medellín"). Si no está en la lista (veredas, corregimientos), se
+ * deja como se escribió. Colciudades compara igual (normalize_city).
+ *
+ * @param string $city  Ciudad, tal como llegó.
+ * @param string $state Código del departamento.
+ * @return string
+ */
+function dox_pos_city_from_list( $city, $state ) {
+	$list = dox_pos_cities()[ $state ] ?? array();
+	if ( '' === trim( $city ) || ! is_array( $list ) || ! $list ) {
+		return $city;
+	}
+	$key = dox_pos_fold( $city );
+	foreach ( $list as $name ) {
+		if ( dox_pos_fold( $name ) === $key ) {
+			return (string) $name;
+		}
+	}
+	return $city;
+}
+
+/**
  * ¿En este país se le escribe a la clienta por WhatsApp? En Estados Unidos, Canadá, Australia, Nueva
  * Zelanda, Japón, Corea y China casi nadie lo usa: ahí la caja manda mensajes de texto.
  *

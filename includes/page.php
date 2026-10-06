@@ -410,7 +410,7 @@ function dox_pos_js_config() {
 		'state_label'     => dox_pos_state_label(),
 		'postcode'        => dox_pos_postcode_label(),                     // El rótulo del código postal, o vacío en los países que no lo usan (Colombia): la venta solo lo pregunta si lo hay.
 		'states'          => function_exists( 'WC' ) ? WC()->countries->get_states( $country ) : array(),
-		'cities'          => 'CO' === $country && function_exists( 'colciu_get_ciudades' ) ? colciu_get_ciudades() : array(),
+		'cities'          => dox_pos_cities(),
 		'money'           => array(
 			'symbol'   => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
 			'pos'      => get_option( 'woocommerce_currency_pos', 'left' ),

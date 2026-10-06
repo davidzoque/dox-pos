@@ -171,13 +171,14 @@ function dox_pos_create_order( $data, $hold ) {
 	$cust    = (array) ( $data['customer'] ?? array() );
 	$name    = sanitize_text_field( $cust['name'] ?? '' );
 	$parts   = preg_split( '/\s+/', trim( $name ), 2 );
+	$state   = sanitize_text_field( $cust['state'] ?? '' );
 	$address = array(
 		'first_name' => $parts[0] ?? '',
 		'last_name'  => $parts[1] ?? '',
 		'phone'      => sanitize_text_field( $cust['phone'] ?? '' ),
 		'address_1'  => sanitize_text_field( $cust['address'] ?? '' ),
-		'city'       => sanitize_text_field( $cust['city'] ?? '' ),
-		'state'      => sanitize_text_field( $cust['state'] ?? '' ),
+		'city'       => dox_pos_city_from_list( sanitize_text_field( $cust['city'] ?? '' ), $state ), // Por si llega sin pasar por la caja (la app, otra versión en caché).
+		'state'      => $state,
 		'postcode'   => wc_format_postcode( sanitize_text_field( $cust['postcode'] ?? '' ), dox_pos_country() ),
 		'country'    => dox_pos_country(),
 	);
