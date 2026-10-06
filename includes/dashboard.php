@@ -233,13 +233,16 @@ function dox_pos_dashboard_pending() {
 function dox_pos_dashboard_stock() {
 	global $wpdb;
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-	// Las que llevan las suyas (y el total de cada producto que lo lleva)...
+	// Las que llevan las suyas (y el total de cada producto que lo lleva), solo de productos publicados:
+	// las tallas de un producto oculto siguen "publicadas" aunque el producto no se vea...
 	$units = (int) $wpdb->get_var(
 		"SELECT COALESCE( SUM( l.stock_quantity ), 0 ) FROM {$wpdb->wc_product_meta_lookup} l
 		 JOIN {$wpdb->posts} p ON p.ID = l.product_id
 		 JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_manage_stock' AND m.meta_value = 'yes'
 		 LEFT JOIN {$wpdb->postmeta} b ON b.post_id = p.ID AND b.meta_key = '_dox_pos_pool'
-		 WHERE p.post_status = 'publish' AND p.post_type IN ( 'product', 'product_variation' ) AND l.stock_quantity > 0 AND b.meta_id IS NULL"
+		 LEFT JOIN {$wpdb->posts} pp ON pp.ID = p.post_parent
+		 WHERE p.post_status = 'publish' AND ( p.post_type = 'product' OR ( p.post_type = 'product_variation' AND pp.post_status = 'publish' ) )
+		   AND l.stock_quantity > 0 AND b.meta_id IS NULL"
 	);
 	// ...más cada bolsa de color una sola vez (la menor de sus tallas, ver includes/pools.php).
 	$units += (int) $wpdb->get_var(
@@ -248,6 +251,7 @@ function dox_pos_dashboard_stock() {
 			JOIN {$wpdb->posts} p ON p.ID = l.product_id
 			JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_manage_stock' AND m.meta_value = 'yes'
 			JOIN {$wpdb->postmeta} b ON b.post_id = p.ID AND b.meta_key = '_dox_pos_pool'
+			JOIN {$wpdb->posts} pp ON pp.ID = p.post_parent AND pp.post_status = 'publish'
 			WHERE p.post_status = 'publish' AND p.post_type = 'product_variation'
 			GROUP BY p.post_parent, b.meta_value
 		 ) t WHERE t.n > 0"

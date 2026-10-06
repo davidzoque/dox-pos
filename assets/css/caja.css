@@ -7,7 +7,7 @@
   --primary-ink:#26221F; --bar-ink:#FFFFFF; --soft-ink:#26221F; --soft-accent:#FF8D27;
   --tab-on:#FFFFFF; --tab-on-ink:#26221F; --primary-text:#FF8D27;
   --surface:#FFFFFF; --sunk:#F8F3EE; --line:#E5DFDA; --faint:#928E8A; --muted:#403C39;
-  --ok:#2E7D32; --ok-soft:#E6F1E6; --warn:#26221F; --warn-soft:#EEE8E3; --scrim:rgba(38,34,31,.45);
+  --ok:#2E7D32; --ok-soft:#E6F1E6; --real:#731C2A; --real-soft:#F6E9EB; --warn:#26221F; --warn-soft:#EEE8E3; --scrim:rgba(38,34,31,.45);
   --ui:"Poppins",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --serif:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -114,6 +114,21 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .var .l i{display:block;font-style:normal;font-weight:400;font-size:11px;color:var(--muted);font-family:var(--mono)}
 .var .s{font-size:12px;color:var(--muted)}
 .var .s b{color:var(--ink);font-variant-numeric:tabular-nums}
+/* La talla real: la de la etiqueta de la pieza, cuando varias tallas comparten unidades. Las que
+   también le sirven van en segundo plano y dicen de qué talla es la pieza. */
+.rt{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--real);color:#FFFFFF;
+  font:600 10.5px var(--ui);letter-spacing:.02em;vertical-align:1px}
+.var.real{border:2px solid var(--real);background:var(--real-soft);padding:9px 11px}
+.var.real .l{color:var(--real)}
+.var.real .s{color:var(--real)}
+.var.real .s b{color:var(--real)}
+.var.alt{border-style:dashed;background:transparent}
+.var.alt .l{flex:0 0 auto}
+.var.alt .s{flex:1}
+.var.alt .s{color:var(--real);text-align:right;line-height:1.35}
+.pc-var tr.real td{color:var(--real);font-weight:600;background:var(--real-soft)}
+.pc-var tr.alt td .sub{display:block;color:var(--real);font-size:11.5px}
+.odl .odi .rs{align-self:flex-start;padding:2px 8px;border-radius:6px;background:var(--real);color:#FFFFFF;font-size:12px;font-weight:600}
 .empty{color:var(--muted);font-size:13px;padding:20px 2px}
 .rtit{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 2px 6px}
 .big-empty{padding:40px 24px;text-align:center}

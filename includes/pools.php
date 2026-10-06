@@ -352,3 +352,201 @@ function dox_pos_product_units( $p ) {
 	}
 	return $units + array_sum( $pools );
 }
+
+/*
+ * La talla real de las unidades compartidas.
+ *
+ * Cuando una prenda se ofrece en varias tallas que comparten unidades (un body de 18-24 meses que
+ * también sirve como 12-18), la pieza física lleva una sola etiqueta. La tienda marca esa talla con
+ * el meta _dox_pos_real_size = 'yes' en la variación, y la caja la resalta y la apunta en cada línea
+ * de pedido que venda otra talla del mismo grupo, para que quien empaca sepa qué pieza sacar.
+ */
+
+const DOX_POS_REAL_SIZE_META = '_dox_pos_real_size';
+const DOX_POS_REAL_SIZE_ITEM = 'dox_pos_real_size'; // Meta de la línea del pedido, visible (sin guion bajo).
+
+/**
+ * Las variaciones de un producto marcadas como talla real (ids). Se recuerdan en la petición.
+ *
+ * @param int  $parent_id Producto.
+ * @param bool $forget    Solo vaciar lo recordado.
+ * @return int[]
+ */
+function dox_pos_real_size_ids( $parent_id, $forget = false ) {
+	static $cache = array();
+	if ( $forget ) {
+		$cache = array();
+		return array();
+	}
+	$parent_id = (int) $parent_id;
+	if ( ! isset( $cache[ $parent_id ] ) ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids                 = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p
+				 JOIN {$wpdb->postmeta} r ON r.post_id = p.ID AND r.meta_key = %s AND r.meta_value = 'yes'
+				 WHERE p.post_parent = %d AND p.post_type = 'product_variation' AND p.post_status = 'publish'",
+				DOX_POS_REAL_SIZE_META,
+				$parent_id
+			)
+		);
+		$cache[ $parent_id ] = array_map( 'intval', (array) $ids );
+	}
+	return $cache[ $parent_id ];
+}
+
+/**
+ * Las tallas que comparten unidades con una variación, ella incluida (ids): las de su bolsa, o las que
+ * heredan el total del producto. Vacío si lleva las suyas.
+ *
+ * @param WC_Product $v Variación.
+ * @return int[]
+ */
+function dox_pos_share_group( $v ) {
+	if ( ! $v instanceof WC_Product || ! $v->is_type( 'variation' ) ) {
+		return array();
+	}
+	$key = dox_pos_pool_key( $v );
+	if ( '' !== $key ) {
+		return dox_pos_pool_members( $v->get_parent_id(), $key );
+	}
+	if ( 'parent' !== $v->get_manage_stock() ) {
+		return array();
+	}
+	static $cache = array();
+	$parent_id = (int) $v->get_parent_id();
+	if ( ! isset( $cache[ $parent_id ] ) ) {
+		global $wpdb;
+		// Las que no llevan sus existencias: con el padre gestionándolas, heredan su total.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids                 = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p
+				 LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_manage_stock'
+				 WHERE p.post_parent = %d AND p.post_type = 'product_variation' AND p.post_status = 'publish'
+				   AND ( m.meta_value IS NULL OR m.meta_value <> 'yes' )
+				 ORDER BY p.ID",
+				$parent_id
+			)
+		);
+		$cache[ $parent_id ] = array_map( 'intval', (array) $ids );
+	}
+	return $cache[ $parent_id ];
+}
+
+/**
+ * La talla real del grupo de una variación: si ella es la real, y si no, el nombre de la talla (o
+ * tallas) que es de verdad la pieza. Solo cuando comparte unidades con otra talla: una talla que lleva
+ * las suyas no necesita decir nada.
+ *
+ * @param WC_Product $v Variación.
+ * @return array{real: bool, of: string}
+ */
+function dox_pos_real_size( $v ) {
+	$none  = array( 'real' => false, 'of' => '' );
+	$group = dox_pos_share_group( $v );
+	if ( count( $group ) < 2 ) {
+		return $none;
+	}
+	$real = array_values( array_intersect( dox_pos_real_size_ids( $v->get_parent_id() ), $group ) );
+	if ( ! $real ) {
+		return $none;
+	}
+	if ( in_array( (int) $v->get_id(), $real, true ) ) {
+		return array( 'real' => true, 'of' => '' );
+	}
+	$tax   = dox_pos_size_attribute();
+	$names = array();
+	foreach ( $real as $rid ) {
+		$r    = wc_get_product( $rid );
+		$slug = $r ? (string) ( $r->get_attributes()[ $tax ] ?? '' ) : '';
+		if ( '' !== $slug ) {
+			$names[] = dox_pos_attribute_label( $tax, $slug );
+		}
+	}
+	return array( 'real' => false, 'of' => implode( ' / ', array_unique( $names ) ) );
+}
+
+/**
+ * Apunta en la línea del pedido la talla real de la pieza, si se vendió otra talla de su grupo.
+ *
+ * @param WC_Order_Item_Product $item    Línea.
+ * @param WC_Product|null       $product Lo vendido.
+ */
+function dox_pos_tag_real_size( $item, $product ) {
+	if ( ! $item instanceof WC_Order_Item_Product || ! $product instanceof WC_Product ) {
+		return;
+	}
+	$r = dox_pos_real_size( $product );
+	if ( '' !== $r['of'] ) {
+		$item->update_meta_data( DOX_POS_REAL_SIZE_ITEM, $r['of'] );
+	}
+}
+
+add_action( 'woocommerce_checkout_create_order_line_item', 'dox_pos_tag_real_size_web', 10, 3 );
+/**
+ * Lo mismo para los pedidos de la web (el checkout clásico y el de bloques pasan por aquí).
+ *
+ * @param WC_Order_Item_Product $item   Línea.
+ * @param string                $key    Clave del carrito.
+ * @param array                 $values La línea del carrito.
+ */
+function dox_pos_tag_real_size_web( $item, $key, $values ) {
+	dox_pos_tag_real_size( $item, $values['data'] ?? null );
+}
+
+add_filter( 'woocommerce_order_item_display_meta_key', 'dox_pos_real_size_meta_key', 10, 2 );
+/**
+ * El nombre del meta en el pedido de WooCommerce y en los correos: "Actual size" ("Talla real").
+ *
+ * @param string        $display Lo que WooCommerce iba a enseñar.
+ * @param WC_Meta_Data  $meta    El meta.
+ * @return string
+ */
+function dox_pos_real_size_meta_key( $display, $meta ) {
+	return isset( $meta->key ) && DOX_POS_REAL_SIZE_ITEM === $meta->key ? __( 'Actual size', 'dox-pos' ) : $display;
+}
+
+add_action( 'woocommerce_email_before_order_table', 'dox_pos_real_size_email_start', 1, 2 );
+add_action( 'woocommerce_email_after_order_table', 'dox_pos_real_size_email_end', 99 );
+/**
+ * Mientras se arma la tabla de productos de un correo, para quién es: la tienda o la clienta.
+ *
+ * @param WC_Order $order         Pedido.
+ * @param bool     $sent_to_admin Va a la tienda.
+ */
+function dox_pos_real_size_email_start( $order, $sent_to_admin ) {
+	$GLOBALS['dox_pos_email_to'] = $sent_to_admin ? 'admin' : 'customer';
+}
+
+/**
+ * Terminó la tabla de productos del correo.
+ */
+function dox_pos_real_size_email_end() {
+	unset( $GLOBALS['dox_pos_email_to'] );
+}
+
+add_filter( 'woocommerce_order_item_get_formatted_meta_data', 'dox_pos_real_size_staff_only', 10, 2 );
+/**
+ * La talla real es para quien empaca, no para la clienta: sale en wp-admin y en los correos a la
+ * tienda, y no en los correos a la clienta, en la página de gracias ni en Mi cuenta (le compró
+ * 12-18 meses: leer otra talla la confundiría).
+ *
+ * @param array                 $meta Los metas que se van a enseñar.
+ * @param WC_Order_Item_Product $item Línea.
+ * @return array
+ */
+function dox_pos_real_size_staff_only( $meta, $item ) {
+	$email = $GLOBALS['dox_pos_email_to'] ?? ''; // Dentro de la tabla de un correo.
+	$staff = '' !== $email ? 'admin' === $email : is_admin(); // wp-admin, también al recargar las líneas por AJAX.
+	if ( $staff ) {
+		return $meta;
+	}
+	foreach ( $meta as $id => $m ) {
+		if ( isset( $m->key ) && DOX_POS_REAL_SIZE_ITEM === $m->key ) {
+			unset( $meta[ $id ] );
+		}
+	}
+	return $meta;
+}

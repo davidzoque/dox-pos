@@ -192,6 +192,7 @@ function dox_pos_create_order( $data, $hold ) {
 		$item = $order->get_item( $item_id, false );
 		if ( $item ) {
 			$item->set_name( dox_pos_item_name( $l['product'] ) );
+			dox_pos_tag_real_size( $item, $l['product'] ); // "Talla real: 18-24 meses" si es otra talla de su grupo.
 			$item->save();
 		}
 	}
@@ -607,7 +608,9 @@ function dox_pos_format_order( $order ) {
 	$st    = $map[ $status ] ?? array( $status, wc_get_order_status_name( $status ) );
 	$items = array();
 	foreach ( $order->get_items() as $item ) {
-		$items[] = $item->get_name() . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
+		$real    = (string) $item->get_meta( DOX_POS_REAL_SIZE_ITEM ); // La pieza que hay que sacar, si se vendió otra talla de su grupo.
+		/* translators: %s: the size on the label of the piece, e.g. "18-24 months" */
+		$items[] = $item->get_name() . ( '' !== $real ? ' (' . sprintf( __( 'actual size %s', 'dox-pos' ), $real ) . ')' : '' ) . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
 	}
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
 	$hold  = $caja && in_array( $status, array( 'on-hold', 'pending', 'failed' ), true );
@@ -941,6 +944,7 @@ function dox_pos_order_detail( $id ) {
 			'shared'       => (bool) $p && ( 'parent' === $p->get_manage_stock() || '' !== $pool ), // Comparte unidades con las otras tallas (del producto, o de su color).
 			'pool_name'    => '' !== $pool ? dox_pos_pool_name( $p ) : '',
 			'unit_cost'    => $see ? dox_pos_line_unit_cost( $it ) : null, // El costo congelado al venderse.
+			'real_size'    => (string) $it->get_meta( DOX_POS_REAL_SIZE_ITEM ), // La talla de la pieza que hay que sacar, si se vendió otra de su grupo.
 		);
 	}
 	$discount = 0.0;

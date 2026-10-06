@@ -237,6 +237,8 @@ function dox_pos_format_variation( $v, $simple = false ) {
 	if ( '' !== $pool ) {
 		$stock = dox_pos_pool_stock( (int) $v->get_parent_id(), $pool );
 	}
+	// La talla real de la pieza cuando comparte unidades con otras tallas (includes/pools.php).
+	$real = $simple ? array( 'real' => false, 'of' => '' ) : dox_pos_real_size( $v );
 
 	return array(
 		'id'        => (int) $v->get_id(),
@@ -252,6 +254,8 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'pool'      => '' !== $pool ? $pool : ( 'parent' === $manage ? '*' : '' ), // Con quién: '*' todas las tallas, la clave del color, o '' (lleva las suyas).
 		'pool_name' => '' !== $pool ? dox_pos_pool_name( $v ) : '', // "Coral", o "Coral (grupo 2)" si el color tiene varios grupos.
 		'parent'    => $simple ? 0 : (int) $v->get_parent_id(),
+		'real'      => $real['real'], // Es la talla de la pieza física.
+		'real_of'   => $real['of'],   // O sirve también, y la pieza es de esta otra talla ("18-24 meses").
 	);
 }
 

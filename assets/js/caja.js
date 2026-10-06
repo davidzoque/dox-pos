@@ -308,11 +308,11 @@
 				p.variations.forEach((v) => {
 					const vb = document.createElement("button");
 					vb.type = "button";
-					vb.className = "var";
+					vb.className = "var" + (v.real ? " real" : v.real_of ? " alt" : ""); // La talla de la pieza física, o una que también le sirve.
 					if (modo === "venta" && !disponible(v)) vb.disabled = true;
 					vb.innerHTML =
-						'<span class="l">' + esc(v.label) + "<i>" + esc(v.sku) + "</i></span>" +
-						'<span class="s">' + textoStock(v, modo) + "</span>";
+						'<span class="l">' + esc(v.label) + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
+						'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
 					vb.onclick = () => añadir(v.id, modo);
 					box.appendChild(vb);
 				});
@@ -1240,6 +1240,7 @@
 		const items = (d.items_list || []).map((it) => "<li>" +
 			'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
 			'<div class="odi"><b>' + esc(it.name) + "</b>" +
+			(it.real_size ? '<span class="rs">' + esc(sprintf(__("Actual size: %s", "dox-pos"), it.real_size)) + "</span>" : "") +
 			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(it.shared && it.pool_name ? sprintf(__("%1$d left for all %2$s sizes", "dox-pos"), it.stock, it.pool_name) : sprintf(it.shared ? __("%d left for all sizes", "dox-pos") : __("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
 			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
 			"</div>" +
@@ -1315,7 +1316,8 @@
 			h += '<table class="tot pc-var"><thead><tr><th>' + esc(conTalla ? __("Size", "dox-pos") : __("Option", "dox-pos")) + "</th><th>" + esc(__("Code", "dox-pos")) + '</th><th class="num">' + esc(__("Units", "dox-pos")) + "</th></tr></thead><tbody>";
 			d.variations.forEach((v) => {
 				const st = v.stock === null ? (v.status === "outofstock" ? __("out of stock", "dox-pos") : __("no limit", "dox-pos")) : (v.shared ? (v.pool_name ? sprintf(__("%1$d for all %2$s sizes", "dox-pos"), v.stock, v.pool_name) : sprintf(__("%d for all sizes", "dox-pos"), v.stock)) : String(v.stock));
-				h += "<tr" + (v.stock === 0 || v.status === "outofstock" ? ' class="off"' : "") + "><td>" + esc(v.label) + "</td><td>" + (v.sku ? '<span class="sku">' + esc(v.sku) + "</span>" : "") + '</td><td class="num">' + esc(st) + "</td></tr>";
+				const cls = [v.stock === 0 || v.status === "outofstock" ? "off" : "", v.real ? "real" : v.real_of ? "alt" : ""].filter(Boolean).join(" ");
+				h += "<tr" + (cls ? ' class="' + cls + '"' : "") + "><td>" + esc(v.label) + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + (v.real_of ? '<span class="sub">' + esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "</span>" : "") + "</td><td>" + (v.sku ? '<span class="sku">' + esc(v.sku) + "</span>" : "") + '</td><td class="num">' + esc(st) + "</td></tr>";
 			});
 			h += "</tbody></table>";
 		}
