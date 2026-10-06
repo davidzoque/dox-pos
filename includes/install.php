@@ -160,4 +160,19 @@ function dox_pos_install_tables() {
 			KEY reason (reason)
 		) {$charset};"
 	);
+	// Los códigos de un solo uso con los que la app del teléfono se conecta (includes/app.php).
+	$codes = $wpdb->prefix . 'dox_pos_app_codes';
+	dbDelta(
+		"CREATE TABLE {$codes} (
+			code_hash char(64) NOT NULL,
+			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			challenge varchar(64) NOT NULL DEFAULT '',
+			created_at datetime NOT NULL,
+			expires_at datetime NOT NULL,
+			used_at datetime DEFAULT NULL,
+			PRIMARY KEY  (code_hash),
+			KEY expires_at (expires_at)
+		) {$charset};"
+	);
 }

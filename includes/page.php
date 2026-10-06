@@ -46,6 +46,8 @@ function dox_pos_render() {
 		exit;
 	}
 
+	$app_pending = dox_pos_app_pending(); // La app pidió conectarse (?app=connect): se recuerda mientras la persona entra.
+
 	$error      = '';
 	$code_step  = ''; // Entrar con código: '' (contraseña), 'ask' (pide el correo) o 'code' (pide el código).
 	$code_login = '';
@@ -61,6 +63,10 @@ function dox_pos_render() {
 		$sin_permiso = is_user_logged_in(); // Entró, pero con un usuario que no tiene acceso.
 		include DOX_POS_PATH . 'templates/login.php';
 		exit;
+	}
+
+	if ( $app_pending ) {
+		dox_pos_app_connect_screen( $app_pending ); // Pinta "Conectar este teléfono" y termina.
 	}
 
 	// Los Excel: /caja/?descargar=inventario, o ventas|caja|movimientos&desde=&hasta= (solo leen; con la sesión y el permiso ya comprobados).
@@ -321,6 +327,10 @@ function dox_pos_enqueue_caja( $cfg = null ) {
 	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n' ), $ver, true );
 	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' ); // Los textos del JS: del paquete de idioma de WordPress.org (o de Loco Translate); languages/ solo existe en el repo.
 	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
+	// El QR para conectar la app del teléfono (includes/app.php); la librería lo dibuja aquí, sin servicios de fuera.
+	wp_enqueue_script( 'dox-pos-qrcode', DOX_POS_URL . 'assets/vendor/qrcode-generator/qrcode.js', array(), '1.4.4', true );
+	wp_enqueue_script( 'dox-pos-app-qr', DOX_POS_URL . 'assets/js/app-qr.js', array( 'dox-pos-caja', 'dox-pos-qrcode', 'wp-i18n' ), $ver . (int) filemtime( DOX_POS_PATH . 'assets/js/app-qr.js' ), true );
+	wp_set_script_translations( 'dox-pos-app-qr', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' );
 }
 
 /**

@@ -961,3 +961,11 @@ table.ped .lnk.items{white-space:normal}
 .mbtn.col3{flex-direction:column}
 .go.peligro{background:#B3261E;color:#fff}
 .go.alt.peligro{background:var(--surface);color:#B3261E;border-color:#B3261E}
+
+/* "Úsala en tu teléfono" (assets/js/app-qr.js): el botón de la cabecera y la ventana con el QR. */
+.gear.phone{margin-left:auto}
+.gear.phone + .user{margin-left:8px}
+.aq-pasos{margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.5}
+.aq-code{display:grid;place-items:center;min-height:220px;margin:4px 0 12px;background:#fff;border-radius:12px;border:1px solid var(--line)}
+.aq-qr{width:220px;max-width:100%;line-height:0}
+.aq-qr svg{width:100%;height:auto}
