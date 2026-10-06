@@ -36,6 +36,12 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 6. Desplegar a un sitio: `./subir.sh CUENTA` (el script no va en el repo; está en la carpeta de
    Drive). Después, lint dentro de la jaula del servidor y prueba con clics reales en el navegador.
    Los datos de prueba se borran en la misma sesión.
+7. **La ayuda va con el cambio.** Si el cambio altera algo que quien vende ve o hace (una pantalla, un botón, un
+   texto, un paso, un ajuste, un comportamiento), en la misma tanda se pone al día help.doxstudio.com, en la carpeta
+   `WordPress/paginas/docs/` de Drive: el texto de la guía que lo explica (`articulos/<guía>.en.html` y `.es.html`),
+   sus capturas si ya no enseñan lo que hay (con los flujos de `herramientas/`, ver su `LEEME.md`), las respuestas
+   rápidas de `dox-docs.php` si tocan el tema, y la entrada de la versión en `changelog/pos.json`. Si es algo nuevo
+   que se usa y ninguna guía lo explica, se escribe. Después se republica con `dox-docs.php` y se revisa en la web.
 
 ## Lo que no se hace
 
