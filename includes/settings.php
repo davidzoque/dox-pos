@@ -2145,7 +2145,7 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'How it works', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'The AI is included: a thousand assistant questions a month through the Dox Studio server, with nothing to set up and no OpenAI account. If you would rather use your own OpenAI key, paste it and there is no monthly cap. The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same, with nothing locked.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'The AI is included: a thousand assistant questions a month through the Dox Studio server, with nothing to set up and no OpenAI account. If you would rather use your own OpenAI key, paste it and there is no monthly cap. The Pro is a separate plugin that hangs off this one: one licence per shop, and you can move it to another domain whenever you want. If the licence expires, the register you are using now keeps working exactly the same; what stops is the Pro updates and the included assistant, unless you use your own OpenAI key.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
 				</section>
