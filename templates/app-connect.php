@@ -51,7 +51,7 @@ dox_pos_enqueue_caja();
 				<p class="login-sub">
 					<?php
 					/* translators: 1: the user's name, 2: the shop's name */
-					echo esc_html( sprintf( __( 'The Dox POS app will use the register as %1$s, at %2$s. You can disconnect this phone at any time from the register settings.', 'dox-pos' ), $user->display_name, $brand ) );
+					echo esc_html( sprintf( __( 'The Dox POS app will use the register as %1$s, at %2$s. You can disconnect this phone at any time from the phone button at the top of the register.', 'dox-pos' ), $user->display_name, $brand ) );
 					?>
 				</p>
 			<?php endif; ?>

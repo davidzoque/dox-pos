@@ -391,7 +391,25 @@ function dox_pos_rest_app_devices() {
 			);
 		}
 	}
-	return rest_ensure_response( array( 'users' => $out ) );
+	$people = array();
+	if ( dox_pos_app_can_manage() ) { // Para el selector "Conectar el teléfono de…": quienes pueden usar la caja.
+		foreach ( $ids as $id ) {
+			$u = get_userdata( (int) $id );
+			if ( $u ) {
+				$people[] = array(
+					'id'   => (int) $id,
+					'name' => $u->display_name,
+				);
+			}
+		}
+	}
+	return rest_ensure_response(
+		array(
+			'me'     => get_current_user_id(),
+			'users'  => $out,
+			'people' => $people,
+		)
+	);
 }
 
 function dox_pos_rest_app_disconnect( WP_REST_Request $request ) {
