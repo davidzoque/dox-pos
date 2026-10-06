@@ -3613,7 +3613,7 @@ msgstr "Más"
 
 #: includes/page.php
 msgid "Signing in with a code is not available. Use your password."
-msgstr "No está disponible entrar con código. Usá tu contraseña."
+msgstr "No está disponible iniciar sesión con código. Usá tu contraseña."
 
 #: templates/login.php
 msgid "If that account can use the register, we sent a 6-digit code to its email. It may take a minute; check spam too."
@@ -3629,11 +3629,11 @@ msgstr "Pedir otro código"
 
 #: templates/login.php
 msgid "Sign in with your password"
-msgstr "Entrar con tu contraseña"
+msgstr "Iniciar sesión con tu contraseña"
 
 #: templates/login.php
 msgid "Sign in with a code by email"
-msgstr "Entrar con un código por correo"
+msgstr "Iniciar sesión con un código por correo"
 
 #: includes/pools.php assets/js/caja.js:316
 msgid "Actual size"
@@ -3641,7 +3641,7 @@ msgstr "Talle real"
 
 #: assets/js/caja.js:317
 msgid "Also fits · it is the %s one"
-msgstr "También sirve · es la de talle %s"
+msgstr "También sirve · es el talle %s"
 
 #: assets/js/caja.js:1293
 msgid "Actual size: %s"
