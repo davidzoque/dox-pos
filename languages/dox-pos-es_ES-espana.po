@@ -3629,11 +3629,11 @@ msgstr "Pedir otro código"
 
 #: templates/login.php
 msgid "Sign in with your password"
-msgstr "Entrar con tu contraseña"
+msgstr "Acceder con tu contraseña"
 
 #: templates/login.php
 msgid "Sign in with a code by email"
-msgstr "Entrar con un código por correo"
+msgstr "Acceder con un código por correo electrónico"
 
 #: includes/pools.php assets/js/caja.js:316
 msgid "Actual size"
