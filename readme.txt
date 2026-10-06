@@ -1,4 +1,4 @@
-=== Dox POS ===
+=== Dox POS for WooCommerce ===
 Contributors: davidzoque
 Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
