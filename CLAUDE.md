@@ -19,8 +19,12 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 2. `php -l` de cada archivo PHP y `node --check` de cada JS antes de subir.
 3. Si el cambio se publica: sube la versión en la cabecera `Version:` y en `DOX_POS_VERSION`
    (tienen que coincidir), y añade la entrada al principio del changelog de `readme.txt` y de
-   `changelog.txt` (y el `Stable tag`). WordPress.org corta el changelog del readme a las 5.000 palabras:
-   si se acerca, quita del readme las versiones más viejas (siguen enteras en `changelog.txt`). Si cambia cómo está hecho algo, actualiza `README.md`.
+   `changelog.txt` (y el `Stable tag`). El readme guarda **solo las 5 últimas versiones** y termina en
+   `Full changelog: https://help.doxstudio.com/dox-pos-changelog/`: al añadir una, quita la más vieja (sigue
+   entera en `changelog.txt`, el registro técnico completo). Esa página de help.doxstudio.com es la de novedades
+   para quien vende: añade la versión también, contada sin tecnicismos, en `paginas/docs/changelog/pos.json` de
+   la carpeta WordPress de Drive (formato en `changelog/FORMATO.md`) y vuelve a publicar la ayuda con
+   `dox-docs.php`. Si cambia cómo está hecho algo, actualiza `README.md`.
 4. Commit a nombre de davidzoque, **sin Co-Authored-By ni firma de ninguna IA**, con un mensaje que
    empiece por la versión: `v0.21.0: qué cambió`. `git push origin main`.
 5. Solo si es una versión para publicar: etiqueta `vX.Y.Z` y `git push origin vX.Y.Z`. El plugin se
