@@ -1453,7 +1453,7 @@ msgstr "No se pudo conectar con la tienda (%s)."
 msgid "The search failed. Check the connection and try again."
 msgstr "No se pudo buscar. Revisá la conexión y volvé a intentarlo."
 
-#: assets/js/caja.js:3517
+#: assets/js/caja.js:3522
 msgid "Search what arrived by name or SKU."
 msgstr "Buscá lo que llegó por nombre o por SKU."
 
@@ -3655,7 +3655,7 @@ msgstr "talle real %s"
 msgid "Keep searching"
 msgstr "Seguir buscando"
 
-#: assets/js/caja.js:3471
+#: assets/js/caja.js:3476
 msgid "Empty all"
 msgstr "Vaciar todo"
 
@@ -3678,7 +3678,7 @@ msgstr "Ver el pedido"
 msgid "Review and save"
 msgstr "Revisar y guardar"
 
-#: assets/js/caja.js:3471
+#: assets/js/caja.js:3476
 msgid "Empty the order? The products and the customer details are removed."
 msgstr "¿Vaciar el pedido? Se quitan los productos y los datos del cliente."
 
@@ -3726,8 +3726,8 @@ msgstr "Tenés un producto nuevo a medias. Queda en este teléfono; ¿abrir el o
 msgid "Yes, open it"
 msgstr "Sí, abrirlo"
 
-#: assets/js/caja.js:3474
+#: assets/js/caja.js:3479
 msgid "Empty all? The %d unit you added is removed. The stock does not change."
 msgid_plural "Empty all? The %d units you added are removed. The stock does not change."
-msgstr[0] "¿Vaciar todo? Se quita la %d unidad que agregaste. El inventario no cambia."
-msgstr[1] "¿Vaciar todo? Se quitan las %d unidades que agregaste. El inventario no cambia."
+msgstr[0] "¿Vaciar todo? Se quita la %d unidad que agregaste. El stock no cambia."
+msgstr[1] "¿Vaciar todo? Se quitan las %d unidades que agregaste. El stock no cambia."
