@@ -310,11 +310,24 @@
 					vb.type = "button";
 					vb.className = "var" + (v.real ? " real" : v.real_of ? " alt" : ""); // La talla de la pieza física, o una que también le sirve.
 					if (modo === "venta" && !disponible(v)) vb.disabled = true;
+					const n = enPedido(v.id, modo); // Las que ya van en el pedido (o en lo que llegó).
+					if (n) vb.classList.add("puesto");
 					vb.innerHTML =
-						'<span class="l">' + esc(v.label) + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
+						'<span class="l">' + esc(v.label) + (n ? '<span class="lleg">+' + n + "</span>" : "") + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
 						'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
 					vb.onclick = () => añadir(v.id, modo);
-					box.appendChild(vb);
+					if (!n) { box.appendChild(vb); return; }
+					// Al lado, quitar una sin ir a revisar: por si se tocó la que no era.
+					const fila = document.createElement("div");
+					fila.className = "varrow";
+					const menos = document.createElement("button");
+					menos.type = "button";
+					menos.className = "menos";
+					menos.textContent = "−";
+					menos.setAttribute("aria-label", sprintf(__("One less %s", "dox-pos"), v.label));
+					menos.onclick = () => quitarUna(v.id, modo);
+					fila.append(vb, menos);
+					box.appendChild(fila);
 				});
 				if (cfg.products && hayProducto()) { // Administradores y gerentes: editar el producto desde aquí.
 					const eb = document.createElement("button");
@@ -344,6 +357,40 @@
 		else arr.push(modo === "entrada" ? { vid: vid, n: 1, c: costoConocido(vid) } : { vid: vid, n: 1 });
 		st.flash = modo + ":" + vid;
 		pintarTodo();
+	}
+	function quitarUna(vid, modo) {
+		const arr = modo === "venta" ? st.lineas : st.entrada;
+		const i = arr.findIndex((l) => l.vid === vid);
+		if (i < 0) return;
+		arr[i].n--;
+		if (arr[i].n < 1) arr.splice(i, 1);
+		pintarTodo();
+	}
+	// En el teléfono: la barra que aparece abajo al elegir algo y lleva a revisarlo. Se esconde mientras
+	// se revisa (ahí ya está todo) y cuando no hay nada.
+	const FLECHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+	const cestaN = { venta: 0, entrada: 0 };
+	function pintarCestas() {
+		[["venta", "#cesta", "#col-ord", "#vaciar"], ["entrada", "#cesta2", "#col-ord2", "#vaciar2"]].forEach(([modo, sel, ord, vac]) => {
+			const b = $(sel);
+			if (!b) return;
+			const arr = modo === "venta" ? st.lineas : st.entrada;
+			const u = arr.reduce((a, l) => a + l.n, 0);
+			if ($(vac)) $(vac).disabled = !u;
+			b.hidden = !u || $(ord).dataset.off === "0";
+			if (!b.hidden) {
+				b.innerHTML = '<span class="t"><b>' + esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + "</b><small>" +
+					esc(modo === "venta" ? dinero(totales().sub) : __("not saved yet", "dox-pos")) + '</small></span><span class="ir">' +
+					esc(modo === "venta" ? __("View the order", "dox-pos") : __("Review and save", "dox-pos")) + FLECHA + "</span>";
+				if (u > cestaN[modo]) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
+			}
+			cestaN[modo] = u;
+		});
+	}
+	// Cambia de vista en el teléfono (buscar o lo elegido) pulsando la pestaña escondida de arriba.
+	function verPane(seg, p) {
+		const b = document.querySelector(seg + ' button[data-p="' + p + '"]');
+		if (b) b.click();
 	}
 	function pintarLineas(ul, arr, modo) {
 		ul.innerHTML = arr.length ? "" : '<li class="empty" style="padding:8px 2px">' + esc(__("Tap a product on the left to add it.", "dox-pos")) + "</li>";
@@ -427,6 +474,7 @@
 		$("#n-lin2").textContent = u2 ? sprintf(_n("%d unit", "%d units", u2, "dox-pos"), u2) : "";
 		$("#npane2").textContent = u2 ? "· " + u2 : "";
 		pintarSum();
+		pintarCestas();
 		programarEnvio();
 	}
 
@@ -688,7 +736,8 @@
 		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button"));
 		if (!nav || !tabs.length) return;
 		// Las de todos los días primero; las que traigan los añadidos, detrás.
-		const ORDEN = ["vender", "pedidos", "entrada", "panel", "historial", "producto"];
+		// Si la caja abre en el Panel (quien administra), el Panel va primero: el primer botón es el inicio.
+		const ORDEN = cfg.open_tab === "panel" ? ["panel", "vender", "pedidos", "entrada", "historial", "producto"] : ["vender", "pedidos", "entrada", "panel", "historial", "producto"];
 		const pos = (b) => { const i = ORDEN.indexOf(b.dataset.t); return i < 0 ? 99 : i; };
 		const orden = tabs.slice().sort((a, b) => pos(a) - pos(b));
 		const cabe = orden.length <= 5;
@@ -1147,6 +1196,7 @@
 		$("#f-desc").value = "0";
 		$("#f-env").value = "0";
 		pintarTodo();
+		verPane("#paneseg", "buscar");
 	}
 	// Vuelve a preguntar por lo que está en pantalla, para que las existencias se vean al día.
 	async function refrescarStock() {
@@ -1403,6 +1453,7 @@
 			$("#e-nota").value = "";
 			$("#e-fac").value = "";
 			pintarTodo();
+			verPane("#paneseg2", "buscar");
 		};
 		if (!navigator.onLine) {
 			encolar("entrada", "entries", payload, resumen);
@@ -1662,6 +1713,15 @@
 			$("#m-no").onclick = () => cerrarModal(false);
 		});
 	}
+	function elegir(titulo, texto, opciones) {
+		return new Promise((resolve) => {
+			modal("<h3>" + esc(titulo) + '</h3><p class="mp">' + esc(texto) + '</p><div class="mbtn col3">' +
+				opciones.map((o, i) => '<button type="button" class="go ' + esc(o[1] || "") + '" data-i="' + i + '">' + esc(o[0]) + "</button>").join("") + "</div>");
+			let r = -1;
+			pendiente = () => resolve(r);
+			$("#modal-card").querySelectorAll("[data-i]").forEach((b) => { b.onclick = () => { r = +b.dataset.i; cerrarModal(true); }; });
+		});
+	}
 	function confirmar(texto, fn) {
 		preguntar(texto).then((ok) => { if (ok) fn(); });
 	}
@@ -1725,7 +1785,9 @@
 		tallasTocadas: false, // las tallas las eligió la persona: la categoría ya no las cambia
 		skuOk: undefined,   // lo que dijo la tienda del código escrito
 		subiendo: false, creando: false,
-		modo: "nuevo",      // nuevo | editar
+		modo: "editar",     // editar (la lista, o la ficha de uno) | nuevo
+		desde: null,        // la pestaña desde la que se abrió la ficha ("Editar este producto"): la flecha vuelve ahí
+		huella: "",         // cómo estaba la ficha al abrirla, para saber si hay cambios sin guardar
 		edit: null,         // el producto cargado para editar (lo que dio products/{id})
 		ppage: 1,           // página de la lista de productos en "Editar uno"
 		grupo: null,        // el grupo de categorías desplegado
@@ -2665,7 +2727,7 @@
 			const d = await post(pr.edit ? "products/" + pr.edit.id : "products", payload);
 			if (pr.edit) modalProductoGuardado(d.product);
 			else { borrarBorrador(); modalProductoCreado(d.product); }
-			limpiarProducto();
+			volverDeFicha(false);
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back: the photos are already uploaded.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -2677,7 +2739,7 @@
 	function modalProductoCreado(p) {
 		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
 		modal("<h3>" + esc(p.name) + '</h3><p class="mp">' + esc(p.status === "publish" ? __("It is already in the store", "dox-pos") : __("Saved hidden, not published", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + '.</p><div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-fix">' + esc(__("Fix something", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Create another", "dox-pos")) + "</button></div>");
-		$("#m-no").onclick = cerrarModal;
+		$("#m-no").onclick = () => { cerrarModal(); nuevoProducto(); };
 		$("#m-fix").onclick = () => { cerrarModal(); editarDesdeLista(p.id); };
 	}
 	function limpiarProducto() {
@@ -2697,7 +2759,7 @@
 		$("#p-sku").disabled = false;
 		$("#p-editbar").hidden = true;
 		$("#p-pub-text").textContent = __("Publish in the store now", "dox-pos");
-		$("#p-pub-hint").textContent = __("Off: it is saved but hidden; you publish it later from Edit one.", "dox-pos");
+		$("#p-pub-hint").textContent = __("Off: it is saved but hidden; you publish it later from Products.", "dox-pos");
 		pintarProducto();
 		pintarModo();
 		if (pr.modo === "editar") buscarProductos(pr.ppage || 1);
@@ -2776,20 +2838,63 @@
 	// ---------- editar un producto que ya existe ----------
 	// El mismo formulario: se busca el producto, se carga y el botón pasa a "Guardar cambios". El código
 	// y las tallas y colores que ya tiene quedan fijos (quitarlos sería borrar variaciones con historial).
+	// Productos es una lista: arriba "Nuevo producto", y cada producto se abre en su ficha con una flecha
+	// para volver (a la lista, o a la pestaña desde la que se abrió).
 	function pintarModo() {
-		const editar = pr.modo === "editar";
-		document.querySelectorAll("#pmode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.m === pr.modo));
-		$("#p-buscar").hidden = !editar || !!pr.edit;
-		$("#p-form").hidden = editar && !pr.edit;
-		$("#p-foot").hidden = editar && !pr.edit;
-		$("#p-newbar").hidden = editar;
+		const lista = pr.modo === "editar" && !pr.edit;
+		$("#p-cab").hidden = !lista;
+		$("#p-fcab").hidden = lista;
+		$("#p-buscar").hidden = !lista;
+		$("#p-form").hidden = lista;
+		$("#p-foot").hidden = lista;
+		$("#p-newbar").hidden = pr.modo === "editar";
+		const t = pr.desde && document.querySelector('#tabs button[data-t="' + pr.desde + '"]');
+		$("#p-atras-txt").textContent = t ? nombrePestaña(t) : __("Products", "dox-pos");
+		$("#p-ftit").textContent = pr.edit ? pr.edit.name : (lista ? "" : __("New product", "dox-pos"));
 	}
-	function ponerModo(m) {
-		if (pr.modo === m) return;
-		pr.modo = m;
+	// El nombre de una pestaña sin su contador (Pedidos · 3).
+	function nombrePestaña(b) {
+		const c = b.cloneNode(true);
+		c.querySelectorAll("span").forEach((x) => x.remove());
+		return c.textContent.trim();
+	}
+	function nuevoProducto() {
+		pr.modo = "nuevo";
+		pr.desde = null;
 		if (pr.edit) limpiarProducto(); else pintarModo();
-		if (m === "editar") { buscarProductos(pr.ppage || 1); $("#p-q").focus(); }
-		if (m === "nuevo") ofrecerBorrador();
+		$("#t-producto .scroll").scrollTop = 0;
+		ofrecerBorrador();
+	}
+	// Cómo está la ficha ahora: si al salir no es igual que al abrirla, hay cambios sin guardar.
+	function huellaProducto() {
+		return JSON.stringify([$("#p-nom").value, $("#p-precio").value, $("#p-costo") ? $("#p-costo").value : "", $("#p-desc").value, $("#p-pub").checked,
+			pr.cats, pr.tallas, pr.colores, pr.qty, pr.grupos, pr.totales, paqueteForm(), pr.fotos.map((f) => [f.id, f.color, f.estado])]);
+	}
+	const fichaConCambios = () => (pr.edit ? huellaProducto() !== pr.huella : pr.modo === "nuevo" && formularioTocado());
+	// Volver a la lista (o a donde se vino). Si quedan cambios, se pregunta antes de perderlos.
+	async function salirDeFicha() {
+		if (fichaConCambios()) {
+			const r = await elegir(pr.edit ? __("You have unsaved changes", "dox-pos") : __("Leave the new product?", "dox-pos"),
+				pr.edit ? __("If you leave now, the changes you made to this product are lost.", "dox-pos") : __("What you typed stays on this phone: when you tap New product again you can carry on with it.", "dox-pos"),
+				pr.edit ? [[__("Save changes", "dox-pos"), ""], [__("Discard changes", "dox-pos"), "alt peligro"], [__("Keep editing", "dox-pos"), "alt"]]
+					: [[__("Keep it for later", "dox-pos"), ""], [__("Discard it", "dox-pos"), "alt peligro"], [__("Keep editing", "dox-pos"), "alt"]]);
+			if (r === 2 || r < 0) return;
+			if (r === 0 && pr.edit) { await crearProducto(); return; } // Al guardarse, la ficha ya vuelve sola.
+			if (r === 1 && !pr.edit) {
+				pr.fotos.filter((f) => f.id && !f.existing).forEach((f) => api("products/image/" + f.id, { method: "DELETE" }).catch(() => {}));
+				borrarBorrador();
+			}
+			if (r === 0 && !pr.edit) guardarBorrador(); // Se queda en el teléfono para la próxima vez.
+		}
+		volverDeFicha(!pr.edit && pr.modo === "nuevo");
+	}
+	function volverDeFicha(guardarlo) {
+		const d = pr.desde;
+		pr.desde = null;
+		pr.modo = "editar";
+		limpiarProducto();
+		if (guardarlo) clearTimeout(borradorTimer); // Que limpiar el formulario no borre el borrador que se quiso guardar.
+		if (d) { const t = document.querySelector('#tabs button[data-t="' + d + '"]'); if (t) t.click(); }
 	}
 	// La lista sale sola, por orden alfabético y en páginas de 20; con algo escrito, se filtra.
 	let pqTimer = null, pqReq = 0;
@@ -2879,6 +2984,7 @@
 		$("#p-editbar").hidden = false;
 		pintarProducto();
 		pintarModo();
+		pr.huella = huellaProducto();
 		$("#t-producto .scroll").scrollTop = 0;
 	}
 	function modalProductoGuardado(p) {
@@ -2888,11 +2994,20 @@
 	}
 	// Desde la lista de Vender o de Entró mercancía: "Editar este producto".
 	async function editarDesdeLista(id) {
+		if (pr.edit && pr.edit.id === id && st.tab === "producto") return;
+		if (fichaConCambios()) {
+			const tab0 = document.querySelector('#tabs button[data-t="producto"]');
+			if (tab0) tab0.click();
+			if (!(await preguntar(pr.edit ? __("You have unsaved changes in the product that is open. Discard them and open the other one?", "dox-pos") : __("You have a new product half done. It stays on this phone; open the other one?", "dox-pos"), __("Yes, open it", "dox-pos"), __("No", "dox-pos")))) return;
+			if (!pr.edit) guardarBorrador();
+		}
+		const desde = st.tab !== "producto" ? st.tab : null;
 		const tab = document.querySelector('#tabs button[data-t="producto"]');
 		if (tab) tab.click();
 		pr.modo = "editar";
-		pintarModo();
 		await cargarProducto(id);
+		pr.desde = desde;
+		pintarModo();
 	}
 
 	// ---------- historial: las ventas, la caja del día y los movimientos (kardex) ----------
@@ -3213,7 +3328,11 @@
 	function emit(ev, d) { (oyentes[ev] || []).forEach((fn) => { try { fn(d); } catch (e) { console.error(e); } }); }
 	pestaña({ id: "entrada", abrir: () => { cargarEntradas(); if (!st.cat.items.length && !inputDe("entrada").value.trim()) mostrarCatalogo(); } }); // El catálogo se pide la primera vez que se abre.
 	pestaña({ id: "pedidos", abrir: cargarPedidos });
-	pestaña({ id: "producto", abrir: abrirProducto });
+	pestaña({ id: "producto", abrir: () => {
+		abrirProducto();
+		// Abre con la lista: la primera vez se pide (luego se queda como estaba, también la ficha abierta).
+		if (pr.modo === "editar" && !pr.edit && !$("#p-res").children.length) buscarProductos(1);
+	} });
 	pestaña({ id: "panel", abrir: () => cargarPanel(false) });
 	on("pedido", () => { pa.at = 0; }); // Un pedido tocado: el Panel se vuelve a pedir al abrirlo.
 	pestaña({
@@ -3297,9 +3416,10 @@
 			$("#p-cat-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirCategoriaNueva(); } });
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-crear").onclick = crearProducto;
-			document.querySelectorAll("#pmode button").forEach((b) => { b.onclick = () => ponerModo(b.dataset.m); });
+			$("#p-nuevo").onclick = nuevoProducto;
+			$("#p-atras").onclick = salirDeFicha;
+			pintarModo();
 			$("#p-q").addEventListener("input", programarBusquedaProducto);
-			$("#p-edit-cancel").onclick = () => limpiarProducto();
 		}
 		if (hayHistorial()) {
 			document.querySelectorAll("#h-periodo button").forEach((b) => {
@@ -3343,11 +3463,28 @@
 					document.querySelectorAll(seg + " button").forEach((x) => x.setAttribute("aria-pressed", x === b));
 					$(cat).dataset.off = b.dataset.p === "buscar" ? "0" : "1";
 					$(ord).dataset.off = b.dataset.p === "pedido" ? "0" : "1";
+					if (b.dataset.p === "pedido") { const sc = $(ord + " .scroll"); if (sc) sc.scrollTop = 0; }
+					pintarCestas();
 				};
 			});
 			$(cat).dataset.off = "0";
 			$(ord).dataset.off = "1";
 		});
+		$("#cesta").onclick = () => verPane("#paneseg", "pedido");
+		$("#cesta2").onclick = () => verPane("#paneseg2", "pedido");
+		document.querySelectorAll(".volver .atras").forEach((b) => { b.onclick = () => verPane(b.dataset.seg, "buscar"); });
+		$("#vaciar").onclick = () => preguntar(__("Empty the order? The products and the customer details are removed.", "dox-pos"), __("Empty all", "dox-pos"), __("Cancel", "dox-pos")).then((ok) => { if (ok) limpiarPedido(); });
+		$("#vaciar2").onclick = () => {
+			const u = st.entrada.reduce((a, l) => a + l.n, 0);
+			preguntar(sprintf(_n("Empty all? The %d unit you added is removed. The stock does not change.", "Empty all? The %d units you added are removed. The stock does not change.", u, "dox-pos"), u), __("Empty all", "dox-pos"), __("Cancel", "dox-pos")).then((ok) => {
+				if (!ok) return;
+				st.entrada = [];
+				pintarTodo();
+				verPane("#paneseg2", "buscar");
+			});
+		};
+		if ($("#e-costos2")) $("#e-costos2").onclick = () => $("#e-costos").click();
+		pintarCestas();
 		$("#q").addEventListener("input", () => programar("venta"));
 		$("#q2").addEventListener("input", () => programar("entrada"));
 		// Inventario: al llegar abajo de la lista del catálogo, la siguiente página.

@@ -71,7 +71,6 @@ button,a,input,select,textarea{touch-action:manipulation} /* sin zoom por doble 
   .cols{grid-template-columns:1fr}
   .col[data-off="1"]{display:none}
   .col.ord{border-left:0}
-  .paneseg{display:block}
   .g2{grid-template-columns:1fr!important}
 }
 .scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 16px}
@@ -897,3 +896,68 @@ table.ped .lnk.items{white-space:normal}
 @media (prefers-reduced-motion:reduce){
   .tb-ic,.mas-card,.masheet::before{transition:none}
 }
+
+/* ---------- en el teléfono: buscar, y una barra abajo que lleva a lo elegido ----------
+   Las dos pestañas de arriba (#paneseg) siguen mandando, pero ya no se ven: no se notaba que había
+   que cambiar de pestaña para guardar. Al añadir lo primero aparece la barra; al tocarla, se abre lo
+   elegido con su flecha para volver a buscar y "Vaciar todo". */
+.cesta,.volver,.xl{display:none}
+@container (max-width:760px){
+  .cesta{display:flex;align-items:center;gap:12px;flex:none;margin:0 10px 10px;padding:10px 10px 10px 16px;border-radius:16px;border:0;
+    background:var(--primary);color:var(--primary-ink);font-family:var(--ui);text-align:left;cursor:pointer;
+    box-shadow:0 12px 28px -12px rgba(0,0,0,.45);transition:transform 160ms var(--out)}
+  .cesta[hidden]{display:none}
+  .cesta:active{transform:scale(.98)}
+  .cesta.pop{animation:dp-pop 320ms var(--out)}
+  .cesta .t{flex:1;min-width:0;line-height:1.25}
+  .cesta .t b{display:block;font-size:14.5px;font-weight:600}
+  .cesta .t small{display:block;font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cesta .ir{flex:none;display:flex;align-items:center;gap:4px;border-radius:11px;padding:9px 10px 9px 12px;font-size:13px;font-weight:600;white-space:nowrap;
+    background:rgba(255,255,255,.16)}
+  .cesta .ir svg{width:16px;height:16px}
+  .volver{display:flex;align-items:center;gap:8px;flex:none;padding:12px 16px 4px}
+  .volver button{appearance:none;border:0;background:none;display:flex;align-items:center;gap:4px;font:600 14px var(--ui);color:var(--primary-text);cursor:pointer;padding:6px 4px 6px 0}
+  .volver button svg{width:20px;height:20px}
+  .volver .vaciar{margin-left:auto;color:#B3261E;font-weight:500;font-size:13px}
+  .volver .vaciar:disabled{opacity:.35;cursor:default}
+  .xl{display:flex;gap:8px;flex:none;padding:0 16px 8px}
+  .xlb{appearance:none;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);
+    border-radius:10px;padding:8px;min-height:38px;font:500 12.5px var(--ui);color:var(--ink);text-decoration:none;cursor:pointer}
+  .xlb svg{width:15px;height:15px;flex:none}
+  .solo-ancho{display:none}
+}
+@keyframes dp-pop{30%{transform:scale(1.03)}}
+@starting-style{.cesta{opacity:0;transform:translateY(16px)}}
+
+/* La talla que ya está en el pedido (o en lo que llegó) se marca con cuántas van, y a su lado un
+   botón para quitar una sin ir a revisar. */
+.varrow{display:flex;gap:6px;align-items:stretch}
+.varrow .var{flex:1;min-width:0}
+.var.puesto{border-color:var(--primary-text);background:var(--sunk)}
+/* Un tinte claro del color de la marca: --soft puede ser oscuro (cakto) y no dejaría leer la talla. */
+@supports (color:color-mix(in srgb,red,blue)){.var.puesto{background:color-mix(in srgb,var(--primary-text) 9%,var(--surface))}}
+/* La última que quedaba ya está en el pedido: no se puede añadir otra, pero se sigue leyendo bien. */
+.var.puesto:disabled{opacity:1;cursor:default}
+.var .lleg{display:inline-block;margin-left:8px;font:600 11.5px/1.5 var(--ui);color:var(--primary-ink);background:var(--primary);border-radius:999px;padding:0 8px;vertical-align:1px}
+.menos{appearance:none;flex:none;width:46px;border:1px solid var(--primary-text);background:var(--surface);color:var(--primary-text);border-radius:10px;
+  font:500 20px/1 var(--ui);cursor:pointer;transition:var(--press)}
+.menos:active{transform:scale(.94)}
+
+/* ---------- Productos: la lista con "Nuevo producto" arriba, y la ficha con su flecha ---------- */
+.pcab{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px 2px;max-width:792px;margin:0 auto;width:100%}
+.pcab h2{margin:0;font:600 19px var(--ui);flex:1}
+.pcab[hidden],.fcab[hidden]{display:none}
+.nuevo{appearance:none;border:0;background:var(--primary);color:var(--primary-ink);border-radius:10px;padding:9px 13px;min-height:40px;font:600 13px var(--ui);
+  display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;transition:var(--press)}
+.nuevo svg{width:16px;height:16px}
+.nuevo:active{transform:scale(.97)}
+.fcab{flex:none;display:flex;align-items:center;gap:8px;padding:10px 16px 8px;border-bottom:1px solid var(--line)}
+.fcab button{appearance:none;border:0;background:none;display:flex;align-items:center;gap:3px;font:600 14px var(--ui);color:var(--primary-text);cursor:pointer;padding:6px 4px 6px 0}
+.fcab button svg{width:20px;height:20px}
+.fcab .ft{margin-left:auto;font-size:12.5px;color:var(--muted);max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-buscar .grp:first-child{padding-top:4px}
+#p-buscar .searchwrap{padding:0 0 8px}
+/* Una pregunta con tres salidas (guardar, descartar, seguir): los botones uno debajo de otro. */
+.mbtn.col3{flex-direction:column}
+.go.peligro{background:#B3261E;color:#fff}
+.go.alt.peligro{background:var(--surface);color:#B3261E;border-color:#B3261E}

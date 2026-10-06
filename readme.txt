@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, inventory, whatsapp
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.46.0
+Stable tag: 0.47.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -92,6 +92,13 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 6. The settings, with a live preview of the register.
 
 == Changelog ==
+
+= 0.47.0 =
+* Changed: on the phone, Sell and Inventory no longer have the two tabs at the top. When you add something, a bar appears at the bottom ("View the order" or "Review and save") that opens what you picked, with an arrow to keep searching and an "Empty all" button that asks first.
+* New: a size that is already in the order (or in what arrived) shows how many with a "+2" and has a minus button next to it to remove one without going to review.
+* Changed: on the phone, "Download Excel" and "Upload costs" sit under the Inventory search.
+* Changed: Products opens with the list of products and a "New product" button. Each product opens in its own card with an arrow to go back (to the list, or to the tab you came from). If you leave with unsaved changes, the register asks whether to save, discard or keep editing.
+* Changed: when the register opens on the Dashboard, the Dashboard goes first in the bottom bar on the phone.
 
 = 0.46.0 =
 * New: the actual size of a piece. When several sizes share the same units (a bodysuit labelled 18-24 months that also fits 12-18), mark the size on the label with the `_dox_pos_real_size` meta (`yes`) on that variation. The register then highlights it in the product sizes (Sell, Inventory and the product card), and the sizes that share it say "Also fits · it is the 18-24 months one".

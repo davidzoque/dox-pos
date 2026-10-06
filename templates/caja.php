@@ -62,8 +62,10 @@ dox_pos_enqueue_caja( $cfg );
 				<div class="col cat" id="col-cat">
 					<div class="searchwrap"><input id="q" type="search" placeholder="<?php esc_attr_e( 'Search by name or SKU', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Search products', 'dox-pos' ); ?>"></div>
 					<div class="scroll"><ul class="res" id="res"></ul></div>
+					<button type="button" class="cesta" id="cesta" hidden></button>
 				</div>
 				<div class="col ord" id="col-ord">
+					<div class="volver"><button type="button" class="atras" data-seg="#paneseg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><?php esc_html_e( 'Keep searching', 'dox-pos' ); ?></button><button type="button" class="vaciar" id="vaciar"><?php esc_html_e( 'Empty all', 'dox-pos' ); ?></button></div>
 					<div class="scroll">
 						<div class="grp">
 							<h4><?php esc_html_e( 'Products', 'dox-pos' ); ?> <span id="n-lin" class="cnt"></span></h4>
@@ -128,9 +130,18 @@ dox_pos_enqueue_caja( $cfg );
 			<div class="cols">
 				<div class="col cat" id="col-cat2">
 					<div class="searchwrap"><input id="q2" type="search" placeholder="<?php esc_attr_e( 'Search what arrived', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Search what arrived', 'dox-pos' ); ?>"></div>
+					<?php // En el teléfono, el Excel y los costos van aquí, bajo el buscador: no tienen que ver con registrar lo que llegó. ?>
+					<div class="xl">
+						<a class="xlb" href="<?php echo esc_url( add_query_arg( 'descargar', 'inventario', dox_pos_url() ) ); ?>" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Download Excel', 'dox-pos' ); ?></a>
+						<?php if ( $cfg['costs'] ) : ?>
+						<button type="button" class="xlb" id="e-costos2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Upload costs', 'dox-pos' ); ?></button>
+						<?php endif; ?>
+					</div>
 					<div class="scroll"><ul class="res" id="res2"></ul></div>
+					<button type="button" class="cesta" id="cesta2" hidden></button>
 				</div>
 				<div class="col ord" id="col-ord2">
+					<div class="volver"><button type="button" class="atras" data-seg="#paneseg2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><?php esc_html_e( 'Keep searching', 'dox-pos' ); ?></button><button type="button" class="vaciar" id="vaciar2"><?php esc_html_e( 'Empty all', 'dox-pos' ); ?></button></div>
 					<div class="scroll">
 						<div class="grp">
 							<h4><?php esc_html_e( 'Where it comes from', 'dox-pos' ); ?></h4>
@@ -152,13 +163,13 @@ dox_pos_enqueue_caja( $cfg );
 							<h4><?php esc_html_e( 'Latest stock entries', 'dox-pos' ); ?></h4>
 							<ul class="res" id="entradas"></ul>
 						</div>
-						<div class="grp">
+						<div class="grp solo-ancho">
 							<h4><?php esc_html_e( 'Full inventory', 'dox-pos' ); ?></h4>
 							<a class="go alt dl" id="e-excel" href="<?php echo esc_url( add_query_arg( 'descargar', 'inventario', dox_pos_url() ) ); ?>" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Download as Excel', 'dox-pos' ); ?></a>
 							<p class="hint"><?php echo esc_html( $cfg['costs'] ? __( 'Every product with size, color, price, cost, stock and its value (at price and at cost), plus a summary by category. Opens in Excel, Numbers or Google Sheets.', 'dox-pos' ) : __( 'Every product with size, color, price, stock and its value, plus a summary by category. Opens in Excel, Numbers or Google Sheets.', 'dox-pos' ) ); ?></p>
 						</div>
 						<?php if ( $cfg['costs'] ) : // Los costos de golpe, desde ese mismo Excel con la columna Costo llena. ?>
-						<div class="grp">
+						<div class="grp solo-ancho">
 							<h4><?php esc_html_e( 'Upload costs', 'dox-pos' ); ?></h4>
 							<input type="file" id="e-costos-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 							<button type="button" class="go alt dl" id="e-costos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 21h14"/></svg><?php esc_html_e( 'Upload costs from Excel', 'dox-pos' ); ?></button>
@@ -198,14 +209,12 @@ dox_pos_enqueue_caja( $cfg );
 		<!-- ================= PRODUCTOS: crear uno nuevo o editar uno ================= -->
 		<section class="tab" id="t-producto" hidden>
 			<div class="col prodcol">
-				<div class="pmode"><div class="seg" id="pmode">
-					<button type="button" data-m="nuevo" aria-pressed="true"><?php esc_html_e( 'New product', 'dox-pos' ); ?></button>
-					<button type="button" data-m="editar" aria-pressed="false"><?php esc_html_e( 'Edit one', 'dox-pos' ); ?></button>
-				</div></div>
+				<?php // Productos abre con la lista; cada producto se abre en su ficha, con la flecha para volver. ?>
+				<div class="pcab" id="p-cab"><h2><?php esc_html_e( 'Products', 'dox-pos' ); ?></h2><button type="button" class="nuevo" id="p-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><?php esc_html_e( 'New product', 'dox-pos' ); ?></button></div>
+				<div class="fcab" id="p-fcab" hidden><button type="button" id="p-atras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span id="p-atras-txt"><?php esc_html_e( 'Products', 'dox-pos' ); ?></span></button><span class="ft" id="p-ftit"></span></div>
 				<div class="scroll">
 					<div class="prodwrap" id="p-buscar" hidden>
 						<div class="grp">
-							<h4><?php esc_html_e( 'Which product', 'dox-pos' ); ?></h4>
 							<div class="searchwrap"><input id="p-q" type="search" placeholder="<?php esc_attr_e( 'Name or SKU', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Search for the product', 'dox-pos' ); ?>"></div>
 							<ul class="res" id="p-res"></ul>
 							<div class="pager" id="p-pager" hidden><button type="button" class="mini" id="p-prev"><?php esc_html_e( 'Previous', 'dox-pos' ); ?></button><span id="p-pager-txt"></span><button type="button" class="mini" id="p-next"><?php esc_html_e( 'Next', 'dox-pos' ); ?></button></div>
@@ -213,7 +222,7 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 					</div>
 					<div class="prodwrap" id="p-form">
-						<div class="editbar" id="p-editbar" hidden><span><b id="p-edit-title"></b><i id="p-edit-hint"></i></span><span class="editacts"><a class="undo" id="p-edit-view" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><?php esc_html_e( 'View in the store', 'dox-pos' ); ?></a><button type="button" class="undo" id="p-edit-cancel"><?php esc_html_e( 'Cancel', 'dox-pos' ); ?></button></span></div>
+						<div class="editbar" id="p-editbar" hidden><span><b id="p-edit-title"></b><i id="p-edit-hint"></i></span><span class="editacts"><a class="undo" id="p-edit-view" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg><?php esc_html_e( 'View in the store', 'dox-pos' ); ?></a></span></div>
 						<div class="newbar" id="p-newbar"><i><?php esc_html_e( 'Fill in what you know; before creating you will see a summary to review. What you type is kept on this phone until you create it.', 'dox-pos' ); ?></i><button type="button" class="undo" id="p-vaciar" hidden><?php esc_html_e( 'Start over', 'dox-pos' ); ?></button></div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Photos', 'dox-pos' ); ?> <span class="cnt" id="p-nfotos"></span></h4>
@@ -279,7 +288,7 @@ dox_pos_enqueue_caja( $cfg );
 							<textarea id="p-desc" aria-label="<?php esc_attr_e( 'Description', 'dox-pos' ); ?>" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea>
 						</div>
 						<div class="grp">
-							<label class="switch"><input type="checkbox" id="p-pub" checked><span class="switch-ui" aria-hidden="true"></span><span><span id="p-pub-text"><?php esc_html_e( 'Publish in the store now', 'dox-pos' ); ?></span><i id="p-pub-hint"><?php esc_html_e( 'Off: it is saved but hidden; you publish it later from Edit one.', 'dox-pos' ); ?></i></span></label>
+							<label class="switch"><input type="checkbox" id="p-pub" checked><span class="switch-ui" aria-hidden="true"></span><span><span id="p-pub-text"><?php esc_html_e( 'Publish in the store now', 'dox-pos' ); ?></span><i id="p-pub-hint"><?php esc_html_e( 'Off: it is saved but hidden; you publish it later from Products.', 'dox-pos' ); ?></i></span></label>
 						</div>
 					</div>
 				</div>
