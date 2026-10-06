@@ -3696,7 +3696,7 @@ msgstr "Si sales ahora, se pierden los cambios que has hecho en este producto."
 
 #: assets/js/caja.js:2878
 msgid "What you typed stays on this phone: when you tap New product again you can carry on with it."
-msgstr "Lo que has escrito se queda en este móvil: al tocar Producto nuevo otra vez puedes seguir con él."
+msgstr "Lo que has escrito se queda en este móvil: al tocar Nuevo producto otra vez puedes seguir con él."
 
 #: assets/js/caja.js:2879
 msgid "Discard changes"
