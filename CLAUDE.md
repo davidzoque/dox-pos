@@ -18,8 +18,9 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 1. Código en inglés, comentarios en español. Sin guion largo en ningún texto.
 2. `php -l` de cada archivo PHP y `node --check` de cada JS antes de subir.
 3. Si el cambio se publica: sube la versión en la cabecera `Version:` y en `DOX_POS_VERSION`
-   (tienen que coincidir), y añade la entrada al principio del changelog de `readme.txt` (y el
-   `Stable tag`). Si cambia cómo está hecho algo, actualiza `README.md`.
+   (tienen que coincidir), y añade la entrada al principio del changelog de `readme.txt` y de
+   `changelog.txt` (y el `Stable tag`). WordPress.org corta el changelog del readme a las 5.000 palabras:
+   si se acerca, quita del readme las versiones más viejas (siguen enteras en `changelog.txt`). Si cambia cómo está hecho algo, actualiza `README.md`.
 4. Commit a nombre de davidzoque, **sin Co-Authored-By ni firma de ninguna IA**, con un mensaje que
    empiece por la versión: `v0.21.0: qué cambió`. `git push origin main`.
 5. Solo si es una versión para publicar: etiqueta `vX.Y.Z` y `git push origin vX.Y.Z`. El plugin se
