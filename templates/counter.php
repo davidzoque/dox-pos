@@ -56,7 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					<div class="foot">
 						<div class="acc">
 							<button type="button" class="mini" id="m-espera"><span><?php esc_html_e( 'On hold', 'dox-pos' ); ?><span class="badge" id="m-nesp" hidden></span></span><kbd>F8</kbd></button>
-							<button type="button" class="mini" id="m-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?><kbd>F9</kbd></button>
+							<button type="button" class="mini" id="m-desc"<?php echo 0 === dox_pos_discount_max() ? ' hidden' : ''; ?>><?php esc_html_e( 'Discount', 'dox-pos' ); ?><kbd>F9</kbd></button>
 							<button type="button" class="mini sec" id="m-vaciar"><?php esc_html_e( 'Empty', 'dox-pos' ); ?><kbd>Esc</kbd></button>
 						</div>
 						<div class="sum" id="m-sum"></div>

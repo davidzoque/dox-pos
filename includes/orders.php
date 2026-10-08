@@ -158,6 +158,14 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $discount > $subtotal ) {
 		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
 	}
+	// El tope de Ajustes para quien no administra la tienda.
+	$max = dox_pos_discount_max();
+	if ( null !== $max && $discount > 0 && $discount > round( $subtotal * $max / 100, wc_get_price_decimals() ) + 0.00001 ) {
+		return new WP_Error(
+			'dox_pos_descuento_tope',
+			0 === $max ? __( 'Your user cannot give discounts.', 'dox-pos' ) : sprintf( /* translators: %d: percent */ __( 'The discount can be at most %d%% of the sale.', 'dox-pos' ), $max )
+		);
+	}
 	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago,
 	// y dentro del turno de la caja abierta (el cierre cuenta su efectivo).
 	$counter = ! empty( $data['counter'] ) && ! $hold && dox_pos_counter_on();

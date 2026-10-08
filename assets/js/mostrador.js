@@ -413,11 +413,20 @@
 	// ---------- descuento ----------
 	function descuento() {
 		if (!m.lineas.length) return;
+		const tope = cfg.discount_max; // null: sin tope; 0: sin descuentos.
+		if (tope === 0) { toast(__("Your user cannot give discounts.", "dox-pos")); return; }
 		const t = m.desc.tipo;
 		modal("<h3>" + esc(__("Discount", "dox-pos")) + '</h3><div class="seg" id="md-tipo" style="margin-bottom:12px"><button type="button" data-t="$" aria-pressed="' + (t === "$") + '">' + esc(sprintf(__("Amount (%s)", "dox-pos"), D.M.symbol)) + '</button><button type="button" data-t="%" aria-pressed="' + (t === "%") + '">' + esc(__("Percent (%)", "dox-pos")) + '</button></div><div class="field recibe cobro"><input id="md-v" inputmode="decimal" value="' + esc(m.desc.valor ? String(m.desc.valor) : "") + '" placeholder="0"></div><p class="hint">' + esc(sprintf(__("Subtotal: %s", "dox-pos"), dinero(sub()))) + '</p><div class="mbtn" style="margin-top:14px"><button type="button" class="go" id="md-ok">' + esc(__("Apply", "dox-pos")) + '</button><button type="button" class="go alt" id="md-quitar">' + esc(__("No discount", "dox-pos")) + "</button></div>", "cobro");
 		let tipo = t;
 		$("#md-tipo").querySelectorAll("button").forEach((b) => { b.onclick = () => { tipo = b.dataset.t; $("#md-tipo").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); $("#md-v").focus(); }; });
-		const aplicar = (valor) => { m.desc = { tipo: tipo, valor: Math.max(0, valor) }; m.quote = null; cerrarModal(true); pintar(); };
+		const aplicar = (valor) => {
+			valor = Math.max(0, valor);
+			if (tope != null && valor > 0) { // El tope de Ajustes, en porcentaje del subtotal.
+				const pct = tipo === "%" ? valor : (sub() ? valor / sub() * 100 : 0);
+				if (pct > tope + 1e-9) { toast(sprintf(__("The discount can be at most %d%% of the sale.", "dox-pos"), tope)); return; }
+			}
+			m.desc = { tipo: tipo, valor: valor }; m.quote = null; cerrarModal(true); pintar();
+		};
 		$("#md-ok").onclick = () => aplicar(tipo === "%" ? Math.min(100, parseFloat(String($("#md-v").value).replace(",", ".")) || 0) : num($("#md-v").value));
 		$("#md-quitar").onclick = () => aplicar(0);
 		$("#md-v").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#md-ok").click(); } });
@@ -514,10 +523,14 @@
 		await cargarTurno();
 		if (!m.shift) { toast(__("The till is not open.", "dox-pos")); return; }
 		const r = m.shift.summary || {};
-		modal("<h3>" + esc(__("Close the till", "dox-pos")) + "</h3>" + resumenHtml(r) + '<div class="field recibe"><label for="mz-c">' + esc(__("Cash counted in the drawer", "dox-pos")) + '</label><input id="mz-c" inputmode="' + IM + '" autocomplete="off" placeholder="0"></div><div class="cambio falta" id="mz-dif"></div><input id="mz-n" autocomplete="off" placeholder="' + esc(__("Note (optional): why it is short or over", "dox-pos")) + '"><div class="fila" style="margin-top:14px"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mz-ok" disabled>' + esc(__("Close the till", "dox-pos")) + "</button></div>", "cobro");
+		// A ciegas (quien no administra): solo cuenta, sin ver cuánto debería haber.
+		const ciego = !!r.blind;
+		const arriba = ciego ? '<p class="mp">' + esc(__("Count all the cash in the drawer, float included, and write the total. You will see whether it matches when you close.", "dox-pos")) + "</p>" : resumenHtml(r);
+		modal("<h3>" + esc(__("Close the till", "dox-pos")) + "</h3>" + arriba + '<div class="field recibe"><label for="mz-c">' + esc(__("Cash counted in the drawer", "dox-pos")) + '</label><input id="mz-c" inputmode="' + IM + '" autocomplete="off" placeholder="0"></div><div class="cambio falta" id="mz-dif"></div><input id="mz-n" autocomplete="off" placeholder="' + esc(__("Note (optional): why it is short or over", "dox-pos")) + '"><div class="fila" style="margin-top:14px"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mz-ok" disabled>' + esc(__("Close the till", "dox-pos")) + "</button></div>", "cobro");
 		const repintar = () => {
 			const v = $("#mz-c").value.trim(), box = $("#mz-dif");
 			$("#mz-ok").disabled = !v;
+			if (ciego) { box.hidden = true; return; }
 			if (!v) { box.className = "cambio falta"; box.innerHTML = "<span>" + esc(__("Count the drawer", "dox-pos")) + "</span><b></b>"; return; }
 			const d = redondear(num(v) - (r.expected || 0));
 			box.className = "cambio" + (d ? " falta" : "");

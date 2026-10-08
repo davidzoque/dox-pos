@@ -309,6 +309,18 @@ function dox_pos_sales() {
  * Si la pestaña Pedidos enseña también los de la página web (y los hechos a mano en
  * WooCommerce). De fábrica sí; se apaga en Ajustes > Ventas.
  */
+function dox_pos_discount_max() {
+	if ( current_user_can( 'manage_woocommerce' ) ) {
+		return null; // Quien administra la tienda no tiene tope.
+	}
+	$s = dox_pos_sales();
+	return isset( $s['discount_max'] ) ? max( 0, min( 100, (int) $s['discount_max'] ) ) : 100;
+}
+
+/**
+ * Si la pestaña Pedidos enseña también los de la página web (y los hechos a mano en
+ * WooCommerce). De fábrica sí; se apaga en Ajustes > Ventas.
+ */
 function dox_pos_show_web_orders() {
 	$s = dox_pos_sales();
 	return ! isset( $s['web_orders'] ) || ! empty( $s['web_orders'] );
@@ -1257,6 +1269,7 @@ function dox_pos_sanitize_sales( $in ) {
 	}
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
+	$out['discount_max']    = max( 0, min( 100, (int) ( $in['discount_max'] ?? 100 ) ) ); // El descuento máximo de quien no administra (%).
 	$out['open_panel']      = ! empty( $in['open_panel'] );
 	$out['counter']         = ! empty( $in['counter'] );
 	// El ticket del Mostrador: ancho del papel, encabezado y pie, y si lleva el logo.
@@ -1907,6 +1920,21 @@ function dox_pos_settings_page() {
 						</div>
 					</div>
 					<?php endif; ?>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Discounts', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'How much discount salespeople and cashiers can give on a sale, in Sell and at the Counter. Whoever manages the shop has no limit.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-field dp-field-short">
+							<label class="dp-label" for="dp-discount-max"><?php esc_html_e( 'Maximum discount', 'dox-pos' ); ?></label>
+							<div class="dp-unitfield">
+								<input type="number" min="0" max="100" step="1" id="dp-discount-max" name="dox_pos_sales[discount_max]" value="<?php echo esc_attr( (string) ( dox_pos_sales()["discount_max"] ?? 100 ) ); ?>" class="dp-input" inputmode="numeric">
+								<span class="dp-unit">%</span>
+							</div>
+							<p class="dp-hint"><?php esc_html_e( '0: they cannot give discounts. 100: no limit.', 'dox-pos' ); ?></p>
+						</div>
+					</div>
 
 					<div class="dp-card">
 						<div class="dp-card-head">

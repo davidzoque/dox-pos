@@ -103,7 +103,7 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp">
 							<h4><?php esc_html_e( 'Payment', 'dox-pos' ); ?></h4>
 							<div class="chips" id="f-pago"></div>
-							<div class="field mt"><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
+							<div class="field mt"<?php echo 0 === dox_pos_discount_max() ? ' hidden' : ''; // Sin descuentos para este usuario (Ajustes > Ventas). ?>><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
 						<div class="grp" id="g-envio">
 							<h4>

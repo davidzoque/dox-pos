@@ -201,6 +201,7 @@ function dox_pos_counter_tax_location( $args, $order ) {
 add_filter( 'dox_pos_cfg', 'dox_pos_counter_cfg' );
 function dox_pos_counter_cfg( $cfg ) {
 	$cfg['counter_only'] = dox_pos_is_counter_only(); // El cajero de mostrador solo ve esta pestaña y entra por ella.
+	$cfg['discount_max'] = dox_pos_discount_max(); // null: sin tope (quien administra).
 	if ( $cfg['counter_only'] ) {
 		$cfg['open_tab'] = 'mostrador';
 	}
@@ -537,6 +538,11 @@ function dox_pos_counter_format_shift( $shift ) {
 	}
 	$open = 'open' === $shift->status;
 	$sum  = $open ? dox_pos_counter_summary( $shift ) : json_decode( (string) $shift->summary, true );
+	// Cierre a ciegas: quien no administra cuenta el cajón sin saber cuánto debería haber (si lo viera,
+	// podría quedarse lo que sobra). Ve las ventas; el efectivo esperado, solo al cerrar.
+	if ( $open && is_array( $sum ) && ! current_user_can( 'manage_woocommerce' ) ) {
+		$sum = array( 'orders' => (int) ( $sum['orders'] ?? 0 ), 'total' => (float) ( $sum['total'] ?? 0 ), 'float' => (float) ( $sum['float'] ?? 0 ), 'blind' => true );
+	}
 	$fmt  = function ( $gmt ) {
 		return $gmt ? wp_date( get_option( 'time_format' ), strtotime( $gmt . ' UTC' ) ) : '';
 	};
