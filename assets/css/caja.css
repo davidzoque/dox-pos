@@ -1086,3 +1086,31 @@ table.ped .lnk.items{white-space:normal}
 .mp-mal{animation:mp-temblor 360ms var(--out)}
 @keyframes mp-temblor{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 @media (prefers-reduced-motion:reduce){.mp-mal{animation:none}}
+/* El cobro en el lector de tarjetas del Pro (terminal.js): esperando la tarjeta, aprobando, aprobado o rechazado. */
+.lt{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0 18px}
+.lt-ico{width:112px;height:112px;display:grid;place-items:center;margin-bottom:8px;position:relative}
+.lt-ico svg{width:100%;height:100%;overflow:visible}
+.lt-t{font:600 19px var(--serif);color:var(--ink)}
+.lt-s{font-size:13.5px;color:var(--muted);max-width:34ch;line-height:1.45;min-height:1.45em}
+.lt-prueba{display:flex;gap:8px;width:100%;margin:2px 0 12px}
+.lt-prueba .go{margin:0;flex:1;font-size:13.5px}
+.lt-prueba .go.no{background:var(--real-soft);color:var(--real);border-color:transparent}
+.lt-prueba .go.si{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+/* Esperando: la tarjeta baja hacia el lector y las ondas sin contacto laten. */
+.lt[data-e=espera] .lt-tarjeta{animation:lt-acerca 1.8s var(--out) infinite}
+.lt[data-e=espera] .lt-onda{opacity:0;animation:lt-onda 1.8s ease-out infinite}
+.lt[data-e=espera] .lt-onda.b{animation-delay:.25s}
+.lt[data-e=espera] .lt-onda.c{animation-delay:.5s}
+@keyframes lt-acerca{0%,100%{transform:translateY(-10px)}45%,60%{transform:translateY(6px)}}
+@keyframes lt-onda{0%{opacity:0}40%{opacity:1}100%{opacity:0}}
+/* Conectando y aprobando: un aro que gira. */
+.lt-aro{width:72px;height:72px;border-radius:50%;border:5px solid var(--soft);border-top-color:var(--primary);animation:dp-spin .9s linear infinite}
+/* Aprobado: el círculo se llena y la palomita se dibuja. Rechazado: la equis y un temblor. */
+.lt[data-e=ok] .lt-t{color:var(--ok)}
+.lt[data-e=no] .lt-t{color:var(--real)}
+.lt-circ{transform-origin:50% 50%;animation:lt-pop .45s var(--out) both}
+.lt-traz{stroke-dasharray:60;stroke-dashoffset:60;animation:lt-traza .38s .22s var(--out) forwards}
+.lt[data-e=no] .lt-ico{animation:mp-temblor 380ms .2s var(--out)}
+@keyframes lt-pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
+@keyframes lt-traza{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.lt *,.lt .lt-ico{animation:none!important}.lt-traz{stroke-dashoffset:0}.lt[data-e=espera] .lt-onda{opacity:1}}
