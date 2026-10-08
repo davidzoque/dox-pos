@@ -810,6 +810,12 @@ function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
 	}
 	$amount = min( round( $amount, $dec ), (float) $order->get_remaining_refund_amount() );
 	$user   = dox_pos_counter_actor();
+	// Si se cobró en un lector conectado (el del Pro), el dinero vuelve a la tarjeta aquí, antes de
+	// registrar la devolución: si el banco no la acepta, no queda nada a medias.
+	$paid_back = apply_filters( 'dox_pos_counter_refund_payment', true, $order, $amount, $method );
+	if ( is_wp_error( $paid_back ) ) {
+		return $paid_back;
+	}
 	$refund = wc_create_refund(
 		array(
 			'order_id'       => $order->get_id(),

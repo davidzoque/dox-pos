@@ -162,6 +162,14 @@
 			clearTimeout(cotTimer);
 			cotTimer = setTimeout(() => { cotizar().then(pintarSum).catch((e) => { if (e.message !== "sesion") $("#m-sum").querySelector(".tot span:last-child").textContent = "?"; }); }, 200);
 		}
+		// La venta tal como va, para la pantalla del cliente del Pro (ya con el formato de la moneda).
+		D.emit("mostrador:carrito", {
+			lineas: m.lineas.filter((l) => m.vars[l.vid]).map((l) => { const d = m.vars[l.vid]; return { name: d.p.name, label: d.v.label, n: l.n, total: dinero(l.n * d.v.price) }; }),
+			subtotal: dinero(s),
+			discount: d ? dinero(d) : "",
+			tax: C.taxes ? (t ? dinero(t.tax) : "…") : "",
+			total: t ? dinero(t.total) : "…",
+		});
 	}
 	function pintarEspera() {
 		const n = leer(MEM_ESPERA, []).length;
@@ -617,9 +625,14 @@
 		$("#mc-ok").onclick = () => { if (recibido() + 1e-9 < t.total) return; cerrarModal(true); registrar("efectivo", recibido(), t.total); };
 		repintar();
 	}
+	let cobroTarjeta = null; // El Pro cobra aquí con el lector de tarjetas (Stripe Terminal).
 	async function tarjeta() {
 		const t = await totalParaCobrar();
 		if (!t) return;
+		if (cobroTarjeta) {
+			const ref = uuid();
+			return cobroTarjeta({ total: t.total, quote: t, ref: ref, lines: lineasPayload(), discount: descMonto(), lineas: m.lineas, registrar: (extra) => registrar("tarjeta", null, t.total, null, Object.assign({ ref: ref }, extra)) });
+		}
 		modal('<div class="total"><span>' + esc(PAGOS.tarjeta || __("Card", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><p class="mp">' + esc(__("Charge it on the shop’s card machine. When the payment goes through, record the sale.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mc-ok">' + esc(__("Paid: record the sale", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		$("#m-no").onclick = () => cerrarModal(false);
 		$("#mc-ok").onclick = () => { cerrarModal(true); registrar("tarjeta", null, t.total); };
@@ -668,8 +681,11 @@
 		};
 		repintar();
 	}
-	async function registrar(pago, recibido, total, partes) {
-		if (m.ocupado || !m.lineas.length) return;
+	// Devuelve si la venta quedó registrada (el Pro anula el cobro del lector si no). extra: lo que el
+	// Pro añade a la venta, como el id del pago del lector.
+	async function registrar(pago, recibido, total, partes, extra) {
+		if (m.ocupado || !m.lineas.length) return false;
+		let ok = false;
 		m.ocupado = true;
 		pintarSum();
 		const payload = {
@@ -684,6 +700,7 @@
 		};
 		if (pago === "efectivo" && recibido != null) payload.tendered = recibido;
 		if (partes) payload.payments = partes;
+		if (extra) Object.assign(payload, extra);
 		try {
 			const d = await post("orders", payload);
 			limpiar();
@@ -692,6 +709,7 @@
 			D.refrescarStock();
 			D.cargarPedidos();
 			cargarTurno();
+			ok = true;
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.red ? __("No signal: the sale was not recorded. Try again when the connection is back.", "dox-pos") : e.message);
 			if (e.code === "dox_pos_falta_dinero") m.quote = null; // El total cambió: se vuelve a pedir.
@@ -700,6 +718,7 @@
 		m.ocupado = false;
 		pintarSum();
 		enfocar();
+		return ok;
 	}
 	// La venta quedó: el cambio en grande (si lo hay) y el ticket, solo o con un toque.
 	function exito(o, total) {
@@ -930,6 +949,7 @@
 		ticket: T,
 		resumenHtml: resumenHtml,
 		hayVenta: () => m.lineas.length > 0,
+		tarjeta: (fn) => { cobroTarjeta = fn; },
 	};
 
 	// ---------- arranque ----------

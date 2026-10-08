@@ -283,6 +283,19 @@ function dox_pos_create_order( $data, $hold ) {
 		return $reserved;
 	}
 
+	// En el mostrador, el último paso antes de dar la venta por pagada: el Pro captura aquí el cobro
+	// del lector de tarjetas. Un WP_Error deja la venta sin registrar, como si no se hubiera cobrado.
+	if ( $counter ) {
+		$charged = apply_filters( 'dox_pos_counter_charge', true, $order, $data );
+		if ( is_wp_error( $charged ) ) {
+			if ( function_exists( 'wc_release_stock_for_order' ) ) {
+				wc_release_stock_for_order( $order );
+			}
+			$order->delete( true );
+			return $charged;
+		}
+	}
+
 	$who = $counter
 		? sprintf( /* translators: %s: user */ __( 'Recorded at the counter by %s.', 'dox-pos' ), $user->display_name )
 		: sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
