@@ -37,6 +37,7 @@ foreach ( array( 'administrator', 'shop_manager' ) as $role_name ) {
 	}
 }
 remove_role( 'caja' );
+remove_role( 'caja_mostrador' ); // El cajero de mostrador.
 
 global $wpdb;
 // Los pedidos de demostración, si quedaron, se van con el plugin (sus filas de kardex también).

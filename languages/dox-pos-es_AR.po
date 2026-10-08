@@ -4432,3 +4432,12 @@ msgstr "Efectivo"
 #: assets/js/mostrador.js:803
 msgid "The money is already back on the customer’s card. The pieces are back in stock."
 msgstr "La plata ya volvió a la tarjeta del cliente. Las prendas ya volvieron al stock."
+
+msgid "That order is being returned on another device. Try again in a moment."
+msgstr "Ese pedido se está devolviendo en otro equipo. Probá de nuevo en un momento."
+
+msgid "This sale was not paid in cash (or that part was already returned): give the money back by the same payment method."
+msgstr "Esta venta no se pagó en efectivo (o esa parte ya se devolvió): devolvé la plata por el mismo medio de pago."
+
+msgid "The Counter is turned off in Settings."
+msgstr "El Mostrador está apagado en Ajustes."

@@ -193,7 +193,8 @@ function dox_pos_rest_permission( $request = null ) {
 		return new WP_Error( 'dox_pos_sin_permiso', __( 'Your user does not have access to the register.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	// Quien solo cobra en el Mostrador no llega al resto de la caja ni pidiéndolo a mano.
-	if ( $request instanceof WP_REST_Request && dox_pos_is_counter_only() && ! dox_pos_counter_only_allows( $request ) ) {
+	// Sin la petición no se sabe a qué ruta va: se le niega (falla cerrado).
+	if ( dox_pos_is_counter_only() && ( ! $request instanceof WP_REST_Request || ! dox_pos_counter_only_allows( $request ) ) ) {
 		return new WP_Error( 'dox_pos_solo_mostrador', __( 'Your user only has access to the Counter.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	return true;

@@ -276,11 +276,11 @@ function dox_pos_counter_routes() {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'dox_pos_rest_counter_scan',
-			'permission_callback' => 'dox_pos_rest_permission',
+			'permission_callback' => 'dox_pos_counter_rest_permission',
 			'args'                => array( 'code' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ) ),
 		)
 	);
-	register_rest_route( $ns, '/counter/quote', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_quote', 'permission_callback' => 'dox_pos_rest_permission' ) );
+	register_rest_route( $ns, '/counter/quote', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_quote', 'permission_callback' => 'dox_pos_counter_rest_permission' ) );
 	register_rest_route(
 		$ns,
 		'/counter/quick',
@@ -403,6 +403,18 @@ function dox_pos_counter_get_shift( $id ) {
  */
 function dox_pos_counter_open( $float ) {
 	global $wpdb;
+	// Dos toques a la vez (o dos equipos de la misma caja) no abren dos turnos.
+	$lock = 'dox_pos_shift_' . dox_pos_counter_register();
+	$wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 10)', $lock ) );
+	try {
+		return dox_pos_counter_open_locked( $float );
+	} finally {
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+	}
+}
+
+function dox_pos_counter_open_locked( $float ) {
+	global $wpdb;
 	$open = dox_pos_counter_open_shift();
 	if ( $open ) {
 		return $open;
@@ -506,8 +518,11 @@ function dox_pos_counter_close( $counted, $note = '' ) {
 			'summary'     => wp_json_encode( $sum ),
 			'note'        => sanitize_textarea_field( $note ),
 		),
-		array( 'id' => (int) $shift->id )
+		array( 'id' => (int) $shift->id, 'status' => 'open' ) // Si otro equipo la cerró un instante antes, este cierre no lo pisa.
 	);
+	if ( ! $wpdb->rows_affected ) {
+		return new WP_Error( 'dox_pos_caja_cerrada', __( 'The till is not open.', 'dox-pos' ) );
+	}
 	$closed = dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) );
 	do_action( 'dox_pos_counter_shift_closed', $closed );
 	return $closed;
@@ -765,25 +780,67 @@ function dox_pos_counter_find_order( $q ) {
  * @return array|WP_Error
  */
 function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
-	$order = wc_get_order( (int) $order_id );
+	global $wpdb;
+	// Una devolución a la vez por pedido: dos peticiones iguales a la vez pasarían las dos la cuenta de
+	// lo que queda por devolver y sacarían el dinero dos veces.
+	$lock = 'dox_pos_refund_' . (int) $order_id;
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 10)', $lock ) ) ) {
+		return new WP_Error( 'dox_pos_ocupado', __( 'That order is being returned on another device. Try again in a moment.', 'dox-pos' ) );
+	}
+	try {
+		return dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason );
+	} finally {
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+	}
+}
+
+/**
+ * Lo que el Mostrador deja ver y devolver. Quien administra la tienda, cualquier pedido pagado (un
+ * cliente de la web puede devolver en la tienda). Los demás, solo las ventas hechas en el Mostrador.
+ *
+ * @param WC_Order|null $order El pedido.
+ * @return WC_Order|WP_Error
+ */
+function dox_pos_counter_order_access( $order ) {
 	if ( ! $order instanceof WC_Order ) {
 		return new WP_Error( 'dox_pos_no_pedido', __( 'That order does not exist.', 'dox-pos' ) );
 	}
-	if ( in_array( $order->get_status(), array( 'cancelled', 'pending', 'failed', 'on-hold' ), true ) ) {
+	if ( ! current_user_can( 'manage_woocommerce' ) && ! $order->get_meta( '_dox_pos_counter' ) ) {
+		return new WP_Error( 'dox_pos_no_pedido', __( 'That order does not exist.', 'dox-pos' ) ); // Lo mismo que si no existiera: no se adivinan pedidos.
+	}
+	return $order;
+}
+
+/**
+ * La devolución, ya con el pedido bloqueado (ver dox_pos_counter_refund).
+ */
+function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = '' ) {
+	$order = dox_pos_counter_order_access( wc_get_order( (int) $order_id ) );
+	if ( is_wp_error( $order ) ) {
+		return $order;
+	}
+	if ( ! in_array( $order->get_status(), array( 'completed', 'processing' ), true ) ) {
 		return new WP_Error( 'dox_pos_no_devolver', __( 'This order was not paid: there is nothing to return.', 'dox-pos' ) );
 	}
 	$shift = dox_pos_counter_open_shift();
 	if ( 'efectivo' === $method && ! $shift ) {
 		return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till to give cash back.', 'dox-pos' ) );
 	}
-	$dec    = wc_get_price_decimals();
-	$items  = array();
-	$amount = 0.0;
+	// La misma línea dos veces cuenta como una con la suma (si no, cada una pasaría sola la comprobación).
+	$want = array();
 	foreach ( (array) $lines as $l ) {
 		$item_id = (int) ( is_array( $l ) ? ( $l['id'] ?? 0 ) : 0 );
 		$qty     = (int) ( is_array( $l ) ? ( $l['qty'] ?? 0 ) : 0 );
-		$item    = $order->get_item( $item_id );
-		if ( ! $item instanceof WC_Order_Item_Product || $qty < 1 ) {
+		if ( $item_id && $qty > 0 ) {
+			$want[ $item_id ] = ( $want[ $item_id ] ?? 0 ) + $qty;
+		}
+	}
+	$dec    = wc_get_price_decimals();
+	$items  = array();
+	$amount = 0.0;
+	foreach ( $want as $item_id => $qty ) {
+		$item = $order->get_item( $item_id );
+		if ( ! $item instanceof WC_Order_Item_Product ) {
 			continue;
 		}
 		$left = (int) $item->get_quantity() - abs( (int) $order->get_qty_refunded_for_item( $item_id ) );
@@ -809,6 +866,20 @@ function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'Choose what is being returned.', 'dox-pos' ) );
 	}
 	$amount = min( round( $amount, $dec ), (float) $order->get_remaining_refund_amount() );
+	// Quien no administra devuelve en efectivo como mucho lo que se pagó en efectivo (y aún no se
+	// devolvió): una venta con tarjeta no puede salir del cajón.
+	if ( 'efectivo' === $method && ! current_user_can( 'manage_woocommerce' ) ) {
+		$cash = 0.0;
+		foreach ( dox_pos_counter_order_payments( $order ) as $p ) {
+			$cash += 'efectivo' === ( $p['key'] ?? '' ) ? (float) $p['amount'] : 0;
+		}
+		foreach ( $order->get_refunds() as $r ) {
+			$cash -= 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ? (float) $r->get_amount() : 0;
+		}
+		if ( $amount > round( $cash, $dec ) + 0.00001 ) {
+			return new WP_Error( 'dox_pos_no_efectivo', __( 'This sale was not paid in cash (or that part was already returned): give the money back by the same payment method.', 'dox-pos' ) );
+		}
+	}
 	$user   = dox_pos_counter_actor();
 	// Si se cobró en un lector conectado (el del Pro), el dinero vuelve a la tarjeta aquí, antes de
 	// registrar la devolución: si el banco no la acepta, no queda nada a medias.
@@ -847,10 +918,21 @@ function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
 
 // ---------- más rutas ----------
 
+/**
+ * El permiso de las rutas del Mostrador: el de la caja, y además el Mostrador encendido en Ajustes.
+ * También lo usan las rutas del Mostrador del Pro.
+ */
+function dox_pos_counter_rest_permission( $request = null ) {
+	if ( ! dox_pos_counter_on() ) {
+		return new WP_Error( 'dox_pos_sin_mostrador', __( 'The Counter is turned off in Settings.', 'dox-pos' ), array( 'status' => 403 ) );
+	}
+	return dox_pos_rest_permission( $request );
+}
+
 add_action( 'rest_api_init', 'dox_pos_counter_routes_2' );
 function dox_pos_counter_routes_2() {
 	$ns   = 'dox-pos/v1';
-	$perm = 'dox_pos_rest_permission';
+	$perm = 'dox_pos_counter_rest_permission';
 	register_rest_route( $ns, '/counter/shift', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_counter_shift', 'permission_callback' => $perm ) );
 	register_rest_route( $ns, '/counter/shift/open', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_shift_open', 'permission_callback' => $perm ) );
 	register_rest_route( $ns, '/counter/shift/close', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_shift_close', 'permission_callback' => $perm ) );
@@ -888,8 +970,8 @@ function dox_pos_rest_counter_shift_close( WP_REST_Request $request ) {
 }
 
 function dox_pos_rest_counter_order( WP_REST_Request $request ) {
-	$o = dox_pos_counter_find_order( $request->get_param( 'q' ) );
-	return rest_ensure_response( array( 'receipt' => $o instanceof WC_Order ? dox_pos_counter_receipt( $o ) : null ) );
+	$o = dox_pos_counter_order_access( dox_pos_counter_find_order( $request->get_param( 'q' ) ) );
+	return rest_ensure_response( array( 'receipt' => is_wp_error( $o ) ? null : dox_pos_counter_receipt( $o ) ) );
 }
 
 function dox_pos_rest_counter_refund( WP_REST_Request $request ) {

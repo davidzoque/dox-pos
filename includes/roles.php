@@ -128,6 +128,9 @@ function dox_pos_is_counter_only( $user = null ) {
 function dox_pos_counter_only_allows( $request ) {
 	$route  = preg_replace( '#^/dox-pos/v1#', '', (string) $request->get_route() );
 	$method = $request->get_method();
+	if ( ! dox_pos_counter_on() ) {
+		return false; // Con el Mostrador apagado, quien solo cobra en él no tiene nada que hacer en la caja.
+	}
 	if ( 'GET' === $method ) {
 		$ok = (bool) preg_match( '#^/(search|top|orders|counter/(scan|shift|order))$#', $route );
 	} elseif ( '/orders' === $route ) {

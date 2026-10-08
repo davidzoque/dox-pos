@@ -161,6 +161,9 @@ function dox_pos_create_order( $data, $hold ) {
 	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago,
 	// y dentro del turno de la caja abierta (el cierre cuenta su efectivo).
 	$counter = ! empty( $data['counter'] ) && ! $hold && dox_pos_counter_on();
+	if ( ! $counter && dox_pos_is_counter_only() ) {
+		return new WP_Error( 'dox_pos_solo_mostrador', __( 'Your user only has access to the Counter.', 'dox-pos' ) );
+	}
 	$shift   = $counter ? dox_pos_counter_open_shift() : null;
 	if ( $counter && ! $shift ) {
 		return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till before charging.', 'dox-pos' ) );
@@ -273,6 +276,14 @@ function dox_pos_create_order( $data, $hold ) {
 		}
 	}
 	$order->save();
+	// Si la caja se cerró mientras se guardaba la venta, su cierre ya no la cuenta: no queda.
+	if ( $counter ) {
+		$now = dox_pos_counter_get_shift( (int) $shift->id );
+		if ( ! $now || 'open' !== $now->status ) {
+			$order->delete( true );
+			return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till before charging.', 'dox-pos' ) );
+		}
+	}
 
 	// Dos cajas registrando la última unidad en el mismo instante pasan las dos la
 	// comprobación de arriba. La reserva de WooCommerce (la misma del checkout) es una
