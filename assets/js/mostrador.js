@@ -504,7 +504,7 @@
 				const z = d.shift, dif = z.difference || 0;
 				modal('<div class="total"><span>' + esc(__("Till closed", "dox-pos")) + "</span><b>" + dinero(z.counted || 0) + '</b></div><div class="cambio' + (dif ? " falta" : "") + '"><span>' + esc(dif === 0 ? __("It matches", "dox-pos") : dif > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")) + "</span><b>" + dinero(Math.abs(dif)) + '</b></div><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print the closing", "dox-pos")) + '</button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>", "cobro");
 				$("#m-no").onclick = () => cerrarModal(true);
-				$("#mt-print").onclick = () => imprimir(cierreHtml(z, d.store || {}), (d.store || {}).width);
+				$("#mt-print").onclick = () => imprimir(cierreHtml(z, d.store || {}), d.store);
 			} catch (e) {
 				if (e.message !== "sesion") toast(e.message);
 			}
@@ -513,83 +513,18 @@
 
 	// ---------- el ticket: se imprime desde el navegador en cualquier impresora ----------
 	const EQ_IMPRIMIR = "dox_pos_counter_print"; // Este equipo imprime el ticket solo al cobrar.
-	const C128 = "212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112".split(" ");
-	// Code 128 (juego B) en SVG: el número del pedido, que el escáner lee para la devolución.
-	function codigoBarras(txt) {
-		const vals = [104];
-		for (const ch of String(txt)) { const c = ch.charCodeAt(0) - 32; if (c >= 0 && c <= 94) vals.push(c); }
-		let suma = 104;
-		for (let i = 1; i < vals.length; i++) suma += vals[i] * i;
-		vals.push(suma % 103, 106);
-		let x = 10, barras = "";
-		vals.forEach((v) => {
-			const p = C128[v];
-			for (let i = 0; i < p.length; i++) { const w = +p[i]; if (i % 2 === 0) barras += '<rect x="' + x + '" y="0" width="' + w + '" height="40"/>'; x += w; }
-		});
-		return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (x + 10) + ' 40" preserveAspectRatio="none" shape-rendering="crispEdges">' + barras + "</svg>";
-	}
-	const fila2 = (a, b, cls) => '<div class="r' + (cls ? " " + cls : "") + '"><span>' + a + "</span><span>" + b + "</span></div>";
-	function cabecera(s) {
-		return '<div class="c">' + (s.logo ? '<img class="logo" src="' + esc(s.logo) + '" alt="">' : "") + '<div class="name">' + esc(s.name || "") + "</div>" + (s.header ? '<div class="pre">' + esc(s.header) + "</div>" : "") + "</div><hr>";
-	}
-	function ticketHtml(r, dev) {
-		const s = r.store || {};
-		let h = cabecera(s);
-		h += fila2(esc(sprintf(__("Order #%s", "dox-pos"), r.number)), "") + '<div class="s0">' + esc(r.date) + "</div>";
-		if (r.seller) h += '<div class="s0">' + esc(sprintf(__("Served by %s", "dox-pos"), r.seller)) + "</div>";
-		if (r.customer) h += '<div class="s0">' + esc(sprintf(__("Customer: %s", "dox-pos"), r.customer)) + "</div>";
-		h += "<hr>";
-		if (dev) {
-			h += '<div class="c big">' + esc(__("RETURN", "dox-pos")) + "</div><hr>";
-			dev.lines.forEach((l) => { h += fila2(esc(l.name), "") + '<div class="s">' + esc(sprintf(__("%d returned", "dox-pos"), l.qty)) + "</div>"; });
-			h += "<hr>" + fila2(esc(__("RETURNED", "dox-pos")), dinero(dev.amount), "big") + '<div class="s0">' + esc(dev.method === "efectivo" ? __("In cash", "dox-pos") : sprintf(__("By the same payment method (%s)", "dox-pos"), (r.payments || []).map((p) => p.title).join(" + "))) + "</div>";
-		} else {
-			r.lines.forEach((l) => { h += fila2(esc(l.name), dinero(l.total)) + '<div class="s">' + esc(l.qty + " x " + dinero(l.unit) + (l.sku ? " · " + l.sku : "")) + "</div>"; });
-			h += "<hr>" + fila2(esc(__("Subtotal", "dox-pos")), dinero(r.subtotal));
-			if (r.discount) h += fila2(esc(__("Discount", "dox-pos")), "−" + dinero(r.discount));
-			if (!r.included) (r.taxes || []).forEach((t) => { h += fila2(esc(t.label), dinero(t.amount)); });
-			h += fila2(esc(__("TOTAL", "dox-pos")), dinero(r.total), "big");
-			if (r.included && (r.taxes || []).length) h += '<div class="s0">' + esc(sprintf(__("Includes %s", "dox-pos"), r.taxes.map((t) => t.label + " " + dinero(t.amount)).join(", "))) + "</div>";
-			h += "<hr>";
-			(r.payments || []).forEach((p) => { h += fila2(esc(p.title), dinero(p.amount)); });
-			if (r.tendered != null) h += fila2(esc(__("Cash received", "dox-pos")), dinero(r.tendered)) + fila2(esc(__("Change", "dox-pos")), dinero(r.change || 0));
-			if (r.refunded) h += fila2(esc(__("Returned", "dox-pos")), "−" + dinero(r.refunded));
-		}
-		h += "<hr>" + (s.footer ? '<div class="c pre">' + esc(s.footer) + "</div>" : "");
-		return h + '<div class="code">' + codigoBarras(r.code) + '</div><div class="c s0">' + esc(r.code) + "</div>";
-	}
-	function cierreHtml(z, s) {
-		const r = z.summary || {};
-		let h = cabecera(s) + '<div class="c big">' + esc(__("TILL CLOSING", "dox-pos")) + "</div><hr>";
-		h += '<div class="s0">' + esc(sprintf(__("Opened: %1$s %2$s by %3$s", "dox-pos"), z.opened_day, z.opened_at, z.opened_name)) + "</div>";
-		h += '<div class="s0">' + esc(sprintf(__("Closed: %1$s %2$s by %3$s", "dox-pos"), z.closed_day, z.closed_at, z.closed_name)) + "</div><hr>";
-		h += fila2(esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)), dinero(r.total || 0), "big");
-		(r.payments || []).forEach((p) => { h += fila2(esc(p.title), dinero(p.amount)); });
-		if (r.refund_cash || r.refund_other) h += fila2(esc(__("Returns", "dox-pos")), "−" + dinero((r.refund_cash || 0) + (r.refund_other || 0)));
-		h += "<hr>" + fila2(esc(__("Float", "dox-pos")), dinero(r.float || 0)) + fila2(esc(__("Cash sales", "dox-pos")), dinero(r.cash_sales || 0));
-		if (r.refund_cash) h += fila2(esc(__("Cash given back", "dox-pos")), "−" + dinero(r.refund_cash));
-		h += fila2(esc(__("Expected", "dox-pos")), dinero(r.expected || 0), "big") + fila2(esc(__("Counted", "dox-pos")), dinero(z.counted || 0), "big");
-		const d = z.difference || 0;
-		h += fila2(esc(d === 0 ? __("It matches", "dox-pos") : d > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")), dinero(Math.abs(d)), "big");
-		if (z.note) h += '<div class="pre">' + esc(z.note) + "</div>";
-		return h;
-	}
+	// El dibujo del ticket y del cierre vive en ticket.js: el mismo que enseña la vista previa de Ajustes.
+	const T = window.DoxPOSTicket({ dinero: dinero });
+	const ticketHtml = T.venta, cierreHtml = T.cierre;
 	// Imprime en un marco escondido, con el ancho del rollo. El navegador abre su diálogo de impresión.
-	function imprimir(cuerpo, ancho) {
-		const papel = +ancho === 58 ? 58 : 80, util = papel === 58 ? 48 : 72, lado = (papel - util) / 2;
+	function imprimir(cuerpo, tienda) {
 		const f = document.createElement("iframe");
 		f.setAttribute("aria-hidden", "true");
 		f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
 		document.body.appendChild(f);
 		const doc = f.contentDocument;
 		doc.open();
-		doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(__("Receipt", "dox-pos")) + "</title><style>" +
-			"@page{size:" + papel + "mm auto;margin:0}html,body{margin:0;padding:0;background:#fff;color:#000}" +
-			"body{width:" + util + "mm;padding:3mm " + lado + "mm 8mm;font:" + (papel === 58 ? 10 : 11) + "px/1.4 ui-monospace,Menlo,Consolas,'Courier New',monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
-			".c{text-align:center}.name{font-weight:700;font-size:1.35em;margin:2px 0}.pre{white-space:pre-line}.logo{display:block;margin:0 auto 4px;max-width:60%;max-height:22mm;filter:grayscale(1) contrast(1.4)}" +
-			"hr{border:0;border-top:1px dashed #000;margin:6px 0}.r{display:flex;justify-content:space-between;gap:8px}.r span:last-child{white-space:nowrap}" +
-			".s{padding-left:8px;color:#000;opacity:.8}.s0{opacity:.85}.big{font-weight:700;font-size:1.15em}.code{margin:8px auto 2px;height:12mm}.code svg{width:100%;height:100%}" +
-			"</style></head><body>" + cuerpo + "</body></html>");
+		doc.write(T.documento(cuerpo, tienda || {}));
 		doc.close();
 		const imgs = Array.prototype.slice.call(doc.images);
 		Promise.all(imgs.map((i) => (i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; })))).then(() => {
@@ -608,7 +543,7 @@
 		try {
 			const d = await api("counter/order?q=" + encodeURIComponent(q));
 			if (!d.receipt) { toast(__("That order was not found.", "dox-pos")); return; }
-			imprimir(ticketHtml(d.receipt, dev), (d.receipt.store || {}).width);
+			imprimir(ticketHtml(d.receipt, dev), d.receipt.store);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.red ? __("No signal: the receipt could not be loaded.", "dox-pos") : e.message);
 		}
@@ -814,7 +749,7 @@
 				modal('<div class="total"><span>' + esc(__("Return done", "dox-pos")) + "</span><b>" + dinero(d.amount) + '</b></div><p class="mp">' + esc(d.method === "efectivo" ? __("Give the money back from the drawer. The pieces are back in stock.", "dox-pos") : __("Give the money back on the card machine or by the original payment method. The pieces are back in stock.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 				$("#m-no").onclick = () => cerrarModal(true);
 				$("#m-no").focus();
-				$("#mt-print").onclick = () => imprimir(ticketHtml(d.receipt, dev), (d.receipt.store || {}).width);
+				$("#mt-print").onclick = () => imprimir(ticketHtml(d.receipt, dev), d.receipt.store);
 				D.emit("pedido", { id: r.id });
 				D.refrescarStock();
 				D.cargarPedidos();

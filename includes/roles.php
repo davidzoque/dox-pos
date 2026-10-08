@@ -21,6 +21,7 @@ function dox_pos_install_roles() {
 	if ( $role ) {
 		$role->add_cap( DOX_POS_CAP );
 	}
+	dox_pos_install_counter_role();
 	foreach ( array( 'administrator', 'shop_manager' ) as $name ) {
 		$r = get_role( $name );
 		if ( $r ) {
@@ -40,7 +41,7 @@ function dox_pos_is_cashier_only( $user = null ) {
 	if ( ! $user || ! $user->exists() ) {
 		return false;
 	}
-	return in_array( 'caja', (array) $user->roles, true )
+	return array_intersect( array( 'caja', DOX_POS_COUNTER_ROLE ), (array) $user->roles )
 		&& ! user_can( $user, 'edit_posts' )
 		&& ! user_can( $user, 'manage_woocommerce' );
 }
@@ -82,4 +83,57 @@ function dox_pos_login_redirect( $redirect_to, $requested, $user ) {
 		return dox_pos_url();
 	}
 	return $redirect_to;
+}
+
+/**
+ * El rol "Cajero de mostrador": solo cobra en el Mostrador de la tienda física. No ve Vender,
+ * Inventario, Pedidos ni los informes, y la API tampoco le deja hacer esas cosas por detrás
+ * (dox_pos_counter_only_allows). El rol "Caja" sigue igual para quien vende por chat.
+ */
+const DOX_POS_COUNTER_ROLE = 'caja_mostrador';
+function dox_pos_install_counter_role() {
+	$role = get_role( DOX_POS_COUNTER_ROLE );
+	if ( ! $role ) {
+		$role = add_role( DOX_POS_COUNTER_ROLE, __( 'Counter cashier', 'dox-pos' ), array( 'read' => true ) );
+	}
+	if ( $role ) {
+		$role->add_cap( DOX_POS_CAP );
+	}
+}
+
+/**
+ * ¿Este usuario solo cobra en el Mostrador? Tiene el rol y nada que le dé más (gerente, editor).
+ *
+ * @param WP_User|null $user Por defecto, el usuario actual.
+ * @return bool
+ */
+function dox_pos_is_counter_only( $user = null ) {
+	$user = $user instanceof WP_User ? $user : wp_get_current_user();
+	if ( ! $user || ! $user->exists() ) {
+		return false;
+	}
+	return in_array( DOX_POS_COUNTER_ROLE, (array) $user->roles, true )
+		&& ! in_array( 'caja', (array) $user->roles, true )
+		&& ! user_can( $user, 'edit_posts' )
+		&& ! user_can( $user, 'manage_woocommerce' );
+}
+
+/**
+ * Lo que la API le deja hacer a quien solo cobra en el Mostrador: buscar, escanear, cobrar (solo
+ * ventas de mostrador), el turno y las devoluciones. La lista de pedidos le llega vacía.
+ *
+ * @param WP_REST_Request $request La petición.
+ * @return bool
+ */
+function dox_pos_counter_only_allows( $request ) {
+	$route  = preg_replace( '#^/dox-pos/v1#', '', (string) $request->get_route() );
+	$method = $request->get_method();
+	if ( 'GET' === $method ) {
+		return (bool) preg_match( '#^/(search|top|orders|counter/(scan|shift|order))$#', $route );
+	}
+	if ( '/orders' === $route ) {
+		$b = (array) $request->get_json_params();
+		return ! empty( $b['counter'] ) && empty( $b['hold'] );
+	}
+	return (bool) preg_match( '#^/counter/(quote|shift/open|shift/close|refund)$#', $route );
 }

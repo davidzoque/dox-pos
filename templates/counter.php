@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 ?>
-		<section class="tab" id="t-mostrador" hidden>
+		<section class="tab" id="t-mostrador"<?php echo empty( $cfg['counter_only'] ) ? ' hidden' : ''; ?>>
 			<div class="turno">
 				<span class="m-turno" id="m-turno"></span>
 				<span class="m-turno-acc">

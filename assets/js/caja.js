@@ -113,6 +113,10 @@
 			throw err;
 		}
 		if (r.status === 401 || r.status === 403) {
+			let j = null;
+			try { j = await r.clone().json(); } catch (e) { /* sin cuerpo */ }
+			// Un cajero de mostrador que pide algo de fuera del Mostrador: se le dice, sin cerrar la sesión.
+			if (j && j.code === "dox_pos_solo_mostrador") throw new Error(j.message);
 			sesionCaducada();
 			throw new Error("sesion");
 		}
@@ -733,8 +737,8 @@
 	};
 	const icono = (id) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONO[id] || ICONO.otra) + "</svg>";
 	function armarBarraMovil() {
-		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button"));
-		if (!nav || !tabs.length) return;
+		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button")).filter((b) => !b.hidden); // Las escondidas (el cajero de mostrador) no bajan.
+		if (!nav || tabs.length < 2) return; // Con una sola pestaña no hace falta barra.
 		// Las de todos los días primero; las que traigan los añadidos, detrás.
 		// Si la caja abre en el Panel (quien administra), el Panel va primero: el primer botón es el inicio.
 		const ORDEN = cfg.open_tab === "panel" ? ["panel", "vender", "pedidos", "entrada", "historial", "producto"] : ["vender", "pedidos", "entrada", "panel", "historial", "producto"];

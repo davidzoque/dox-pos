@@ -200,6 +200,10 @@ function dox_pos_counter_tax_location( $args, $order ) {
 
 add_filter( 'dox_pos_cfg', 'dox_pos_counter_cfg' );
 function dox_pos_counter_cfg( $cfg ) {
+	$cfg['counter_only'] = dox_pos_is_counter_only(); // El cajero de mostrador solo ve esta pestaña y entra por ella.
+	if ( $cfg['counter_only'] ) {
+		$cfg['open_tab'] = 'mostrador';
+	}
 	if ( ! dox_pos_counter_on() ) {
 		$cfg['counter'] = null;
 		return $cfg;
@@ -245,9 +249,19 @@ function dox_pos_counter_scripts( $cfg ) {
 	if ( empty( $cfg['counter'] ) ) {
 		return;
 	}
+	dox_pos_counter_register_ticket();
 	$ver = DOX_POS_VERSION . '.' . (int) filemtime( DOX_POS_PATH . 'assets/js/mostrador.js' );
-	wp_enqueue_script( 'dox-pos-mostrador', DOX_POS_URL . 'assets/js/mostrador.js', array( 'dox-pos-caja', 'wp-i18n' ), $ver, true );
+	wp_enqueue_script( 'dox-pos-mostrador', DOX_POS_URL . 'assets/js/mostrador.js', array( 'dox-pos-caja', 'dox-pos-ticket', 'wp-i18n' ), $ver, true );
 	wp_set_script_translations( 'dox-pos-mostrador', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' );
+}
+
+/**
+ * ticket.js: el dibujo del ticket, que comparten el Mostrador y la vista previa de Ajustes.
+ */
+function dox_pos_counter_register_ticket() {
+	$ver = DOX_POS_VERSION . '.' . (int) filemtime( DOX_POS_PATH . 'assets/js/ticket.js' );
+	wp_register_script( 'dox-pos-ticket', DOX_POS_URL . 'assets/js/ticket.js', array( 'wp-i18n' ), $ver, true );
+	wp_set_script_translations( 'dox-pos-ticket', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' );
 }
 
 // ---------- la API ----------
@@ -306,7 +320,7 @@ function dox_pos_rest_counter_quick( WP_REST_Request $request ) {
  * abierta por alguien con una base de efectivo hasta que se cierra contando lo que hay. El
  * gratuito usa una sola caja ("main"); la columna register queda para el Pro (varias cajas).
  */
-const DOX_POS_SHIFTS_DB = '1';
+const DOX_POS_SHIFTS_DB = '2'; // 2: también el rol "Cajero de mostrador".
 add_action( 'init', 'dox_pos_counter_maybe_install', 21 );
 function dox_pos_counter_maybe_install() {
 	if ( get_option( 'dox_pos_shifts_db' ) === DOX_POS_SHIFTS_DB ) {
@@ -337,6 +351,7 @@ function dox_pos_counter_maybe_install() {
 			KEY opened_at (opened_at)
 		) {$charset};"
 	);
+	dox_pos_install_counter_role(); // Por si el plugin se subió por archivo sin cambiar de versión.
 	update_option( 'dox_pos_shifts_db', DOX_POS_SHIFTS_DB, false );
 }
 
@@ -650,12 +665,34 @@ function dox_pos_counter_receipt_settings() {
 	$c       = WC()->countries;
 	$address = implode( ', ', array_filter( array( $c->get_base_address(), $c->get_base_city() ) ) );
 	$default = implode( "\n", array_filter( array( $address ) ) );
-	return array(
+	$show    = array();
+	foreach ( dox_pos_counter_receipt_parts() as $k => $label ) {
+		$show[ $k ] = ! isset( $s['receipt_show'] ) || ! empty( $s['receipt_show'][ $k ] ); // De fábrica, todo.
+	}
+	$out = array(
 		'name'   => dox_pos_brand_name(),
 		'logo'   => ! isset( $s['receipt_logo'] ) || ! empty( $s['receipt_logo'] ) ? dox_pos_logo_url() : '',
 		'header' => isset( $s['receipt_header'] ) ? (string) $s['receipt_header'] : $default,
 		'footer' => isset( $s['receipt_footer'] ) ? (string) $s['receipt_footer'] : __( 'Thank you for your purchase!', 'dox-pos' ),
 		'width'  => isset( $s['receipt_width'] ) && 58 === (int) $s['receipt_width'] ? 58 : 80,
+		'size'   => in_array( $s['receipt_size'] ?? '', array( 'small', 'large' ), true ) ? $s['receipt_size'] : 'normal',
+		'show'   => $show,
+	);
+	return apply_filters( 'dox_pos_counter_receipt_settings', $out ); // El Pro añade lo suyo (el editor completo).
+}
+
+/**
+ * Lo que el ticket puede enseñar u ocultar, con su nombre en los ajustes.
+ *
+ * @return array<string,string>
+ */
+function dox_pos_counter_receipt_parts() {
+	return array(
+		'sku'      => __( 'SKU of each product', 'dox-pos' ),
+		'seller'   => __( 'Who served', 'dox-pos' ),
+		'customer' => __( 'Customer name', 'dox-pos' ),
+		'taxes'    => __( 'Tax breakdown', 'dox-pos' ),
+		'barcode'  => __( 'Barcode (for returns)', 'dox-pos' ),
 	);
 }
 
@@ -818,4 +855,50 @@ function dox_pos_rest_counter_order( WP_REST_Request $request ) {
 function dox_pos_rest_counter_refund( WP_REST_Request $request ) {
 	$b = (array) $request->get_json_params();
 	return dox_pos_rest_out( dox_pos_counter_refund( (int) ( $b['order'] ?? 0 ), (array) ( $b['lines'] ?? array() ), sanitize_key( $b['method'] ?? 'efectivo' ), (string) ( $b['reason'] ?? '' ) ) );
+}
+
+/**
+ * Lo que necesita la vista previa del ticket en Ajustes: la tienda, el formato del dinero y una venta
+ * de ejemplo con la forma de dox_pos_counter_receipt() (con impuesto aparte o incluido, como la tienda).
+ *
+ * @return array
+ */
+function dox_pos_counter_receipt_sample() {
+	$included = wc_prices_include_tax();
+	$dec      = wc_get_price_decimals();
+	$lines    = array(
+		array( 'name' => __( 'Ella dress · M · Pink', 'dox-pos' ), 'sku' => 'ED83M', 'qty' => 1, 'unit' => 150, 'total' => 150 ),
+		array( 'name' => __( 'Wool scarf · Camel', 'dox-pos' ), 'sku' => 'WS21C', 'qty' => 2, 'unit' => 22, 'total' => 44 ),
+	);
+	$sub   = 194;
+	$tax   = round( $included ? $sub - $sub / 1.06 : $sub * 0.06, $dec );
+	$total = $included ? $sub : $sub + $tax;
+	$paid  = $total + ( 10 - fmod( $total, 10 ) ); // El billete redondo siguiente.
+	return array(
+		'name'   => dox_pos_brand_name(),
+		'logo'   => dox_pos_logo_url(),
+		'money'  => array(
+			'symbol'   => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
+			'pos'      => get_option( 'woocommerce_currency_pos', 'left' ),
+			'thousand' => wc_get_price_thousand_separator(),
+			'decimal'  => wc_get_price_decimal_separator(),
+			'decimals' => $dec,
+		),
+		'sample' => array(
+			'number'   => '2481',
+			'date'     => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+			'seller'   => wp_get_current_user()->display_name,
+			'customer' => __( 'Marta Ruiz', 'dox-pos' ),
+			'lines'    => $lines,
+			'subtotal' => $sub,
+			'discount' => 0,
+			'taxes'    => array( array( 'label' => __( 'Tax', 'dox-pos' ), 'amount' => $tax ) ),
+			'included' => $included,
+			'total'    => $total,
+			'payments' => array( array( 'title' => __( 'Cash payment', 'dox-pos' ), 'amount' => $total ) ),
+			'tendered' => $paid,
+			'change'   => round( $paid - $total, $dec ),
+			'code'     => 'DOXPOS-2481',
+		),
+	);
 }

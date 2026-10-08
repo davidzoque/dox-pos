@@ -12,6 +12,7 @@ $logo  = dox_pos_logo_url();
 $brand = dox_pos_brand_name();
 $cfg   = dox_pos_js_config();
 $im    = wc_get_price_decimals() > 0 ? 'decimal' : 'numeric'; // El teclado de los importes: con decimales, el que trae la coma.
+$solo  = ! empty( $cfg['counter_only'] ); // El cajero de mostrador: solo ve el Mostrador (las demás pestañas siguen en la página, escondidas).
 dox_pos_enqueue_caja( $cfg );
 ?>
 <!doctype html>
@@ -32,19 +33,23 @@ dox_pos_enqueue_caja( $cfg );
 		</span>
 		<nav class="tabs" id="tabs">
 			<?php if ( $cfg['history_full'] ) : ?>
-			<button type="button" data-t="panel" aria-pressed="false"><?php esc_html_e( 'Dashboard', 'dox-pos' ); ?></button>
+			<button type="button" data-t="panel" aria-pressed="false"<?php echo $solo ? ' hidden' : ''; ?>><?php esc_html_e( 'Dashboard', 'dox-pos' ); ?></button>
 			<?php endif; ?>
-			<button type="button" data-t="vender" aria-pressed="true"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></button>
+			<button type="button" data-t="vender" aria-pressed="true"<?php echo $solo ? ' hidden' : ''; ?>><?php esc_html_e( 'Sell', 'dox-pos' ); ?></button>
 			<?php if ( ! empty( $cfg['counter'] ) ) : // La tienda física (Ajustes > Ventas). ?>
 			<button type="button" data-t="mostrador" aria-pressed="false"><?php esc_html_e( 'Counter', 'dox-pos' ); ?></button>
 			<?php endif; ?>
-			<button type="button" data-t="entrada" aria-pressed="false"><?php esc_html_e( 'Inventory', 'dox-pos' ); ?></button>
-			<button type="button" data-t="pedidos" aria-pressed="false"><?php esc_html_e( 'Orders', 'dox-pos' ); ?> <span id="npend"></span></button>
+			<button type="button" data-t="entrada" aria-pressed="false"<?php echo $solo ? ' hidden' : ''; ?>><?php esc_html_e( 'Inventory', 'dox-pos' ); ?></button>
+			<button type="button" data-t="pedidos" aria-pressed="false"<?php echo $solo ? ' hidden' : ''; ?>><?php esc_html_e( 'Orders', 'dox-pos' ); ?> <span id="npend"></span></button>
 			<?php if ( $cfg['products'] ) : ?>
-			<button type="button" data-t="producto" aria-pressed="false"><?php esc_html_e( 'Products', 'dox-pos' ); ?></button>
+			<button type="button" data-t="producto" aria-pressed="false"<?php echo $solo ? ' hidden' : ''; ?>><?php esc_html_e( 'Products', 'dox-pos' ); ?></button>
 			<?php endif; ?>
-			<button type="button" data-t="historial" aria-pressed="false"><?php echo esc_html( $cfg['history_full'] ? __( 'Reports', 'dox-pos' ) : __( 'My day', 'dox-pos' ) ); ?></button>
-			<?php do_action( 'dox_pos_tabs', $cfg ); // Pestañas de los añadidos (el Pro pone Asistente). ?>
+			<button type="button" data-t="historial" aria-pressed="false"<?php echo $solo ? ' hidden' : ''; ?>><?php echo esc_html( $cfg['history_full'] ? __( 'Reports', 'dox-pos' ) : __( 'My day', 'dox-pos' ) ); ?></button>
+			<?php
+			if ( ! $solo ) {
+				do_action( 'dox_pos_tabs', $cfg ); // Pestañas de los añadidos (el Pro pone Asistente).
+			}
+			?>
 		</nav>
 		<span class="user"><?php echo esc_html( $cfg['user'] ); ?> · <a href="<?php echo esc_url( $cfg['logout'] ); ?>"><?php esc_html_e( 'Sign out', 'dox-pos' ); ?></a></span>
 		<?php if ( $cfg['shipping_setup'] ) : // Lo que se ajusta sin salir de la caja (quien administra). ?>
@@ -56,7 +61,7 @@ dox_pos_enqueue_caja( $cfg );
 
 	<div class="body">
 		<!-- ================= VENDER ================= -->
-		<section class="tab" id="t-vender">
+		<section class="tab" id="t-vender"<?php echo $solo ? ' hidden' : ''; ?>>
 			<div class="paneseg"><div class="seg" id="paneseg">
 				<button type="button" data-p="buscar" aria-pressed="true"><?php esc_html_e( 'Search products', 'dox-pos' ); ?></button>
 				<button type="button" data-p="pedido" aria-pressed="false"><?php esc_html_e( 'The order', 'dox-pos' ); ?> <span id="npane"></span></button>
@@ -345,6 +350,8 @@ dox_pos_enqueue_caja( $cfg );
 		<?php
 		if ( ! empty( $cfg['counter'] ) ) {
 			include DOX_POS_PATH . 'templates/counter.php';
+		} elseif ( $solo ) { // Cajero de mostrador con el Mostrador apagado: que sepa por qué no ve nada.
+			echo '<section class="tab" id="t-mostrador"><div class="big-empty"><p>' . esc_html__( 'The Counter is turned off. Ask whoever manages the shop to turn it on in Settings, Sales tab.', 'dox-pos' ) . '</p></div></section>';
 		}
 		do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente.
 		?>
