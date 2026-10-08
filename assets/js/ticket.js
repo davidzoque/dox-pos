@@ -60,7 +60,7 @@
 				if (r.included && tax && ver(s, "taxes")) h += '<div class="s0">' + esc(sprintf(__("Includes %s", "dox-pos"), r.taxes.map((t) => t.label + " " + dinero(t.amount)).join(", "))) + "</div>";
 				h += "<hr>";
 				(r.payments || []).forEach((p) => { h += fila(esc(p.title), dinero(p.amount)); });
-				if (r.tendered != null) h += fila(esc(__("Cash received", "dox-pos")), dinero(r.tendered)) + fila(esc(__("Change", "dox-pos")), dinero(r.change || 0));
+				if (r.tendered != null) h += fila(esc(__("Cash received", "dox-pos")), dinero(r.tendered)) + fila(esc(__("Change due", "dox-pos")), dinero(r.change || 0));
 				if (r.refunded) h += fila(esc(__("Returned", "dox-pos")), "−" + dinero(r.refunded));
 			}
 			h += "<hr>" + (s.footer ? '<div class="c pre">' + esc(s.footer) + "</div>" : "");

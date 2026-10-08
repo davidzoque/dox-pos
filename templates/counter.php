@@ -61,7 +61,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						</div>
 						<div class="sum" id="m-sum"></div>
 						<div class="pagar">
-							<button type="button" class="go" id="m-efectivo"><?php esc_html_e( 'Cash', 'dox-pos' ); ?><kbd>F4</kbd></button>
+							<button type="button" class="go" id="m-efectivo"><?php echo esc_html_x( 'Cash', 'pay in cash', 'dox-pos' ); ?><kbd>F4</kbd></button>
 							<button type="button" class="go alt" id="m-tarjeta"><?php esc_html_e( 'Card', 'dox-pos' ); ?><kbd>F6</kbd></button>
 							<button type="button" class="go alt" id="m-otro"><?php esc_html_e( 'Other / split', 'dox-pos' ); ?><kbd>F7</kbd></button>
 						</div>

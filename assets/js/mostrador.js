@@ -582,7 +582,7 @@
 			const r = recibido(), c = redondear(r - t.total);
 			const box = $("#mc-cambio");
 			box.className = "cambio" + (c < 0 ? " falta" : "");
-			box.innerHTML = "<span>" + esc(c < 0 ? __("Missing", "dox-pos") : __("Change", "dox-pos")) + "</span><b>" + dinero(Math.abs(c)) + "</b>";
+			box.innerHTML = "<span>" + esc(c < 0 ? __("Missing", "dox-pos") : __("Change due", "dox-pos")) + "</span><b>" + dinero(Math.abs(c)) + "</b>";
 			$("#mc-ok").disabled = c < 0;
 			$("#modal-card").querySelectorAll(".billetes .chip").forEach((b) => b.setAttribute("aria-pressed", inp.value.trim() === "" ? !!b.dataset.exact : !b.dataset.exact && Math.abs(+b.dataset.v - r) < 1e-9));
 		};
@@ -620,7 +620,7 @@
 			box.className = "cambio" + (mal ? " falta" : "");
 			box.innerHTML = e.d < 0 || !e.ps.length ? "<span>" + esc(__("Missing", "dox-pos")) + "</span><b>" + dinero(Math.abs(e.ps.length ? e.d : t.total)) + "</b>"
 				: e.d > e.cash + 1e-9 ? "<span>" + esc(__("Too much (only cash gives change)", "dox-pos")) + "</span><b>" + dinero(e.d) + "</b>"
-				: "<span>" + esc(e.d > 0 ? __("Change", "dox-pos") : __("Complete", "dox-pos")) + "</span><b>" + dinero(e.d) + "</b>";
+				: "<span>" + esc(e.d > 0 ? __("Change due", "dox-pos") : __("Complete", "dox-pos")) + "</span><b>" + dinero(e.d) + "</b>";
 			$("#mp-ok").disabled = mal;
 		};
 		card.querySelectorAll("[data-resto]").forEach((b) => {
@@ -683,7 +683,7 @@
 		pintarUltimo();
 		const auto = !!leer(EQ_IMPRIMIR, false);
 		const cambio = o.change != null ? o.change : null;
-		modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + "</b></div>" + (cambio != null ? '<div class="cambio"><span>' + esc(__("Change", "dox-pos")) + "</span><b>" + dinero(cambio) + "</b></div>" : '<p class="mp">' + esc(__("The stock has already gone down.", "dox-pos")) + "</p>") + '<div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(auto ? __("Print again", "dox-pos") : __("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + "</b></div>" + (cambio != null ? '<div class="cambio"><span>' + esc(__("Change due", "dox-pos")) + "</span><b>" + dinero(cambio) + "</b></div>" : '<p class="mp">' + esc(__("The stock has already gone down.", "dox-pos")) + "</p>") + '<div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(auto ? __("Print again", "dox-pos") : __("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		$("#m-no").onclick = () => cerrarModal(true);
 		$("#mt-print").onclick = () => imprimirPedido("DOXPOS-" + o.id);
 		$("#m-no").focus();
