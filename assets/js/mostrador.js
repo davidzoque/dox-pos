@@ -188,6 +188,7 @@
 		cerrarResultados();
 		try {
 			const r = await api("counter/scan?code=" + encodeURIComponent(code));
+			if (!r.item) throw new Error("codigo");
 			recordar(r.item);
 			if (r.vid) { añadir(r.vid); estadoListo(); return; }
 			// El código es del producto, no de una talla: se abre para elegirla.

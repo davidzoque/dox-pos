@@ -280,11 +280,9 @@ function dox_pos_counter_routes() {
 }
 
 function dox_pos_rest_counter_scan( WP_REST_Request $request ) {
+	// Un código que no existe no es un error (el lector lee de todo): sin producto, item vacío.
 	$r = dox_pos_counter_scan( $request->get_param( 'code' ) );
-	if ( ! $r ) {
-		return new WP_Error( 'dox_pos_codigo', __( 'No product has that code.', 'dox-pos' ), array( 'status' => 404 ) );
-	}
-	return rest_ensure_response( $r );
+	return rest_ensure_response( $r ? $r : array( 'item' => null, 'vid' => 0 ) );
 }
 
 function dox_pos_rest_counter_quote( WP_REST_Request $request ) {
