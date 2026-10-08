@@ -425,13 +425,18 @@
 		const ob = new MutationObserver(() => { if (el.hidden) { ob.disconnect(); fn(); } });
 		ob.observe(el, { attributes: true, attributeFilter: ["hidden"] });
 	}
-	async function cargarTurno() {
-		try {
-			const d = await api("counter/shift");
-			m.shift = d.shift;
-			m.lastFloat = d.last_float || 0;
-		} catch (e) { /* sin señal: se queda lo que había */ }
-		pintarTurno();
+	let turnoListo = null; // La primera consulta del turno: hasta que responde, no se sabe si la caja está abierta.
+	function cargarTurno() {
+		const p = (async () => {
+			try {
+				const d = await api("counter/shift");
+				m.shift = d.shift;
+				m.lastFloat = d.last_float || 0;
+			} catch (e) { /* sin señal: se queda lo que había */ }
+			pintarTurno();
+		})();
+		if (!turnoListo) turnoListo = p;
+		return p;
 	}
 	function pintarTurno() {
 		const s = m.shift, box = $("#m-turno");
@@ -468,7 +473,11 @@
 			};
 		});
 	}
-	const asegurarCaja = () => (m.shift ? Promise.resolve(true) : abrirCaja(__("The till is not open yet. Count the cash in the drawer to open it.", "dox-pos")));
+	// Si se cobra (o se escanea un ticket) en el primer segundo, antes de saber cómo está el turno, se espera a saberlo.
+	async function asegurarCaja() {
+		if (!m.shift) await (turnoListo || cargarTurno());
+		return m.shift ? true : abrirCaja(__("The till is not open yet. Count the cash in the drawer to open it.", "dox-pos"));
+	}
 	const filaSum = (t, v, cls) => '<div class="' + (cls || "") + '"><span>' + esc(t) + "</span><span>" + v + "</span></div>";
 	function resumenHtml(r) {
 		let h = '<div class="sum cierre">' + filaSum(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0), dinero(r.total || 0), "tot2");
@@ -719,9 +728,10 @@
 			return;
 		}
 		const sel = {};
-		let metodo = "efectivo";
+		// Se propone devolver como pagó: en efectivo, del cajón; con tarjeta u otro medio, por el mismo.
+		let metodo = r.pay_key === "efectivo" ? "efectivo" : "original";
 		const original = (r.payments || []).map((p) => p.title).join(" + ");
-		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0"><button type="button" class="chip" data-m="efectivo" aria-pressed="true">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="false">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + '</button></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
+		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0"><button type="button" class="chip" data-m="efectivo" aria-pressed="' + (metodo === "efectivo") + '">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="' + (metodo === "original") + '">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + '</button></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
 		const monto = () => redondear(lineas.reduce((a, l) => a + (sel[l.id] || 0) * l.gross, 0));
 		const repintar = () => {
 			lineas.forEach((l) => { $("#mv-n" + l.id).textContent = sel[l.id] || 0; $("#mv-v" + l.id).textContent = dinero((sel[l.id] || 0) * l.gross); });

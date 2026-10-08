@@ -404,7 +404,8 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 /* ---------- el editor básico del ticket (Ventas > Tienda física) ---------- */
 .dp-ticket-ed{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:start;margin-top:18px;padding-top:18px;border-top:1px solid var(--dp-line)}
 .dp-sub{margin:0 0 12px;font-size:14px;font-weight:600}
-.dp-ticket-show{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:6px 0 10px;font-size:13px}
+.dp-ticket-show{display:grid;grid-template-columns:1fr;gap:8px;margin:6px 0 10px;font-size:13px}
+.dp-ticket-campos .dp-grid-2{grid-template-columns:1fr;gap:0;margin-bottom:18px} /* Al lado de la vista previa la columna es estrecha: un campo por fila. */
 .dp-ticket-show label{display:flex;gap:8px;align-items:center;cursor:pointer}
 .dp-ticket-vista{background:#EEE9E4;border-radius:14px;padding:18px;position:sticky;top:calc(var(--dp-head-h,0px) + 16px)}
 .dp-ticket-vista iframe{display:block;width:302px;height:520px;border:0;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12)}

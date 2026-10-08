@@ -867,14 +867,17 @@ function dox_pos_rest_counter_refund( WP_REST_Request $request ) {
 function dox_pos_counter_receipt_sample() {
 	$included = wc_prices_include_tax();
 	$dec      = wc_get_price_decimals();
+	$f        = 0 === $dec ? 1000 : 1; // Sin decimales (pesos), los precios de ejemplo van en miles: un vestido de 150.000, no de 150.
 	$lines    = array(
-		array( 'name' => __( 'Ella dress · M · Pink', 'dox-pos' ), 'sku' => 'ED83M', 'qty' => 1, 'unit' => 150, 'total' => 150 ),
-		array( 'name' => __( 'Wool scarf · Camel', 'dox-pos' ), 'sku' => 'WS21C', 'qty' => 2, 'unit' => 22, 'total' => 44 ),
+		array( 'name' => __( 'Ella dress · M · Pink', 'dox-pos' ), 'sku' => 'ED83M', 'qty' => 1, 'unit' => 150 * $f, 'total' => 150 * $f ),
+		array( 'name' => __( 'Wool scarf · Camel', 'dox-pos' ), 'sku' => 'WS21C', 'qty' => 2, 'unit' => 22 * $f, 'total' => 44 * $f ),
 	);
-	$sub   = 194;
-	$tax   = round( $included ? $sub - $sub / 1.06 : $sub * 0.06, $dec );
-	$total = $included ? $sub : $sub + $tax;
-	$paid  = $total + ( 10 - fmod( $total, 10 ) ); // El billete redondo siguiente.
+	$sub   = 194 * $f;
+	$on    = wc_tax_enabled(); // El impuesto de ejemplo, solo si la tienda cobra impuestos.
+	$tax   = $on ? round( $included ? $sub - $sub / 1.06 : $sub * 0.06, $dec ) : 0;
+	$total = $included || ! $on ? $sub : $sub + $tax;
+	$step  = 10 * $f;
+	$paid  = ( floor( $total / $step ) + 1 ) * $step; // El billete redondo siguiente.
 	return array(
 		'name'   => dox_pos_brand_name(),
 		'logo'   => dox_pos_logo_url(),
@@ -893,7 +896,7 @@ function dox_pos_counter_receipt_sample() {
 			'lines'    => $lines,
 			'subtotal' => $sub,
 			'discount' => 0,
-			'taxes'    => array( array( 'label' => __( 'Tax', 'dox-pos' ), 'amount' => $tax ) ),
+			'taxes'    => $on ? array( array( 'label' => __( 'Tax', 'dox-pos' ), 'amount' => $tax ) ) : array(),
 			'included' => $included,
 			'total'    => $total,
 			'payments' => array( array( 'title' => __( 'Cash payment', 'dox-pos' ), 'amount' => $total ) ),
