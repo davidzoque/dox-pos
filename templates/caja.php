@@ -35,6 +35,9 @@ dox_pos_enqueue_caja( $cfg );
 			<button type="button" data-t="panel" aria-pressed="false"><?php esc_html_e( 'Dashboard', 'dox-pos' ); ?></button>
 			<?php endif; ?>
 			<button type="button" data-t="vender" aria-pressed="true"><?php esc_html_e( 'Sell', 'dox-pos' ); ?></button>
+			<?php if ( ! empty( $cfg['counter'] ) ) : // La tienda física (Ajustes > Ventas). ?>
+			<button type="button" data-t="mostrador" aria-pressed="false"><?php esc_html_e( 'Counter', 'dox-pos' ); ?></button>
+			<?php endif; ?>
 			<button type="button" data-t="entrada" aria-pressed="false"><?php esc_html_e( 'Inventory', 'dox-pos' ); ?></button>
 			<button type="button" data-t="pedidos" aria-pressed="false"><?php esc_html_e( 'Orders', 'dox-pos' ); ?> <span id="npend"></span></button>
 			<?php if ( $cfg['products'] ) : ?>
@@ -339,7 +342,12 @@ dox_pos_enqueue_caja( $cfg );
 			</div></div>
 		</section>
 
-		<?php do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente. ?>
+		<?php
+		if ( ! empty( $cfg['counter'] ) ) {
+			include DOX_POS_PATH . 'templates/counter.php';
+		}
+		do_action( 'dox_pos_sections', $cfg ); // El Pro pone aquí la pestaña Asistente.
+		?>
 	</div>
 	<?php // En el teléfono las pestañas bajan aquí, como en una app: las cuatro de cada día y "Más" con el resto. La arma caja.js con las de #tabs. ?>
 	<nav class="tabbar" id="tabbar" aria-label="<?php esc_attr_e( 'Sections', 'dox-pos' ); ?>" data-more="<?php esc_attr_e( 'More', 'dox-pos' ); ?>"></nav>

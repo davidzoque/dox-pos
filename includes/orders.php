@@ -158,14 +158,18 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $discount > $subtotal ) {
 		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
 	}
+	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago.
+	$counter = ! empty( $data['counter'] ) && ! $hold && dox_pos_counter_on();
 	// El canal: uno de los de los ajustes; si llega otra cosa, el primero.
 	$channels = wp_list_pluck( dox_pos_channels(), 'name' );
 	$channel  = sanitize_text_field( $data['channel'] ?? '' );
-	if ( ! in_array( $channel, $channels, true ) ) {
+	if ( $counter ) {
+		$channel = dox_pos_counter_channel();
+	} elseif ( ! in_array( $channel, $channels, true ) ) {
 		$channel = (string) reset( $channels );
 	}
 
-	$methods = dox_pos_payment_methods();
+	$methods = $counter ? dox_pos_counter_payments() : dox_pos_payment_methods();
 	$pay_key = sanitize_key( $data['payment'] ?? 'transferencia' );
 	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ];
 	$cust    = (array) ( $data['customer'] ?? array() );
@@ -205,7 +209,7 @@ function dox_pos_create_order( $data, $hold ) {
 		$fee->set_tax_status( 'none' );
 		$order->add_item( $fee );
 	}
-	$ship = (array) ( $data['shipping'] ?? array() );
+	$ship = $counter ? array() : (array) ( $data['shipping'] ?? array() );
 	if ( ! empty( $ship['label'] ) ) {
 		$item = new WC_Order_Item_Shipping();
 		$item->set_method_title( sanitize_text_field( $ship['label'] ) );
@@ -231,7 +235,22 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $hold ) {
 		$order->update_meta_data( '_dox_pos_hold_until', time() + $hours * HOUR_IN_SECONDS );
 	}
+	if ( $counter ) {
+		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
+	}
 	$order->calculate_totals();
+	// En efectivo: con cuánto pagó y el cambio, para el ticket y el cierre de caja. Si lo recibido no
+	// alcanza (el total cambió entre que se cobró y se guardó), no se registra nada.
+	if ( $counter && 'efectivo' === $pay_key && isset( $data['tendered'] ) ) {
+		$tendered = (float) wc_format_decimal( $data['tendered'] );
+		$total    = (float) $order->get_total();
+		if ( $tendered + 0.00001 < $total ) {
+			$order->delete( true );
+			return new WP_Error( 'dox_pos_falta_dinero', sprintf( /* translators: %s: order total */ __( 'The total is %s and the money received does not cover it.', 'dox-pos' ), html_entity_decode( wp_strip_all_tags( wc_price( $total ) ) ) ), array( 'total' => $total ) );
+		}
+		$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $tendered, wc_get_price_decimals() ) );
+		$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $tendered - $total, wc_get_price_decimals() ) );
+	}
 	$order->save();
 
 	// Dos cajas registrando la última unidad en el mismo instante pasan las dos la
@@ -243,13 +262,18 @@ function dox_pos_create_order( $data, $hold ) {
 		return $reserved;
 	}
 
-	$who = sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
+	$who = $counter
+		? sprintf( /* translators: %s: user */ __( 'Recorded at the counter by %s.', 'dox-pos' ), $user->display_name )
+		: sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
 	if ( $hold ) {
 		$order->update_status( 'on-hold', sprintf( /* translators: %d: hours */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
 		dox_pos_schedule_release( $order->get_id(), $hours );
 	} elseif ( $pay['paid'] ) {
 		$order->add_order_note( $who );
 		$order->payment_complete();
+		if ( $counter ) {
+			$order->update_status( 'completed', __( 'Handed over at the counter.', 'dox-pos' ) ); // Se lo llevó puesto: no queda "por enviar".
+		}
 	} else {
 		$order->update_status( 'processing', __( 'Cash on delivery. ', 'dox-pos' ) . $who );
 	}
@@ -657,6 +681,9 @@ function dox_pos_format_order( $order ) {
 		'email'        => (string) $order->get_billing_email(),
 		'note'         => $order->get_customer_note(),
 		'seller'       => $order->get_meta( '_dox_pos_seller_name' ),
+		'counter'      => (bool) $order->get_meta( '_dox_pos_counter' ),                                // Vendido en el Mostrador.
+		'tendered'     => '' !== (string) $order->get_meta( '_dox_pos_tendered' ) ? (float) $order->get_meta( '_dox_pos_tendered' ) : null, // En efectivo: con cuánto pagó.
+		'change'       => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,     // Y el cambio.
 		'pay_url'      => $hold ? $order->get_checkout_payment_url() : '',
 		'whatsapp'     => $wa,
 	);

@@ -36,6 +36,7 @@ require_once DOX_POS_PATH . 'includes/settings.php';
 require_once DOX_POS_PATH . 'includes/shipping.php';
 require_once DOX_POS_PATH . 'includes/shipping-setup.php';
 require_once DOX_POS_PATH . 'includes/orders.php';
+require_once DOX_POS_PATH . 'includes/counter.php';
 require_once DOX_POS_PATH . 'includes/entries.php';
 require_once DOX_POS_PATH . 'includes/stock-log.php';
 require_once DOX_POS_PATH . 'includes/costs.php';

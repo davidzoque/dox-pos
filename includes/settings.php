@@ -1258,6 +1258,7 @@ function dox_pos_sanitize_sales( $in ) {
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
 	$out['open_panel']      = ! empty( $in['open_panel'] );
+	$out['counter']         = ! empty( $in['counter'] );
 	$out['messaging']       = in_array( $in['messaging'] ?? '', array( 'whatsapp', 'sms' ), true ) ? $in['messaging'] : '';
 
 	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
@@ -1907,6 +1908,14 @@ function dox_pos_settings_page() {
 							<p><?php esc_html_e( 'Administrators and shop managers get a Dashboard tab in the register: sold today with yesterday next to it, the week and the month against the previous ones, the last fourteen days, what came in by payment method, what is owed, the orders to handle, the best sellers and the stock. Salespeople do not see it and always land on Sell.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[open_panel]" value="1" <?php checked( dox_pos_open_panel() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Open the register on the Dashboard for whoever manages the shop', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Salespeople always land on Sell.', 'dox-pos' ); ?></span></span></label>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Physical store', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'A Counter tab for selling at the till: scan barcodes with a USB or Bluetooth scanner or with the camera, take cash and see the change, card or any other payment, and put a sale on hold to serve the next customer. Each sale is a WooCommerce order, like the ones from Sell. The computer at the till can be set to always open on the Counter.', 'dox-pos' ); ?></p>
+						</div>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[counter]" value="1" <?php checked( dox_pos_counter_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'I have a physical store: show the Counter tab', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Off, the register stays as it is.', 'dox-pos' ); ?></span></span></label>
 					</div>
 				</section>
 
