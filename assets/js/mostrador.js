@@ -186,6 +186,7 @@
 		if (!code) return;
 		$("#m-q").value = "";
 		cerrarResultados();
+		if (/^DOXPOS-\d+$/i.test(code)) { devolucion(code); return; } // El código de un ticket: su devolución.
 		try {
 			const r = await api("counter/scan?code=" + encodeURIComponent(code));
 			if (!r.item) throw new Error("codigo");
@@ -414,6 +415,206 @@
 		$("#md-v").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#md-ok").click(); } });
 	}
 
+	// ---------- el turno: abrir y cerrar caja ----------
+	m.shift = null;
+	m.lastFloat = 0;
+	const IM = D.M.decimals > 0 ? "decimal" : "numeric";
+	// Cuando se cierra la ventana sin aceptar (Escape, tocar fuera, "Ahora no").
+	function alCerrarModal(fn) {
+		const el = $("#modal");
+		const ob = new MutationObserver(() => { if (el.hidden) { ob.disconnect(); fn(); } });
+		ob.observe(el, { attributes: true, attributeFilter: ["hidden"] });
+	}
+	async function cargarTurno() {
+		try {
+			const d = await api("counter/shift");
+			m.shift = d.shift;
+			m.lastFloat = d.last_float || 0;
+		} catch (e) { /* sin señal: se queda lo que había */ }
+		pintarTurno();
+	}
+	function pintarTurno() {
+		const s = m.shift, box = $("#m-turno");
+		$("#m-cerrar").hidden = !s;
+		if (!s) {
+			box.innerHTML = '<span class="dot off"></span>' + esc(__("The till is closed.", "dox-pos")) + ' <button type="button" class="linkbtn" id="m-abrir">' + esc(__("Open the till", "dox-pos")) + "</button>";
+			$("#m-abrir").onclick = () => abrirCaja();
+			return;
+		}
+		const r = s.summary || {};
+		box.innerHTML = '<span><span class="dot"></span>' + esc(sprintf(__("Open since %s", "dox-pos"), s.opened_at)) + '</span><span class="sep"></span><span>' + esc(__("Float", "dox-pos")) + " <b>" + dinero(r.float || 0) + '</b></span><span class="sep"></span><span>' + esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)) + " · <b>" + dinero(r.total || 0) + "</b></span>";
+	}
+	// Abre la caja contando la base. Devuelve si quedó abierta.
+	function abrirCaja(motivo) {
+		return new Promise((resolve) => {
+			modal("<h3>" + esc(__("Open the till", "dox-pos")) + '</h3><p class="mp">' + esc(motivo || __("Count the cash in the drawer: it is the float, and the closing compares against it.", "dox-pos")) + '</p><div class="field recibe"><label for="ma-f">' + esc(__("Cash in the drawer", "dox-pos")) + '</label><input id="ma-f" inputmode="' + IM + '" autocomplete="off" value="' + esc(m.lastFloat ? D.miles(m.lastFloat) : "") + '" placeholder="0"></div><div class="fila" style="margin-top:16px"><button type="button" class="go alt" id="m-no">' + esc(__("Not now", "dox-pos")) + '</button><button type="button" class="go" id="ma-ok">' + esc(__("Open the till", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+			let listo = false;
+			alCerrarModal(() => { if (!listo) resolve(false); });
+			$("#m-no").onclick = () => cerrarModal(false);
+			$("#ma-f").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#ma-ok").click(); } });
+			$("#ma-f").select();
+			$("#ma-ok").onclick = async () => {
+				try {
+					const d = await post("counter/shift/open", { float: num($("#ma-f").value) });
+					m.shift = d.shift;
+					listo = true;
+					cerrarModal(true);
+					pintarTurno();
+					toast(__("Till open. You can charge now.", "dox-pos"));
+					resolve(true);
+				} catch (e) {
+					if (e.message !== "sesion") toast(e.message);
+				}
+			};
+		});
+	}
+	const asegurarCaja = () => (m.shift ? Promise.resolve(true) : abrirCaja(__("The till is not open yet. Count the cash in the drawer to open it.", "dox-pos")));
+	const filaSum = (t, v, cls) => '<div class="' + (cls || "") + '"><span>' + esc(t) + "</span><span>" + v + "</span></div>";
+	function resumenHtml(r) {
+		let h = '<div class="sum cierre">' + filaSum(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0), dinero(r.total || 0), "tot2");
+		(r.payments || []).forEach((p) => { h += filaSum(p.title, dinero(p.amount)); });
+		if (r.refund_cash || r.refund_other) h += filaSum(__("Returns", "dox-pos"), "−" + dinero((r.refund_cash || 0) + (r.refund_other || 0)));
+		h += '</div><div class="sum cierre">' + filaSum(__("Float", "dox-pos"), dinero(r.float || 0)) + filaSum(__("Cash sales", "dox-pos"), dinero(r.cash_sales || 0));
+		if (r.refund_cash) h += filaSum(__("Cash given back", "dox-pos"), "−" + dinero(r.refund_cash));
+		return h + filaSum(__("Cash that should be in the drawer", "dox-pos"), dinero(r.expected || 0), "tot2") + "</div>";
+	}
+	async function cerrarCaja() {
+		if (m.lineas.length) { toast(__("Charge the current sale or put it on hold before closing the till.", "dox-pos")); return; }
+		await cargarTurno();
+		if (!m.shift) { toast(__("The till is not open.", "dox-pos")); return; }
+		const r = m.shift.summary || {};
+		modal("<h3>" + esc(__("Close the till", "dox-pos")) + "</h3>" + resumenHtml(r) + '<div class="field recibe"><label for="mz-c">' + esc(__("Cash counted in the drawer", "dox-pos")) + '</label><input id="mz-c" inputmode="' + IM + '" autocomplete="off" placeholder="0"></div><div class="cambio falta" id="mz-dif"></div><input id="mz-n" autocomplete="off" placeholder="' + esc(__("Note (optional): why it is short or over", "dox-pos")) + '"><div class="fila" style="margin-top:14px"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mz-ok" disabled>' + esc(__("Close the till", "dox-pos")) + "</button></div>", "cobro");
+		const repintar = () => {
+			const v = $("#mz-c").value.trim(), box = $("#mz-dif");
+			$("#mz-ok").disabled = !v;
+			if (!v) { box.className = "cambio falta"; box.innerHTML = "<span>" + esc(__("Count the drawer", "dox-pos")) + "</span><b></b>"; return; }
+			const d = redondear(num(v) - (r.expected || 0));
+			box.className = "cambio" + (d ? " falta" : "");
+			box.innerHTML = "<span>" + esc(d === 0 ? __("It matches", "dox-pos") : d > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")) + "</span><b>" + dinero(Math.abs(d)) + "</b>";
+		};
+		$("#mz-c").addEventListener("input", repintar);
+		$("#mz-c").addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("#mz-ok").disabled) { e.preventDefault(); $("#mz-ok").click(); } });
+		$("#m-no").onclick = () => cerrarModal(false);
+		repintar();
+		$("#mz-ok").onclick = async () => {
+			try {
+				const d = await post("counter/shift/close", { counted: num($("#mz-c").value), note: $("#mz-n").value.trim() });
+				m.shift = null;
+				pintarTurno();
+				const z = d.shift, dif = z.difference || 0;
+				modal('<div class="total"><span>' + esc(__("Till closed", "dox-pos")) + "</span><b>" + dinero(z.counted || 0) + '</b></div><div class="cambio' + (dif ? " falta" : "") + '"><span>' + esc(dif === 0 ? __("It matches", "dox-pos") : dif > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")) + "</span><b>" + dinero(Math.abs(dif)) + '</b></div><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print the closing", "dox-pos")) + '</button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>", "cobro");
+				$("#m-no").onclick = () => cerrarModal(true);
+				$("#mt-print").onclick = () => imprimir(cierreHtml(z, d.store || {}), (d.store || {}).width);
+			} catch (e) {
+				if (e.message !== "sesion") toast(e.message);
+			}
+		};
+	}
+
+	// ---------- el ticket: se imprime desde el navegador en cualquier impresora ----------
+	const EQ_IMPRIMIR = "dox_pos_counter_print"; // Este equipo imprime el ticket solo al cobrar.
+	const C128 = "212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112".split(" ");
+	// Code 128 (juego B) en SVG: el número del pedido, que el escáner lee para la devolución.
+	function codigoBarras(txt) {
+		const vals = [104];
+		for (const ch of String(txt)) { const c = ch.charCodeAt(0) - 32; if (c >= 0 && c <= 94) vals.push(c); }
+		let suma = 104;
+		for (let i = 1; i < vals.length; i++) suma += vals[i] * i;
+		vals.push(suma % 103, 106);
+		let x = 10, barras = "";
+		vals.forEach((v) => {
+			const p = C128[v];
+			for (let i = 0; i < p.length; i++) { const w = +p[i]; if (i % 2 === 0) barras += '<rect x="' + x + '" y="0" width="' + w + '" height="40"/>'; x += w; }
+		});
+		return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (x + 10) + ' 40" preserveAspectRatio="none" shape-rendering="crispEdges">' + barras + "</svg>";
+	}
+	const fila2 = (a, b, cls) => '<div class="r' + (cls ? " " + cls : "") + '"><span>' + a + "</span><span>" + b + "</span></div>";
+	function cabecera(s) {
+		return '<div class="c">' + (s.logo ? '<img class="logo" src="' + esc(s.logo) + '" alt="">' : "") + '<div class="name">' + esc(s.name || "") + "</div>" + (s.header ? '<div class="pre">' + esc(s.header) + "</div>" : "") + "</div><hr>";
+	}
+	function ticketHtml(r, dev) {
+		const s = r.store || {};
+		let h = cabecera(s);
+		h += fila2(esc(sprintf(__("Order #%s", "dox-pos"), r.number)), "") + '<div class="s0">' + esc(r.date) + "</div>";
+		if (r.seller) h += '<div class="s0">' + esc(sprintf(__("Served by %s", "dox-pos"), r.seller)) + "</div>";
+		if (r.customer) h += '<div class="s0">' + esc(sprintf(__("Customer: %s", "dox-pos"), r.customer)) + "</div>";
+		h += "<hr>";
+		if (dev) {
+			h += '<div class="c big">' + esc(__("RETURN", "dox-pos")) + "</div><hr>";
+			dev.lines.forEach((l) => { h += fila2(esc(l.name), "") + '<div class="s">' + esc(sprintf(__("%d returned", "dox-pos"), l.qty)) + "</div>"; });
+			h += "<hr>" + fila2(esc(__("RETURNED", "dox-pos")), dinero(dev.amount), "big") + '<div class="s0">' + esc(dev.method === "efectivo" ? __("In cash", "dox-pos") : sprintf(__("By the same payment method (%s)", "dox-pos"), (r.payments || []).map((p) => p.title).join(" + "))) + "</div>";
+		} else {
+			r.lines.forEach((l) => { h += fila2(esc(l.name), dinero(l.total)) + '<div class="s">' + esc(l.qty + " x " + dinero(l.unit) + (l.sku ? " · " + l.sku : "")) + "</div>"; });
+			h += "<hr>" + fila2(esc(__("Subtotal", "dox-pos")), dinero(r.subtotal));
+			if (r.discount) h += fila2(esc(__("Discount", "dox-pos")), "−" + dinero(r.discount));
+			if (!r.included) (r.taxes || []).forEach((t) => { h += fila2(esc(t.label), dinero(t.amount)); });
+			h += fila2(esc(__("TOTAL", "dox-pos")), dinero(r.total), "big");
+			if (r.included && (r.taxes || []).length) h += '<div class="s0">' + esc(sprintf(__("Includes %s", "dox-pos"), r.taxes.map((t) => t.label + " " + dinero(t.amount)).join(", "))) + "</div>";
+			h += "<hr>";
+			(r.payments || []).forEach((p) => { h += fila2(esc(p.title), dinero(p.amount)); });
+			if (r.tendered != null) h += fila2(esc(__("Cash received", "dox-pos")), dinero(r.tendered)) + fila2(esc(__("Change", "dox-pos")), dinero(r.change || 0));
+			if (r.refunded) h += fila2(esc(__("Returned", "dox-pos")), "−" + dinero(r.refunded));
+		}
+		h += "<hr>" + (s.footer ? '<div class="c pre">' + esc(s.footer) + "</div>" : "");
+		return h + '<div class="code">' + codigoBarras(r.code) + '</div><div class="c s0">' + esc(r.code) + "</div>";
+	}
+	function cierreHtml(z, s) {
+		const r = z.summary || {};
+		let h = cabecera(s) + '<div class="c big">' + esc(__("TILL CLOSING", "dox-pos")) + "</div><hr>";
+		h += '<div class="s0">' + esc(sprintf(__("Opened: %1$s %2$s by %3$s", "dox-pos"), z.opened_day, z.opened_at, z.opened_name)) + "</div>";
+		h += '<div class="s0">' + esc(sprintf(__("Closed: %1$s %2$s by %3$s", "dox-pos"), z.closed_day, z.closed_at, z.closed_name)) + "</div><hr>";
+		h += fila2(esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)), dinero(r.total || 0), "big");
+		(r.payments || []).forEach((p) => { h += fila2(esc(p.title), dinero(p.amount)); });
+		if (r.refund_cash || r.refund_other) h += fila2(esc(__("Returns", "dox-pos")), "−" + dinero((r.refund_cash || 0) + (r.refund_other || 0)));
+		h += "<hr>" + fila2(esc(__("Float", "dox-pos")), dinero(r.float || 0)) + fila2(esc(__("Cash sales", "dox-pos")), dinero(r.cash_sales || 0));
+		if (r.refund_cash) h += fila2(esc(__("Cash given back", "dox-pos")), "−" + dinero(r.refund_cash));
+		h += fila2(esc(__("Expected", "dox-pos")), dinero(r.expected || 0), "big") + fila2(esc(__("Counted", "dox-pos")), dinero(z.counted || 0), "big");
+		const d = z.difference || 0;
+		h += fila2(esc(d === 0 ? __("It matches", "dox-pos") : d > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")), dinero(Math.abs(d)), "big");
+		if (z.note) h += '<div class="pre">' + esc(z.note) + "</div>";
+		return h;
+	}
+	// Imprime en un marco escondido, con el ancho del rollo. El navegador abre su diálogo de impresión.
+	function imprimir(cuerpo, ancho) {
+		const papel = +ancho === 58 ? 58 : 80, util = papel === 58 ? 48 : 72, lado = (papel - util) / 2;
+		const f = document.createElement("iframe");
+		f.setAttribute("aria-hidden", "true");
+		f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+		document.body.appendChild(f);
+		const doc = f.contentDocument;
+		doc.open();
+		doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(__("Receipt", "dox-pos")) + "</title><style>" +
+			"@page{size:" + papel + "mm auto;margin:0}html,body{margin:0;padding:0;background:#fff;color:#000}" +
+			"body{width:" + util + "mm;padding:3mm " + lado + "mm 8mm;font:" + (papel === 58 ? 10 : 11) + "px/1.4 ui-monospace,Menlo,Consolas,'Courier New',monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+			".c{text-align:center}.name{font-weight:700;font-size:1.35em;margin:2px 0}.pre{white-space:pre-line}.logo{display:block;margin:0 auto 4px;max-width:60%;max-height:22mm;filter:grayscale(1) contrast(1.4)}" +
+			"hr{border:0;border-top:1px dashed #000;margin:6px 0}.r{display:flex;justify-content:space-between;gap:8px}.r span:last-child{white-space:nowrap}" +
+			".s{padding-left:8px;color:#000;opacity:.8}.s0{opacity:.85}.big{font-weight:700;font-size:1.15em}.code{margin:8px auto 2px;height:12mm}.code svg{width:100%;height:100%}" +
+			"</style></head><body>" + cuerpo + "</body></html>");
+		doc.close();
+		const imgs = Array.prototype.slice.call(doc.images);
+		Promise.all(imgs.map((i) => (i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; })))).then(() => {
+			setTimeout(() => {
+				try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast(__("The browser did not let the receipt print.", "dox-pos")); }
+				// El foco vuelve a la caja: si se queda en el marco, el lector y las teclas no llegan.
+				window.focus();
+				const b = !$("#modal").hidden && $("#modal-card").querySelector("#m-no");
+				if (b) b.focus(); else enfocar();
+				setTimeout(() => f.remove(), 60000);
+			}, 60);
+		});
+	}
+	const MEM_ULTIMO = "dox_pos_counter_last";
+	async function imprimirPedido(q, dev) {
+		try {
+			const d = await api("counter/order?q=" + encodeURIComponent(q));
+			if (!d.receipt) { toast(__("That order was not found.", "dox-pos")); return; }
+			imprimir(ticketHtml(d.receipt, dev), (d.receipt.store || {}).width);
+		} catch (e) {
+			if (e.message !== "sesion") toast(e.red ? __("No signal: the receipt could not be loaded.", "dox-pos") : e.message);
+		}
+	}
+	function pintarUltimo() { $("#m-ultimo-ticket").hidden = !leer(MEM_ULTIMO, 0); }
+
 	// ---------- cobrar ----------
 	// Los billetes con que suele pagar el cliente: lo justo, y lo que sale de redondear hacia arriba
 	// al siguiente billete de la moneda de la tienda.
@@ -427,6 +628,7 @@
 	}
 	async function totalParaCobrar() {
 		if (!m.lineas.length || m.ocupado) return null;
+		if (!(await asegurarCaja())) return null;
 		try {
 			return await cotizar();
 		} catch (e) {
@@ -438,7 +640,7 @@
 		const t = await totalParaCobrar();
 		if (!t) return;
 		const sug = sugerencias(t.total);
-		modal('<div class="total"><span>' + esc(__("Total to charge", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><div class="field recibe"><label for="mc-r">' + esc(__("Received", "dox-pos")) + '</label><input id="mc-r" inputmode="' + (D.M.decimals > 0 ? "decimal" : "numeric") + '" autocomplete="off" placeholder="' + esc(dinero(t.total)) + '"></div><div class="billetes"><button type="button" class="chip" data-v="' + t.total + '" data-exact="1" aria-pressed="true">' + esc(__("Exact", "dox-pos")) + "</button>" + sug.map((v) => '<button type="button" class="chip" data-v="' + v + '" aria-pressed="false">' + dinero(v) + "</button>").join("") + '</div><div class="cambio" id="mc-cambio"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mc-ok">' + esc(__("Charge", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		modal('<div class="total"><span>' + esc(__("Total to charge", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><div class="field recibe"><label for="mc-r">' + esc(__("Received", "dox-pos")) + '</label><input id="mc-r" inputmode="' + IM + '" autocomplete="off" placeholder="' + esc(dinero(t.total)) + '"></div><div class="billetes"><button type="button" class="chip" data-v="' + t.total + '" data-exact="1" aria-pressed="true">' + esc(__("Exact", "dox-pos")) + "</button>" + sug.map((v) => '<button type="button" class="chip" data-v="' + v + '" aria-pressed="false">' + dinero(v) + "</button>").join("") + '</div><div class="cambio" id="mc-cambio"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mc-ok">' + esc(__("Charge", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		const inp = $("#mc-r");
 		const recibido = () => (inp.value.trim() ? num(inp.value) : t.total); // Vacío es "justo".
 		const repintar = () => {
@@ -464,16 +666,50 @@
 		$("#mc-ok").onclick = () => { cerrarModal(true); registrar("tarjeta", null, t.total); };
 		$("#mc-ok").focus();
 	}
+	// Otra forma de pago, o varias: cuánto va en cada una. Lo de más solo puede ser efectivo (el cambio).
 	async function otro() {
-		const otras = (C.payments || []).filter((p) => p.key !== "efectivo" && p.key !== "tarjeta");
-		if (!otras.length) { toast(__("The shop has no other payment methods. Add them in Settings > Sales.", "dox-pos")); return; }
 		const t = await totalParaCobrar();
 		if (!t) return;
-		modal('<div class="total"><span>' + esc(__("How did they pay?", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><div class="lista">' + otras.map((p) => '<button type="button" class="go alt" data-k="' + esc(p.key) + '">' + esc(p.title) + "</button>").join("") + '</div><div class="mbtn"><button type="button" class="go alt" id="m-no" style="border-color:var(--line);color:var(--muted)">' + esc(__("Back", "dox-pos")) + "</button></div>", "cobro");
+		modal('<div class="total"><span>' + esc(__("Charge", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><p class="mp">' + esc(__("One payment method or several: write how much goes on each. “The rest” fills in what is missing.", "dox-pos")) + '</p><div class="partes">' + (C.payments || []).map((p) => '<div class="parte"><label for="mp-' + esc(p.key) + '">' + esc(p.title) + '</label><button type="button" class="mini" data-resto="' + esc(p.key) + '">' + esc(__("The rest", "dox-pos")) + '</button><input id="mp-' + esc(p.key) + '" data-k="' + esc(p.key) + '" inputmode="' + IM + '" autocomplete="off" placeholder="0"></div>').join("") + '</div><div class="cambio falta" id="mp-falta"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mp-ok" disabled>' + esc(__("Charge", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		const card = $("#modal-card");
+		const ins = Array.prototype.slice.call(card.querySelectorAll("input[data-k]"));
+		const partes = () => ins.map((i) => ({ key: i.dataset.k, amount: num(i.value) })).filter((p) => p.amount > 0);
+		const estadoPago = () => {
+			const ps = partes();
+			const suma = ps.reduce((a, p) => a + p.amount, 0), cash = ps.filter((p) => p.key === "efectivo").reduce((a, p) => a + p.amount, 0);
+			return { ps: ps, d: redondear(suma - t.total), cash: cash };
+		};
+		const repintar = () => {
+			const e = estadoPago(), box = $("#mp-falta");
+			const mal = !e.ps.length || e.d < 0 || e.d > e.cash + 1e-9;
+			box.className = "cambio" + (mal ? " falta" : "");
+			box.innerHTML = e.d < 0 || !e.ps.length ? "<span>" + esc(__("Missing", "dox-pos")) + "</span><b>" + dinero(Math.abs(e.ps.length ? e.d : t.total)) + "</b>"
+				: e.d > e.cash + 1e-9 ? "<span>" + esc(__("Too much (only cash gives change)", "dox-pos")) + "</span><b>" + dinero(e.d) + "</b>"
+				: "<span>" + esc(e.d > 0 ? __("Change", "dox-pos") : __("Complete", "dox-pos")) + "</span><b>" + dinero(e.d) + "</b>";
+			$("#mp-ok").disabled = mal;
+		};
+		card.querySelectorAll("[data-resto]").forEach((b) => {
+			b.onclick = () => {
+				const inp = ins.find((i) => i.dataset.k === b.dataset.resto);
+				const otros = ins.filter((i) => i !== inp).reduce((a, i) => a + num(i.value), 0);
+				inp.value = D.miles(Math.max(0, redondear(t.total - otros)));
+				repintar();
+				inp.focus();
+			};
+		});
+		ins.forEach((i) => {
+			i.addEventListener("input", repintar);
+			i.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (!$("#mp-ok").disabled) $("#mp-ok").click(); } });
+		});
 		$("#m-no").onclick = () => cerrarModal(false);
-		$("#modal-card").querySelectorAll("[data-k]").forEach((b) => { b.onclick = () => { cerrarModal(true); registrar(b.dataset.k, null, t.total); }; });
+		$("#mp-ok").onclick = () => {
+			const e = estadoPago();
+			cerrarModal(true);
+			registrar(e.ps[0].key, null, t.total, e.ps.length > 1 || e.ps[0].key === "efectivo" ? e.ps : null);
+		};
+		repintar();
 	}
-	async function registrar(pago, recibido, total) {
+	async function registrar(pago, recibido, total, partes) {
 		if (m.ocupado || !m.lineas.length) return;
 		m.ocupado = true;
 		pintarSum();
@@ -487,29 +723,107 @@
 			note: "",
 			customer: { name: $("#m-nom").value.trim(), phone: $("#m-tel").value.trim() },
 		};
-		if (pago === "efectivo") payload.tendered = recibido;
+		if (pago === "efectivo" && recibido != null) payload.tendered = recibido;
+		if (partes) payload.payments = partes;
 		try {
 			const d = await post("orders", payload);
 			limpiar();
-			const o = d.order || {};
-			if (pago === "efectivo") {
-				const cambio = o.change != null ? o.change : redondear(recibido - total);
-				modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + '</b></div><div class="cambio"><span>' + esc(__("Change", "dox-pos")) + "</span><b>" + dinero(cambio) + '</b></div><div class="mbtn"><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
-				$("#m-no").onclick = () => cerrarModal(true);
-				$("#m-no").focus();
-			} else {
-				toast(sprintf(__("Sale #%s recorded. The stock has already gone down.", "dox-pos"), o.number));
-			}
-			D.emit("pedido", o);
+			exito(d.order || {}, total);
+			D.emit("pedido", d.order);
 			D.refrescarStock();
 			D.cargarPedidos();
+			cargarTurno();
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.red ? __("No signal: the sale was not recorded. Try again when the connection is back.", "dox-pos") : e.message);
 			if (e.code === "dox_pos_falta_dinero") m.quote = null; // El total cambió: se vuelve a pedir.
+			if (e.code === "dox_pos_caja_cerrada") { m.shift = null; pintarTurno(); }
 		}
 		m.ocupado = false;
 		pintarSum();
 		enfocar();
+	}
+	// La venta quedó: el cambio en grande (si lo hay) y el ticket, solo o con un toque.
+	function exito(o, total) {
+		guardar(MEM_ULTIMO, o.id);
+		pintarUltimo();
+		const auto = !!leer(EQ_IMPRIMIR, false);
+		const cambio = o.change != null ? o.change : null;
+		modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + "</b></div>" + (cambio != null ? '<div class="cambio"><span>' + esc(__("Change", "dox-pos")) + "</span><b>" + dinero(cambio) + "</b></div>" : '<p class="mp">' + esc(__("The stock has already gone down.", "dox-pos")) + "</p>") + '<div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(auto ? __("Print again", "dox-pos") : __("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		$("#m-no").onclick = () => cerrarModal(true);
+		$("#mt-print").onclick = () => imprimirPedido("DOXPOS-" + o.id);
+		$("#m-no").focus();
+		if (auto) imprimirPedido("DOXPOS-" + o.id);
+	}
+
+	// ---------- devoluciones ----------
+	// Se escanea el ticket (o se escribe el número del pedido), se eligen las piezas y cómo se devuelve el dinero.
+	async function devolucion(codigo) {
+		if (m.lineas.length) { toast(__("Charge the current sale or put it on hold before a return.", "dox-pos")); return; }
+		if (!(await asegurarCaja())) return;
+		if (codigo) { buscarDevolucion(codigo); return; }
+		modal("<h3>" + esc(__("Return", "dox-pos")) + '</h3><p class="mp">' + esc(__("Scan the barcode on the receipt, or type the order number.", "dox-pos")) + '</p><input id="mv-q" autocomplete="off" placeholder="' + esc(__("Order number", "dox-pos")) + '"><div class="fila" style="margin-top:14px"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok">' + esc(__("Find the order", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		$("#m-no").onclick = () => cerrarModal(false);
+		const ir = () => { const q = $("#mv-q").value.trim(); if (q) buscarDevolucion(q); };
+		$("#mv-ok").onclick = ir;
+		$("#mv-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ir(); } });
+	}
+	async function buscarDevolucion(q) {
+		let r;
+		try {
+			r = (await api("counter/order?q=" + encodeURIComponent(q))).receipt;
+		} catch (e) {
+			if (e.message !== "sesion") toast(e.red ? __("No signal: the order could not be looked up.", "dox-pos") : e.message);
+			return;
+		}
+		if (!r) { pitar(false); toast(sprintf(__("No order has the number %s.", "dox-pos"), q)); return; }
+		pitar(true);
+		const lineas = r.lines.filter((l) => l.refundable > 0);
+		if (!lineas.length) {
+			modal("<h3>" + esc(sprintf(__("Order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(__("Everything on this order has already been returned.", "dox-pos")) + '</p><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "cobro");
+			$("#m-no").onclick = () => cerrarModal(false);
+			return;
+		}
+		const sel = {};
+		let metodo = "efectivo";
+		const original = (r.payments || []).map((p) => p.title).join(" + ");
+		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0"><button type="button" class="chip" data-m="efectivo" aria-pressed="true">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="false">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + '</button></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
+		const monto = () => redondear(lineas.reduce((a, l) => a + (sel[l.id] || 0) * l.gross, 0));
+		const repintar = () => {
+			lineas.forEach((l) => { $("#mv-n" + l.id).textContent = sel[l.id] || 0; $("#mv-v" + l.id).textContent = dinero((sel[l.id] || 0) * l.gross); });
+			const a = monto(), box = $("#mv-tot");
+			box.className = "cambio" + (a ? "" : " falta");
+			box.innerHTML = "<span>" + esc(metodo === "efectivo" ? __("Give back in cash", "dox-pos") : __("Give back by the same method", "dox-pos")) + "</span><b>" + dinero(a) + "</b>";
+			$("#mv-ok").disabled = !a;
+		};
+		$("#modal-card").querySelectorAll(".devol .qty button").forEach((b) => {
+			b.onclick = () => {
+				const l = lineas.find((x) => String(x.id) === b.dataset.id);
+				sel[l.id] = Math.max(0, Math.min(l.refundable, (sel[l.id] || 0) + +b.dataset.d));
+				repintar();
+			};
+		});
+		$("#mv-met").querySelectorAll(".chip").forEach((b) => { b.onclick = () => { metodo = b.dataset.m; $("#mv-met").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x === b)); repintar(); }; });
+		$("#m-no").onclick = () => cerrarModal(false);
+		$("#mv-ok").onclick = async () => {
+			const lines = lineas.filter((l) => sel[l.id]).map((l) => ({ id: l.id, qty: sel[l.id] }));
+			$("#mv-ok").disabled = true;
+			try {
+				const d = await post("counter/refund", { order: r.id, lines: lines, method: metodo });
+				if (d.shift) { m.shift = d.shift; pintarTurno(); }
+				const dev = { amount: d.amount, method: d.method, lines: lines.map((l) => ({ name: lineas.find((x) => x.id === l.id).name, qty: l.qty })) };
+				modal('<div class="total"><span>' + esc(__("Return done", "dox-pos")) + "</span><b>" + dinero(d.amount) + '</b></div><p class="mp">' + esc(d.method === "efectivo" ? __("Give the money back from the drawer. The pieces are back in stock.", "dox-pos") : __("Give the money back on the card machine or by the original payment method. The pieces are back in stock.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+				$("#m-no").onclick = () => cerrarModal(true);
+				$("#m-no").focus();
+				$("#mt-print").onclick = () => imprimir(ticketHtml(d.receipt, dev), (d.receipt.store || {}).width);
+				D.emit("pedido", { id: r.id });
+				D.refrescarStock();
+				D.cargarPedidos();
+			} catch (e) {
+				$("#mv-ok").disabled = false;
+				if (e.message !== "sesion") toast(e.message);
+			}
+		};
+		repintar();
 	}
 	function limpiar() {
 		m.lineas = [];
@@ -560,14 +874,21 @@
 		setTimeout(mirar, 300);
 	}
 
-	function atajos() {
+	// Lo de este equipo (se guarda en el navegador) y los atajos.
+	function esteEquipo() {
 		const fila = (k, t) => "<kbd>" + esc(k) + "</kbd><span>" + esc(t) + "</span>";
-		modal("<h3>" + esc(__("Keyboard shortcuts", "dox-pos")) + '</h3><div class="atajos">' +
-			fila("F2", __("Search a product by name", "dox-pos")) + fila("F4", __("Charge in cash", "dox-pos")) + fila("F6", __("Charge by card", "dox-pos")) +
-			fila("F7", __("Charge with another payment method", "dox-pos")) + fila("F8", __("Put the sale on hold, or pick one up", "dox-pos")) +
+		const tog = (id, on, t, s) => '<label class="tog"><input type="checkbox" id="' + id + '"' + (on ? " checked" : "") + "><span><b>" + esc(t) + "</b><small>" + esc(s) + "</small></span></label>";
+		modal("<h3>" + esc(__("This device", "dox-pos")) + "</h3>" +
+			tog("me-mostrador", leer(MEM_EQUIPO, false), __("This device is the counter", "dox-pos"), __("It always opens on the Counter.", "dox-pos")) +
+			tog("me-imprimir", leer(EQ_IMPRIMIR, false), __("Print the receipt when charging", "dox-pos"), __("Without asking, on this device’s printer.", "dox-pos")) +
+			'<div class="rtit">' + esc(__("Keyboard shortcuts", "dox-pos")) + '</div><div class="atajos">' +
+			fila("F2", __("Search a product by name", "dox-pos")) + fila("F3", __("Return", "dox-pos")) + fila("F4", __("Charge in cash", "dox-pos")) + fila("F6", __("Charge by card", "dox-pos")) +
+			fila("F7", __("Another payment method, or split", "dox-pos")) + fila("F8", __("Put the sale on hold, or pick one up", "dox-pos")) +
 			fila("F9", __("Discount", "dox-pos")) + fila("Esc", __("Clear the search, or empty the sale", "dox-pos")) +
-			'</div><p class="mp">' + esc(__("The scanner works without tapping anything: when it reads a barcode the product goes into the sale. On a laptop the F keys may need the Fn key.", "dox-pos")) + '</p><div class="mbtn"><button type="button" class="go" id="m-no">' + esc(__("Got it", "dox-pos")) + "</button></div>", "cobro");
+			'</div><p class="mp">' + esc(__("The scanner works without tapping anything: when it reads a barcode the product goes into the sale, and the barcode of a receipt opens its return. On a laptop the F keys may need the Fn key.", "dox-pos")) + '</p><div class="mbtn"><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>", "cobro");
 		$("#m-no").onclick = () => cerrarModal(true);
+		$("#me-mostrador").onchange = (e) => guardar(MEM_EQUIPO, e.target.checked ? true : null);
+		$("#me-imprimir").onchange = (e) => guardar(EQ_IMPRIMIR, e.target.checked ? true : null);
 	}
 
 	// ---------- teclado: el escáner y los atajos ----------
@@ -577,7 +898,7 @@
 		if (D.pestañaActual() !== "mostrador") return;
 		if (!$("#modal").hidden) return; // Las ventanas llevan sus propias teclas.
 		const k = e.key;
-		const acciones = { F2: () => { $("#m-q").focus(); $("#m-q").select(); }, F4: efectivo, F6: tarjeta, F7: otro, F8: verEspera, F9: descuento };
+		const acciones = { F2: () => { $("#m-q").focus(); $("#m-q").select(); }, F3: () => devolucion(), F4: efectivo, F6: tarjeta, F7: otro, F8: verEspera, F9: descuento };
 		if (acciones[k]) { e.preventDefault(); acciones[k](); return; }
 		if (k === "Escape") { e.preventDefault(); vaciar(); return; }
 		const a = document.activeElement;
@@ -595,7 +916,7 @@
 	}
 
 	// ---------- arranque ----------
-	D.pestaña({ id: "mostrador", abrir: () => { pintar(); setTimeout(enfocar, 0); } });
+	D.pestaña({ id: "mostrador", abrir: () => { pintar(); cargarTurno(); setTimeout(enfocar, 0); } });
 	D.on("arranque", () => {
 		const q = $("#m-q");
 		q.addEventListener("keydown", (e) => {
@@ -622,22 +943,23 @@
 		$("#m-espera").onclick = verEspera;
 		$("#m-desc").onclick = descuento;
 		$("#m-vaciar").onclick = vaciar;
-		$("#m-atajos").onclick = atajos;
+		$("#m-atajos").onclick = esteEquipo;
+		$("#m-devolver").onclick = () => devolucion();
+		$("#m-cerrar").onclick = cerrarCaja;
+		$("#m-ultimo-ticket").onclick = () => imprimirPedido("DOXPOS-" + leer(MEM_ULTIMO, 0));
+		// P en la ventana de la venta (o de la devolución) imprime el ticket.
+		document.addEventListener("keydown", (e) => { if ((e.key === "p" || e.key === "P") && !$("#modal").hidden && $("#mt-print") && !editable(document.activeElement)) { e.preventDefault(); $("#mt-print").click(); } });
 		if ($("#m-editar")) $("#m-editar").onclick = elegirRapidos;
 		if ("BarcodeDetector" in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 			$("#m-cam").hidden = false;
 			$("#m-cam").onclick = camara;
 		}
-		const eq = $("#m-equipo");
-		eq.checked = !!leer(MEM_EQUIPO, false);
-		eq.onchange = () => {
-			guardar(MEM_EQUIPO, eq.checked ? true : null);
-			toast(eq.checked ? __("This device will always open on the Counter.", "dox-pos") : __("This device will open as usual.", "dox-pos"));
-		};
 		// Al volver a la ventana o cerrar un aviso, el lector recupera el foco.
 		window.addEventListener("focus", enfocar);
 		estadoListo();
 		pintarRapidos();
+		pintarUltimo();
+		pintarTurno();
 		pintar();
 	});
 })();

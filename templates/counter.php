@@ -12,8 +12,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 		<section class="tab" id="t-mostrador" hidden>
 			<div class="turno">
-				<label class="m-equipo"><input type="checkbox" id="m-equipo"> <?php esc_html_e( 'This device is the counter: always open here', 'dox-pos' ); ?></label>
-				<button type="button" class="mini" id="m-atajos"><?php esc_html_e( 'Keyboard shortcuts', 'dox-pos' ); ?></button>
+				<span class="m-turno" id="m-turno"></span>
+				<span class="m-turno-acc">
+					<button type="button" class="mini" id="m-devolver"><?php esc_html_e( 'Return', 'dox-pos' ); ?> <kbd>F3</kbd></button>
+					<button type="button" class="mini" id="m-ultimo-ticket" hidden><?php esc_html_e( 'Last receipt', 'dox-pos' ); ?></button>
+					<button type="button" class="mini" id="m-cerrar" hidden><?php esc_html_e( 'Close the till', 'dox-pos' ); ?></button>
+					<button type="button" class="mini sec" id="m-atajos"><?php esc_html_e( 'This device', 'dox-pos' ); ?></button>
+				</span>
 			</div>
 			<div class="cols most">
 				<div class="col cat">
@@ -58,7 +63,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<div class="pagar">
 							<button type="button" class="go" id="m-efectivo"><?php esc_html_e( 'Cash', 'dox-pos' ); ?><kbd>F4</kbd></button>
 							<button type="button" class="go alt" id="m-tarjeta"><?php esc_html_e( 'Card', 'dox-pos' ); ?><kbd>F6</kbd></button>
-							<button type="button" class="go alt" id="m-otro"><?php esc_html_e( 'Other', 'dox-pos' ); ?><kbd>F7</kbd></button>
+							<button type="button" class="go alt" id="m-otro"><?php esc_html_e( 'Other / split', 'dox-pos' ); ?><kbd>F7</kbd></button>
 						</div>
 					</div>
 				</div>

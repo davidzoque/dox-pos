@@ -158,8 +158,13 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $discount > $subtotal ) {
 		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
 	}
-	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago.
+	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago,
+	// y dentro del turno de la caja abierta (el cierre cuenta su efectivo).
 	$counter = ! empty( $data['counter'] ) && ! $hold && dox_pos_counter_on();
+	$shift   = $counter ? dox_pos_counter_open_shift() : null;
+	if ( $counter && ! $shift ) {
+		return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till before charging.', 'dox-pos' ) );
+	}
 	// El canal: uno de los de los ajustes; si llega otra cosa, el primero.
 	$channels = wp_list_pluck( dox_pos_channels(), 'name' );
 	$channel  = sanitize_text_field( $data['channel'] ?? '' );
@@ -171,7 +176,7 @@ function dox_pos_create_order( $data, $hold ) {
 
 	$methods = $counter ? dox_pos_counter_payments() : dox_pos_payment_methods();
 	$pay_key = sanitize_key( $data['payment'] ?? 'transferencia' );
-	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ];
+	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ] ?? reset( $methods );
 	$cust    = (array) ( $data['customer'] ?? array() );
 	$name    = sanitize_text_field( $cust['name'] ?? '' );
 	$parts   = preg_split( '/\s+/', trim( $name ), 2 );
@@ -239,17 +244,33 @@ function dox_pos_create_order( $data, $hold ) {
 		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
 	}
 	$order->calculate_totals();
-	// En efectivo: con cuánto pagó y el cambio, para el ticket y el cierre de caja. Si lo recibido no
-	// alcanza (el total cambió entre que se cobró y se guardó), no se registra nada.
-	if ( $counter && 'efectivo' === $pay_key && isset( $data['tendered'] ) ) {
-		$tendered = (float) wc_format_decimal( $data['tendered'] );
-		$total    = (float) $order->get_total();
-		if ( $tendered + 0.00001 < $total ) {
+	// Cómo se cobró: una forma de pago o varias, y en efectivo con cuánto pagó y el cambio, para el
+	// ticket y el cierre de caja. Si no alcanza (el total cambió entre que se cobró y se guardó), no
+	// se registra nada.
+	if ( $counter ) {
+		$split = dox_pos_counter_split( (array) ( $data['payments'] ?? array() ), $pay_key, (float) $order->get_total(), isset( $data['tendered'] ) ? (float) wc_format_decimal( $data['tendered'] ) : null );
+		if ( is_wp_error( $split ) ) {
 			$order->delete( true );
-			return new WP_Error( 'dox_pos_falta_dinero', sprintf( /* translators: %s: order total */ __( 'The total is %s and the money received does not cover it.', 'dox-pos' ), html_entity_decode( wp_strip_all_tags( wc_price( $total ) ) ) ), array( 'total' => $total ) );
+			return $split;
 		}
-		$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $tendered, wc_get_price_decimals() ) );
-		$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $tendered - $total, wc_get_price_decimals() ) );
+		if ( count( $split['parts'] ) > 1 ) {
+			$pay_key = 'dividido';
+			$order->set_payment_method( 'dox_pos_split' );
+			$order->set_payment_method_title( implode( ' + ', wp_list_pluck( $split['parts'], 'title' ) ) );
+			$pay = array( 'paid' => true );
+		} else {
+			$pay_key = $split['parts'][0]['key'];
+			$pay     = dox_pos_counter_payments()[ $pay_key ];
+			$order->set_payment_method( $pay['id'] );
+			$order->set_payment_method_title( $pay['title'] );
+		}
+		$order->update_meta_data( '_dox_pos_pay_key', $pay_key );
+		$order->update_meta_data( '_dox_pos_payments', $split['parts'] );
+		$order->update_meta_data( '_dox_pos_shift', (int) $shift->id );
+		if ( null !== $split['tendered'] ) {
+			$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $split['tendered'], wc_get_price_decimals() ) );
+			$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $split['change'], wc_get_price_decimals() ) );
+		}
 	}
 	$order->save();
 

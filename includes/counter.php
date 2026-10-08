@@ -297,3 +297,525 @@ function dox_pos_rest_counter_quick( WP_REST_Request $request ) {
 	update_option( 'dox_pos_counter_quick', $ids, false );
 	return rest_ensure_response( array( 'items' => dox_pos_counter_quick() ) );
 }
+
+// ---------- el turno: abrir y cerrar caja ----------
+
+/**
+ * La tabla de los turnos. Se crea aparte de dox_pos_install() con su propia versión, para que
+ * aparezca también al subir el archivo sin cambiar la versión del plugin. Un turno es la caja
+ * abierta por alguien con una base de efectivo hasta que se cierra contando lo que hay. El
+ * gratuito usa una sola caja ("main"); la columna register queda para el Pro (varias cajas).
+ */
+const DOX_POS_SHIFTS_DB = '1';
+add_action( 'init', 'dox_pos_counter_maybe_install', 21 );
+function dox_pos_counter_maybe_install() {
+	if ( get_option( 'dox_pos_shifts_db' ) === DOX_POS_SHIFTS_DB ) {
+		return;
+	}
+	global $wpdb;
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+	$table   = $wpdb->prefix . 'dox_pos_shifts';
+	$charset = $wpdb->get_charset_collate();
+	dbDelta(
+		"CREATE TABLE {$table} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			register varchar(64) NOT NULL DEFAULT 'main',
+			status varchar(10) NOT NULL DEFAULT 'open',
+			opened_at datetime NOT NULL,
+			opened_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			opened_name varchar(190) NOT NULL DEFAULT '',
+			float_cash decimal(15,2) NOT NULL DEFAULT 0,
+			closed_at datetime DEFAULT NULL,
+			closed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			closed_name varchar(190) NOT NULL DEFAULT '',
+			expected decimal(15,2) DEFAULT NULL,
+			counted decimal(15,2) DEFAULT NULL,
+			summary longtext,
+			note text,
+			PRIMARY KEY  (id),
+			KEY register_status (register,status),
+			KEY opened_at (opened_at)
+		) {$charset};"
+	);
+	update_option( 'dox_pos_shifts_db', DOX_POS_SHIFTS_DB, false );
+}
+
+/**
+ * El turno abierto de la caja, o null.
+ *
+ * @param string $register La caja (el gratuito tiene una: "main").
+ * @return object|null
+ */
+function dox_pos_counter_open_shift( $register = 'main' ) {
+	global $wpdb;
+	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}dox_pos_shifts WHERE register = %s AND status = 'open' ORDER BY id DESC LIMIT 1", $register ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+}
+
+function dox_pos_counter_get_shift( $id ) {
+	global $wpdb;
+	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}dox_pos_shifts WHERE id = %d", $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+}
+
+/**
+ * Abre la caja con su base. Si ya hay un turno abierto, devuelve ese (dos toques seguidos no abren dos).
+ *
+ * @param float $float El efectivo con que empieza el cajón.
+ * @return object
+ */
+function dox_pos_counter_open( $float ) {
+	global $wpdb;
+	$open = dox_pos_counter_open_shift();
+	if ( $open ) {
+		return $open;
+	}
+	$user = wp_get_current_user();
+	$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->prefix . 'dox_pos_shifts',
+		array(
+			'register'    => 'main',
+			'status'      => 'open',
+			'opened_at'   => current_time( 'mysql', true ),
+			'opened_by'   => $user->ID,
+			'opened_name' => $user->display_name,
+			'float_cash'  => max( 0, (float) $float ),
+		)
+	);
+	$id = (int) $wpdb->insert_id; // Antes de update_option, que hace su propia consulta y lo cambia.
+	update_option( 'dox_pos_last_float', max( 0, (float) $float ), false ); // La próxima vez se propone la misma base.
+	return dox_pos_counter_get_shift( $id );
+}
+
+/**
+ * Lo que pasó en un turno: ventas, lo cobrado por cada forma de pago, lo devuelto y el efectivo que
+ * tendría que haber en el cajón (la base, más lo cobrado en efectivo, menos lo devuelto en efectivo).
+ *
+ * @param object $shift El turno.
+ * @return array
+ */
+function dox_pos_counter_summary( $shift ) {
+	$by     = array();
+	$count  = 0;
+	$total  = 0.0;
+	$titles = wp_list_pluck( dox_pos_counter_payments(), 'title' );
+	$orders = wc_get_orders( array( 'type' => 'shop_order', 'limit' => -1, 'status' => array_keys( wc_get_order_statuses() ), 'meta_key' => '_dox_pos_shift', 'meta_value' => (int) $shift->id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+	foreach ( $orders as $o ) {
+		if ( in_array( $o->get_status(), array( 'cancelled', 'failed', 'pending' ), true ) ) {
+			continue; // Anulada después: no entró dinero.
+		}
+		++$count;
+		$total += (float) $o->get_total();
+		foreach ( dox_pos_counter_order_payments( $o ) as $p ) {
+			if ( ! isset( $by[ $p['key'] ] ) ) {
+				$by[ $p['key'] ] = array( 'key' => $p['key'], 'title' => $titles[ $p['key'] ] ?? $p['title'], 'amount' => 0.0 );
+			}
+			$by[ $p['key'] ]['amount'] += (float) $p['amount'];
+		}
+	}
+	$refund_cash  = 0.0;
+	$refund_other = 0.0;
+	$refunds      = wc_get_orders( array( 'type' => 'shop_order_refund', 'limit' => -1, 'meta_key' => '_dox_pos_shift', 'meta_value' => (int) $shift->id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+	foreach ( $refunds as $r ) {
+		if ( 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ) {
+			$refund_cash += abs( (float) $r->get_amount() );
+		} else {
+			$refund_other += abs( (float) $r->get_amount() );
+		}
+	}
+	$cash = isset( $by['efectivo'] ) ? $by['efectivo']['amount'] : 0.0;
+	$dec  = wc_get_price_decimals();
+	return array(
+		'orders'       => $count,
+		'total'        => round( $total, $dec ),
+		'payments'     => array_values( array_map( function ( $p ) use ( $dec ) { $p['amount'] = round( $p['amount'], $dec ); return $p; }, $by ) ),
+		'float'        => round( (float) $shift->float_cash, $dec ),
+		'cash_sales'   => round( $cash, $dec ),
+		'refund_cash'  => round( $refund_cash, $dec ),
+		'refund_other' => round( $refund_other, $dec ),
+		'expected'     => round( (float) $shift->float_cash + $cash - $refund_cash, $dec ),
+	);
+}
+
+/**
+ * Cierra la caja: lo contado contra lo esperado. Guarda el resumen tal como quedó.
+ *
+ * @param float  $counted El efectivo contado en el cajón.
+ * @param string $note    Una nota (por qué falta o sobra).
+ * @return array|WP_Error El turno cerrado con su resumen.
+ */
+function dox_pos_counter_close( $counted, $note = '' ) {
+	global $wpdb;
+	$shift = dox_pos_counter_open_shift();
+	if ( ! $shift ) {
+		return new WP_Error( 'dox_pos_caja_cerrada', __( 'The till is not open.', 'dox-pos' ) );
+	}
+	$sum  = dox_pos_counter_summary( $shift );
+	$user = wp_get_current_user();
+	$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->prefix . 'dox_pos_shifts',
+		array(
+			'status'      => 'closed',
+			'closed_at'   => current_time( 'mysql', true ),
+			'closed_by'   => $user->ID,
+			'closed_name' => $user->display_name,
+			'expected'    => $sum['expected'],
+			'counted'     => max( 0, (float) $counted ),
+			'summary'     => wp_json_encode( $sum ),
+			'note'        => sanitize_textarea_field( $note ),
+		),
+		array( 'id' => (int) $shift->id )
+	);
+	return dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) );
+}
+
+/**
+ * Un turno para la caja: fechas en la hora de la tienda y, si está abierto, su resumen al momento.
+ */
+function dox_pos_counter_format_shift( $shift ) {
+	if ( ! $shift ) {
+		return null;
+	}
+	$open = 'open' === $shift->status;
+	$sum  = $open ? dox_pos_counter_summary( $shift ) : json_decode( (string) $shift->summary, true );
+	$fmt  = function ( $gmt ) {
+		return $gmt ? wp_date( get_option( 'time_format' ), strtotime( $gmt . ' UTC' ) ) : '';
+	};
+	$day  = function ( $gmt ) {
+		return $gmt ? wp_date( get_option( 'date_format' ), strtotime( $gmt . ' UTC' ) ) : '';
+	};
+	return array(
+		'id'          => (int) $shift->id,
+		'open'        => $open,
+		'opened_at'   => $fmt( $shift->opened_at ),
+		'opened_day'  => $day( $shift->opened_at ),
+		'opened_name' => $shift->opened_name,
+		'closed_at'   => $fmt( $shift->closed_at ),
+		'closed_day'  => $day( $shift->closed_at ),
+		'closed_name' => $shift->closed_name,
+		'counted'     => null === $shift->counted ? null : (float) $shift->counted,
+		'difference'  => null === $shift->counted ? null : round( (float) $shift->counted - (float) $shift->expected, wc_get_price_decimals() ),
+		'note'        => (string) $shift->note,
+		'summary'     => is_array( $sum ) ? $sum : array(),
+	);
+}
+
+// ---------- cobrar con varias formas de pago ----------
+
+/**
+ * Cómo se pagó una venta del Mostrador: [{key, title, amount}], lo que cada forma de pago aportó al
+ * total (en efectivo, sin el cambio). Las ventas de antes de guardarlo, con su única forma de pago.
+ */
+function dox_pos_counter_order_payments( $order ) {
+	$parts = $order->get_meta( '_dox_pos_payments' );
+	if ( is_array( $parts ) && $parts ) {
+		return $parts;
+	}
+	$key = (string) $order->get_meta( '_dox_pos_pay_key' );
+	return array( array( 'key' => $key ? $key : 'otro', 'title' => $order->get_payment_method_title(), 'amount' => (float) $order->get_total() ) );
+}
+
+/**
+ * Reparte el cobro entre las formas de pago y lo valida contra el total del pedido. Lo de más solo
+ * puede venir del efectivo, y es el cambio.
+ *
+ * @param array  $parts   [{key, amount}] como llegó, o vacío para una sola forma de pago.
+ * @param string $pay_key La forma de pago elegida (cuando es una sola).
+ * @param float  $total   El total del pedido.
+ * @param float  $tendered En efectivo: con cuánto pagó.
+ * @return array|WP_Error { parts: [{key,title,amount}], change, tendered }
+ */
+function dox_pos_counter_split( $parts, $pay_key, $total, $tendered ) {
+	$methods = dox_pos_counter_payments();
+	$dec     = wc_get_price_decimals();
+	$out     = array();
+	if ( ! $parts ) {
+		$parts = array( array( 'key' => $pay_key, 'amount' => 'efectivo' === $pay_key && null !== $tendered ? $tendered : $total ) );
+	}
+	$sum  = 0.0;
+	$cash = 0.0;
+	foreach ( (array) $parts as $p ) {
+		$key = sanitize_key( is_array( $p ) ? ( $p['key'] ?? '' ) : '' );
+		$amt = round( (float) wc_format_decimal( is_array( $p ) ? ( $p['amount'] ?? 0 ) : 0 ), $dec );
+		if ( ! isset( $methods[ $key ] ) || $amt <= 0 ) {
+			continue;
+		}
+		$sum += $amt;
+		if ( 'efectivo' === $key ) {
+			$cash += $amt;
+		}
+		$out[] = array( 'key' => $key, 'title' => $methods[ $key ]['title'], 'amount' => $amt );
+	}
+	$over = round( $sum - $total, $dec );
+	if ( ! $out || $over < 0 ) {
+		return new WP_Error( 'dox_pos_falta_dinero', sprintf( /* translators: %s: order total */ __( 'The total is %s and the money received does not cover it.', 'dox-pos' ), html_entity_decode( wp_strip_all_tags( wc_price( $total ) ) ) ), array( 'total' => $total ) );
+	}
+	if ( $over > $cash ) {
+		return new WP_Error( 'dox_pos_de_mas', __( 'Only cash can be more than the total (that is the change). Check the amounts.', 'dox-pos' ) );
+	}
+	// El cambio sale del efectivo: lo que el efectivo aportó al total es lo entregado menos el cambio.
+	if ( $over > 0 ) {
+		foreach ( $out as &$p ) {
+			if ( 'efectivo' === $p['key'] ) {
+				$p['amount'] = round( $p['amount'] - $over, $dec );
+				break;
+			}
+		}
+		unset( $p );
+	}
+	return array( 'parts' => $out, 'change' => $over, 'tendered' => $cash > 0 ? $cash : null );
+}
+
+// ---------- el ticket ----------
+
+/**
+ * Lo que lleva el ticket de una venta (o el comprobante de una devolución): la tienda, las líneas,
+ * los totales, cómo se pagó y el cambio. La caja lo pinta y lo manda a imprimir.
+ *
+ * @param WC_Order $order El pedido.
+ * @return array
+ */
+function dox_pos_counter_receipt( $order ) {
+	$lines = array();
+	foreach ( $order->get_items() as $item_id => $item ) {
+		$qty     = (int) $item->get_quantity();
+		$p       = $item->get_product();
+		$lines[] = array(
+			'id'         => (int) $item_id,
+			'name'       => $item->get_name(),
+			'sku'        => $p ? $p->get_sku( 'edit' ) : '',
+			'qty'        => $qty,
+			'unit'       => $qty ? (float) $item->get_subtotal() / $qty : 0,
+			'total'      => (float) $item->get_subtotal(),
+			'refundable' => max( 0, $qty - abs( (int) $order->get_qty_refunded_for_item( $item_id ) ) ),
+			'gross'      => $qty ? dox_pos_counter_unit_refund( $order, $item ) : 0, // Lo que se devuelve por unidad, con su parte del descuento y del impuesto.
+		);
+	}
+	$discount = 0.0;
+	foreach ( $order->get_fees() as $fee ) {
+		if ( (float) $fee->get_total() < 0 ) {
+			$discount += abs( (float) $fee->get_total() );
+		}
+	}
+	$taxes = array();
+	foreach ( $order->get_tax_totals() as $t ) {
+		$taxes[] = array( 'label' => $t->label, 'amount' => (float) $t->amount );
+	}
+	$s = dox_pos_counter_receipt_settings();
+	return array(
+		'id'       => $order->get_id(),
+		'number'   => $order->get_order_number(),
+		'date'     => $order->get_date_created() ? $order->get_date_created()->date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) : '',
+		'seller'   => (string) $order->get_meta( '_dox_pos_seller_name' ),
+		'customer' => trim( $order->get_formatted_billing_full_name() ),
+		'lines'    => $lines,
+		'subtotal' => (float) $order->get_subtotal(),
+		'discount' => $discount,
+		'taxes'    => $taxes,
+		'included' => wc_prices_include_tax(),
+		'total'    => (float) $order->get_total(),
+		'refunded' => (float) $order->get_total_refunded(),
+		'payments' => array_map( function ( $p ) { return array( 'title' => $p['title'], 'amount' => (float) $p['amount'] ); }, dox_pos_counter_order_payments( $order ) ),
+		'tendered' => '' !== (string) $order->get_meta( '_dox_pos_tendered' ) ? (float) $order->get_meta( '_dox_pos_tendered' ) : null,
+		'change'   => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,
+		'pay_key'  => (string) $order->get_meta( '_dox_pos_pay_key' ),
+		'code'     => 'DOXPOS-' . $order->get_id(), // El código de barras del ticket: escanearlo abre la devolución.
+		'store'    => $s,
+	);
+}
+
+/**
+ * Lo que vale una unidad devuelta: lo que pagó por ella, con su parte del descuento (un cargo
+ * negativo del pedido, repartido según lo que pesa cada línea) y del impuesto.
+ */
+function dox_pos_counter_unit_refund( $order, $item ) {
+	$items = 0.0;
+	foreach ( $order->get_items() as $it ) {
+		$items += (float) $it->get_total() + (float) $it->get_total_tax();
+	}
+	$fees = 0.0;
+	foreach ( $order->get_fees() as $fee ) {
+		if ( (float) $fee->get_total() < 0 ) {
+			$fees += (float) $fee->get_total() + (float) $fee->get_total_tax();
+		}
+	}
+	$factor = $items > 0 ? ( $items + $fees ) / $items : 1;
+	$qty    = max( 1, (int) $item->get_quantity() );
+	return ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor / $qty;
+}
+
+/**
+ * El encabezado y el pie del ticket. De fábrica, el nombre y la dirección de la tienda en WooCommerce.
+ */
+function dox_pos_counter_receipt_settings() {
+	$s       = dox_pos_sales();
+	$c       = WC()->countries;
+	$address = implode( ', ', array_filter( array( $c->get_base_address(), $c->get_base_city() ) ) );
+	$default = implode( "\n", array_filter( array( $address ) ) );
+	return array(
+		'name'   => dox_pos_brand_name(),
+		'logo'   => ! isset( $s['receipt_logo'] ) || ! empty( $s['receipt_logo'] ) ? dox_pos_logo_url() : '',
+		'header' => isset( $s['receipt_header'] ) ? (string) $s['receipt_header'] : $default,
+		'footer' => isset( $s['receipt_footer'] ) ? (string) $s['receipt_footer'] : __( 'Thank you for your purchase!', 'dox-pos' ),
+		'width'  => isset( $s['receipt_width'] ) && 58 === (int) $s['receipt_width'] ? 58 : 80,
+	);
+}
+
+/**
+ * Busca un pedido por lo que se escaneó o escribió: el código del ticket (DOXPOS-123), el número
+ * del pedido (2481, #2481) o su ID.
+ */
+function dox_pos_counter_find_order( $q ) {
+	$q = trim( (string) $q );
+	if ( preg_match( '/^DOXPOS-(\d+)$/i', $q, $m ) ) {
+		return wc_get_order( (int) $m[1] );
+	}
+	$n = ltrim( $q, '#' );
+	if ( ! ctype_digit( $n ) ) {
+		return null;
+	}
+	$o = wc_get_order( (int) $n );
+	if ( $o instanceof WC_Order && (string) $o->get_order_number() === $n ) {
+		return $o;
+	}
+	// Con un plugin de números de pedido, el número no es el ID.
+	$found = wc_get_orders( array( 'type' => 'shop_order', 'limit' => 1, 'meta_key' => '_order_number', 'meta_value' => $n ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+	return $found ? $found[0] : ( $o instanceof WC_Order ? $o : null );
+}
+
+// ---------- devoluciones ----------
+
+/**
+ * Devuelve piezas de un pedido: vuelven al inventario y sale el dinero, en efectivo del cajón o por
+ * el medio con que pagó (la tarjeta se devuelve en el datáfono; aquí solo se apunta). Es un
+ * reembolso de WooCommerce, así que los informes lo descuentan solos.
+ *
+ * @param int    $order_id El pedido.
+ * @param array  $lines    [{id (de la línea), qty}].
+ * @param string $method   "efectivo" u "original".
+ * @param string $reason   Por qué.
+ * @return array|WP_Error
+ */
+function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
+	$order = wc_get_order( (int) $order_id );
+	if ( ! $order instanceof WC_Order ) {
+		return new WP_Error( 'dox_pos_no_pedido', __( 'That order does not exist.', 'dox-pos' ) );
+	}
+	if ( in_array( $order->get_status(), array( 'cancelled', 'pending', 'failed', 'on-hold' ), true ) ) {
+		return new WP_Error( 'dox_pos_no_devolver', __( 'This order was not paid: there is nothing to return.', 'dox-pos' ) );
+	}
+	$shift = dox_pos_counter_open_shift();
+	if ( 'efectivo' === $method && ! $shift ) {
+		return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till to give cash back.', 'dox-pos' ) );
+	}
+	$dec    = wc_get_price_decimals();
+	$items  = array();
+	$amount = 0.0;
+	foreach ( (array) $lines as $l ) {
+		$item_id = (int) ( is_array( $l ) ? ( $l['id'] ?? 0 ) : 0 );
+		$qty     = (int) ( is_array( $l ) ? ( $l['qty'] ?? 0 ) : 0 );
+		$item    = $order->get_item( $item_id );
+		if ( ! $item instanceof WC_Order_Item_Product || $qty < 1 ) {
+			continue;
+		}
+		$left = (int) $item->get_quantity() - abs( (int) $order->get_qty_refunded_for_item( $item_id ) );
+		if ( $qty > $left ) {
+			return new WP_Error( 'dox_pos_de_mas', sprintf( /* translators: 1: units, 2: product */ __( 'Only %1$d of %2$s can still be returned.', 'dox-pos' ), $left, $item->get_name() ) );
+		}
+		// Su parte del total y de cada impuesto, rebajada con el descuento del pedido.
+		$unit   = dox_pos_counter_unit_refund( $order, $item );
+		$gross  = (float) $item->get_total() + (float) $item->get_total_tax();
+		$factor = $gross > 0 ? $unit * (int) $item->get_quantity() / $gross : 0;
+		$share  = $qty / max( 1, (int) $item->get_quantity() );
+		$taxes  = array();
+		$tsum   = 0.0;
+		foreach ( (array) ( $item->get_taxes()['total'] ?? array() ) as $rate => $t ) {
+			$taxes[ $rate ] = round( (float) $t * $share * $factor, $dec );
+			$tsum          += $taxes[ $rate ];
+		}
+		$net               = round( (float) $item->get_total() * $share * $factor, $dec );
+		$items[ $item_id ] = array( 'qty' => $qty, 'refund_total' => $net, 'refund_tax' => $taxes );
+		$amount           += $net + $tsum;
+	}
+	if ( ! $items ) {
+		return new WP_Error( 'dox_pos_sin_lineas', __( 'Choose what is being returned.', 'dox-pos' ) );
+	}
+	$amount = min( round( $amount, $dec ), (float) $order->get_remaining_refund_amount() );
+	$user   = wp_get_current_user();
+	$refund = wc_create_refund(
+		array(
+			'order_id'       => $order->get_id(),
+			'amount'         => $amount,
+			'reason'         => $reason ? sanitize_text_field( $reason ) : __( 'Returned at the counter', 'dox-pos' ),
+			'line_items'     => $items,
+			'restock_items'  => true,   // Las piezas vuelven al inventario.
+			'refund_payment' => false,  // El dinero lo da la tienda: del cajón o en el datáfono.
+		)
+	);
+	if ( is_wp_error( $refund ) ) {
+		return $refund;
+	}
+	$refund->update_meta_data( '_dox_pos_refund_method', 'efectivo' === $method ? 'efectivo' : 'original' );
+	$refund->update_meta_data( '_dox_pos_seller_name', $user->display_name );
+	if ( $shift ) {
+		$refund->update_meta_data( '_dox_pos_shift', (int) $shift->id );
+	}
+	$refund->save();
+	$order->add_order_note( sprintf( /* translators: 1: amount, 2: user, 3: how */ __( 'Returned at the counter: %1$s by %2$s (%3$s).', 'dox-pos' ), html_entity_decode( wp_strip_all_tags( wc_price( $amount ) ) ), $user->display_name, 'efectivo' === $method ? __( 'cash from the drawer', 'dox-pos' ) : __( 'same payment method', 'dox-pos' ) ) );
+	return array(
+		'amount'  => $amount,
+		'method'  => 'efectivo' === $method ? 'efectivo' : 'original',
+		'receipt' => dox_pos_counter_receipt( wc_get_order( $order->get_id() ) ),
+		'shift'   => $shift ? dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) ) : null,
+	);
+}
+
+// ---------- más rutas ----------
+
+add_action( 'rest_api_init', 'dox_pos_counter_routes_2' );
+function dox_pos_counter_routes_2() {
+	$ns   = 'dox-pos/v1';
+	$perm = 'dox_pos_rest_permission';
+	register_rest_route( $ns, '/counter/shift', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_counter_shift', 'permission_callback' => $perm ) );
+	register_rest_route( $ns, '/counter/shift/open', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_shift_open', 'permission_callback' => $perm ) );
+	register_rest_route( $ns, '/counter/shift/close', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_shift_close', 'permission_callback' => $perm ) );
+	register_rest_route(
+		$ns,
+		'/counter/order',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'dox_pos_rest_counter_order',
+			'permission_callback' => $perm,
+			'args'                => array( 'q' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ) ),
+		)
+	);
+	register_rest_route( $ns, '/counter/refund', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_counter_refund', 'permission_callback' => $perm ) );
+}
+
+function dox_pos_rest_counter_shift() {
+	return rest_ensure_response(
+		array(
+			'shift'      => dox_pos_counter_format_shift( dox_pos_counter_open_shift() ),
+			'last_float' => (float) get_option( 'dox_pos_last_float', 0 ),
+		)
+	);
+}
+
+function dox_pos_rest_counter_shift_open( WP_REST_Request $request ) {
+	$b = (array) $request->get_json_params();
+	return rest_ensure_response( array( 'shift' => dox_pos_counter_format_shift( dox_pos_counter_open( (float) wc_format_decimal( $b['float'] ?? 0 ) ) ) ) );
+}
+
+function dox_pos_rest_counter_shift_close( WP_REST_Request $request ) {
+	$b = (array) $request->get_json_params();
+	$r = dox_pos_counter_close( (float) wc_format_decimal( $b['counted'] ?? 0 ), (string) ( $b['note'] ?? '' ) );
+	return dox_pos_rest_out( is_wp_error( $r ) ? $r : array( 'shift' => $r, 'store' => dox_pos_counter_receipt_settings() ) );
+}
+
+function dox_pos_rest_counter_order( WP_REST_Request $request ) {
+	$o = dox_pos_counter_find_order( $request->get_param( 'q' ) );
+	return rest_ensure_response( array( 'receipt' => $o instanceof WC_Order ? dox_pos_counter_receipt( $o ) : null ) );
+}
+
+function dox_pos_rest_counter_refund( WP_REST_Request $request ) {
+	$b = (array) $request->get_json_params();
+	return dox_pos_rest_out( dox_pos_counter_refund( (int) ( $b['order'] ?? 0 ), (array) ( $b['lines'] ?? array() ), sanitize_key( $b['method'] ?? 'efectivo' ), (string) ( $b['reason'] ?? '' ) ) );
+}

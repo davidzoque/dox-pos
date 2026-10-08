@@ -1259,6 +1259,11 @@ function dox_pos_sanitize_sales( $in ) {
 	$out['web_orders']      = ! empty( $in['web_orders'] );
 	$out['open_panel']      = ! empty( $in['open_panel'] );
 	$out['counter']         = ! empty( $in['counter'] );
+	// El ticket del Mostrador: ancho del papel, encabezado y pie, y si lleva el logo.
+	$out['receipt_width']  = isset( $in['receipt_width'] ) && 58 === (int) $in['receipt_width'] ? 58 : 80;
+	$out['receipt_header'] = sanitize_textarea_field( $in['receipt_header'] ?? '' );
+	$out['receipt_footer'] = sanitize_textarea_field( $in['receipt_footer'] ?? '' );
+	$out['receipt_logo']   = ! empty( $in['receipt_logo'] );
 	$out['messaging']       = in_array( $in['messaging'] ?? '', array( 'whatsapp', 'sms' ), true ) ? $in['messaging'] : '';
 
 	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
@@ -1916,6 +1921,26 @@ function dox_pos_settings_page() {
 							<p><?php esc_html_e( 'A Counter tab for selling at the till: scan barcodes with a USB or Bluetooth scanner or with the camera, take cash and see the change, card or any other payment, and put a sale on hold to serve the next customer. Each sale is a WooCommerce order, like the ones from Sell. The computer at the till can be set to always open on the Counter.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[counter]" value="1" <?php checked( dox_pos_counter_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'I have a physical store: show the Counter tab', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Off, the register stays as it is.', 'dox-pos' ); ?></span></span></label>
+						<?php $dox_pos_rc = dox_pos_counter_receipt_settings(); ?>
+						<div class="dp-field dp-mt">
+							<label class="dp-label" for="dp-receipt-width"><?php esc_html_e( 'Receipt paper', 'dox-pos' ); ?></label>
+							<select id="dp-receipt-width" name="dox_pos_sales[receipt_width]" class="dp-input">
+								<option value="80" <?php selected( 80, $dox_pos_rc['width'] ); ?>><?php esc_html_e( '80 mm (the usual one)', 'dox-pos' ); ?></option>
+								<option value="58" <?php selected( 58, $dox_pos_rc['width'] ); ?>><?php esc_html_e( '58 mm (small printers)', 'dox-pos' ); ?></option>
+							</select>
+							<p class="dp-hint"><?php esc_html_e( 'The receipt prints from the browser on any printer. Choose the width of the roll.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-field">
+							<label class="dp-label" for="dp-receipt-header"><?php esc_html_e( 'Top of the receipt', 'dox-pos' ); ?></label>
+							<textarea id="dp-receipt-header" name="dox_pos_sales[receipt_header]" class="dp-input" rows="3"><?php echo esc_textarea( $dox_pos_rc['header'] ); ?></textarea>
+							<p class="dp-hint"><?php esc_html_e( 'Under the shop name: address, phone, website, tax ID.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-field">
+							<label class="dp-label" for="dp-receipt-footer"><?php esc_html_e( 'Bottom of the receipt', 'dox-pos' ); ?></label>
+							<textarea id="dp-receipt-footer" name="dox_pos_sales[receipt_footer]" class="dp-input" rows="2"><?php echo esc_textarea( $dox_pos_rc['footer'] ); ?></textarea>
+							<p class="dp-hint"><?php esc_html_e( 'Your returns policy, a thank you, your social media.', 'dox-pos' ); ?></p>
+						</div>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[receipt_logo]" value="1" <?php checked( '' !== $dox_pos_rc['logo'] || ! dox_pos_logo_url() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Logo on the receipt', 'dox-pos' ); ?></b><span><?php esc_html_e( 'The register logo, in black and white.', 'dox-pos' ); ?></span></span></label>
 					</div>
 				</section>
 
