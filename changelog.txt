@@ -2,6 +2,14 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.48.0 =
+* New: the Counter, for a physical store. Turn it on in WooCommerce > Dox POS > Sales and the register gets a Counter tab: scan barcodes with a USB or Bluetooth scanner or with the camera (ZXing on Safari), quick buttons for products without a barcode, keyboard shortcuts (F2 to F9), sales on hold and a discount.
+* New: charge cash with suggested bills and the change in large type, by card, or split between several payment methods. Each sale is a WooCommerce order handed over at the counter, with the tax worked out from the store address.
+* New: open the till with its float and close it counting the drawer. The closing shows the sales by payment method and whether the cash matches, is short or is over.
+* New: receipts for 58 or 80 mm paper printed from the browser on any printer, with a basic editor in Settings > Sales (top, bottom, logo, what it shows) and a barcode that opens the return of that sale.
+* New: returns at the Counter: scan the receipt, choose the pieces and give the money back in cash or by the same method. The pieces go back into stock.
+* New: a Counter cashier role that only reaches the Counter, a maximum discount for whoever does not manage the shop (Settings > Sales > Discounts, 0% turns discounts off) and a blind till closing for them.
+
 = 0.47.1 =
 * Improved: with Colciudades on a store in Colombia, a city typed by hand in the register ("medellin", "MEDELLIN", "bogota") is saved with its name from the list ("Medellín", "Bogotá"), ignoring accents, capital letters and extra spaces. The register fixes it when you leave the field, and the server does it again when the order is saved. A place that is not on the list (a rural district, for instance) is saved as typed.
 

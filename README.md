@@ -268,3 +268,15 @@ Si la pantalla ya está abierta y se cae la conexión, registrar una venta, un a
 Administradores y gerentes de tienda entran con su clave de siempre. Para una persona que solo vende se le crea un usuario con el rol **Caja**: entra a `/caja` y a nada más.
 
 Lo que el rol Caja no hace (queda para quien tiene `manage_woocommerce`): confirmar el pago de un pedido de la web, anular un pedido ya enviado o entregado, y anular una entrada de otro día o de otra persona (`dox_pos_order_action`, `dox_pos_cancel_entry`). Cada venta llega con uno de los canales de los ajustes (otro se cambia por el primero) y con un descuento que no pasa de lo que valen los productos.
+
+## El Mostrador (0.48.0)
+
+La caja de una tienda física, en `includes/counter.php`, `templates/counter.php` y `assets/js/mostrador.js`. Se enciende en Ajustes > Ventas (`dox_pos_sales[counter]`) y sale como pestaña de la caja.
+
+- **Escáner:** el lector escribe como un teclado y termina en Enter; `counter/scan` busca por SKU o GTIN. La cámara usa `BarcodeDetector` o, en Safari, ZXing (`assets/vendor/zxing`, Apache 2.0), que se pide solo al tocar Cámara.
+- **Ventas:** `dox_pos_create_order` con `counter: true` (canal "en mano", pedido `completed`, impuesto por la dirección de la tienda). Formas de pago y pago dividido en `_dox_pos_payments`; efectivo recibido y cambio en `_dox_pos_tendered` y `_dox_pos_change`.
+- **Turnos:** tabla `dox_pos_shifts` (versión propia `dox_pos_shifts_db`). Sin caja abierta no se vende. El cierre guarda el resumen; quien no tiene `manage_woocommerce` cierra a ciegas (el resumen del turno abierto le llega sin el efectivo esperado).
+- **Devoluciones:** `wc_create_refund` con restock, bloqueadas por pedido (`GET_LOCK`). Quien no administra solo ve y devuelve ventas del Mostrador, y en efectivo como mucho lo pagado en efectivo.
+- **Ticket:** `assets/js/ticket.js`, el mismo para imprimir (iframe oculto) y para la vista previa de Ajustes (`ticket-ajustes.js`). Code 128 en SVG con `DOXPOS-<id>`.
+- **Roles:** `caja_mostrador` solo llega al Mostrador (`dox_pos_counter_only_allows`, falla cerrado). Tope de descuento `dox_pos_sales[discount_max]` para quien no administra.
+- **Ganchos para el Pro:** `dox_pos_counter_register`, `dox_pos_counter_actor`, `dox_pos_counter_summary`, `dox_pos_counter_register_name`, `dox_pos_counter_charge` (antes de completar la venta), `dox_pos_counter_refund_payment` (antes de la devolución), `dox_pos_counter_receipt_settings`, `dox_pos_receipt_editor_fields`, y en el JS `DoxPOS.mostrador` (`guardia`, `tarjeta`, `impresora`) y los eventos `mostrador:*`.
