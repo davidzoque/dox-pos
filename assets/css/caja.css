@@ -1003,9 +1003,17 @@ table.ped .lnk.items{white-space:normal}
 .pagar{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
 .pagar .go,.pagar .go.alt{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:8px 6px;min-height:60px;font-size:15px}
 #t-mostrador .pagar .go kbd{color:inherit;opacity:.6}
+/* En el teléfono, una sola columna que se desplaza entera; el total y el cobro quedan fijos abajo. */
 @container (max-width:760px){
-  .cols.most{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
-  .cols.most .col.ord{border-top:1px solid var(--line);max-height:62cqh}
+  .cols.most{display:flex;flex-direction:column;overflow-y:auto}
+  .cols.most .col{min-height:auto;flex:none}
+  .cols.most .scroll{overflow:visible;flex:none}
+  .cols.most .col.ord{border-left:0;border-top:1px solid var(--line)}
+  .cols.most .foot{position:sticky;bottom:0;z-index:2;box-shadow:0 -6px 16px rgba(0,0,0,.06)}
+  #t-mostrador .sum div.tot{font-size:26px}
+  #t-mostrador .acc .mini kbd,#t-mostrador .pagar kbd,.lector .estado .tecla{display:none}
+  .pagar .go,.pagar .go.alt{min-height:52px}
+  .rapidos{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
   .m-equipo{font-size:12px}
 }
 /* El cobro: en efectivo, con cuánto paga y el cambio en grande. */

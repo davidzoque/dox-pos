@@ -179,7 +179,7 @@
 	// ---------- escanear y buscar ----------
 	const estado = (html) => { $("#m-estado").innerHTML = html; };
 	function estadoListo() {
-		estado('<span><span class="ok">● ' + esc(__("Scanner ready:", "dox-pos")) + "</span> " + esc(__("scan the barcode, there is no need to tap anything", "dox-pos")) + "</span><span><kbd>F2</kbd> " + esc(__("search", "dox-pos")) + "</span>");
+		estado('<span><span class="ok">● ' + esc(__("Scanner ready:", "dox-pos")) + "</span> " + esc(__("scan the barcode, there is no need to tap anything", "dox-pos")) + "</span><span class=\"tecla\"><kbd>F2</kbd> " + esc(__("search", "dox-pos")) + "</span>");
 	}
 	async function escanear(code) {
 		code = String(code || "").trim();
@@ -203,6 +203,7 @@
 			// No es un código: quizá se escribió un nombre y se dio Enter. Se busca como en Vender.
 			$("#m-q").value = code;
 			const hay = await buscar(code);
+			$("#m-q").select(); // La siguiente lectura reemplaza este código en vez de pegarse detrás.
 			estado('<span class="no">' + esc(sprintf(hay ? __("No product has the code %s. These are the ones whose name matches.", "dox-pos") : __("No product has the code %s.", "dox-pos"), code)) + "</span>");
 		}
 	}
@@ -581,7 +582,14 @@
 		const a = document.activeElement;
 		if (editable(a) || e.ctrlKey || e.metaKey || e.altKey) return;
 		if (k === " " && a && a.tagName === "BUTTON") return; // La barra espaciadora pulsa el botón que tiene el foco.
-		if (k.length === 1) { e.preventDefault(); const q = $("#m-q"); q.focus(); q.value += k; return; }
+		if (k.length === 1) {
+			e.preventDefault();
+			const q = $("#m-q");
+			const todo = q.value && q.selectionStart === 0 && q.selectionEnd === q.value.length; // Lo que quedó seleccionado se reemplaza.
+			q.focus();
+			q.value = todo ? k : q.value + k;
+			return;
+		}
 		if (k === "Enter" && $("#m-q").value.trim()) { e.preventDefault(); escanear($("#m-q").value); }
 	}
 
