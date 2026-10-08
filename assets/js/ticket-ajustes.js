@@ -33,8 +33,10 @@
 			show: show,
 		};
 	}
+	// El Pro añade lo de su editor (plantilla, QR, cupón) leyendo sus propios campos.
+	const conPro = (s) => (typeof window.DoxPOSTicketPro === "function" ? Object.assign(s, window.DoxPOSTicketPro(form)) : s);
 	function pintar() {
-		const s = tienda();
+		const s = conPro(tienda());
 		const r = Object.assign({}, cfg.sample || {}, { store: s });
 		frame.srcdoc = T.documento(T.venta(r), s);
 		frame.style.width = (s.width === 58 ? 220 : 302) + "px"; // El rollo a tamaño de pantalla (96 ppp).
@@ -48,7 +50,8 @@
 		} catch (e) { /* nada */ }
 	}
 	frame.addEventListener("load", () => { medir(); setTimeout(medir, 80); const img = frame.contentDocument && frame.contentDocument.querySelector("img"); if (img) img.addEventListener("load", medir); });
-	form.addEventListener("input", (e) => { if (/receipt_/.test(e.target.name || "")) pintar(); });
-	form.addEventListener("change", (e) => { if (/receipt_/.test(e.target.name || "")) pintar(); });
-	pintar();
+	form.addEventListener("input", (e) => { if (/receipt/.test(e.target.name || "")) pintar(); });
+	form.addEventListener("change", (e) => { if (/receipt/.test(e.target.name || "")) pintar(); });
+	// Después de que carguen todos los scripts del pie (el del Pro también dibuja aquí).
+	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", pintar); else pintar();
 })();

@@ -1969,6 +1969,7 @@ function dox_pos_settings_page() {
 									<?php endforeach; ?>
 								</div>
 								<p class="dp-hint"><?php esc_html_e( 'The receipt prints from the browser on any printer.', 'dox-pos' ); ?></p>
+								<?php do_action( 'dox_pos_receipt_editor_fields', $dox_pos_rc ); // El editor completo del Pro (plantilla, QR, cupón). ?>
 							</div>
 							<div class="dp-ticket-vista">
 								<iframe id="dp-ticket-preview" title="<?php esc_attr_e( 'Receipt preview', 'dox-pos' ); ?>" tabindex="-1"></iframe>

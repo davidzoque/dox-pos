@@ -35,6 +35,18 @@
 		function cabecera(s) {
 			return '<div class="c">' + (s.logo ? '<img class="logo" src="' + esc(s.logo) + '" alt="">' : "") + '<div class="name">' + esc(s.name || "") + "</div>" + (s.header ? '<div class="pre">' + esc(s.header) + "</div>" : "") + "</div><hr>";
 		}
+		// Lo que añade el editor del Pro (si lo hay en los ajustes): el cupón para la próxima compra, solo
+		// en ventas que llegan al mínimo, y un código QR con su texto (window.DoxPOSQr lo dibuja).
+		function extras(s, r, dev) {
+			let h = "";
+			const c = s.coupon;
+			if (c && c.code && !dev && (+r.total || 0) >= (+c.min || 0)) h += '<div class="cupon">' + (c.text ? '<div class="pre">' + esc(c.text) + "</div>" : "") + '<div class="cod">' + esc(c.code) + "</div></div>";
+			if (s.qr && typeof window.DoxPOSQr === "function") {
+				const svg = window.DoxPOSQr(s.qr);
+				if (svg) h += (s.qr_label ? '<div class="c pre qrt">' + esc(s.qr_label) + "</div>" : "") + '<div class="qr">' + svg + "</div>";
+			}
+			return h;
+		}
 		// El ticket de una venta, o el comprobante de una devolución (dev: {amount, method, lines}).
 		function venta(r, dev) {
 			const s = r.store || {};
@@ -64,6 +76,7 @@
 				if (r.refunded) h += fila(esc(__("Returned", "dox-pos")), "−" + dinero(r.refunded));
 			}
 			h += "<hr>" + (s.footer ? '<div class="c pre">' + esc(s.footer) + "</div>" : "");
+			h += extras(s, r, dev);
 			if (ver(s, "barcode")) h += '<div class="code">' + codigo(r.code) + '</div><div class="c s0">' + esc(r.code) + "</div>";
 			return h;
 		}
@@ -85,6 +98,11 @@
 			if (z.note) h += '<div class="pre">' + esc(z.note) + "</div>";
 			return h;
 		}
+		// Las plantillas del editor del Pro: cambian la letra y las rayas sobre la base (la clásica).
+		const PLANTILLAS = {
+			modern: "body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;line-height:1.45}hr{border-top:1.5px solid #000}.name{font-size:1.6em;letter-spacing:-.01em}.big{font-size:1.3em}.s{opacity:.7}",
+			compact: "body{line-height:1.2;padding-top:1mm;padding-bottom:4mm}hr{margin:3px 0}.name{font-size:1.15em}.logo{max-height:14mm}.code{height:9mm;margin-top:4px}",
+		};
 		// La página completa, con el ancho del rollo y el tamaño de letra de los ajustes.
 		function documento(cuerpo, s) {
 			s = s || {};
@@ -97,6 +115,8 @@
 				".c{text-align:center}.name{font-weight:700;font-size:1.35em;margin:2px 0}.pre{white-space:pre-line}.logo{display:block;margin:0 auto 4px;max-width:60%;max-height:22mm;filter:grayscale(1) contrast(1.4)}" +
 				"hr{border:0;border-top:1px dashed #000;margin:6px 0}.r{display:flex;justify-content:space-between;gap:8px}.r span:last-child{white-space:nowrap}" +
 				".s{padding-left:8px;opacity:.8}.s0{opacity:.85}.big{font-weight:700;font-size:1.15em}.code{margin:8px auto 2px;height:12mm}.code svg{width:100%;height:100%}" +
+				".cupon{border:1.5px dashed #000;border-radius:3mm;padding:2mm;margin:8px 0;text-align:center}.cupon .cod{font-weight:700;font-size:1.3em;letter-spacing:.08em;margin-top:2px}.qrt{margin-top:8px}.qr{width:26mm;height:26mm;margin:4px auto}.qr svg{width:100%;height:100%;display:block}" +
+				(PLANTILLAS[s.template] || "") +
 				"</style></head><body>" + cuerpo + "</body></html>";
 		}
 		return { venta: venta, cierre: cierre, documento: documento, codigo: codigo };
