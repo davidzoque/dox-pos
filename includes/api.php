@@ -185,12 +185,17 @@ function dox_pos_rest_products_permission() {
  *
  * @return bool|WP_Error
  */
-function dox_pos_rest_permission() {
+function dox_pos_rest_permission( $request = null ) {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error( 'dox_pos_sin_sesion', __( 'Your session expired. Please sign in again.', 'dox-pos' ), array( 'status' => 401 ) );
 	}
 	if ( ! current_user_can( DOX_POS_CAP ) ) {
 		return new WP_Error( 'dox_pos_sin_permiso', __( 'Your user does not have access to the register.', 'dox-pos' ), array( 'status' => 403 ) );
+	}
+	// Quien solo cobra en el Mostrador no llega al resto de la caja ni pidiéndolo a mano.
+	// Sin la petición no se sabe a qué ruta va: se le niega (falla cerrado).
+	if ( dox_pos_is_counter_only() && ( ! $request instanceof WP_REST_Request || ! dox_pos_counter_only_allows( $request ) ) ) {
+		return new WP_Error( 'dox_pos_solo_mostrador', __( 'Your user only has access to the Counter.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -292,7 +297,7 @@ function dox_pos_rest_shipping_delete_rate( WP_REST_Request $request ) {
 }
 
 function dox_pos_rest_orders() {
-	return rest_ensure_response( array( 'items' => dox_pos_list_orders() ) );
+	return rest_ensure_response( array( 'items' => dox_pos_is_counter_only() ? array() : dox_pos_list_orders() ) ); // El cajero de mostrador no ve los pedidos.
 }
 
 function dox_pos_rest_order_detail( WP_REST_Request $request ) {

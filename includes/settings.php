@@ -309,6 +309,18 @@ function dox_pos_sales() {
  * Si la pestaña Pedidos enseña también los de la página web (y los hechos a mano en
  * WooCommerce). De fábrica sí; se apaga en Ajustes > Ventas.
  */
+function dox_pos_discount_max() {
+	if ( current_user_can( 'manage_woocommerce' ) ) {
+		return null; // Quien administra la tienda no tiene tope.
+	}
+	$s = dox_pos_sales();
+	return isset( $s['discount_max'] ) ? max( 0, min( 100, (int) $s['discount_max'] ) ) : 100;
+}
+
+/**
+ * Si la pestaña Pedidos enseña también los de la página web (y los hechos a mano en
+ * WooCommerce). De fábrica sí; se apaga en Ajustes > Ventas.
+ */
 function dox_pos_show_web_orders() {
 	$s = dox_pos_sales();
 	return ! isset( $s['web_orders'] ) || ! empty( $s['web_orders'] );
@@ -1257,7 +1269,19 @@ function dox_pos_sanitize_sales( $in ) {
 	}
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
+	$out['discount_max']    = max( 0, min( 100, (int) ( $in['discount_max'] ?? 100 ) ) ); // El descuento máximo de quien no administra (%).
 	$out['open_panel']      = ! empty( $in['open_panel'] );
+	$out['counter']         = ! empty( $in['counter'] );
+	// El ticket del Mostrador: ancho del papel, encabezado y pie, y si lleva el logo.
+	$out['receipt_width']  = isset( $in['receipt_width'] ) && 58 === (int) $in['receipt_width'] ? 58 : 80;
+	$out['receipt_header'] = sanitize_textarea_field( $in['receipt_header'] ?? '' );
+	$out['receipt_footer'] = sanitize_textarea_field( $in['receipt_footer'] ?? '' );
+	$out['receipt_logo']   = ! empty( $in['receipt_logo'] );
+	$out['receipt_size']   = in_array( $in['receipt_size'] ?? '', array( 'small', 'large' ), true ) ? $in['receipt_size'] : 'normal';
+	$out['receipt_show']   = array();
+	foreach ( array_keys( dox_pos_counter_receipt_parts() ) as $k ) {
+		$out['receipt_show'][ $k ] = ! empty( $in['receipt_show'][ $k ] );
+	}
 	$out['messaging']       = in_array( $in['messaging'] ?? '', array( 'whatsapp', 'sms' ), true ) ? $in['messaging'] : '';
 
 	// Transportadoras: nombre y enlace de rastreo. El {tracking} se protege, que esc_url se lo comería.
@@ -1382,7 +1406,7 @@ function dox_pos_font_suggestions() {
  * @return array{users:array<int,array{name:string,role:string,initials:string}>,total:int}
  */
 function dox_pos_users_with_access( $limit = 6 ) {
-	$roles = array( 'administrator', 'shop_manager', 'caja' );
+	$roles = array( 'administrator', 'shop_manager', 'caja', DOX_POS_COUNTER_ROLE );
 	$names = wp_roles()->get_names();
 	$all   = get_users( array( 'role__in' => $roles, 'orderby' => 'display_name', 'order' => 'ASC', 'fields' => 'ID' ) );
 	$users = get_users( array( 'role__in' => $roles, 'orderby' => 'display_name', 'order' => 'ASC', 'number' => $limit ) );
@@ -1488,6 +1512,10 @@ function dox_pos_admin_assets( $hook ) {
 	$ver = DOX_POS_VERSION . '.' . (int) filemtime( DOX_POS_PATH . 'assets/css/ajustes.css' ) . (int) filemtime( DOX_POS_PATH . 'assets/js/ajustes.js' ); // Con la fecha: un cambio nunca se queda en la caché.
 	wp_enqueue_style( 'dox-pos-ajustes', DOX_POS_URL . 'assets/css/ajustes.css', array(), $ver );
 	wp_enqueue_script( 'dox-pos-ajustes', DOX_POS_URL . 'assets/js/ajustes.js', array( 'jquery' ), $ver, true );
+	// El editor básico del ticket: su vista previa con el mismo ticket.js que imprime el Mostrador.
+	dox_pos_counter_register_ticket();
+	wp_enqueue_script( 'dox-pos-ticket-ajustes', DOX_POS_URL . 'assets/js/ticket-ajustes.js', array( 'dox-pos-ticket' ), $ver . (int) filemtime( DOX_POS_PATH . 'assets/js/ticket-ajustes.js' ), true );
+	wp_localize_script( 'dox-pos-ticket-ajustes', 'DOX_POS_TICKET', dox_pos_counter_receipt_sample() );
 
 	$home = home_url( '/' );
 	wp_localize_script(
@@ -1895,6 +1923,21 @@ function dox_pos_settings_page() {
 
 					<div class="dp-card">
 						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Discounts', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'How much discount salespeople and cashiers can give on a sale, in Sell and at the Counter. Whoever manages the shop has no limit.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-field dp-field-short">
+							<label class="dp-label" for="dp-discount-max"><?php esc_html_e( 'Maximum discount', 'dox-pos' ); ?></label>
+							<div class="dp-unitfield">
+								<input type="number" min="0" max="100" step="1" id="dp-discount-max" name="dox_pos_sales[discount_max]" value="<?php echo esc_attr( (string) ( dox_pos_sales()["discount_max"] ?? 100 ) ); ?>" class="dp-input" inputmode="numeric">
+								<span class="dp-unit">%</span>
+							</div>
+							<p class="dp-hint"><?php esc_html_e( '0: they cannot give discounts. 100: no limit.', 'dox-pos' ); ?></p>
+						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Orders from the website', 'dox-pos' ); ?></h2>
 							<p><?php esc_html_e( 'The Orders tab also shows what people buy in the online store, tagged "Website" and with where the customer came from, so you can mark it shipped or delivered from your phone just like a register sale.', 'dox-pos' ); ?></p>
 						</div>
@@ -1907,6 +1950,62 @@ function dox_pos_settings_page() {
 							<p><?php esc_html_e( 'Administrators and shop managers get a Dashboard tab in the register: sold today with yesterday next to it, the week and the month against the previous ones, the last fourteen days, what came in by payment method, what is owed, the orders to handle, the best sellers and the stock. Salespeople do not see it and always land on Sell.', 'dox-pos' ); ?></p>
 						</div>
 						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[open_panel]" value="1" <?php checked( dox_pos_open_panel() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Open the register on the Dashboard for whoever manages the shop', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Salespeople always land on Sell.', 'dox-pos' ); ?></span></span></label>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Physical store', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'A Counter tab for selling at the till: scan barcodes with a USB or Bluetooth scanner or with the camera, take cash and see the change, card or any other payment, and put a sale on hold to serve the next customer. Each sale is a WooCommerce order, like the ones from Sell. The computer at the till can be set to always open on the Counter.', 'dox-pos' ); ?></p>
+						</div>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_sales[counter]" value="1" <?php checked( dox_pos_counter_on() ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'I have a physical store: show the Counter tab', 'dox-pos' ); ?></b><span><?php esc_html_e( 'Off, the register stays as it is.', 'dox-pos' ); ?></span></span></label>
+						<?php $dox_pos_rc = dox_pos_counter_receipt_settings(); ?>
+						<div class="dp-ticket-ed" id="dp-ticket-ed">
+							<div class="dp-ticket-campos">
+								<h3 class="dp-sub"><?php esc_html_e( 'The receipt', 'dox-pos' ); ?></h3>
+								<div class="dp-grid-2">
+									<div class="dp-field">
+										<label class="dp-label" for="dp-receipt-width"><?php esc_html_e( 'Paper', 'dox-pos' ); ?></label>
+										<select id="dp-receipt-width" name="dox_pos_sales[receipt_width]" class="dp-input">
+											<option value="80" <?php selected( 80, $dox_pos_rc['width'] ); ?>><?php esc_html_e( '80 mm (the usual one)', 'dox-pos' ); ?></option>
+											<option value="58" <?php selected( 58, $dox_pos_rc['width'] ); ?>><?php esc_html_e( '58 mm (small printers)', 'dox-pos' ); ?></option>
+										</select>
+									</div>
+									<div class="dp-field">
+										<label class="dp-label" for="dp-receipt-size"><?php esc_html_e( 'Text size', 'dox-pos' ); ?></label>
+										<select id="dp-receipt-size" name="dox_pos_sales[receipt_size]" class="dp-input">
+											<option value="small" <?php selected( 'small', $dox_pos_rc['size'] ); ?>><?php esc_html_e( 'Small', 'dox-pos' ); ?></option>
+											<option value="normal" <?php selected( 'normal', $dox_pos_rc['size'] ); ?>><?php esc_html_e( 'Normal', 'dox-pos' ); ?></option>
+											<option value="large" <?php selected( 'large', $dox_pos_rc['size'] ); ?>><?php esc_html_e( 'Large', 'dox-pos' ); ?></option>
+										</select>
+									</div>
+								</div>
+								<div class="dp-field">
+									<label class="dp-label" for="dp-receipt-header"><?php esc_html_e( 'Top of the receipt', 'dox-pos' ); ?></label>
+									<textarea id="dp-receipt-header" name="dox_pos_sales[receipt_header]" class="dp-input" rows="3"><?php echo esc_textarea( $dox_pos_rc['header'] ); ?></textarea>
+									<p class="dp-hint"><?php esc_html_e( 'Under the shop name: address, phone, website, tax ID.', 'dox-pos' ); ?></p>
+								</div>
+								<div class="dp-field">
+									<label class="dp-label" for="dp-receipt-footer"><?php esc_html_e( 'Bottom of the receipt', 'dox-pos' ); ?></label>
+									<textarea id="dp-receipt-footer" name="dox_pos_sales[receipt_footer]" class="dp-input" rows="2"><?php echo esc_textarea( $dox_pos_rc['footer'] ); ?></textarea>
+									<p class="dp-hint"><?php esc_html_e( 'Your returns policy, a thank you, your social media.', 'dox-pos' ); ?></p>
+								</div>
+								<p class="dp-label"><?php esc_html_e( 'What it shows', 'dox-pos' ); ?></p>
+								<div class="dp-ticket-show">
+									<label><input type="checkbox" name="dox_pos_sales[receipt_logo]" value="1" <?php checked( '' !== $dox_pos_rc['logo'] || ! dox_pos_logo_url() ); ?>> <?php esc_html_e( 'Logo, in black and white', 'dox-pos' ); ?></label>
+									<?php foreach ( dox_pos_counter_receipt_parts() as $dox_pos_k => $dox_pos_l ) : ?>
+									<label><input type="checkbox" name="dox_pos_sales[receipt_show][<?php echo esc_attr( $dox_pos_k ); ?>]" value="1" <?php checked( ! empty( $dox_pos_rc['show'][ $dox_pos_k ] ) ); ?>> <?php echo esc_html( $dox_pos_l ); ?></label>
+									<?php endforeach; ?>
+								</div>
+								<p class="dp-hint"><?php esc_html_e( 'The receipt prints from the browser on any printer.', 'dox-pos' ); ?></p>
+								<?php do_action( 'dox_pos_receipt_editor_fields', $dox_pos_rc ); // El editor completo del Pro (plantilla, QR, cupón). ?>
+							</div>
+							<div class="dp-ticket-vista">
+								<iframe id="dp-ticket-preview" title="<?php esc_attr_e( 'Receipt preview', 'dox-pos' ); ?>" tabindex="-1"></iframe>
+							</div>
+						</div>
+						<?php if ( ! function_exists( 'dox_pos_pro_receipt_editor' ) ) : // El editor completo es del Pro: aquí solo se cuenta que existe. ?>
+						<p class="dp-ticket-pro"><?php echo wp_kses( dox_pos_icon( 'sparkle' ), dox_pos_svg_tags() ); ?><span><?php esc_html_e( 'Want more? Dox POS Pro adds a QR code for reviews or Instagram, a coupon for the next purchase printed on the receipt, and your own receipt templates.', 'dox-pos' ); ?> <a href="<?php echo esc_url( dox_pos_site_url( 'plans' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'See Dox POS Pro', 'dox-pos' ); ?></a></span></p>
+						<?php endif; ?>
 					</div>
 				</section>
 

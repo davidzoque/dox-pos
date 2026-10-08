@@ -158,16 +158,36 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $discount > $subtotal ) {
 		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
 	}
+	// El tope de Ajustes para quien no administra la tienda.
+	$max = dox_pos_discount_max();
+	if ( null !== $max && $discount > 0 && $discount > round( $subtotal * $max / 100, wc_get_price_decimals() ) + 0.00001 ) {
+		return new WP_Error(
+			'dox_pos_descuento_tope',
+			0 === $max ? __( 'Your user cannot give discounts.', 'dox-pos' ) : sprintf( /* translators: %d: percent */ __( 'The discount can be at most %d%% of the sale.', 'dox-pos' ), $max )
+		);
+	}
+	// Una venta del Mostrador (includes/counter.php): sin envío, con el canal en mano y sus formas de pago,
+	// y dentro del turno de la caja abierta (el cierre cuenta su efectivo).
+	$counter = ! empty( $data['counter'] ) && ! $hold && dox_pos_counter_on();
+	if ( ! $counter && dox_pos_is_counter_only() ) {
+		return new WP_Error( 'dox_pos_solo_mostrador', __( 'Your user only has access to the Counter.', 'dox-pos' ) );
+	}
+	$shift   = $counter ? dox_pos_counter_open_shift() : null;
+	if ( $counter && ! $shift ) {
+		return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till before charging.', 'dox-pos' ) );
+	}
 	// El canal: uno de los de los ajustes; si llega otra cosa, el primero.
 	$channels = wp_list_pluck( dox_pos_channels(), 'name' );
 	$channel  = sanitize_text_field( $data['channel'] ?? '' );
-	if ( ! in_array( $channel, $channels, true ) ) {
+	if ( $counter ) {
+		$channel = dox_pos_counter_channel();
+	} elseif ( ! in_array( $channel, $channels, true ) ) {
 		$channel = (string) reset( $channels );
 	}
 
-	$methods = dox_pos_payment_methods();
+	$methods = $counter ? dox_pos_counter_payments() : dox_pos_payment_methods();
 	$pay_key = sanitize_key( $data['payment'] ?? 'transferencia' );
-	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ];
+	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ] ?? reset( $methods );
 	$cust    = (array) ( $data['customer'] ?? array() );
 	$name    = sanitize_text_field( $cust['name'] ?? '' );
 	$parts   = preg_split( '/\s+/', trim( $name ), 2 );
@@ -205,7 +225,7 @@ function dox_pos_create_order( $data, $hold ) {
 		$fee->set_tax_status( 'none' );
 		$order->add_item( $fee );
 	}
-	$ship = (array) ( $data['shipping'] ?? array() );
+	$ship = $counter ? array() : (array) ( $data['shipping'] ?? array() );
 	if ( ! empty( $ship['label'] ) ) {
 		$item = new WC_Order_Item_Shipping();
 		$item->set_method_title( sanitize_text_field( $ship['label'] ) );
@@ -219,7 +239,7 @@ function dox_pos_create_order( $data, $hold ) {
 	$order->set_payment_method( $pay['id'] );
 	$order->set_payment_method_title( $pay['title'] );
 	$order->set_customer_note( sanitize_textarea_field( $data['note'] ?? '' ) );
-	$user = wp_get_current_user();
+	$user = $counter ? dox_pos_counter_actor() : wp_get_current_user(); // En el mostrador, quien atiende (el Pro: el cajero del PIN).
 	$order->update_meta_data( '_dox_pos', 1 );
 	$order->update_meta_data( '_dox_pos_channel', $channel );
 	$order->update_meta_data( '_dox_pos_seller', $user->ID );
@@ -231,8 +251,47 @@ function dox_pos_create_order( $data, $hold ) {
 	if ( $hold ) {
 		$order->update_meta_data( '_dox_pos_hold_until', time() + $hours * HOUR_IN_SECONDS );
 	}
+	if ( $counter ) {
+		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
+	}
 	$order->calculate_totals();
+	// Cómo se cobró: una forma de pago o varias, y en efectivo con cuánto pagó y el cambio, para el
+	// ticket y el cierre de caja. Si no alcanza (el total cambió entre que se cobró y se guardó), no
+	// se registra nada.
+	if ( $counter ) {
+		$split = dox_pos_counter_split( (array) ( $data['payments'] ?? array() ), $pay_key, (float) $order->get_total(), isset( $data['tendered'] ) ? (float) wc_format_decimal( $data['tendered'] ) : null );
+		if ( is_wp_error( $split ) ) {
+			$order->delete( true );
+			return $split;
+		}
+		if ( count( $split['parts'] ) > 1 ) {
+			$pay_key = 'dividido';
+			$order->set_payment_method( 'dox_pos_split' );
+			$order->set_payment_method_title( implode( ' + ', wp_list_pluck( $split['parts'], 'title' ) ) );
+			$pay = array( 'paid' => true );
+		} else {
+			$pay_key = $split['parts'][0]['key'];
+			$pay     = dox_pos_counter_payments()[ $pay_key ];
+			$order->set_payment_method( $pay['id'] );
+			$order->set_payment_method_title( $pay['title'] );
+		}
+		$order->update_meta_data( '_dox_pos_pay_key', $pay_key );
+		$order->update_meta_data( '_dox_pos_payments', $split['parts'] );
+		$order->update_meta_data( '_dox_pos_shift', (int) $shift->id );
+		if ( null !== $split['tendered'] ) {
+			$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $split['tendered'], wc_get_price_decimals() ) );
+			$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $split['change'], wc_get_price_decimals() ) );
+		}
+	}
 	$order->save();
+	// Si la caja se cerró mientras se guardaba la venta, su cierre ya no la cuenta: no queda.
+	if ( $counter ) {
+		$now = dox_pos_counter_get_shift( (int) $shift->id );
+		if ( ! $now || 'open' !== $now->status ) {
+			$order->delete( true );
+			return new WP_Error( 'dox_pos_caja_cerrada', __( 'Open the till before charging.', 'dox-pos' ) );
+		}
+	}
 
 	// Dos cajas registrando la última unidad en el mismo instante pasan las dos la
 	// comprobación de arriba. La reserva de WooCommerce (la misma del checkout) es una
@@ -243,13 +302,31 @@ function dox_pos_create_order( $data, $hold ) {
 		return $reserved;
 	}
 
-	$who = sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
+	// En el mostrador, el último paso antes de dar la venta por pagada: el Pro captura aquí el cobro
+	// del lector de tarjetas. Un WP_Error deja la venta sin registrar, como si no se hubiera cobrado.
+	if ( $counter ) {
+		$charged = apply_filters( 'dox_pos_counter_charge', true, $order, $data );
+		if ( is_wp_error( $charged ) ) {
+			if ( function_exists( 'wc_release_stock_for_order' ) ) {
+				wc_release_stock_for_order( $order );
+			}
+			$order->delete( true );
+			return $charged;
+		}
+	}
+
+	$who = $counter
+		? sprintf( /* translators: %s: user */ __( 'Recorded at the counter by %s.', 'dox-pos' ), $user->display_name )
+		: sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
 	if ( $hold ) {
 		$order->update_status( 'on-hold', sprintf( /* translators: %d: hours */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
 		dox_pos_schedule_release( $order->get_id(), $hours );
 	} elseif ( $pay['paid'] ) {
 		$order->add_order_note( $who );
 		$order->payment_complete();
+		if ( $counter ) {
+			$order->update_status( 'completed', __( 'Handed over at the counter.', 'dox-pos' ) ); // Se lo llevó puesto: no queda "por enviar".
+		}
 	} else {
 		$order->update_status( 'processing', __( 'Cash on delivery. ', 'dox-pos' ) . $who );
 	}
@@ -657,6 +734,9 @@ function dox_pos_format_order( $order ) {
 		'email'        => (string) $order->get_billing_email(),
 		'note'         => $order->get_customer_note(),
 		'seller'       => $order->get_meta( '_dox_pos_seller_name' ),
+		'counter'      => (bool) $order->get_meta( '_dox_pos_counter' ),                                // Vendido en el Mostrador.
+		'tendered'     => '' !== (string) $order->get_meta( '_dox_pos_tendered' ) ? (float) $order->get_meta( '_dox_pos_tendered' ) : null, // En efectivo: con cuánto pagó.
+		'change'       => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,     // Y el cambio.
 		'pay_url'      => $hold ? $order->get_checkout_payment_url() : '',
 		'whatsapp'     => $wa,
 	);

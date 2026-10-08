@@ -36,6 +36,8 @@ import zipfile
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCALE = 'es_ES'
 JS = 'assets/js/caja.js'
+# Los JavaScript con textos: cada uno lleva su JSON (wp_set_script_translations busca por la ruta).
+JSS = ['assets/js/caja.js', 'assets/js/mostrador.js', 'assets/js/ticket.js']
 PO = os.path.join(BASE, 'languages', 'dox-pos-%s.po' % LOCALE)
 PACKS = os.path.join(BASE, 'translations')
 # Las variantes del español que tiene WordPress y de qué .po sale cada una.
@@ -137,14 +139,17 @@ def mo_bytes(pairs):
 
 
 def js_strings():
-    """Los textos que caja.js pasa a __() y _n(), ya sin los escapes de JavaScript, con la
-    línea donde aparecen por primera vez."""
-    js = open(os.path.join(BASE, JS), encoding='utf-8').read()
+    """Los textos que cada JavaScript pasa a __() y _n(), ya sin los escapes de JavaScript, con la
+    línea donde aparecen por primera vez: {archivo: {texto: línea}}."""
     lit_re = re.compile(r"""\b_{1,2}n?\s*\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')""")
-    used = {}
-    for m in lit_re.finditer(js):
-        used.setdefault(js_unesc(m.group(1)[1:-1]), js.count('\n', 0, m.start()) + 1)
-    return used
+    out = {}
+    for f in JSS:
+        js = open(os.path.join(BASE, f), encoding='utf-8').read()
+        used = {}
+        for m in lit_re.finditer(js):
+            used.setdefault(js_unesc(m.group(1)[1:-1]), js.count('\n', 0, m.start()) + 1)
+        out[f] = used
+    return out
 
 
 def sync_js_refs(used, po):
@@ -171,8 +176,8 @@ def sync_js_refs(used, po):
         if mid == '':
             continue
         refs = [r for l in lines if l.startswith('#:') for r in l[2:].split()]
-        others = [r for r in refs if re.sub(r':\d+$', '', r) != JS]
-        want = others + (['%s:%d' % (JS, used[mid])] if mid in used else [])
+        others = [r for r in refs if re.sub(r':\d+$', '', r) not in JSS]
+        want = others + ['%s:%d' % (f, used[f][mid]) for f in JSS if mid in used[f]]
         if want == refs:
             continue
         refs = want
@@ -233,18 +238,21 @@ def compile_po(po, locale, used):
     lines += ['\t),', ');']
     files['dox-pos-%s.l10n.php' % locale] = ('\n'.join(lines) + '\n').encode()
 
-    data = {'': {'domain': 'messages', 'lang': locale, 'plural-forms': plural}}
-    for k, v, pl in items:
-        clean = k.split('\x04')[-1]  # sin el contexto, para ver si el .js usa ese texto
-        if clean.split('\0')[0] in used:
-            # La clave lleva el contexto ("contexto\u0004texto"), que es lo que busca wp.i18n: si se
-            # quitara, una entrada con contexto pisaria a la que no lo tiene (le paso a "Sale").
-            data[k.split('\0')[0]] = v.split('\0')
-    out = {'translation-revision-date': '2026-09-08 00:00:00+0000', 'generator': 'Dox POS',
-           'source': JS, 'domain': 'messages', 'locale_data': {'messages': data}}
-    name = 'dox-pos-%s-%s.json' % (locale, hashlib.md5(JS.encode()).hexdigest())
-    files[name] = json.dumps(out, ensure_ascii=False, separators=(',', ':')).encode()
-    return files, len(items), len(data) - 1
+    n_js = 0
+    for f in JSS:
+        data = {'': {'domain': 'messages', 'lang': locale, 'plural-forms': plural}}
+        for k, v, pl in items:
+            clean = k.split('\x04')[-1]  # sin el contexto, para ver si el .js usa ese texto
+            if clean.split('\0')[0] in used[f]:
+                # La clave lleva el contexto ("contexto\u0004texto"), que es lo que busca wp.i18n: si se
+                # quitara, una entrada con contexto pisaria a la que no lo tiene (le paso a "Sale").
+                data[k.split('\0')[0]] = v.split('\0')
+        out = {'translation-revision-date': '2026-09-08 00:00:00+0000', 'generator': 'Dox POS',
+               'source': f, 'domain': 'messages', 'locale_data': {'messages': data}}
+        name = 'dox-pos-%s-%s.json' % (locale, hashlib.md5(f.encode()).hexdigest())
+        files[name] = json.dumps(out, ensure_ascii=False, separators=(',', ':')).encode()
+        n_js += len(data) - 1
+    return files, len(items), n_js
 
 
 def write_pack(locale, po, used):

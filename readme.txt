@@ -1,21 +1,21 @@
 === Dox POS for WooCommerce ===
 Contributors: davidzoque
-Tags: woocommerce, pos, point of sale, inventory, whatsapp
+Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.47.1
+Stable tag: 0.48.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-The register for a shop that sells on WhatsApp and Instagram: sales, layaways, stock, history and a stock ledger, without wp-admin.
+A WooCommerce register for WhatsApp, Instagram and the store counter: barcode scanner, cash and change, receipts, till closing, stock.
 
 == Description ==
 
 Dox POS adds a `/pos` page (`/caja` on a Spanish site) with its own sign-in screen. From there you search products with their photo and stock, record the sales that come in through WhatsApp or Instagram (each one is a WooCommerce order, so stock goes down on its own), put products on layaway while the customer pays, record the stock that arrives and keep the list of what has to be shipped.
 
-It is built for the shop that sells through chat and ships by courier, not for a counter with a barcode scanner: no hardware, no receipt printer, no cash drawer. A phone is enough.
+It was born for the shop that sells through chat and ships by courier, where a phone is enough. If you also have a physical store, turn on the **Counter**: a till screen for a computer or a tablet with a barcode scanner, cash with the change worked out, receipts on any printer and opening and closing the till.
 
 It follows the country of the store (WooCommerce > Settings > General): the payment methods it offers, the carriers it suggests and the default sales channels are the ones of that country, and where WhatsApp is not the norm (the United States, for instance) the messages to the customer open as text messages in the phone's Messages app instead. Everything can be renamed, turned off or added to in WooCommerce > Dox POS > Sales.
 
@@ -28,10 +28,16 @@ It follows the country of the store (WooCommerce > Settings > General): the paym
 * **Shipping costs.** Set what shipping costs without opening wp-admin: a fixed price, by weight, free from an amount or store pickup, for the whole country or for some of its regions. They are saved as WooCommerce shipping zones, so the web checkout and the register charge the same.
 * **History.** Sales, the daily cash, the stock ledger and, with costs on, what each product leaves. Everything downloads as a real Excel file.
 * **Costs and profit.** A cost per unit for each product, stored in the WooCommerce cost field. Every purchase recalculates the weighted average cost, and every sale freezes the cost in the order, so raising a cost later does not rewrite past sales.
-* **A Cashier role.** Whoever sells gets into the register and never sees the WordPress dashboard.
+* **The Counter, for a physical store.** Scan barcodes with any USB or Bluetooth scanner, or with the phone camera. Quick buttons for products without a barcode, keyboard shortcuts, sales on hold, a discount, and cash with suggested bills and the change in large type, card or several payment methods in one sale.
+* **Till and receipts.** Open the till with its float and close it counting the drawer: the register tells you whether it matches. Every sale has a receipt for 58 or 80 mm paper, printed from the browser on any printer, with a barcode that opens its return. Returns put the pieces back in stock.
+* **Roles for the store.** A Cashier role that sells and never sees the WordPress dashboard, and a Counter cashier role that only reaches the Counter. Discounts can be capped for them, and they close the till blind.
 * **No signal, no problem.** A sale recorded with the screen open and no connection is kept on the phone and goes in on its own when the connection is back, without duplicating.
 
-The business assistant (today's pending work, a store review, a chat, a forecast and a daily summary by email) lives in a separate add-on, Dox POS Pro. The register works fully without it.
+The business assistant (today's pending work, a store review, a chat, a forecast and a daily summary by email) and the extras for a busy store (cashiers with a PIN, several tills, a Stripe card reader, a customer screen, direct printing to Star and Epson receipt printers with the cash drawer, and a fuller receipt editor) live in a separate add-on, Dox POS Pro. The register works fully without it.
+
+= Third-party libraries =
+
+The Counter's camera scanner uses **ZXing** (zxing-js/library 0.21.3, Apache License 2.0) on browsers that cannot read barcodes on their own, such as Safari on the iPhone. It is bundled in `assets/vendor/zxing` with its license, loaded only when someone taps Camera, and never loaded from outside the site. Source code: https://github.com/zxing-js/library
 
 = External services =
 
@@ -52,7 +58,7 @@ Google privacy: https://policies.google.com/privacy
 
 = Do I need a barcode scanner or a receipt printer? =
 
-No. Dox POS is made for selling through chat and shipping by courier. You search the product by name or SKU, record the sale and the order is in WooCommerce.
+No. For selling through chat a phone is enough: you search the product by name or SKU, record the sale and the order is in WooCommerce. In a physical store, the Counter works with any USB or Bluetooth barcode scanner (it types like a keyboard) or with the camera, and prints receipts from the browser on any printer.
 
 = Does it change my stock twice? =
 
@@ -90,8 +96,19 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 4. Creating a product from the phone: photos, sizes, colors and units.
 5. History: sales, daily cash and the stock ledger, with the profit of each sale.
 6. The settings, with a live preview of the register.
+7. The Counter for a physical store: scan a barcode and the product goes into the sale.
+8. Charging cash at the Counter, with suggested bills and the change in large type.
+9. The receipt editor, with its live preview.
 
 == Changelog ==
+
+= 0.48.0 =
+* New: the Counter, for a physical store. Turn it on in WooCommerce > Dox POS > Sales and the register gets a Counter tab: scan barcodes with a USB or Bluetooth scanner or with the camera (ZXing on Safari), quick buttons for products without a barcode, keyboard shortcuts (F2 to F9), sales on hold and a discount.
+* New: charge cash with suggested bills and the change in large type, by card, or split between several payment methods. Each sale is a WooCommerce order handed over at the counter, with the tax worked out from the store address.
+* New: open the till with its float and close it counting the drawer. The closing shows the sales by payment method and whether the cash matches, is short or is over.
+* New: receipts for 58 or 80 mm paper printed from the browser on any printer, with a basic editor in Settings > Sales (top, bottom, logo, what it shows) and a barcode that opens the return of that sale.
+* New: returns at the Counter: scan the receipt, choose the pieces and give the money back in cash or by the same method. The pieces go back into stock.
+* New: a Counter cashier role that only reaches the Counter, a maximum discount for whoever does not manage the shop (Settings > Sales > Discounts, 0% turns discounts off) and a blind till closing for them.
 
 = 0.47.1 =
 * Improved: with Colciudades on a store in Colombia, a city typed by hand in the register ("medellin", "MEDELLIN", "bogota") is saved with its name from the list ("Medellín", "Bogotá"), ignoring accents, capital letters and extra spaces. The register fixes it when you leave the field, and the server does it again when the order is saved. A place that is not on the list (a rural district, for instance) is saved as typed.
@@ -110,9 +127,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.45.0 =
 * New: the register sign-in screen can offer "Sign in with a code by email" next to the password, when another plugin on the site provides one-time codes (through the `dox_pos_login_code_enabled`, `dox_pos_login_code_send` and `dox_pos_login_code_verify` filters). The cashier types the 6-digit code from their phone into the register, with no password. Codes are only sent to accounts that can use the register, and the register checks the session that was really opened before letting anyone in. Without such a plugin nothing changes: the register asks for username and password as always, and Dox POS sends no email of its own for this.
-
-= 0.44.0 =
-* New: on a phone, the register sections move to a bar at the bottom of the screen, like an app. The four used every day (Sell, Orders, Inventory and the Dashboard, or My day for the cashier) are always in view and within reach of the thumb; when there are more than five sections, "More" opens a sheet with the rest. Orders shows the number of orders waiting on its icon. On a tablet or a computer the tabs stay at the top as before.
-* Improved: while typing on a phone, the bottom bar steps aside so the keyboard and the order total have room.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/
