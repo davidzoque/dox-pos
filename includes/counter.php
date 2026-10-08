@@ -218,6 +218,7 @@ function dox_pos_counter_cfg( $cfg ) {
 		'edit'     => current_user_can( 'manage_woocommerce' ), // ¿Elige los botones rápidos?
 		'taxes'    => wc_tax_enabled() && ! wc_prices_include_tax(), // ¿El impuesto se suma al precio? Entonces el total lo calcula la tienda.
 		'bills'    => dox_pos_counter_bills(),
+		'zxing'    => DOX_POS_URL . 'assets/vendor/zxing/zxing.min.js?ver=0.21.3', // El lector para la cámara donde el navegador no trae uno (Safari); se pide solo al usarla.
 	);
 	return $cfg;
 }

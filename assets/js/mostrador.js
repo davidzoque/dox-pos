@@ -779,34 +779,76 @@
 		preguntar(__("Empty this sale? Nothing is recorded.", "dox-pos"), __("Empty", "dox-pos"), __("Cancel", "dox-pos")).then((ok) => { if (ok) limpiar(); enfocar(); });
 	}
 
-	// ---------- la cámara como escáner (donde el navegador sabe leer códigos) ----------
+	// ---------- la cámara como escáner ----------
+	// Con el lector del navegador (Chrome, Android) si lo trae; si no (Safari, iPhone), con ZXing, que
+	// viene en el plugin y se carga la primera vez que se toca "Cámara".
 	const FORMATOS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "qr_code"];
+	let zxing = null;
+	function cargarZxing() {
+		if (window.ZXing) return Promise.resolve(window.ZXing);
+		if (!zxing) {
+			zxing = new Promise((ok, mal) => {
+				const sc = document.createElement("script");
+				sc.src = C.zxing;
+				sc.onload = () => (window.ZXing ? ok(window.ZXing) : mal(new Error("zxing")));
+				sc.onerror = () => { zxing = null; mal(new Error("zxing")); };
+				document.head.appendChild(sc);
+			});
+		}
+		return zxing;
+	}
+	function ventanaCamara() {
+		modal("<h3>" + esc(__("Point at the barcode", "dox-pos")) + '</h3><div class="camara"><video id="mk-v" playsinline muted autoplay></video></div><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "cobro");
+		$("#m-no").onclick = () => cerrarModal(false);
+		return $("#mk-v");
+	}
+	const sinCamara = () => toast(__("The camera could not be opened. Check that the browser has permission to use it.", "dox-pos"));
 	async function camara() {
-		let det, stream;
-		try {
-			det = new window.BarcodeDetector({ formats: FORMATOS });
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-		} catch (e) {
-			toast(__("The camera could not be opened. Check that the browser has permission to use it.", "dox-pos"));
+		if ("BarcodeDetector" in window) {
+			let det, stream;
+			try {
+				det = new window.BarcodeDetector({ formats: FORMATOS });
+				stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+			} catch (e) { sinCamara(); return; }
+			const v = ventanaCamara();
+			v.srcObject = stream;
+			v.play().catch(() => {});
+			let vivo = true;
+			const parar = () => { vivo = false; stream.getTracks().forEach((tr) => tr.stop()); };
+			const mirar = async () => {
+				if (!vivo) return;
+				if ($("#modal").hidden || !document.contains(v)) { parar(); return; } // Se cerró la ventana.
+				try {
+					const r = await det.detect(v);
+					if (r && r.length) { parar(); cerrarModal(true); escanear(r[0].rawValue); return; }
+				} catch (e) { /* el cuadro aún no estaba listo */ }
+				setTimeout(mirar, 200);
+			};
+			setTimeout(mirar, 300);
 			return;
 		}
-		modal("<h3>" + esc(__("Point at the barcode", "dox-pos")) + '</h3><div class="camara"><video id="mk-v" playsinline muted></video></div><div class="mbtn"><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "cobro");
-		const v = $("#mk-v");
-		v.srcObject = stream;
-		v.play().catch(() => {});
-		$("#m-no").onclick = () => cerrarModal(false);
-		let vivo = true;
-		const parar = () => { vivo = false; stream.getTracks().forEach((tr) => tr.stop()); };
-		const mirar = async () => {
-			if (!vivo) return;
-			if ($("#modal").hidden || !document.contains(v)) { parar(); return; } // Se cerró la ventana.
-			try {
-				const r = await det.detect(v);
-				if (r && r.length) { parar(); cerrarModal(true); escanear(r[0].rawValue); return; }
-			} catch (e) { /* el cuadro aún no estaba listo */ }
-			setTimeout(mirar, 200);
-		};
-		setTimeout(mirar, 300);
+		let Z;
+		try { Z = await cargarZxing(); } catch (e) { toast(__("The barcode reader could not be loaded. Check the connection.", "dox-pos")); return; }
+		const hints = new Map();
+		hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.ITF, Z.BarcodeFormat.QR_CODE]);
+		const lector = new Z.BrowserMultiFormatReader(hints);
+		const v = ventanaCamara();
+		let hecho = false;
+		const parar = () => { try { lector.reset(); } catch (e) { /* ya parado */ } };
+		alCerrarModal(() => { if (!hecho) parar(); });
+		try {
+			await lector.decodeFromConstraints({ video: { facingMode: "environment" }, audio: false }, v, (r) => {
+				if (!r || hecho) return;
+				hecho = true;
+				parar();
+				cerrarModal(true);
+				escanear(r.getText());
+			});
+		} catch (e) {
+			parar();
+			cerrarModal(false);
+			sinCamara();
+		}
 	}
 
 	// Lo de este equipo (se guarda en el navegador) y los atajos.
@@ -885,7 +927,7 @@
 		// P en la ventana de la venta (o de la devolución) imprime el ticket.
 		document.addEventListener("keydown", (e) => { if ((e.key === "p" || e.key === "P") && !$("#modal").hidden && $("#mt-print") && !editable(document.activeElement)) { e.preventDefault(); $("#mt-print").click(); } });
 		if ($("#m-editar")) $("#m-editar").onclick = elegirRapidos;
-		if ("BarcodeDetector" in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+		if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && ("BarcodeDetector" in window || C.zxing)) {
 			$("#m-cam").hidden = false;
 			$("#m-cam").onclick = camara;
 		}
