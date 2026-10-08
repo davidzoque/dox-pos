@@ -129,11 +129,13 @@ function dox_pos_counter_only_allows( $request ) {
 	$route  = preg_replace( '#^/dox-pos/v1#', '', (string) $request->get_route() );
 	$method = $request->get_method();
 	if ( 'GET' === $method ) {
-		return (bool) preg_match( '#^/(search|top|orders|counter/(scan|shift|order))$#', $route );
+		$ok = (bool) preg_match( '#^/(search|top|orders|counter/(scan|shift|order))$#', $route );
+	} elseif ( '/orders' === $route ) {
+		$b  = (array) $request->get_json_params();
+		$ok = ! empty( $b['counter'] ) && empty( $b['hold'] );
+	} else {
+		$ok = (bool) preg_match( '#^/counter/(quote|shift/open|shift/close|refund)$#', $route );
 	}
-	if ( '/orders' === $route ) {
-		$b = (array) $request->get_json_params();
-		return ! empty( $b['counter'] ) && empty( $b['hold'] );
-	}
-	return (bool) preg_match( '#^/counter/(quote|shift/open|shift/close|refund)$#', $route );
+	// Los añadidos abren lo suyo del Mostrador (el Pro: el PIN y las entradas y salidas de dinero).
+	return (bool) apply_filters( 'dox_pos_counter_only_allows', $ok, $route, $method, $request );
 }

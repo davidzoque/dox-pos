@@ -102,7 +102,9 @@
 	// ---------- API ----------
 	async function api(path, opts) {
 		const o = Object.assign({ credentials: "same-origin" }, opts || {});
-		o.headers = Object.assign({ "X-WP-Nonce": cfg.nonce, Accept: "application/json" }, o.headers || {});
+		// Los añadidos pueden mandar sus cabeceras en cada llamada (el Pro: la caja del equipo y el cajero del PIN).
+		const extra = window.DoxPOS && typeof window.DoxPOS.cabeceras === "function" ? window.DoxPOS.cabeceras() : {};
+		o.headers = Object.assign({ "X-WP-Nonce": cfg.nonce, Accept: "application/json" }, extra, o.headers || {});
 		let r;
 		try {
 			r = await fetch(cfg.rest + path, o);

@@ -228,7 +228,7 @@ function dox_pos_create_order( $data, $hold ) {
 	$order->set_payment_method( $pay['id'] );
 	$order->set_payment_method_title( $pay['title'] );
 	$order->set_customer_note( sanitize_textarea_field( $data['note'] ?? '' ) );
-	$user = wp_get_current_user();
+	$user = $counter ? dox_pos_counter_actor() : wp_get_current_user(); // En el mostrador, quien atiende (el Pro: el cajero del PIN).
 	$order->update_meta_data( '_dox_pos', 1 );
 	$order->update_meta_data( '_dox_pos_channel', $channel );
 	$order->update_meta_data( '_dox_pos_seller', $user->ID );

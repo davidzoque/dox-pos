@@ -357,13 +357,36 @@ function dox_pos_counter_maybe_install() {
 }
 
 /**
+ * La caja con la que trabaja esta petición. El gratuito tiene una sola ("main"); el Pro, con varias
+ * cajas, la saca de lo que manda el equipo (filtro dox_pos_counter_register).
+ *
+ * @return string
+ */
+function dox_pos_counter_register() {
+	$r = sanitize_key( (string) apply_filters( 'dox_pos_counter_register', 'main' ) );
+	return '' !== $r ? $r : 'main';
+}
+
+/**
+ * Quién atiende el mostrador: el usuario con la sesión, o (en el Pro, con cajeros por PIN) quien
+ * se identificó con su PIN en ese equipo. Las ventas, la caja y las devoluciones quedan a su nombre.
+ *
+ * @return WP_User
+ */
+function dox_pos_counter_actor() {
+	$u = apply_filters( 'dox_pos_counter_actor', wp_get_current_user() );
+	return $u instanceof WP_User && $u->exists() ? $u : wp_get_current_user();
+}
+
+/**
  * El turno abierto de la caja, o null.
  *
- * @param string $register La caja (el gratuito tiene una: "main").
+ * @param string|null $register La caja; de fábrica, la de esta petición.
  * @return object|null
  */
-function dox_pos_counter_open_shift( $register = 'main' ) {
+function dox_pos_counter_open_shift( $register = null ) {
 	global $wpdb;
+	$register = null === $register ? dox_pos_counter_register() : $register;
 	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}dox_pos_shifts WHERE register = %s AND status = 'open' ORDER BY id DESC LIMIT 1", $register ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 }
 
@@ -384,11 +407,11 @@ function dox_pos_counter_open( $float ) {
 	if ( $open ) {
 		return $open;
 	}
-	$user = wp_get_current_user();
+	$user = dox_pos_counter_actor();
 	$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->prefix . 'dox_pos_shifts',
 		array(
-			'register'    => 'main',
+			'register'    => dox_pos_counter_register(),
 			'status'      => 'open',
 			'opened_at'   => current_time( 'mysql', true ),
 			'opened_by'   => $user->ID,
@@ -398,7 +421,9 @@ function dox_pos_counter_open( $float ) {
 	);
 	$id = (int) $wpdb->insert_id; // Antes de update_option, que hace su propia consulta y lo cambia.
 	update_option( 'dox_pos_last_float', max( 0, (float) $float ), false ); // La próxima vez se propone la misma base.
-	return dox_pos_counter_get_shift( $id );
+	$shift = dox_pos_counter_get_shift( $id );
+	do_action( 'dox_pos_counter_shift_opened', $shift );
+	return $shift;
 }
 
 /**
@@ -439,7 +464,7 @@ function dox_pos_counter_summary( $shift ) {
 	}
 	$cash = isset( $by['efectivo'] ) ? $by['efectivo']['amount'] : 0.0;
 	$dec  = wc_get_price_decimals();
-	return array(
+	$sum = array(
 		'orders'       => $count,
 		'total'        => round( $total, $dec ),
 		'payments'     => array_values( array_map( function ( $p ) use ( $dec ) { $p['amount'] = round( $p['amount'], $dec ); return $p; }, $by ) ),
@@ -448,7 +473,10 @@ function dox_pos_counter_summary( $shift ) {
 		'refund_cash'  => round( $refund_cash, $dec ),
 		'refund_other' => round( $refund_other, $dec ),
 		'expected'     => round( (float) $shift->float_cash + $cash - $refund_cash, $dec ),
+		'extra_cash'   => array(), // Lo que mueve el efectivo además de ventas y devoluciones (el Pro: entradas y salidas), [{label, amount}].
 	);
+	// El Pro añade sus movimientos de efectivo en extra_cash y los suma a expected.
+	return apply_filters( 'dox_pos_counter_summary', $sum, $shift );
 }
 
 /**
@@ -465,7 +493,7 @@ function dox_pos_counter_close( $counted, $note = '' ) {
 		return new WP_Error( 'dox_pos_caja_cerrada', __( 'The till is not open.', 'dox-pos' ) );
 	}
 	$sum  = dox_pos_counter_summary( $shift );
-	$user = wp_get_current_user();
+	$user = dox_pos_counter_actor();
 	$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->prefix . 'dox_pos_shifts',
 		array(
@@ -480,7 +508,9 @@ function dox_pos_counter_close( $counted, $note = '' ) {
 		),
 		array( 'id' => (int) $shift->id )
 	);
-	return dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) );
+	$closed = dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) );
+	do_action( 'dox_pos_counter_shift_closed', $closed );
+	return $closed;
 }
 
 /**
@@ -500,6 +530,8 @@ function dox_pos_counter_format_shift( $shift ) {
 	};
 	return array(
 		'id'          => (int) $shift->id,
+		'register'    => (string) $shift->register,
+		'register_name' => (string) apply_filters( 'dox_pos_counter_register_name', '', $shift->register ), // El nombre de la caja (el Pro, con varias).
 		'open'        => $open,
 		'opened_at'   => $fmt( $shift->opened_at ),
 		'opened_day'  => $day( $shift->opened_at ),
@@ -777,7 +809,7 @@ function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'Choose what is being returned.', 'dox-pos' ) );
 	}
 	$amount = min( round( $amount, $dec ), (float) $order->get_remaining_refund_amount() );
-	$user   = wp_get_current_user();
+	$user   = dox_pos_counter_actor();
 	$refund = wc_create_refund(
 		array(
 			'order_id'       => $order->get_id(),
@@ -891,7 +923,7 @@ function dox_pos_counter_receipt_sample() {
 		'sample' => array(
 			'number'   => '2481',
 			'date'     => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
-			'seller'   => wp_get_current_user()->display_name,
+			'seller'   => dox_pos_counter_actor()->display_name,
 			'customer' => __( 'Marta Ruiz', 'dox-pos' ),
 			'lines'    => $lines,
 			'subtotal' => $sub,

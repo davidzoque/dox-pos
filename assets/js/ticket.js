@@ -70,7 +70,7 @@
 		// El cierre de caja (z: el turno cerrado, s: la tienda).
 		function cierre(z, s) {
 			const r = z.summary || {};
-			let h = cabecera(s) + '<div class="c big">' + esc(__("TILL CLOSING", "dox-pos")) + "</div><hr>";
+			let h = cabecera(s) + '<div class="c big">' + esc(__("TILL CLOSING", "dox-pos")) + "</div>" + (z.register_name ? '<div class="c">' + esc(z.register_name) + "</div>" : "") + "<hr>";
 			h += '<div class="s0">' + esc(sprintf(__("Opened: %1$s %2$s by %3$s", "dox-pos"), z.opened_day, z.opened_at, z.opened_name)) + "</div>";
 			h += '<div class="s0">' + esc(sprintf(__("Closed: %1$s %2$s by %3$s", "dox-pos"), z.closed_day, z.closed_at, z.closed_name)) + "</div><hr>";
 			h += fila(esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)), dinero(r.total || 0), "big");
@@ -78,6 +78,7 @@
 			if (r.refund_cash || r.refund_other) h += fila(esc(__("Returns", "dox-pos")), "−" + dinero((r.refund_cash || 0) + (r.refund_other || 0)));
 			h += "<hr>" + fila(esc(__("Float", "dox-pos")), dinero(r.float || 0)) + fila(esc(__("Cash sales", "dox-pos")), dinero(r.cash_sales || 0));
 			if (r.refund_cash) h += fila(esc(__("Cash given back", "dox-pos")), "−" + dinero(r.refund_cash));
+			(r.extra_cash || []).forEach((x) => { if (x.amount) h += fila(esc(x.label), (x.amount < 0 ? "−" : "") + dinero(Math.abs(x.amount))); }); // Entradas y salidas de dinero (Pro).
 			h += fila(esc(__("Expected", "dox-pos")), dinero(r.expected || 0), "big") + fila(esc(__("Counted", "dox-pos")), dinero(z.counted || 0), "big");
 			const d = z.difference || 0;
 			h += fila(esc(d === 0 ? __("It matches", "dox-pos") : d > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")), dinero(Math.abs(d)), "big");

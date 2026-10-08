@@ -415,6 +415,15 @@
 		$("#md-v").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#md-ok").click(); } });
 	}
 
+	// ---------- lo que el Pro engancha ----------
+	// Guardias: funciones (async) que dicen si se puede seguir antes de cobrar, devolver o abrir y
+	// cerrar la caja. El Pro pone la del PIN: sin cajero identificado, pide el PIN y espera.
+	const guardias = [];
+	async function permitido() {
+		for (const g of guardias) { if (!(await g())) return false; }
+		return true;
+	}
+
 	// ---------- el turno: abrir y cerrar caja ----------
 	m.shift = null;
 	m.lastFloat = 0;
@@ -441,16 +450,19 @@
 	function pintarTurno() {
 		const s = m.shift, box = $("#m-turno");
 		$("#m-cerrar").hidden = !s;
+		const caja = C.register_name ? "<b>" + esc(C.register_name) + '</b><span class="sep"></span>' : ""; // Con varias cajas (Pro), cuál es esta.
+		D.emit("mostrador:turno", s);
 		if (!s) {
-			box.innerHTML = '<span class="dot off"></span>' + esc(__("The till is closed.", "dox-pos")) + ' <button type="button" class="linkbtn" id="m-abrir">' + esc(__("Open the till", "dox-pos")) + "</button>";
+			box.innerHTML = caja + '<span class="dot off"></span>' + esc(__("The till is closed.", "dox-pos")) + ' <button type="button" class="linkbtn" id="m-abrir">' + esc(__("Open the till", "dox-pos")) + "</button>";
 			$("#m-abrir").onclick = () => abrirCaja();
 			return;
 		}
 		const r = s.summary || {};
-		box.innerHTML = '<span><span class="dot"></span>' + esc(sprintf(__("Open since %s", "dox-pos"), s.opened_at)) + '</span><span class="sep"></span><span>' + esc(__("Float", "dox-pos")) + " <b>" + dinero(r.float || 0) + '</b></span><span class="sep"></span><span>' + esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)) + " · <b>" + dinero(r.total || 0) + "</b></span>";
+		box.innerHTML = caja + '<span><span class="dot"></span>' + esc(sprintf(__("Open since %s", "dox-pos"), s.opened_at)) + '</span><span class="sep"></span><span>' + esc(__("Float", "dox-pos")) + " <b>" + dinero(r.float || 0) + '</b></span><span class="sep"></span><span>' + esc(sprintf(_n("%d sale", "%d sales", r.orders || 0, "dox-pos"), r.orders || 0)) + " · <b>" + dinero(r.total || 0) + "</b></span>";
 	}
 	// Abre la caja contando la base. Devuelve si quedó abierta.
-	function abrirCaja(motivo) {
+	async function abrirCaja(motivo) {
+		if (!(await permitido())) return false;
 		return new Promise((resolve) => {
 			modal("<h3>" + esc(__("Open the till", "dox-pos")) + '</h3><p class="mp">' + esc(motivo || __("Count the cash in the drawer: it is the float, and the closing compares against it.", "dox-pos")) + '</p><div class="field recibe"><label for="ma-f">' + esc(__("Cash in the drawer", "dox-pos")) + '</label><input id="ma-f" inputmode="' + IM + '" autocomplete="off" value="' + esc(m.lastFloat ? D.miles(m.lastFloat) : "") + '" placeholder="0"></div><div class="fila" style="margin-top:16px"><button type="button" class="go alt" id="m-no">' + esc(__("Not now", "dox-pos")) + '</button><button type="button" class="go" id="ma-ok">' + esc(__("Open the till", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 			let listo = false;
@@ -485,10 +497,12 @@
 		if (r.refund_cash || r.refund_other) h += filaSum(__("Returns", "dox-pos"), "−" + dinero((r.refund_cash || 0) + (r.refund_other || 0)));
 		h += '</div><div class="sum cierre">' + filaSum(__("Float", "dox-pos"), dinero(r.float || 0)) + filaSum(__("Cash sales", "dox-pos"), dinero(r.cash_sales || 0));
 		if (r.refund_cash) h += filaSum(__("Cash given back", "dox-pos"), "−" + dinero(r.refund_cash));
+		(r.extra_cash || []).forEach((x) => { if (x.amount) h += filaSum(x.label, (x.amount < 0 ? "−" : "") + dinero(Math.abs(x.amount))); }); // Entradas y salidas de dinero (Pro).
 		return h + filaSum(__("Cash that should be in the drawer", "dox-pos"), dinero(r.expected || 0), "tot2") + "</div>";
 	}
 	async function cerrarCaja() {
 		if (m.lineas.length) { toast(__("Charge the current sale or put it on hold before closing the till.", "dox-pos")); return; }
+		if (!(await permitido())) return;
 		await cargarTurno();
 		if (!m.shift) { toast(__("The till is not open.", "dox-pos")); return; }
 		const r = m.shift.summary || {};
@@ -572,6 +586,7 @@
 	}
 	async function totalParaCobrar() {
 		if (!m.lineas.length || m.ocupado) return null;
+		if (!(await permitido())) return null;
 		if (!(await asegurarCaja())) return null;
 		try {
 			return await cotizar();
@@ -697,12 +712,14 @@
 		$("#mt-print").onclick = () => imprimirPedido("DOXPOS-" + o.id);
 		$("#m-no").focus();
 		if (auto) imprimirPedido("DOXPOS-" + o.id);
+		D.emit("mostrador:venta", o);
 	}
 
 	// ---------- devoluciones ----------
 	// Se escanea el ticket (o se escribe el número del pedido), se eligen las piezas y cómo se devuelve el dinero.
 	async function devolucion(codigo) {
 		if (m.lineas.length) { toast(__("Charge the current sale or put it on hold before a return.", "dox-pos")); return; }
+		if (!(await permitido())) return;
 		if (!(await asegurarCaja())) return;
 		if (codigo) { buscarDevolucion(codigo); return; }
 		modal("<h3>" + esc(__("Return", "dox-pos")) + '</h3><p class="mp">' + esc(__("Scan the barcode on the receipt, or type the order number.", "dox-pos")) + '</p><input id="mv-q" autocomplete="off" placeholder="' + esc(__("Order number", "dox-pos")) + '"><div class="fila" style="margin-top:14px"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok">' + esc(__("Find the order", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
@@ -874,6 +891,7 @@
 			fila("F9", __("Discount", "dox-pos")) + fila("Esc", __("Clear the search, or empty the sale", "dox-pos")) +
 			'</div><p class="mp">' + esc(__("The scanner works without tapping anything: when it reads a barcode the product goes into the sale, and the barcode of a receipt opens its return. On a laptop the F keys may need the Fn key.", "dox-pos")) + '</p><div class="mbtn"><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>", "cobro");
 		$("#m-no").onclick = () => cerrarModal(true);
+		D.emit("mostrador:equipo", $("#modal-card")); // El Pro añade aquí la caja de este equipo.
 		$("#me-mostrador").onchange = (e) => guardar(MEM_EQUIPO, e.target.checked ? true : null);
 		$("#me-imprimir").onchange = (e) => guardar(EQ_IMPRIMIR, e.target.checked ? true : null);
 	}
@@ -901,6 +919,18 @@
 		}
 		if (k === "Enter" && $("#m-q").value.trim()) { e.preventDefault(); escanear($("#m-q").value); }
 	}
+
+	// Lo que usa el Pro (mostrador-pro.js).
+	D.mostrador = {
+		guardia: (fn) => guardias.push(fn),
+		cargarTurno: cargarTurno,
+		turno: () => m.shift,
+		enfocar: enfocar,
+		imprimir: imprimir,
+		ticket: T,
+		resumenHtml: resumenHtml,
+		hayVenta: () => m.lineas.length > 0,
+	};
 
 	// ---------- arranque ----------
 	D.pestaña({ id: "mostrador", abrir: () => { pintar(); cargarTurno(); setTimeout(enfocar, 0); } });
