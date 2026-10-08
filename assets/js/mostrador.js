@@ -535,7 +535,7 @@
 				const z = d.shift, dif = z.difference || 0;
 				modal('<div class="total"><span>' + esc(__("Till closed", "dox-pos")) + "</span><b>" + dinero(z.counted || 0) + '</b></div><div class="cambio' + (dif ? " falta" : "") + '"><span>' + esc(dif === 0 ? __("It matches", "dox-pos") : dif > 0 ? __("Over", "dox-pos") : __("Short", "dox-pos")) + "</span><b>" + dinero(Math.abs(dif)) + '</b></div><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print the closing", "dox-pos")) + '</button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>", "cobro");
 				$("#m-no").onclick = () => cerrarModal(true);
-				$("#mt-print").onclick = () => imprimir(cierreHtml(z, d.store || {}), d.store);
+				$("#mt-print").onclick = async () => { if (!(await aImpresora({ tipo: "cierre", shift: z.id }))) imprimir(cierreHtml(z, d.store || {}), d.store); };
 			} catch (e) {
 				if (e.message !== "sesion") toast(e.message);
 			}
@@ -569,11 +569,19 @@
 			}, 60);
 		});
 	}
+	// El Pro manda el ticket a una impresora de tickets conectada (Star o Epson), sin el diálogo del
+	// navegador. Si esta caja no tiene, o no la alcanza, se imprime desde el navegador como siempre.
+	let impresora = null;
+	async function aImpresora(trabajo) {
+		if (!impresora) return false;
+		try { return (await impresora(trabajo)) === true; } catch (e) { return false; }
+	}
 	const MEM_ULTIMO = "dox_pos_counter_last";
 	async function imprimirPedido(q, dev) {
 		try {
 			const d = await api("counter/order?q=" + encodeURIComponent(q));
 			if (!d.receipt) { toast(__("That order was not found.", "dox-pos")); return; }
+			if (await aImpresora({ tipo: "venta", id: d.receipt.id, dev: dev || null })) return;
 			imprimir(ticketHtml(d.receipt, dev), d.receipt.store);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.red ? __("No signal: the receipt could not be loaded.", "dox-pos") : e.message);
@@ -795,7 +803,7 @@
 				modal('<div class="total"><span>' + esc(__("Return done", "dox-pos")) + "</span><b>" + dinero(d.amount) + '</b></div><p class="mp">' + esc(d.method === "efectivo" ? __("Give the money back from the drawer. The pieces are back in stock.", "dox-pos") : d.to_card ? __("The money is already back on the customer’s card. The pieces are back in stock.", "dox-pos") : __("Give the money back on the card machine or by the original payment method. The pieces are back in stock.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 				$("#m-no").onclick = () => cerrarModal(true);
 				$("#m-no").focus();
-				$("#mt-print").onclick = () => imprimir(ticketHtml(d.receipt, dev), d.receipt.store);
+				$("#mt-print").onclick = async () => { if (!(await aImpresora({ tipo: "venta", id: d.receipt.id, dev: dev }))) imprimir(ticketHtml(d.receipt, dev), d.receipt.store); };
 				D.emit("pedido", { id: r.id });
 				D.refrescarStock();
 				D.cargarPedidos();
@@ -950,6 +958,7 @@
 		resumenHtml: resumenHtml,
 		hayVenta: () => m.lineas.length > 0,
 		tarjeta: (fn) => { cobroTarjeta = fn; },
+		impresora: (fn) => { impresora = fn; },
 	};
 
 	// ---------- arranque ----------
