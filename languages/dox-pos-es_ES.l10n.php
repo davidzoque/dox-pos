@@ -921,6 +921,7 @@ return array(
 		'The layaway message, the shipping notice and the "write to them" buttons open with the text already written. Where WhatsApp is the norm they open in WhatsApp; where it is not (the United States, Canada, Australia...), in the phone\'s Messages app, as a text message. It is set from the store country; change it if your customers are elsewhere.' => 'El mensaje del apartado, el aviso del envío y los botones de "escribirle" se abren con el texto ya escrito. Donde se usa WhatsApp se abren en WhatsApp; donde no (Estados Unidos, Canadá, Australia...), en la app de Mensajes del teléfono, como mensaje de texto. Sale del país de la tienda; cámbialo si tus clientas están en otro.',
 		'The lettering' => 'Las letras',
 		'The longest side goes from 800 to 4000 px. It was left at 1600.' => 'El lado mayor va de 800 a 4000 px. Se dejó en 1600.',
+		'The money is already back on the customer’s card. The pieces are back in stock.' => 'El dinero ya volvió a la tarjeta del cliente. Las piezas ya volvieron al inventario.',
 		'The one from the system (no serif)' => 'La del sistema (sin serifa)',
 		'The ones who almost bought come back' => 'Vuelven los que casi compran',
 		'The order' => 'El pedido',
