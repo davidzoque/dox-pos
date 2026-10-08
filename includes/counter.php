@@ -839,6 +839,7 @@ function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
 	return array(
 		'amount'  => $amount,
 		'method'  => 'efectivo' === $method ? 'efectivo' : 'original',
+		'to_card' => 'card' === $paid_back, // El lector conectado ya devolvió el dinero a la tarjeta.
 		'receipt' => dox_pos_counter_receipt( wc_get_order( $order->get_id() ) ),
 		'shift'   => $shift ? dox_pos_counter_format_shift( dox_pos_counter_get_shift( (int) $shift->id ) ) : null,
 	);
