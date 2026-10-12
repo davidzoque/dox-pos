@@ -2,6 +2,9 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.48.1 =
+* Fix: on the phone, tapping a product further down the Inventory or Sell list opened it but sent the list back to the top (Safari on iPhone), so you had to scroll down again to find it. Now it opens in place and the list stays where it was, also when you add a size.
+
 = 0.48.0 =
 * New: the Counter, for a physical store. Turn it on in WooCommerce > Dox POS > Sales and the register gets a Counter tab: scan barcodes with a USB or Bluetooth scanner or with the camera (ZXing on Safari), quick buttons for products without a barcode, keyboard shortcuts (F2 to F9), sales on hold and a discount.
 * New: charge cash with suggested bills and the change in large type, by card, or split between several payment methods. Each sale is a WooCommerce order handed over at the counter, with the tax worked out from the store address.

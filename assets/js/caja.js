@@ -275,82 +275,113 @@
 	}
 	function pintarResultados(modo) {
 		const ul = listaDe(modo);
-		ul.innerHTML = "";
 		const items = st.res[modo];
 		const top = modo === "venta" && st.topOn; // La lista de arranque de Vender: lo más vendido.
 		const cat = modo === "entrada" && st.catOn; // Y la de Inventario: el catálogo de la A a la Z.
+		// Si se vuelve a pintar la misma lista (al elegir una talla, al cargar más), se queda donde estaba:
+		// Safari del iPhone la devolvía arriba al rehacerla justo después de un toque.
+		const sc = ul.parentElement;
+		const cual = cat ? "cat" : top ? "top" : "q:" + inputDe(modo).value.trim();
+		const y = sc && ul.dataset.lista === cual ? sc.scrollTop : 0;
+		ul.dataset.lista = cual;
+		ul.innerHTML = "";
 		if (!items.length) {
 			ul.innerHTML = vacio(cat ? __("There are no products yet.", "dox-pos") : top ? __("Type two letters of the name, or the SKU.", "dox-pos") : __("Nothing matches. Try a single word.", "dox-pos"));
 			return;
 		}
 		if (top) ul.innerHTML = '<li class="rtit">' + esc(__("Best sellers of the last 30 days", "dox-pos")) + "</li>";
 		if (cat) ul.innerHTML = '<li class="rtit">' + esc(__("All products", "dox-pos")) + (st.cat.total ? ' <span class="cnt">' + st.cat.items.length + " / " + st.cat.total + "</span>" : "") + "</li>";
-		items.forEach((p) => {
-			// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
-			const bolsas = {};
-			let hay = 0;
-			p.variations.forEach((v) => { if (v.shared) { if (v.stock) bolsas[bolsa(v)] = v.stock; } else hay += v.stock || 0; });
-			hay += Object.values(bolsas).reduce((a, b) => a + b, 0);
-			const sinLimite = p.variations.some((v) => v.stock === null && v.status !== "outofstock");
-			const conTalla = p.variations.some((v) => v.talla);
-			const que = conTalla ? _n("size", "sizes", p.variations.length, "dox-pos") : _n("option", "options", p.variations.length, "dox-pos");
-			const li = document.createElement("li");
-			const b = document.createElement("button");
-			b.type = "button";
-			b.className = "prod";
-			b.setAttribute("aria-expanded", st.abierto[modo] === p.id);
-			b.innerHTML =
-				'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i></span>" +
-				'<span class="p">' + dinero(p.price) + "<i>" + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
-			b.prepend(miniatura(p));
-			b.onclick = () => {
-				st.abierto[modo] = st.abierto[modo] === p.id ? null : p.id;
-				pintarResultados(modo);
-			};
-			li.appendChild(b);
-			if (st.abierto[modo] === p.id) {
-				const box = document.createElement("div");
-				box.className = "vars";
-				p.variations.forEach((v) => {
-					const vb = document.createElement("button");
-					vb.type = "button";
-					vb.className = "var" + (v.real ? " real" : v.real_of ? " alt" : ""); // La talla de la pieza física, o una que también le sirve.
-					if (modo === "venta" && !disponible(v)) vb.disabled = true;
-					const n = enPedido(v.id, modo); // Las que ya van en el pedido (o en lo que llegó).
-					if (n) vb.classList.add("puesto");
-					vb.innerHTML =
-						'<span class="l">' + esc(v.label) + (n ? '<span class="lleg">+' + n + "</span>" : "") + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
-						'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
-					vb.onclick = () => añadir(v.id, modo);
-					if (!n) { box.appendChild(vb); return; }
-					// Al lado, quitar una sin ir a revisar: por si se tocó la que no era.
-					const fila = document.createElement("div");
-					fila.className = "varrow";
-					const menos = document.createElement("button");
-					menos.type = "button";
-					menos.className = "menos";
-					menos.textContent = "−";
-					menos.setAttribute("aria-label", sprintf(__("One less %s", "dox-pos"), v.label));
-					menos.onclick = () => quitarUna(v.id, modo);
-					fila.append(vb, menos);
-					box.appendChild(fila);
-				});
-				if (cfg.products && hayProducto()) { // Administradores y gerentes: editar el producto desde aquí.
-					const eb = document.createElement("button");
-					eb.type = "button";
-					eb.className = "var editlink";
-					eb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' + esc(__("Edit this product", "dox-pos"));
-					eb.onclick = () => editarDesdeLista(p.id);
-					box.appendChild(eb);
-				}
-				li.appendChild(box);
-			}
-			ul.appendChild(li);
-		});
+		items.forEach((p) => ul.appendChild(filaProducto(p, modo)));
+		if (sc && sc.scrollTop !== y) sc.scrollTop = y;
 		if (cat && st.cat.more) { // Si lo cargado no llena el hueco (pantalla alta), se pide la siguiente página ya.
-			const sc = ul.parentElement;
 			if (sc && sc.scrollHeight <= sc.clientHeight + 10) mostrarCatalogo(true);
 		}
+	}
+	// Una fila de la lista: el producto y, si está desplegado, sus tallas.
+	function filaProducto(p, modo) {
+		// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
+		const bolsas = {};
+		let hay = 0;
+		p.variations.forEach((v) => { if (v.shared) { if (v.stock) bolsas[bolsa(v)] = v.stock; } else hay += v.stock || 0; });
+		hay += Object.values(bolsas).reduce((a, b) => a + b, 0);
+		const sinLimite = p.variations.some((v) => v.stock === null && v.status !== "outofstock");
+		const conTalla = p.variations.some((v) => v.talla);
+		const que = conTalla ? _n("size", "sizes", p.variations.length, "dox-pos") : _n("option", "options", p.variations.length, "dox-pos");
+		const li = document.createElement("li");
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "prod";
+		b.setAttribute("aria-expanded", st.abierto[modo] === p.id);
+		b.innerHTML =
+			'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i></span>" +
+			'<span class="p">' + dinero(p.price) + "<i>" + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
+		b.prepend(miniatura(p));
+		b.onclick = () => desplegarProducto(p.id, modo);
+		li.dataset.id = String(p.id);
+		li.appendChild(b);
+		if (st.abierto[modo] === p.id) li.appendChild(cajaTallas(p, modo));
+		return li;
+	}
+	// Las tallas del producto desplegado, con "Editar este producto" al final.
+	function cajaTallas(p, modo) {
+		const box = document.createElement("div");
+		box.className = "vars";
+		p.variations.forEach((v) => {
+			const vb = document.createElement("button");
+			vb.type = "button";
+			vb.className = "var" + (v.real ? " real" : v.real_of ? " alt" : ""); // La talla de la pieza física, o una que también le sirve.
+			if (modo === "venta" && !disponible(v)) vb.disabled = true;
+			const n = enPedido(v.id, modo); // Las que ya van en el pedido (o en lo que llegó).
+			if (n) vb.classList.add("puesto");
+			vb.innerHTML =
+				'<span class="l">' + esc(v.label) + (n ? '<span class="lleg">+' + n + "</span>" : "") + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
+				'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
+			vb.onclick = () => añadir(v.id, modo);
+			if (!n) { box.appendChild(vb); return; }
+			// Al lado, quitar una sin ir a revisar: por si se tocó la que no era.
+			const fila = document.createElement("div");
+			fila.className = "varrow";
+			const menos = document.createElement("button");
+			menos.type = "button";
+			menos.className = "menos";
+			menos.textContent = "−";
+			menos.setAttribute("aria-label", sprintf(__("One less %s", "dox-pos"), v.label));
+			menos.onclick = () => quitarUna(v.id, modo);
+			fila.append(vb, menos);
+			box.appendChild(fila);
+		});
+		if (cfg.products && hayProducto()) { // Administradores y gerentes: editar el producto desde aquí.
+			const eb = document.createElement("button");
+			eb.type = "button";
+			eb.className = "var editlink";
+			eb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' + esc(__("Edit this product", "dox-pos"));
+			eb.onclick = () => editarDesdeLista(p.id);
+			box.appendChild(eb);
+		}
+		return box;
+	}
+	// Desplegar o recoger un producto toca solo esas filas, sin rehacer la lista: así no salta arriba
+	// (en Safari del iPhone volvía al principio) y la fila tocada se queda donde estaba, aunque se
+	// recoja otra más arriba.
+	function desplegarProducto(id, modo) {
+		const ul = listaDe(modo);
+		const sc = ul.parentElement;
+		const fila = (pid) => (pid ? ul.querySelector('li[data-id="' + pid + '"]') : null);
+		const antes = st.abierto[modo];
+		const li = fila(id);
+		const y = li ? li.getBoundingClientRect().top : 0;
+		st.abierto[modo] = antes === id ? null : id;
+		[antes, st.abierto[modo]].forEach((pid) => {
+			const f = fila(pid);
+			const p = st.res[modo].find((x) => x.id === pid);
+			if (!f || !p) return;
+			const viejo = f.querySelector(".vars");
+			if (viejo) viejo.remove();
+			const abierto = st.abierto[modo] === pid;
+			f.querySelector(".prod").setAttribute("aria-expanded", abierto);
+			if (abierto) f.appendChild(cajaTallas(p, modo));
+		});
+		if (li && sc) sc.scrollTop += li.getBoundingClientRect().top - y;
 	}
 
 	// ---------- el pedido y la entrada ----------

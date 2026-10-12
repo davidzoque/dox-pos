@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.48.0
+Stable tag: 0.48.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.48.1 =
+* Fix: on the phone, tapping a product further down the Inventory or Sell list opened it but sent the list back to the top (Safari on iPhone), so you had to scroll down again to find it. Now it opens in place and the list stays where it was, also when you add a size.
+
 = 0.48.0 =
 * New: the Counter, for a physical store. Turn it on in WooCommerce > Dox POS > Sales and the register gets a Counter tab: scan barcodes with a USB or Bluetooth scanner or with the camera (ZXing on Safari), quick buttons for products without a barcode, keyboard shortcuts (F2 to F9), sales on hold and a discount.
 * New: charge cash with suggested bills and the change in large type, by card, or split between several payment methods. Each sale is a WooCommerce order handed over at the counter, with the tax worked out from the store address.
@@ -124,8 +127,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * New: the actual size of a piece. When several sizes share the same units (a bodysuit labelled 18-24 months that also fits 12-18), mark the size on the label with the `_dox_pos_real_size` meta (`yes`) on that variation. The register then highlights it in the product sizes (Sell, Inventory and the product card), and the sizes that share it say "Also fits · it is the 18-24 months one".
 * New: when the register or the website sells another size of that group, the order line says "Actual size: 18-24 months", so whoever packs knows which piece to take. It shows in the register orders, in the WooCommerce order and in the emails to the store, but not to the customer.
 * Fixed: the units in stock on the Dashboard counted the sizes of hidden products.
-
-= 0.45.0 =
-* New: the register sign-in screen can offer "Sign in with a code by email" next to the password, when another plugin on the site provides one-time codes (through the `dox_pos_login_code_enabled`, `dox_pos_login_code_send` and `dox_pos_login_code_verify` filters). The cashier types the 6-digit code from their phone into the register, with no password. Codes are only sent to accounts that can use the register, and the register checks the session that was really opened before letting anyone in. Without such a plugin nothing changes: the register asks for username and password as always, and Dox POS sends no email of its own for this.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/
