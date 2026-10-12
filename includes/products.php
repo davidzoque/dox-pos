@@ -1918,9 +1918,20 @@ function dox_pos_update_product( $id, $data ) {
 		if ( $sizes ) {
 			wp_set_object_terms( $pid, array_map( 'intval', array_keys( $sizes ) ), $size_tax, false );
 		}
-		// Las variaciones que ya existen: precio, unidades e imagen del color.
-		$known = array_values( array_unique( array_merge( $before, array_column( $images, 'id' ) ) ) );
-		foreach ( $model['variations'] as $vr ) {
+		// Las variaciones que ya existen: precio, unidades e imagen del color. Primero las que siguen en la misma bolsa:
+		// así un cambio en el número de la bolsa lo apunta el kardex en una de ellas, antes de que entre (callada) una
+		// talla nueva y deje a las demás ya igualadas sin que nadie lo apunte.
+		$known  = array_values( array_unique( array_merge( $before, array_column( $images, 'id' ) ) ) );
+		$stays  = function ( $vr ) use ( $cells, $groups, $sync, $slug_of ) {
+			if ( null === $cells || ! $sync || '' === $vr['pool'] ) {
+				return 0;
+			}
+			$g = (int) ( $groups[ $vr['color'] . '|' . $vr['size'] ] ?? 0 );
+			return $g > 0 && dox_pos_pool_key_for( $slug_of( $vr['color'] ), $g ) === $vr['pool'] ? 1 : 0;
+		};
+		$ordered = $model['variations'];
+		usort( $ordered, fn( $a, $b ) => $stays( $b ) <=> $stays( $a ) ); // usort es estable desde PHP 8: el resto sigue en su orden.
+		foreach ( $ordered as $vr ) {
 			$v = wc_get_product( $vr['id'] );
 			if ( ! $v ) {
 				continue;
@@ -1995,10 +2006,11 @@ function dox_pos_update_product( $id, $data ) {
 					}
 				}
 			}
-			// La talla real: solo una talla que comparte puede serlo; la que deja de compartir, o de ser la real, la suelta.
-			// Es un meta de la variación, no un movimiento: no toca existencias ni el kardex.
-			if ( null !== $reals ) {
-				$real = $inherit && in_array( $cell, $reals, true );
+			// La talla real: se decide entre las tallas que comparten (puede haber varias en un grupo). La que no comparte
+			// conserva su marca tal cual: ahí no dice nada, y vuelve a valer si un día comparte otra vez. Es un meta de la
+			// variación, no un movimiento: no toca existencias ni el kardex.
+			if ( null !== $reals && $inherit ) {
+				$real = in_array( $cell, $reals, true );
 				if ( $real !== $vr['real'] ) {
 					if ( $real ) {
 						$v->update_meta_data( DOX_POS_REAL_SIZE_META, 'yes' );
@@ -2160,7 +2172,7 @@ function dox_pos_real_cells_from( $data ) {
 	if ( ! isset( $data['real_cells'] ) || ! is_array( $data['real_cells'] ) ) {
 		return null;
 	}
-	return array_values( array_unique( array_map( fn( $c ) => sanitize_text_field( (string) $c ), $data['real_cells'] ) ) );
+	return array_values( array_unique( array_map( 'strval', $data['real_cells'] ) ) ); // Igual que shared_cells: solo se compara, no se guarda.
 }
 
 /**

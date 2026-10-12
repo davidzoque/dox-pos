@@ -2506,8 +2506,9 @@
 	const gruposDe = (ckey, rows) => [...new Set(rows.map((r) => grupoDe(qKey(ckey, r.id))).filter(Boolean))].sort((a, b) => a - b);
 	// La talla real de un grupo (la etiqueta de la pieza física): la celda marcada que sigue en ese grupo, o "".
 	const realDe = (ckey, g, rows) => { const r = rows.find((x) => pr.real.has(qKey(ckey, x.id)) && grupoDe(qKey(ckey, x.id)) === g); return r ? qKey(ckey, r.id) : ""; };
-	// Las que se mandan al guardar: una por grupo vivo como mucho.
-	const realesVivas = () => { const out = [], rows = filas(); columnas().forEach((c) => gruposDe(c.key, rows).forEach((g) => { const k = realDe(c.key, g, rows); if (k) out.push(k); })); return out; };
+	// Las que se mandan al guardar: todas las marcadas que siguen compartiendo. Un grupo puede traer varias (marcadas
+	// antes de la 0.49 por la carga del inventario): se conservan hasta que se elija una en su menú.
+	const realesVivas = () => { const keys = celdas(); return [...pr.real].filter((k) => keys.includes(k) && grupoDe(k) > 0); };
 	// Una talla que no comparte: si tiene unidades propias las lleva; con 0, no se ofrece.
 	const sinCompartir = (ckey, sid) => (cantidad(ckey, sid) > 0 ? __("Own units", "dox-pos") : __("Not offered", "dox-pos"));
 	// Las unidades compartidas de cada bolsa viva: {clave: n}.
@@ -2561,7 +2562,7 @@
 					ctrl = '<select class="qsel" data-k="' + esc(k) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + opts + "</select>";
 				}
 				const v = pr.qty[k];
-				const esReal = g > 0 && realDe(c.key, g, rows) === k && rows.filter((x) => grupoDe(qKey(c.key, x.id)) === g).length > 1;
+				const esReal = g > 0 && pr.real.has(k) && rows.filter((x) => grupoDe(qKey(c.key, x.id)) === g).length > 1;
 				h += '<div class="qrow' + (esReal ? " real" : "") + '"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + (esReal ? '<span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + '</span><span class="qcell">' +
 					(g ? '<span class="qpool" data-pool="' + esc(pk(c.key, g)) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(pk(c.key, g)) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
 					ctrl + "</span></div>";
@@ -2809,7 +2810,7 @@
 			if (pr.edit) modalProductoGuardado(d.product);
 			else { borrarBorrador(); modalProductoCreado(d.product); }
 			volverDeFicha(false);
-			refrescarStock(); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
+			refrescarStock().catch(() => {}); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back: the photos are already uploaded.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);

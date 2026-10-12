@@ -4,8 +4,9 @@ Every version, newest first. The readme on WordPress.org shows only the recent o
 
 = 0.49.0 =
 * Improved: in the product form (Edit this product, also when creating), the menu of each size says "Not offered" when the size does not share units and has none of its own, and "Own units" when it has some. Choosing "Not offered" on a size that shares takes it out of the group: it shows as sold out in the register and in the store, and the other sizes keep the units.
-* New: under each group of sizes that share units, "Actual size" chooses the size on the label of the piece (the `_dox_pos_real_size` meta of 0.46.0), for products with one color and for colors with their own shared units. The size that leaves its group stops being the actual one. Saving from the Pro chat does not touch it.
+* New: under each group of sizes that share units, "Actual size" chooses the size on the label of the piece (the `_dox_pos_real_size` meta of 0.46.0), for products with one color and for colors with their own shared units. A group that already had several actual sizes keeps them until you pick one, and a size that stops sharing keeps its mark (it only shows while it shares). Saving from the Pro chat does not touch it.
 * Fix: taking a size out of a group of shared units and putting another one in, in the same save, could copy the group's units to the size that left. The group now only syncs the sizes that are still in it.
+* Fix: changing the number of shared units in the same save where a size joins the group now writes its row in the stock movements (it was left out).
 * Fix: after saving a product opened from Inventory or Sell, the list showed it as it was before saving until you searched again.
 
 = 0.48.1 =
