@@ -1828,7 +1828,7 @@
 	// por si la página se recarga o se cae la sesión.
 	const pr = {
 		cargado: false, abriendo: null, form: null,
-		grupos: {}, totales: {}, legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
+		grupos: {}, totales: {}, real: new Set(), legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
 		fotos: [],          // [{uid, file, estado: cola|subiendo|ok|error, id, url, color, kb, error}]
 		cats: [],           // ids de categoría elegidos
 		colores: [],        // [{key, id, name, hex}]; id 0 = color nuevo (key "n:nombre")
@@ -2504,6 +2504,12 @@
 	const gruposVivos = () => { const out = {}; compartidasVivas().forEach((k) => { out[k] = pr.grupos[k]; }); return out; };
 	const pk = (ckey, g) => (g > 1 ? ckey + "#" + g : ckey); // La clave de la bolsa: la columna de color y, del segundo grupo en adelante, "#2"...
 	const gruposDe = (ckey, rows) => [...new Set(rows.map((r) => grupoDe(qKey(ckey, r.id))).filter(Boolean))].sort((a, b) => a - b);
+	// La talla real de un grupo (la etiqueta de la pieza física): la celda marcada que sigue en ese grupo, o "".
+	const realDe = (ckey, g, rows) => { const r = rows.find((x) => pr.real.has(qKey(ckey, x.id)) && grupoDe(qKey(ckey, x.id)) === g); return r ? qKey(ckey, r.id) : ""; };
+	// Las que se mandan al guardar: una por grupo vivo como mucho.
+	const realesVivas = () => { const out = [], rows = filas(); columnas().forEach((c) => gruposDe(c.key, rows).forEach((g) => { const k = realDe(c.key, g, rows); if (k) out.push(k); })); return out; };
+	// Una talla que no comparte: si tiene unidades propias las lleva; con 0, no se ofrece.
+	const sinCompartir = (ckey, sid) => (cantidad(ckey, sid) > 0 ? __("Own units", "dox-pos") : __("Not offered", "dox-pos"));
 	// Las unidades compartidas de cada bolsa viva: {clave: n}.
 	const totalesVivos = () => { const out = {}; const rows = filas(); columnas().forEach((c) => gruposDe(c.key, rows).forEach((g) => { out[pk(c.key, g)] = pr.totales[pk(c.key, g)] || 0; })); return out; };
 	// Los grupos de una columna van seguidos (1, 2...): si uno se queda vacío, los demás se corren y sus unidades con ellos.
@@ -2549,13 +2555,14 @@
 				if (variable) {
 					// El menú de cada talla: lleva las suyas, comparte (en el grupo 1, 2...), o abre otro grupo que comparte aparte.
 					const lista = gs.length ? gs : [1];
-					let opts = '<option value="0"' + (g === 0 ? " selected" : "") + ">" + esc(__("Does not share", "dox-pos")) + "</option>";
+					let opts = '<option value="0"' + (g === 0 ? " selected" : "") + ">" + esc(sinCompartir(c.key, r.id)) + "</option>";
 					lista.forEach((x) => { opts += '<option value="' + x + '"' + (g === x ? " selected" : "") + ">" + esc(varios ? sprintf(__("Shares (group %d)", "dox-pos"), x) : __("Shares", "dox-pos")) + "</option>"; });
 					if (gs.length) opts += '<option value="new">' + esc(__("Shares, another group", "dox-pos")) + "</option>";
 					ctrl = '<select class="qsel" data-k="' + esc(k) + '" aria-label="' + esc(r.name + ", " + c.name) + '">' + opts + "</select>";
 				}
 				const v = pr.qty[k];
-				h += '<div class="qrow"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + '</span><span class="qcell">' +
+				const esReal = g > 0 && realDe(c.key, g, rows) === k && rows.filter((x) => grupoDe(qKey(c.key, x.id)) === g).length > 1;
+				h += '<div class="qrow' + (esReal ? " real" : "") + '"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + (esReal ? '<span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + '</span><span class="qcell">' +
 					(g ? '<span class="qpool" data-pool="' + esc(pk(c.key, g)) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(pk(c.key, g)) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
 					ctrl + "</span></div>";
 			});
@@ -2563,6 +2570,12 @@
 				const key = pk(c.key, x);
 				const n = rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).length;
 				h += '<div class="qpoolbox"><label for="p-junto-' + esc(key) + '">' + esc(varios ? sprintf(__("Shared units · group %d", "dox-pos"), x) : __("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(key) + '" data-pool="' + esc(key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[key] ? miles(pr.totales[key]) : "") + '"></div>';
+				if (n > 1) { // Con dos tallas o más: cuál es la de la etiqueta, para que la caja diga qué pieza sacar.
+					const rk = realDe(c.key, x, rows);
+					let ro = '<option value=""' + (rk ? "" : " selected") + ">" + esc(__("Not marked", "dox-pos")) + "</option>";
+					rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).forEach((r) => { const k = qKey(c.key, r.id); ro += '<option value="' + esc(k) + '"' + (rk === k ? " selected" : "") + ">" + esc(r.label || r.name) + "</option>"; });
+					h += '<div class="qrealbox' + (rk ? " on" : "") + '"><label for="p-real-' + esc(key) + '">' + esc(__("Actual size", "dox-pos")) + '</label><select class="qreal" id="p-real-' + esc(key) + '" data-c="' + esc(c.key) + '" data-g="' + x + '">' + ro + "</select></div>";
+				}
 				h += '<p class="qhint">' + esc(sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", n, "dox-pos"), nombresCompartidas(rows, [c], x))) + "</p>";
 			});
 			return h + "</div>";
@@ -2577,7 +2590,12 @@
 		hint.hidden = !partes.length;
 		hint.textContent = partes.join(" ");
 		box.querySelectorAll("input[inputmode]:not([data-pool])").forEach((inp) => {
-			inp.addEventListener("input", () => { pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = uds(inp.value); pintarResumenProducto(); });
+			inp.addEventListener("input", () => {
+				pr.qty[qKey(inp.dataset.c, inp.dataset.s)] = uds(inp.value);
+				const o = inp.parentNode.querySelector('.qsel option[value="0"]');
+				if (o) o.textContent = sinCompartir(inp.dataset.c, inp.dataset.s);
+				pintarResumenProducto();
+			});
 			inp.addEventListener("focus", () => inp.select());
 		});
 		box.querySelectorAll("input[data-pool]").forEach((inp) => {
@@ -2587,11 +2605,20 @@
 		box.querySelectorAll(".qsel").forEach((sel) => {
 			sel.onchange = () => { // Lleva las suyas, comparte en un grupo, o abre otro grupo nuevo.
 				const k = sel.dataset.k, ckey = k.slice(0, k.lastIndexOf("|"));
+				pr.real.delete(k); // La talla que cambia de sitio deja de ser la real de su grupo.
 				if (sel.value === "new") pr.grupos[k] = Math.max(0, ...gruposDe(ckey, rows)) + 1;
 				else if (sel.value === "0") delete pr.grupos[k];
 				else pr.grupos[k] = +sel.value;
 				pintarCantidades();
 				pintarResumenProducto();
+			};
+		});
+		box.querySelectorAll(".qreal").forEach((sel) => {
+			sel.onchange = () => { // Una sola talla real por grupo.
+				const ckey = sel.dataset.c, g = +sel.dataset.g;
+				rows.forEach((r) => { const k = qKey(ckey, r.id); if (grupoDe(k) === g) pr.real.delete(k); });
+				if (sel.value) pr.real.add(sel.value);
+				pintarCantidades();
 			};
 		});
 		box.querySelectorAll(".qshare input[data-all]").forEach((cb) => {
@@ -2773,7 +2800,8 @@
 			qty: qty,
 			shared_cells: compartidasVivas(), // Las tallas que comparten unidades (clave color|talla)...
 			shared_groups: gruposVivos(),     // ...en qué grupo está cada una (1, 2...)...
-			pool_stock: totalesVivos(),       // ...y las unidades de cada bolsa (columna de color, y "#2" del segundo grupo en adelante).
+			pool_stock: totalesVivos(),       // ...y las unidades de cada bolsa (columna de color, y "#2" del segundo grupo en adelante)...
+			real_cells: realesVivas(),        // ...y la talla real de cada grupo (la etiqueta de la pieza).
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
@@ -2781,6 +2809,7 @@
 			if (pr.edit) modalProductoGuardado(d.product);
 			else { borrarBorrador(); modalProductoCreado(d.product); }
 			volverDeFicha(false);
+			refrescarStock(); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back: the photos are already uploaded.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -2798,7 +2827,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.legacy = false; pr.legacyTotal = 0;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		pr.paquete0 = null;
@@ -3005,6 +3034,7 @@
 		pr.grupos = Object.assign({}, d.shared_groups || {}); // Las tallas que hoy comparten unidades, con su grupo.
 		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
 		pr.totales = Object.assign({}, d.pool_stock || {}); // Las unidades compartidas por columna de color.
+		pr.real = new Set((d.real_cells || []).map(String)); // La talla real de cada grupo.
 		pr.legacy = !!d.legacy_pool; // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : uds(d.shared);
 		pr.cats = (d.categories || []).slice();

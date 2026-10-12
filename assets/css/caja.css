@@ -330,6 +330,13 @@ tr.off,li.off{opacity:.5}
 .qpoolbox label{font-size:12px;font-weight:600;color:var(--muted)}
 .qpoolbox input{width:84px;flex:none;text-align:center;font-variant-numeric:tabular-nums}
 .qhint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.4}
+.qrow.real .qsz{color:var(--real);white-space:normal}
+.qrow.real .qsz .rt{display:table;margin:2px 0 0}
+.qrealbox{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+.qrealbox label{font-size:12px;font-weight:600;color:var(--muted)}
+.qrealbox select{width:auto;max-width:60%;flex:none;min-height:0;font-size:13px;padding:7px 26px 7px 12px;border-radius:999px;background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%}
+.qrealbox.on label,.qrealbox.on select{color:var(--real)}
+.qrealbox.on select{border-color:var(--real);background-color:var(--real-soft);font-weight:600}
 .switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13.5px;font-weight:500;position:relative}
 .switch input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
 .switch-ui{width:42px;height:24px;border-radius:999px;background:var(--line);position:relative;flex:none;margin-top:1px;transition:background-color 160ms ease}

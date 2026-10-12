@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.48.1
+Stable tag: 0.49.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,12 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.49.0 =
+* Improved: in the product form (Edit this product, also when creating), the menu of each size says "Not offered" when the size does not share units and has none of its own, and "Own units" when it has some. Choosing "Not offered" on a size that shares takes it out of the group: it shows as sold out in the register and in the store, and the other sizes keep the units.
+* New: under each group of sizes that share units, "Actual size" chooses the size on the label of the piece (the `_dox_pos_real_size` meta of 0.46.0), for products with one color and for colors with their own shared units. The size that leaves its group stops being the actual one. Saving from the Pro chat does not touch it.
+* Fix: taking a size out of a group of shared units and putting another one in, in the same save, could copy the group's units to the size that left. The group now only syncs the sizes that are still in it.
+* Fix: after saving a product opened from Inventory or Sell, the list showed it as it was before saving until you searched again.
+
 = 0.48.1 =
 * Fix: on the phone, tapping a product further down the Inventory or Sell list opened it but sent the list back to the top (Safari on iPhone), so you had to scroll down again to find it. Now it opens in place and the list stays where it was, also when you add a size.
 
@@ -122,10 +128,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Changed: on the phone, "Download Excel" and "Upload costs" sit under the Inventory search.
 * Changed: Products opens with the list of products and a "New product" button. Each product opens in its own card with an arrow to go back (to the list, or to the tab you came from). If you leave with unsaved changes, the register asks whether to save, discard or keep editing.
 * Changed: when the register opens on the Dashboard, the Dashboard goes first in the bottom bar on the phone.
-
-= 0.46.0 =
-* New: the actual size of a piece. When several sizes share the same units (a bodysuit labelled 18-24 months that also fits 12-18), mark the size on the label with the `_dox_pos_real_size` meta (`yes`) on that variation. The register then highlights it in the product sizes (Sell, Inventory and the product card), and the sizes that share it say "Also fits · it is the 18-24 months one".
-* New: when the register or the website sells another size of that group, the order line says "Actual size: 18-24 months", so whoever packs knows which piece to take. It shows in the register orders, in the WooCommerce order and in the emails to the store, but not to the customer.
-* Fixed: the units in stock on the Dashboard counted the sizes of hidden products.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

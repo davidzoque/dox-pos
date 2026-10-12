@@ -282,7 +282,9 @@ function dox_pos_pool_sync( $v ) {
 				continue;
 			}
 			$s = wc_get_product( $sid );
-			if ( ! $s || true !== $s->get_manage_stock() ) {
+			// Solo las que siguen en la bolsa: la lista recordada puede traer una talla que acaba de salir de ella en
+			// este mismo guardado, y copiarle el número le daría unidades que no tiene.
+			if ( ! $s || dox_pos_pool_key( $s ) !== $key ) {
 				continue;
 			}
 			if ( null !== $delta ) {

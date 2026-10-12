@@ -1027,6 +1027,7 @@ function dox_pos_create_product( $data ) {
 	$sync       = count( $colors ) > 1 || ( $groups && max( $groups ) > 1 ); // Bolsas propias: varios colores, o más de un grupo.
 	$shared     = $cells && ! $sync ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : 0 ) ) : null;
 	$pools_seen = array();
+	$reals      = dox_pos_real_cells_from( $data ); // La talla real de cada grupo que comparte (null: el formulario no lo manda).
 	$ctx      = dox_pos_stock_context( 'create' ); // El kardex: las unidades iniciales quedan como "Creado en la caja".
 	$product  = $variable ? new WC_Product_Variable() : new WC_Product_Simple();
 	$product->set_name( $name );
@@ -1147,6 +1148,9 @@ function dox_pos_create_product( $data ) {
 				} else {
 					$v->set_manage_stock( false ); // Sale del total del producto.
 				}
+				if ( $g > 0 && $reals && in_array( $ckey . '|' . $sid, $reals, true ) ) {
+					$v->update_meta_data( DOX_POS_REAL_SIZE_META, 'yes' ); // La talla de la pieza física de su grupo.
+				}
 				if ( $cterm && isset( $by_color[ $ckey ] ) ) {
 					$v->set_image_id( $by_color[ $ckey ] );
 				}
@@ -1161,6 +1165,7 @@ function dox_pos_create_product( $data ) {
 			}
 		}
 		dox_pos_pool_forget();
+		dox_pos_real_size_ids( 0, true );
 		WC_Product_Variable::sync( $pid );
 		wc_delete_product_transients( $pid );
 	}
@@ -1460,6 +1465,7 @@ function dox_pos_product_model( $p, $size_tax, $color_tax ) {
 			'price'  => (float) $v->get_regular_price( 'edit' ),
 			'image'  => (int) $v->get_image_id( 'edit' ), // Sin 'edit' devolvería la del padre.
 			'status' => $v->get_status(),
+			'real'   => 'yes' === $v->get_meta( DOX_POS_REAL_SIZE_META, true, 'edit' ), // La talla de la pieza física de su grupo.
 		);
 	}
 	$out['shared']      = $inherits ? $parent_stock : null;
@@ -1527,9 +1533,13 @@ function dox_pos_product_edit_data( $id ) {
 	$shared_cells  = array(); // Las tallas que no llevan las suyas: salen del total del producto, o de una bolsa.
 	$shared_groups = array(); // Y en qué grupo está cada una (1, 2...): un color puede tener varios grupos.
 	$pool_stock    = array(); // Las unidades compartidas por bolsa (clave: columna de color y "#2" del segundo grupo en adelante).
+	$real_cells    = array(); // Las tallas marcadas como talla real (la etiqueta de la pieza física de su grupo).
 	if ( $p->is_type( 'variable' ) ) {
 		foreach ( $model['variations'] as $v ) {
 			$prices[] = (float) $v['price'];
+			if ( $v['real'] ) {
+				$real_cells[] = $v['color'] . '|' . $v['size'];
+			}
 			if ( null !== $v['stock'] && '' === $v['pool'] ) {
 				$qty[ $v['color'] ][ (string) $v['size'] ] = $v['stock'];
 				$units += $v['stock'];
@@ -1581,6 +1591,7 @@ function dox_pos_product_edit_data( $id ) {
 		'shared_cells' => $shared_cells,    // Qué tallas comparten unidades (del producto, o de una bolsa); el resto llevan las suyas y se editan.
 		'shared_groups' => (object) $shared_groups,        // En qué grupo está cada una (1, 2...).
 		'pool_stock'  => (object) $pool_stock,             // Las unidades compartidas por bolsa (columna de color, y "#2" del segundo grupo en adelante).
+		'real_cells'  => $real_cells,                      // Qué talla es la real en cada grupo (clave color|talla).
 		'legacy_pool' => ! empty( $model['legacy_pool'] ), // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		'images'      => $images,
 		'variations'  => count( $model['variations'] ),
@@ -1834,6 +1845,7 @@ function dox_pos_update_product( $id, $data ) {
 	$sync         = null !== $cells && $variable && ( count( $colors ) > 1 || ( $groups && max( $groups ) > 1 ) ); // Bolsas propias: varios colores, o más de un grupo.
 	$pool         = null !== $cells && $cells && ! $sync ? max( 0, (int) ( $pool_stock ? reset( $pool_stock ) : ( $model['shared'] ?? 0 ) ) ) : null;
 	$pools_logged = array(); // Las bolsas que el kardex ya apuntó en este guardado (una talla por bolsa).
+	$reals        = $variable ? dox_pos_real_cells_from( $data ) : null; // La talla real de cada grupo; null: no se toca (el chat del Pro no la manda).
 	// El slug del color, que es la marca de la bolsa; y las unidades de la bolsa de ese color: las del formulario, o las de hoy.
 	$slug_of      = function ( $ckey ) use ( $colors, $color_tax ) {
 		if ( isset( $colors[ $ckey ] ) && $colors[ $ckey ] instanceof WP_Term ) {
@@ -1983,6 +1995,19 @@ function dox_pos_update_product( $id, $data ) {
 					}
 				}
 			}
+			// La talla real: solo una talla que comparte puede serlo; la que deja de compartir, o de ser la real, la suelta.
+			// Es un meta de la variación, no un movimiento: no toca existencias ni el kardex.
+			if ( null !== $reals ) {
+				$real = $inherit && in_array( $cell, $reals, true );
+				if ( $real !== $vr['real'] ) {
+					if ( $real ) {
+						$v->update_meta_data( DOX_POS_REAL_SIZE_META, 'yes' );
+					} else {
+						$v->delete_meta_data( DOX_POS_REAL_SIZE_META );
+					}
+					$changed = true;
+				}
+			}
 			if ( '' !== $vr['color'] ) {
 				$want = $by_color[ $vr['color'] ] ?? 0;
 				if ( $want && $want !== $vr['image'] ) {
@@ -2000,6 +2025,7 @@ function dox_pos_update_product( $id, $data ) {
 				$v->save();
 				if ( $quiet ) {
 					dox_pos_stock_quiet( false );
+					dox_pos_pool_forget(); // Cambió de sitio: quién está en cada bolsa ya no es lo recordado.
 				}
 			}
 		}
@@ -2061,6 +2087,9 @@ function dox_pos_update_product( $id, $data ) {
 				} else {
 					$v->set_manage_stock( false ); // Sale del total del producto.
 				}
+				if ( $inherit && $reals && in_array( $ckey . '|' . $sid, $reals, true ) ) {
+					$v->update_meta_data( DOX_POS_REAL_SIZE_META, 'yes' );
+				}
 				if ( $cterm && isset( $by_color[ $ckey ] ) ) {
 					$v->set_image_id( $by_color[ $ckey ] );
 				}
@@ -2084,6 +2113,7 @@ function dox_pos_update_product( $id, $data ) {
 			}
 		}
 		dox_pos_pool_forget();
+		dox_pos_real_size_ids( 0, true );
 		WC_Product_Variable::sync( $pid );
 		wc_delete_product_transients( $pid );
 	}
@@ -2117,6 +2147,20 @@ function dox_pos_pool_stock_from( $data ) {
 		$out['*'] = max( 0, (int) $data['shared_stock'] );
 	}
 	return $out;
+}
+
+/**
+ * La talla real que marca el formulario en cada grupo que comparte (real_cells: claves color|talla). Null si no
+ * lo manda: así un guardado sin ese dato (el chat del Pro, un formulario anterior a la 0.49) no la cambia.
+ *
+ * @param array $data Lo que llegó.
+ * @return string[]|null
+ */
+function dox_pos_real_cells_from( $data ) {
+	if ( ! isset( $data['real_cells'] ) || ! is_array( $data['real_cells'] ) ) {
+		return null;
+	}
+	return array_values( array_unique( array_map( fn( $c ) => sanitize_text_field( (string) $c ), $data['real_cells'] ) ) );
 }
 
 /**
