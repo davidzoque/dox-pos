@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.49.0
+Stable tag: 0.49.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.49.1 =
+* Fix: Edit this product did not save a product whose sizes have different prices. With the Price field empty (which leaves the price of each size as it is), the register sent a price of 0 and the store answered "The price has to be greater than zero", so nothing was saved. An empty Price goes again as "do not touch the prices"; creating a product still asks for a price.
+* Fix: in that same case, the line under the cost said "The price is missing" (or "Enter a price and a cost"), as if a price had to be typed, and typing one replaces the price of every size. It now says that the sizes have different prices, from the lowest to the highest.
+
 = 0.49.0 =
 * Improved: in the product form (Edit this product, also when creating), the menu of each size says "Not offered" when the size does not share units and has none of its own, and "Own units" when it has some. Choosing "Not offered" on a size that shares takes it out of the group: it shows as sold out in the register and in the store, and the other sizes keep the units.
 * New: under each group of sizes that share units, "Actual size" chooses the size on the label of the piece (the `_dox_pos_real_size` meta of 0.46.0), for products with one color and for colors with their own shared units. A group that already had several actual sizes keeps them until you pick one, and a size that stops sharing keeps its mark (it only shows while it shares). Saving from the Pro chat does not touch it.
@@ -122,12 +126,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.47.1 =
 * Improved: with Colciudades on a store in Colombia, a city typed by hand in the register ("medellin", "MEDELLIN", "bogota") is saved with its name from the list ("Medellín", "Bogotá"), ignoring accents, capital letters and extra spaces. The register fixes it when you leave the field, and the server does it again when the order is saved. A place that is not on the list (a rural district, for instance) is saved as typed.
-
-= 0.47.0 =
-* Changed: on the phone, Sell and Inventory no longer have the two tabs at the top. When you add something, a bar appears at the bottom ("View the order" or "Review and save") that opens what you picked, with an arrow to keep searching and an "Empty all" button that asks first.
-* New: a size that is already in the order (or in what arrived) shows how many with a "+2" and has a minus button next to it to remove one without going to review.
-* Changed: on the phone, "Download Excel" and "Upload costs" sit under the Inventory search.
-* Changed: Products opens with the list of products and a "New product" button. Each product opens in its own card with an arrow to go back (to the list, or to the tab you came from). If you leave with unsaved changes, the register asks whether to save, discard or keep editing.
-* Changed: when the register opens on the Dashboard, the Dashboard goes first in the bottom bar on the phone.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

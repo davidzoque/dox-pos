@@ -975,6 +975,7 @@ return array(
 		'The shop has not chosen any buttons yet.' => 'La tienda todavía no eligió botones.',
 		'The sizes cost different amounts: from %1$s to %2$s.' => 'Las tallas cuestan distinto: de %1$s a %2$s.',
 		'The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them.' => 'Las tallas tienen precios distintos (de %1$s a %2$s): si escribes un precio, se pone a todas.',
+		'The sizes have different prices: from %1$s to %2$s.' => 'Las tallas tienen precios distintos: de %1$s a %2$s.',
 		'The sizes of this product do not all weigh or measure the same. Leave it empty to keep them as they are; what you type here goes to all of them.' => 'Las tallas de este producto no pesan o miden todas lo mismo. Déjalo vacío para que sigan como están; lo que escribas aquí va a todas.',
 		'The stock entry could not be saved. Nothing was changed.' => 'La entrada no se pudo guardar. No cambió nada.',
 		'The stock has already gone down.' => 'El inventario ya bajó.',

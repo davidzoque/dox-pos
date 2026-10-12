@@ -2294,12 +2294,18 @@
 		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : redondear(pr.edit.cost);
 		return v === was ? "" : v;
 	}
+	// Qué precio se manda: al editar un producto con precios distintos por talla, el campo vacío va como '' (no tocarlos), no como 0.
+	function precioPayload() {
+		const v = num($("#p-precio").value);
+		return pr.edit && pr.edit.price === "" && !v ? "" : v;
+	}
 	// Lo que deja cada unidad con el precio y el costo escritos.
 	function pintarMargen() {
 		const el = $("#p-margen");
 		if (!el) return;
 		const precio = num($("#p-precio").value), costo = costoForm();
 		el.className = "margen";
+		if (!precio && pr.edit && pr.edit.price === "") { el.textContent = sprintf(__("The sizes have different prices: from %1$s to %2$s.", "dox-pos"), dinero(pr.edit.price_min), dinero(pr.edit.price_max)); return; } // Vacío es no tocarlos: no falta nada.
 		if (!precio && !costo) { el.textContent = __("Enter a price and a cost.", "dox-pos"); return; }
 		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? sprintf(__("The sizes cost different amounts: from %1$s to %2$s.", "dox-pos"), dinero(pr.edit.cost_min), dinero(pr.edit.cost_max)) : __("No cost: its sales do not count towards the profit.", "dox-pos"); return; }
 		if (!precio) { el.textContent = __("The price is missing.", "dox-pos"); return; }
@@ -2789,7 +2795,7 @@
 		const payload = {
 			ref: uuid(),
 			name: $("#p-nom").value.trim(),
-			price: num($("#p-precio").value),
+			price: precioPayload(),
 			cost: costoPayload(),
 			package: paquetePayload(),
 			sku: $("#p-sku").value.trim(),
