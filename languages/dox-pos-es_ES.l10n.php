@@ -704,7 +704,7 @@ return array(
 		'Out' => 'Salieron',
 		'Out of stock' => 'Agotado',
 		'Over' => 'Sobra',
-		'Owed in store credit' => 'Debido en saldo a favor',
+		'Owed in store credit' => 'Saldo a favor por usar',
 		'Own units' => 'Unidades propias',
 		'PHOTO' => 'FOTO',
 		'POS' => 'Caja',
