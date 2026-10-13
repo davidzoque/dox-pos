@@ -143,7 +143,8 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .var:active:not(:disabled){transform:scale(.97)}
 .var:disabled{opacity:.5;cursor:not-allowed}
 .var .l{font:700 17px/1.15 var(--serif);letter-spacing:-.02em;max-width:100%;overflow-wrap:anywhere}
-.var .l i{display:block;font:500 10.5px var(--mono);letter-spacing:0;color:var(--muted);margin-top:3px}
+.var .l i{display:block;font:500 10.5px var(--mono);letter-spacing:0;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.var .l{width:100%}
 .var .s{font:700 11px/1.3 var(--ui);color:var(--st-ok);background:var(--st-ok-soft);padding:4px 8px;border-radius:999px}
 .var .s.warn{color:var(--st-warn);background:var(--st-warn-soft)}
 .var .s.bad{color:var(--st-bad);background:var(--st-bad-soft)}
@@ -261,8 +262,8 @@ table.ped .sub{color:var(--muted);font-size:12px}
 .chan .ic svg{width:15px;height:15px}
 .chan[data-k="wa"]{--c:var(--ch-wa)}.chan[data-k="ig"]{--c:var(--ch-ig)}.chan[data-k="fb"],.chan[data-k="web"]{--c:var(--ch-web)}.chan[data-k="per"]{--c:var(--ch-per)}.chan[data-k="tt"]{--c:var(--ink)}
 .tag.a{background:var(--primary-tint);color:var(--primary-strong)}
-.tag.b{background:var(--warn-soft);color:var(--warn)}
-.tag.c{background:var(--ok-soft);color:var(--ok)}
+.tag.b{background:var(--st-warn-soft);color:var(--st-warn)}
+.tag.c{background:var(--st-ok-soft);color:var(--st-ok)}
 .tag.e{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
 .tag.w{background:var(--st-info-soft);color:var(--st-info)} /* la página web: el azul de la web */
 .mini{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
@@ -283,6 +284,32 @@ tr.off,li.off{opacity:.5}
 .undo{appearance:none;background:none;border:0;color:var(--primary-text);font:500 12px var(--ui);
   cursor:pointer;padding:8px 0 8px 8px;text-decoration:underline;text-underline-offset:3px;flex:none}
 
+/* En el teléfono cada pedido es una tarjeta: quién y el estado arriba, lo que compró y el total, el canal y
+   el pago, y los botones abajo. Es la misma tabla (las celdas van en una rejilla), así que no cambia nada más. */
+@container (max-width:760px){
+  #t-pedidos .wrapx{padding:10px 12px 16px}
+  #t-pedidos table.ped{min-width:0;border:0;background:none;border-radius:0}
+  #t-pedidos table.ped thead{display:none}
+  #t-pedidos table.ped tbody{display:block}
+  #t-pedidos table.ped tr{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"cli est" "pro tot" "can pag" "num num" "act act";
+    gap:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px 14px;margin-bottom:8px}
+  #t-pedidos table.ped td{display:block;padding:0;border:0;min-width:0}
+  #t-pedidos table.ped td:nth-child(1){grid-area:num;text-align:left;font-size:12px}
+  #t-pedidos table.ped td:nth-child(1) br{display:none}
+  #t-pedidos table.ped td:nth-child(1) .sub{margin-left:6px}
+  #t-pedidos table.ped td:nth-child(2){grid-area:cli}
+  #t-pedidos table.ped td:nth-child(3){grid-area:pro;max-width:none}
+  #t-pedidos table.ped td:nth-child(4){grid-area:can}
+  #t-pedidos table.ped td:nth-child(5){grid-area:pag;text-align:right}
+  #t-pedidos table.ped td:nth-child(6){grid-area:tot;font-weight:700;font-size:15px}
+  #t-pedidos table.ped td:nth-child(7){grid-area:est;text-align:right}
+  #t-pedidos table.ped td.acts{grid-area:act;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
+  #t-pedidos table.ped td.acts:empty{display:none}
+  #t-pedidos table.ped td.acts .mini{margin:0;min-height:38px}
+  #t-pedidos table.ped td.acts .mini.main{flex:1 1 auto}
+  #t-pedidos table.ped tr:hover{background:var(--surface)}
+}
+
 /* ---------- ratón: solo donde hay ratón de verdad, que en el teléfono el "hover" se queda pegado ---------- */
 @media (hover:hover) and (pointer:fine){
   .tabs button:not([aria-pressed="true"]):hover{background:color-mix(in srgb,var(--bar-ink) 9%,transparent);color:var(--bar-ink)}
@@ -301,8 +328,8 @@ tr.off,li.off{opacity:.5}
 /* ---------- ventanas: entran en 200 ms desde el centro, salen en 140 ---------- */
 .modal{position:absolute;inset:0;background:var(--scrim);display:grid;place-items:center;padding:20px;z-index:9;
   opacity:1;transition:opacity 180ms var(--out)}
-.modal .card{background:var(--surface);border-radius:16px;padding:22px;max-width:440px;width:100%;
-  box-shadow:0 24px 60px -20px rgba(0,0,0,.35);transform:scale(1);opacity:1;
+.modal .card{background:var(--surface);border-radius:18px;padding:24px;max-width:440px;width:100%;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.3);border:1px solid var(--line);transform:scale(1);opacity:1;
   transition:transform 200ms var(--out),opacity 200ms var(--out)}
 @starting-style{
   .modal{opacity:0}
@@ -310,7 +337,7 @@ tr.off,li.off{opacity:.5}
 }
 .modal.out{opacity:0;transition-duration:140ms}
 .modal.out .card{transform:scale(.97);opacity:0;transition-duration:140ms}
-.modal h3{font-family:var(--serif);font-weight:600;font-size:20px;margin:0 0 8px}
+.modal h3{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:0 0 8px}
 .modal .mp{color:var(--muted);font-size:13px;margin:0 0 14px}
 .burb{background:var(--primary-tint);border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:13.5px;
   white-space:pre-wrap;line-height:1.45;color:var(--primary-strong);word-break:break-word}
@@ -452,7 +479,7 @@ tr.off,li.off{opacity:.5}
 .mbtn{flex-wrap:wrap}
 .mbtn .go{flex:1 1 auto;width:auto;white-space:nowrap;padding:12px 14px} /* tres botones en una fila (width:auto anula el 100% de .go); si no caben, baja el botón entero, no la palabra */
 .modal .card{max-width:480px;max-height:calc(100dvh - 40px);overflow:auto}
-.modal .card .mbtn.stick{position:sticky;bottom:0;margin:16px -22px -22px;padding:12px 22px 22px;background:var(--surface);box-shadow:0 -14px 14px -14px rgba(0,0,0,.12)} /* en el repaso (largo) los botones se quedan a la vista mientras se baja */
+.modal .card .mbtn.stick{position:sticky;bottom:0;margin:16px -24px -24px;padding:12px 24px 24px;background:var(--surface);box-shadow:0 -14px 14px -14px rgba(0,0,0,.12)} /* en el repaso (largo) los botones se quedan a la vista mientras se baja */
 
 /* ---------- historial ---------- */
 .histbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:10px 16px 0;flex:none}
@@ -468,26 +495,32 @@ tr.off,li.off{opacity:.5}
 .hsolo b{font-weight:600;color:var(--ink)}
 .hsolo .chip{margin-left:auto;background:var(--surface);border-color:transparent;font-weight:600;min-height:32px;padding:4px 12px}
 .kpis{display:flex;flex-wrap:wrap;gap:10px} /* en flex la última fila se reparte lo que queda: nunca deja el hueco de una rejilla */
-.kpi{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
-.kpi b{display:block;font-family:var(--serif);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px 16px;min-width:0}
+.kpi b{display:block;font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
 /* ---- el Panel: lo de hoy en grande, la franja de los periodos, la gráfica y las listas ---- */
 .pnl{padding-bottom:24px}
 .pnl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .kpis.big .kpi{flex:1 1 230px;padding:14px 16px}
-.kpis.big .kpi b{font-size:26px}
+.kpis.big .kpi b{font-size:28px;letter-spacing:-.03em}
 .kpi i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.35}
+/* En el Panel cada cifra grande lleva el punto de su color: vendido en verde, la ganancia en violeta, lo que falta cobrar en ámbar. */
+.kpis.big .kpi>span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c,var(--faint));margin-right:7px;vertical-align:1px}
+.kpis.big .kpi:nth-child(1){--c:var(--st-ok)}.kpis.big .kpi:nth-child(2){--c:var(--st-vio)}.kpis.big .kpi:nth-child(3){--c:var(--st-warn)}.kpis.big .kpi:nth-child(4){--c:var(--st-info)}
 .kpi em{font-style:normal;font-weight:600}
-.kpi em.up,.ks em.up{color:var(--ok)}
-.kpi em.down,.ks em.down{color:var(--warn)}
+.kpi em.up,.ks em.up{color:var(--st-ok)}
+.kpi em.down,.ks em.down{color:var(--st-bad)}
+/* La comparación junto a la cifra, en una píldora verde o roja. */
+.ks b em.up,.ks b em.down{display:inline-block;font-size:11px;line-height:1;padding:4px 7px;border-radius:999px;margin-left:6px;vertical-align:3px;letter-spacing:0}
+.ks b em.up{background:var(--st-ok-soft)}.ks b em.down{background:var(--st-bad-soft)}
 .kpi[data-go]{cursor:pointer;transition:border-color 150ms ease,box-shadow 150ms ease}
 .kpi[data-go]:hover,.kpi[data-go]:focus-visible{border-color:var(--primary);outline:0;box-shadow:0 0 0 3px var(--ring)}
 /* La franja de los periodos: una sola tarjeta con las casillas separadas por la línea del fondo,
    así no quedan huecos aunque los módulos añadan o quiten casillas. */
-.kstrip{display:flex;flex-wrap:wrap;gap:1px;margin-top:10px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.kstrip{display:flex;flex-wrap:wrap;gap:1px;margin-top:10px;background:var(--line);border:1px solid var(--line);border-radius:15px;overflow:hidden}
 .ks{flex:1 1 210px;min-width:0;background:var(--surface);padding:11px 14px;transition:background-color 150ms ease}
-.ks span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.ks b{display:block;margin-top:1px;font-family:var(--serif);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ks span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.ks b{display:block;margin-top:1px;font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ks em{font-style:normal;font-weight:600;font-size:12.5px}
 .ks i{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
 .ks[data-go]{cursor:pointer}
@@ -496,7 +529,7 @@ tr.off,li.off{opacity:.5}
 .pchart{margin-top:12px}
 .pch{display:flex;justify-content:space-between;align-items:flex-start;gap:10px 16px;flex-wrap:wrap;margin-bottom:2px}
 .pchn{min-width:0}
-.pchn b{display:block;font-family:var(--serif);font-weight:600;font-size:27px;line-height:1.15;font-variant-numeric:tabular-nums}
+.pchn b{display:block;font-family:var(--serif);font-weight:700;font-size:28px;letter-spacing:-.03em;line-height:1.15;font-variant-numeric:tabular-nums}
 .pchn span{display:block;margin-top:3px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .pchn i{display:block;font-style:normal;font-size:12px;color:var(--faint);margin-top:3px}
 .pdays{flex:none}
@@ -508,18 +541,18 @@ tr.off,li.off{opacity:.5}
 .pbar span{height:14px;line-height:14px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums} /* alto fijo: las barras sin día debajo apoyan a la misma altura */
 /* Las listas: lo más vendido a un lado y las tres cuentas cortas al otro, cada tarjeta con su alto. */
 .pgrid{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;margin-top:12px}
-.pcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:16px 18px;min-width:0}
 .pcard.pwide{flex:1 1 100%}
 .pmain{flex:3 1 330px}
 .pside{flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:12px}
-.pcard h4{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 8px;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pcard h4{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
 .pcard h4 .cnt{font-family:var(--serif);font-size:15px;color:var(--ink)}
 .pcard .empty{padding:8px 0 2px}
 .ptop li{align-items:center;gap:10px}
 .ptop .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .brk{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 28px}
 .bl{list-style:none;margin:0;padding:0}
-.bl li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.bl li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .bl li:last-child{border-bottom:0}
 .bl.dos{columns:320px 2;column-gap:28px} /* las listas largas: en dos columnas se lee igual de arriba abajo y no queda medio renglón vacío */
 .bl.dos li{break-inside:avoid}
@@ -553,9 +586,12 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .aicard a,.pend .pt a,.bl a,.adv p a{color:var(--primary-text);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .aicard a:hover,.pend .pt a:hover,.bl a:hover,.adv p a:hover{text-decoration-thickness:2px}
 .pend{list-style:none;margin:0;padding:0;columns:430px 2;column-gap:10px} /* dos columnas: se leen de arriba abajo y no queda medio renglón vacío en cada aviso */
-.pend li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;align-items:stretch;gap:8px;break-inside:avoid;margin:0 0 10px}
-.pend li.alta{border-left:3px solid var(--danger-ink)}
-.pend li.media{border-left:3px solid var(--primary)}
+.pend li{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px 16px;display:flex;flex-direction:column;align-items:stretch;gap:8px;break-inside:avoid;margin:0 0 10px}
+/* Lo urgente, con la tarjeta entera teñida y su filo de color alrededor (nunca una franja a un lado). */
+.pend li.alta{border-color:color-mix(in srgb,var(--st-bad) 35%,var(--line));background:color-mix(in srgb,var(--st-bad-soft) 45%,var(--surface))}
+.pend li.alta .tag{background:var(--st-bad-soft);color:var(--st-bad)}
+.pend li.media{border-color:color-mix(in srgb,var(--st-warn) 30%,var(--line))}
+.pend li.media .tag{background:var(--st-warn-soft);color:var(--st-warn)}
 .pend .pt{display:grid;gap:3px;min-width:0;justify-items:start}
 .pend .pt b{font-weight:600;font-size:13.5px}
 .pend .pt span:last-child{font-size:12.5px;color:var(--muted);line-height:1.4}
@@ -718,7 +754,7 @@ table.ped td.num .lnk{font-variant-numeric:tabular-nums;font-weight:600;color:va
 table.ped .lnk.items{white-space:normal}
 .modal .card.wide{max-width:680px}
 .od{display:flex;flex-direction:column;gap:16px;margin-top:6px}
-.od h4{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.od h4{margin:0 0 8px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:700}
 .odl{list-style:none;margin:0;padding:0}
 .odl li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
 .odl .thumb{width:48px;height:58px}
@@ -944,7 +980,7 @@ table.ped .lnk.items{white-space:normal}
   .tabbar button[aria-pressed="true"] .tb-ic{background:var(--primary-tint)}
   .tabbar button:active .tb-ic{transform:scale(.9)}
   .tb-n{position:absolute;top:-3px;left:calc(50% + 5px);min-width:18px;height:18px;line-height:18px;border-radius:9px;padding:0 5px;box-sizing:content-box;
-    background:var(--badge);color:#fff;font:700 10.5px/18px var(--ui);text-align:center;border:2px solid var(--surface);font-variant-numeric:tabular-nums}
+    background:var(--primary);color:var(--on-primary-sm);font:700 10.5px/18px var(--ui);text-align:center;border:2px solid var(--surface);font-variant-numeric:tabular-nums}
   .tb-n.dot{min-width:0;width:9px;height:9px;padding:0;top:1px;left:calc(50% + 9px)}
   /* Con la barra debajo, el pie de la venta ya no toca el borde del teléfono, y los avisos salen por encima de la barra. */
   .con-tabbar .foot{padding-bottom:12px}
@@ -982,7 +1018,7 @@ table.ped .lnk.items{white-space:normal}
 .cesta,.volver,.xl{display:none}
 @container (max-width:760px){
   .cesta{display:flex;align-items:center;gap:12px;flex:none;margin:0 10px 10px;padding:10px 10px 10px 16px;border-radius:16px;border:0;
-    background:var(--primary);color:var(--on-primary-sm);font-family:var(--ui);text-align:left;cursor:pointer;
+    background:var(--bar);color:var(--bar-ink);font-family:var(--ui);text-align:left;cursor:pointer;
     box-shadow:0 12px 28px -12px rgba(0,0,0,.45);transition:transform 160ms var(--out)}
   .cesta[hidden]{display:none}
   .cesta:active{transform:scale(.98)}
@@ -990,8 +1026,11 @@ table.ped .lnk.items{white-space:normal}
   .cesta .t{flex:1;min-width:0;line-height:1.25}
   .cesta .t b{display:block;font-size:14.5px;font-weight:600}
   .cesta .t small{display:block;font-size:12px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .cesta .ir{flex:none;display:flex;align-items:center;gap:4px;border-radius:11px;padding:9px 10px 9px 12px;font-size:13px;font-weight:600;white-space:nowrap;
-    background:rgba(255,255,255,.16)}
+  .cesta .ir{flex:none;display:flex;align-items:center;gap:4px;border-radius:11px;padding:10px 12px 10px 14px;font-size:14px;font-weight:700;white-space:nowrap;
+    background:var(--primary);color:var(--on-primary-sm)}
+  .cesta .t b{font:700 17px var(--serif);letter-spacing:-.02em}
+  .vars{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));padding:2px 10px 10px}
+  .var .l{font-size:16px}
   .cesta .ir svg{width:16px;height:16px}
   .volver{display:flex;align-items:center;gap:8px;flex:none;padding:12px 16px 4px}
   .volver button{appearance:none;border:0;background:none;display:flex;align-items:center;gap:4px;font:600 14px var(--ui);color:var(--primary-text);cursor:pointer;padding:6px 4px 6px 0}
@@ -1010,7 +1049,8 @@ table.ped .lnk.items{white-space:normal}
 /* La talla que ya está en el pedido (o en lo que llegó) se marca con cuántas van, y a su lado un
    botón para quitar una sin ir a revisar. */
 .varrow{position:relative;display:flex;min-width:0}
-.varrow .var{flex:1;min-width:0;padding-right:44px}
+.varrow .var{flex:1;min-width:0}
+.varrow .var .l{padding-right:34px} /* el sitio del botón de quitar una */
 /* Un tinte claro del color de la marca: --soft puede ser oscuro (cakto) y no dejaría leer la talla. */
 .var.puesto{border-color:var(--primary-strong);background:var(--primary-tint)}
 /* En Inventario lo que entra sube las existencias: en verde. */
