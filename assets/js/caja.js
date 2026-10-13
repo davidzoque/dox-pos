@@ -1530,72 +1530,114 @@
 		const cls = sin ? "e" : (margin >= good ? "c" : (margin >= low ? "y" : "r"));
 		return '<span class="tag ' + cls + '">' + dinero(profit) + (sin ? "" : " · " + margin + " %") + "</span>";
 	}
+	// El detalle (dox-design, 0.53.0): arriba las tres cifras que se buscan al abrir un pedido (cuánto, cómo
+	// pagó y en qué va), debajo los productos a la izquierda y la clienta y la ganancia a la derecha, cada
+	// bloque en su tarjeta, y el historial recogido. Un abono al saldo y un apartado abierto cambian las cifras.
+	// Solo el margen, en su color (en el detalle la ganancia ya va al lado, en grande).
+	function pildoraMargen(margin) {
+		if (margin === null || margin === undefined) return "";
+		const good = +cfg.margin_good || 40, low = +cfg.margin_low || 20;
+		return '<span class="tag ' + (margin >= good ? "c" : margin >= low ? "y" : "r") + '">' + esc(sprintf(__("%d %% margin", "dox-pos"), margin)) + "</span>";
+	}
 	function pintarDetalle(d) {
 		const cls = claseEstado(d.status);
 		const web = d.origin !== "caja";
+		const lw = d.layaway;
+		const items = d.items_list || [];
+		const abono = !items.length && (d.deposits || []).length > 0 && !lw;
 		let pago = __("Pays on delivery", "dox-pos");
 		if (d.paid && !d.cod) pago = d.paid_at ? sprintf(__("Paid on %s", "dox-pos"), esc(d.paid_at)) : __("Paid", "dox-pos");
-		else if (d.status === "apartado" && d.layaway && d.layaway.deposited > 0) pago = __("Partly paid", "dox-pos");
+		else if (d.status === "apartado" && lw && lw.deposited > 0) pago = __("Partly paid", "dox-pos");
 		else if (d.status === "apartado" || d.status === "sin_pagar" || d.status === "fallido") pago = __("Unpaid", "dox-pos");
 		else if (d.status === "por_confirmar") pago = __("In progress", "dox-pos");
 		else if (d.status === "anulado" || d.status === "reembolsado") pago = "";
-		const items = (d.items_list || []).map((it) => "<li>" +
-			'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
-			'<div class="odi"><b>' + esc(it.name) + "</b>" +
-			(it.real_size ? '<span class="rs">' + esc(sprintf(__("Actual size: %s", "dox-pos"), it.real_size)) + "</span>" : "") +
-			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(it.shared && it.pool_name ? sprintf(__("%1$d left for all %2$s sizes", "dox-pos"), it.stock, it.pool_name) : sprintf(it.shared ? __("%d left for all sizes", "dox-pos") : __("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
-			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.free ? __("Without a product", "dox-pos") : it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
-			"</div>" +
-			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
-		const dir = [d.address, d.address2, d.city].filter(Boolean).join(", ");
-		let h = "<h3>" + esc(sprintf(__("Order #%s", "dox-pos"), d.number)) + ' <span class="tag ' + cls + '">' + esc(d.label) + "</span></h3>";
-		h += '<p class="mp">' + esc(d.created) + " · " + (web ? esc(d.origin_label) + (d.source ? " " + esc(sprintf(__("(from %s)", "dox-pos"), d.source)) : "") : esc(d.channel) + " · " + esc(__("POS", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "")) + (d.demo ? " · " + esc(__("demo", "dox-pos")) : "") + "</p>";
-		h += '<div class="od">';
-		h += "<section><h4>" + esc(__("Products", "dox-pos")) + "</h4>" + (items ? '<ul class="odl">' + items + "</ul>" : '<p class="sub">' + esc(__("No products.", "dox-pos")) + "</p>");
-		h += '<table class="tot"><tbody><tr><td>' + esc(__("Subtotal", "dox-pos")) + "</td><td>" + dinero(d.subtotal) + "</td></tr>" +
-			(d.discount ? "<tr><td>" + esc(__("Discount", "dox-pos")) + "</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
-			(d.deposits || []).map((x) => "<tr><td>" + esc(sprintf(__("Deposit: %s", "dox-pos"), x.name)) + "</td><td>" + dinero(x.total) + "</td></tr>").join("") +
-			(d.credit_used ? "<tr><td>" + esc(d.layaway ? __("Deposits", "dox-pos") : __("Paid with store credit", "dox-pos")) + "</td><td>−" + dinero(d.credit_used) + "</td></tr>" : "") +
-			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
-			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
-			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un imprevisto). Solo quien administra.
-			(d.loss !== undefined ? '<tr class="loss"><td>' + esc(__("Loss", "dox-pos")) + (d.loss_note ? ' <span class="sub">· ' + esc(d.loss_note) + "</span>" : "") + "</td><td>" + (d.loss ? '<span class="tag r">−' + dinero(d.loss) + '</span><button type="button" class="lnk" id="m-loss">' + esc(__("Edit", "dox-pos")) + "</button>" : '<button type="button" class="mini" id="m-loss">' + esc(__("Note a loss", "dox-pos")) + "</button>") + "</td></tr>" : "") +
-			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse (y la pérdida ya restada), en color según el margen.
-			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + pildoraGanancia(d.profit, d.margin) + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
-			"</tbody></table></section>";
-		// El apartado: lo que vale, cada abono, lo que falta y cuándo vence.
-		const lw = d.layaway;
-		if (lw && (lw.open || lw.deposits.length)) {
-			h += "<section><h4>" + esc(__("Layaway", "dox-pos")) + '</h4><div class="kv">';
-			h += "<span>" + esc(__("Worth", "dox-pos")) + "</span><span>" + dinero(lw.value) + "</span>";
-			if (lw.deposits.length) h += "<span>" + esc(__("Deposits", "dox-pos")) + "</span><span>" + lw.deposits.map((x) => esc([x.date, x.method, x.user].filter(Boolean).join(" · ")) + " · <b>" + dinero(x.amount) + "</b>" + (x.order ? ' <button type="button" class="lnk" data-ver="' + x.order + '">#' + esc(x.number) + "</button>" : "")).join("<br>") + "</span>";
-			if (lw.open) {
-				h += "<span>" + esc(__("Left to pay", "dox-pos")) + "</span><span><b>" + dinero(lw.remaining) + "</b></span>";
-				h += "<span>" + esc(__("Deadline", "dox-pos")) + "</span><span>" + (lw.expired ? '<span class="tag r">' + esc(sprintf(__("Expired on %s", "dox-pos"), lw.due)) + "</span>" : esc(lw.never ? __("No deadline", "dox-pos") : sprintf(__("expires on %s", "dox-pos"), lw.due))) + "</span>";
-			}
-			h += "</div></section>";
+		const ico = (k) => '<span class="pd-ic" data-k="' + k + '">' + iconoChip(k) + "</span>";
+		const cifra = (titulo, cuerpo, sub) => '<div class="pd-cifra"><small>' + esc(titulo) + "</small>" + cuerpo + (sub ? '<span class="pd-sub">' + sub + "</span>" : "") + "</div>";
+		const fila = (k, v) => "<span>" + esc(k) + "</span><span>" + v + "</span>";
+		const kPago = d.payment ? clasePago(d.payment) : d.cod ? "cod" : "otro";
+		const cifraPago = cifra(__("Payment", "dox-pos"), '<span class="pd-lin">' + ico(kPago) + esc(d.payment || (d.cod ? __("Pays on delivery", "dox-pos") : __("No payment method", "dox-pos"))) + "</span>", pago);
+
+		// ----- la cabecera -----
+		let h = '<div class="pd-cab"><div class="pd-top"><h3>' + esc(sprintf(abono ? __("Deposit #%s", "dox-pos") : __("Order #%s", "dox-pos"), d.number)) + '</h3><span class="tag ' + cls + '">' + esc(d.label) + '</span><button type="button" class="pd-x" id="m-no" aria-label="' + esc(__("Close", "dox-pos")) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
+		h += '<p class="pd-meta"><span>' + esc(d.created) + "</span>" + (web ? '<span class="tag w">' + esc(d.origin_label) + "</span>" + (d.source ? "<span>" + esc(sprintf(__("from %s", "dox-pos"), d.source)) + "</span>" : "") : canalIc(d.channel) + "<span>" + esc(__("POS", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "") + "</span>") + (d.demo ? "<span>" + esc(__("demo", "dox-pos")) + "</span>" : "") + "</p></div>";
+
+		// ----- las tres cifras -----
+		h += '<div class="pd-res">';
+		if (abono) {
+			h += cifra(__("Deposited", "dox-pos"), "<b>" + dinero(d.total) + "</b>", esc(d.deposits.map((x) => x.name).join(" · ")));
+			h += cifraPago;
+			if (d.credit_balance !== null && d.credit_balance !== undefined) h += cifra(__("Store credit", "dox-pos"), '<span class="pd-lin">' + ico("credit") + dinero(d.credit_balance) + "</span>", esc(__("what is left today", "dox-pos")));
+		} else if (lw && lw.open) {
+			const pct = lw.value > 0 ? Math.max(0, Math.min(100, Math.round(lw.deposited / lw.value * 100))) : 0;
+			h += cifra(__("Left to pay", "dox-pos"), "<b>" + dinero(lw.remaining) + '</b><span class="pd-barra"><span style="width:' + pct + '%"></span></span>', esc(sprintf(__("%1$s deposited of %2$s", "dox-pos"), dinero(lw.deposited), dinero(lw.value))));
+			const ult = lw.deposits.length ? lw.deposits[lw.deposits.length - 1] : null;
+			h += cifra(__("Deposits", "dox-pos"), '<span class="pd-lin">' + ico("cash") + esc(sprintf(_n("%d deposit", "%d deposits", lw.deposits.length, "dox-pos"), lw.deposits.length)) + "</span>", ult ? esc(sprintf(__("the last one on %s", "dox-pos"), ult.date)) : "");
+			h += cifra(__("Deadline", "dox-pos"), '<span class="pd-lin' + (lw.expired ? " mal" : "") + '">' + ico("reloj") + esc(lw.never ? __("No deadline", "dox-pos") : lw.expired ? sprintf(__("Expired on %s", "dox-pos"), lw.due) : lw.due) + "</span>", "");
+		} else {
+			const n = items.reduce((a, it) => a + it.qty, 0);
+			h += cifra(__("Total", "dox-pos"), "<b>" + dinero(d.total) + "</b>", esc([n ? sprintf(_n("%d piece", "%d pieces", n, "dox-pos"), n) : "", d.credit_used ? sprintf(__("+ %s store credit", "dox-pos"), dinero(d.credit_used)) : ""].filter(Boolean).join(" · ")));
+			h += cifraPago;
+			const entrega = d.completed_at ? esc(d.completed_at) : d.tracking ? (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) : d.status === "apartado" && d.hold_until ? esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) : esc([d.shipping_method, d.shipping_total ? dinero(d.shipping_total) : ""].filter(Boolean).join(" · "));
+			h += cifra(__("Delivery", "dox-pos"), '<span class="pd-lin">' + ico("envio") + esc(d.label) + "</span>", entrega);
 		}
-		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
-		h += "<span>" + esc(__("Name", "dox-pos")) + "</span><span>" + esc(d.customer || __("No name", "dox-pos")) + "</span>";
-		if (d.phone) h += "<span>" + esc(__("Phone", "dox-pos")) + "</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.name) + "</a>" : "") + "</span>";
-		if (d.email) h += "<span>" + esc(__("Email", "dox-pos")) + '</span><span><a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a></span>";
-		if (dir) h += "<span>" + esc(__("Address", "dox-pos")) + "</span><span>" + esc(dir) + "</span>";
-		if (d.note) h += "<span>" + esc(__("Note", "dox-pos")) + "</span><span>" + esc(d.note) + "</span>";
-		h += "</div></section>";
-		h += '<section><h4>' + esc(__("Payment and shipping", "dox-pos")) + '</h4><div class="kv">';
-		h += "<span>" + esc(__("Payment", "dox-pos")) + "</span><span>" + [esc(d.payment), pago].filter(Boolean).join(" · ") + "</span>";
-		if (d.status === "apartado" && d.hold_until && !d.layaway) h += "<span>" + esc(__("Layaway", "dox-pos")) + "</span><span>" + esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) + "</span>";
-		if (d.tracking) h += "<span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
-		if (d.completed_at) h += "<span>" + esc(__("Delivered", "dox-pos")) + "</span><span>" + esc(d.completed_at) + "</span>";
-		h += "</div></section>";
-		if (d.returns && d.returns.length) {
-			h += "<section><h4>" + esc(__("Returns", "dox-pos")) + '</h4><ul class="odn">' + d.returns.map((r) => '<li><span class="sub">' + esc(r.date) + "</span>" +
-				esc(r.credit !== null ? sprintf(_n("%1$d piece to store credit: %2$s", "%1$d pieces to store credit: %2$s", r.units, "dox-pos"), r.units, dinero(r.credit)) + (r.fee ? " · " + sprintf(__("exchange fee %s", "dox-pos"), dinero(r.fee)) : "") : sprintf(_n("%1$d piece, money back: %2$s", "%1$d pieces, money back: %2$s", r.units, "dox-pos"), r.units, dinero(r.amount))) + "</li>").join("") + "</ul></section>";
-		}
-		if (d.notes && d.notes.length) h += "<section><h4>" + esc(__("History", "dox-pos")) + '</h4><ul class="odn">' + d.notes.map((n) => '<li><span class="sub">' + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></section>";
 		h += "</div>";
-		h += '<div class="mbtn stick odb"><div class="oda"></div>' + (d.edit_url ? '<a class="mini sec" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + '</a>' : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>";
-		modal(h, "wide");
+
+		// ----- izquierda: lo que se vendió (o el abono), el apartado y lo devuelto -----
+		let izq = "";
+		if (items.length) {
+			izq += '<section class="pd-bl"><h4>' + esc(__("Products", "dox-pos")) + '</h4><ul class="pd-prods">' + items.map((it) => "<li>" +
+				'<span class="thumb">' + (it.image ? '<img src="' + esc(it.image) + '" alt="" loading="lazy">' : esc(iniciales(it.name || ""))) + "</span>" +
+				'<div class="pd-pi"><b>' + esc(it.name) + "</b>" +
+				'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(it.shared && it.pool_name ? sprintf(__("%1$d left for all %2$s sizes", "dox-pos"), it.stock, it.pool_name) : sprintf(it.shared ? __("%d left for all sizes", "dox-pos") : __("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
+				(it.real_size ? '<span class="rs">' + esc(sprintf(__("Actual size: %s", "dox-pos"), it.real_size)) + "</span>" : "") +
+				'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + "</a>" : '<span class="sub">' + (it.free ? __("Without a product", "dox-pos") : it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + "</button>" : "") + "</span>" +
+				'</div><span class="num">' + dinero(it.total) + "</span></li>").join("") + "</ul>";
+			const filas = [[__("Subtotal", "dox-pos"), dinero(d.subtotal)]];
+			if (d.discount) filas.push([__("Discount", "dox-pos"), "−" + dinero(d.discount)]);
+			(d.deposits || []).forEach((x) => filas.push([sprintf(__("Deposit: %s", "dox-pos"), x.name), dinero(x.total)]));
+			if (d.credit_used) filas.push([lw ? __("Deposits", "dox-pos") : __("Paid with store credit", "dox-pos"), "−" + dinero(d.credit_used)]);
+			if (d.shipping_total || d.shipping_method) filas.push([__("Shipping", "dox-pos") + (d.shipping_method ? " · " + d.shipping_method : ""), dinero(d.shipping_total)]);
+			izq += '<div class="pd-tot">' + filas.map((f) => "<div><span>" + esc(f[0]) + "</span><span>" + f[1] + "</span></div>").join("") + '<div class="t"><span>' + esc(lw && lw.open ? __("Worth", "dox-pos") : __("Total", "dox-pos")) + "</span><span>" + dinero(lw && lw.open ? lw.value : d.total) + "</span></div></div></section>";
+		} else if (abono) {
+			izq += '<section class="pd-bl"><h4>' + esc(__("The deposit", "dox-pos")) + '</h4><div class="pd-kv">' + d.deposits.map((x) => fila(__("Concept", "dox-pos"), esc(x.name) + " · <b>" + dinero(x.total) + "</b>")).join("") + fila(__("Paid with", "dox-pos"), [esc(d.payment), pago].filter(Boolean).join(" · ")) + (d.note ? fila(__("Note", "dox-pos"), esc(d.note)) : "") + "</div></section>";
+		} else {
+			izq += '<section class="pd-bl"><h4>' + esc(__("Products", "dox-pos")) + '</h4><p class="sub">' + esc(__("No products.", "dox-pos")) + "</p></section>";
+		}
+		if (lw && lw.deposits.length) {
+			izq += '<section class="pd-bl"><h4>' + esc(__("Deposits", "dox-pos")) + '</h4><ul class="pd-abonos">' + lw.deposits.map((x) => "<li><span>" + esc([x.date, x.method, x.user].filter(Boolean).join(" · ")) + (x.order ? ' <button type="button" class="lnk" data-ver="' + x.order + '">#' + esc(x.number) + "</button>" : "") + "</span><b>" + dinero(x.amount) + "</b></li>").join("") + "</ul>" +
+				(!lw.open ? '<p class="sub">' + esc(sprintf(__("%1$s deposited of %2$s", "dox-pos"), dinero(lw.deposited), dinero(lw.value))) + "</p>" : "") + "</section>";
+		}
+		if (d.returns && d.returns.length) {
+			izq += '<section class="pd-bl"><h4>' + esc(__("Returns", "dox-pos")) + '</h4><ul class="pd-abonos">' + d.returns.map((r) => "<li><span>" + esc(r.date) + " · " +
+				esc(r.credit !== null ? sprintf(_n("%1$d piece to store credit: %2$s", "%1$d pieces to store credit: %2$s", r.units, "dox-pos"), r.units, dinero(r.credit)) + (r.fee ? " · " + sprintf(__("exchange fee %s", "dox-pos"), dinero(r.fee)) : "") : sprintf(_n("%1$d piece, money back: %2$s", "%1$d pieces, money back: %2$s", r.units, "dox-pos"), r.units, dinero(r.amount))) + "</span></li>").join("") + "</ul></section>";
+		}
+
+		// ----- derecha: la clienta y la ganancia -----
+		const dir = [d.address, d.address2, d.city].filter(Boolean).join(", ");
+		let der = '<section class="pd-bl"><div class="pd-quien">' + avatar(d.customer).replace('class="av', 'class="av pd-av') + '<div><b>' + esc(d.customer || __("No name", "dox-pos")) + "</b>" + (d.phone ? '<span class="sub">' + esc(d.phone) + "</span>" : "") + "</div>" + (d.whatsapp ? '<a class="pd-wa" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + iconoChip("wa") + esc(MSG.name) + "</a>" : "") + "</div>";
+		let kv = "";
+		if (d.email) kv += fila(__("Email", "dox-pos"), '<a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a>");
+		if (dir) kv += fila(__("Address", "dox-pos"), esc(dir));
+		if (d.note && !abono) kv += fila(__("Note", "dox-pos"), esc(d.note));
+		if (d.credit_key && cfg.credit) kv += fila(__("Store credit", "dox-pos"), '<button type="button" class="lnk" id="pd-saldo">' + esc(__("See their movements", "dox-pos")) + "</button>");
+		der += (kv ? '<div class="pd-kv">' + kv + "</div>" : "") + "</section>";
+		const venta = ["por_enviar", "enviado", "entregado"].includes(d.status);
+		if (!abono && (venta || d.loss) && (d.cost !== undefined || d.loss !== undefined)) { // En una venta hecha (o con una pérdida ya anotada): en un apartado o un pedido sin pagar no hay ganancia todavía.
+			der += '<section class="pd-bl"><h4>' + esc(__("Profit", "dox-pos")) + (d.loss !== undefined && !d.loss ? '<button type="button" class="lnk" id="m-loss">' + esc(__("Note a loss", "dox-pos")) + "</button>" : "") + "</h4>";
+			if (d.cost !== undefined && venta) {
+				der += d.profit !== null
+					? '<div class="pd-gan"><div><span class="pd-gan-n">' + dinero(d.profit) + '</span><span class="sub">' + esc(sprintf(__("cost %s", "dox-pos"), dinero(d.cost))) + "</span></div>" + pildoraMargen(d.margin) + "</div>"
+					: '<p class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</p>";
+			}
+			if (d.loss) der += '<p class="pd-perdida"><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(d.loss) + "</span>" + (d.loss_note ? ' <span class="sub">' + esc(d.loss_note) + "</span>" : "") + ' <button type="button" class="lnk" id="m-loss">' + esc(__("Edit", "dox-pos")) + "</button></p>";
+			der += "</section>";
+		}
+
+		h += '<div class="pd-cuerpo"><div class="pd-col">' + izq + '</div><div class="pd-col">' + der + "</div>";
+		if (d.notes && d.notes.length) h += '<details class="pd-hist"><summary>' + esc(__("History", "dox-pos")) + "<em>" + esc(sprintf(_n("%d note", "%d notes", d.notes.length, "dox-pos"), d.notes.length)) + '</em></summary><ul class="pd-tl">' + d.notes.map((n) => "<li><span>" + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></details>";
+		h += "</div>";
+		h += '<div class="pd-pie"><div class="oda"></div>' + (d.edit_url ? '<a class="pd-woo" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + "</a>" : "") + "</div>";
+		modal(h, "wide pd");
 		botonesPedido(d, $("#modal-card .oda"), true);
 		if (d.can_credit) {
 			const b = document.createElement("button");
@@ -1607,6 +1649,7 @@
 		}
 		$("#m-no").onclick = cerrarModal;
 		if ($("#m-loss")) $("#m-loss").onclick = () => modalPerdida(d);
+		if ($("#pd-saldo")) $("#pd-saldo").onclick = () => verClienta(d.credit_key);
 		$("#modal-card").querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { cerrarModal(); editarDesdeLista(+b.dataset.edit); }; });
 	}
 	// ----- la tarjeta de un producto: se abre tocando su nombre en el asistente, el historial o las entradas, sin salir de ahí -----
@@ -1955,6 +1998,8 @@
 		cod: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.6a1 1 0 0 0-.2-.6l-3.5-4.4A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
 		credit: '<path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
 		otro: '<circle cx="12" cy="12" r="3"/>',
+		reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', // El vencimiento de un apartado (detalle del pedido).
+		envio: '<path d="M1 6h13v10H1zM14 10h4l3 3v3h-7z"/><circle cx="5.5" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/>', // En qué va la entrega.
 	};
 	const iconoChip = (k) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONO_CHIP[k] || ICONO_CHIP.otro) + "</svg>";
 	function pintarChips() {

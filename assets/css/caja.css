@@ -783,6 +783,96 @@ table.ped .lnk.items{white-space:normal}
 .odb .oda .mini+.mini{margin-left:0}
 .odb .go.alt{width:auto;margin:0;padding:8px 16px;min-height:38px}
 .odb a.mini{text-decoration:none;display:inline-flex;align-items:center}
+
+/* ---------- el detalle del pedido (dox-design, 0.53.0) ----------
+   Arriba las tres cifras que se buscan al abrir un pedido; debajo los productos a la izquierda y la clienta
+   y la ganancia a la derecha, cada bloque en su tarjeta; el historial recogido y las acciones abajo. */
+.modal .card.pd{max-width:880px;padding:0;display:flex;flex-direction:column;overflow:hidden}
+.pd-cab{padding:20px 24px 14px;border-bottom:1px solid var(--line)}
+.pd-top{display:flex;align-items:center;gap:10px}
+.pd-top h3{margin:0;font-size:21px;font-weight:600;letter-spacing:-.02em}
+.pd-x{margin-left:auto;appearance:none;border:0;background:var(--sunk);width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--muted);cursor:pointer;flex:none}
+.pd-x svg{width:15px;height:15px}
+.pd-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:8px 0 0;color:var(--muted);font-size:13px}
+.pd-meta .chan{font-size:13px}
+.pd-res{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:10px;padding:14px 24px;background:var(--paper);border-bottom:1px solid var(--line)}
+.pd-cifra{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pd-cifra small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pd-cifra b{font-size:21px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pd-lin{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0}
+.pd-lin.mal{color:var(--st-bad)}
+.pd-sub{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.pd-sub a{color:var(--primary-text)}
+.pd-ic{--c:var(--muted);width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.pd-ic svg{width:15px;height:15px}
+.pd-ic[data-k="cash"]{--c:var(--st-ok)}.pd-ic[data-k="card"],.pd-ic[data-k="credit"]{--c:var(--st-vio)}.pd-ic[data-k="transfer"]{--c:var(--st-info)}
+.pd-ic[data-k="cod"],.pd-ic[data-k="envio"],.pd-ic[data-k="reloj"]{--c:var(--st-warn)}
+.pd-barra{display:block;height:8px;border-radius:999px;background:var(--sunk);overflow:hidden;margin:4px 0 2px}
+.pd-barra span{display:block;height:100%;background:var(--st-ok);border-radius:999px}
+.pd-cuerpo{flex:1 1 auto;min-height:0;overflow:auto;padding:16px 24px;display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
+.pd-col{display:grid;gap:14px;min-width:0}
+.pd-bl{border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.pd-bl h4{margin:0 0 10px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pd-bl h4 .lnk{letter-spacing:0;text-transform:none;font-size:12.5px;font-weight:500;color:var(--primary-text);text-decoration:underline;text-underline-offset:2px}
+.pd-bl .sub{color:var(--muted);font-size:12.5px}
+.pd-bl .sku{font-family:var(--mono);font-size:11.5px;background:var(--sunk);padding:1px 6px;border-radius:6px;color:var(--ink)}
+.pd-prods{list-style:none;margin:0;padding:0}
+.pd-prods li{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.pd-prods li:first-child{border-top:0;padding-top:0}
+.pd-prods .thumb{width:48px;height:58px}
+.pd-pi{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:13.5px}
+.pd-pi b{font-weight:600;line-height:1.3}
+.pd-pi .rs{align-self:flex-start;margin-top:3px;padding:3px 9px;border-radius:999px;background:var(--real-soft);color:var(--real);font-size:12px;font-weight:600}
+.pd-prods .num{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pd-tot{margin-top:6px;border-top:1px solid var(--line);padding-top:8px;font-size:13px}
+.pd-tot div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:var(--muted)}
+.pd-tot div span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pd-tot .t{color:var(--ink);font-weight:700;font-size:15px;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}
+.pd-kv{display:grid;grid-template-columns:96px 1fr;gap:6px 12px;font-size:13.5px}
+.pd-kv>span:nth-child(odd){color:var(--muted);font-size:12.5px;padding-top:1px}
+.pd-kv a,.pd-bl .odlinks a,.pd-kv .lnk{color:var(--primary-text)}
+.pd-kv .lnk{text-decoration:underline;text-underline-offset:2px;font-size:13.5px}
+.pd-quien{display:flex;align-items:center;gap:12px;min-width:0}
+.pd-quien>div{min-width:0;display:flex;flex-direction:column}
+.pd-quien b{font-size:15px;font-weight:600;overflow-wrap:anywhere}
+.pd-av{width:42px;height:42px;font-size:13.5px}
+.pd-wa{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:600 12.5px var(--ui);color:var(--ch-wa);background:color-mix(in srgb,var(--ch-wa) 13%,transparent);border-radius:999px;padding:7px 12px;text-decoration:none;white-space:nowrap;flex:none}
+.pd-wa svg{width:14px;height:14px}
+.pd-quien+.pd-kv{margin-top:12px}
+.pd-gan{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pd-gan>div{display:flex;flex-direction:column}
+.pd-gan-n{font-size:19px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pd-perdida{margin:10px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pd-abonos{list-style:none;margin:0;padding:0;font-size:13px}
+.pd-abonos li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.pd-abonos li:first-child{border-top:0;padding-top:0}
+.pd-abonos li span:first-child{color:var(--muted)}
+.pd-abonos b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pd-hist{grid-column:1/-1;border:1px solid var(--line);border-radius:14px;padding:0 16px}
+.pd-hist summary{list-style:none;cursor:pointer;padding:12px 0;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;justify-content:space-between}
+.pd-hist summary::-webkit-details-marker{display:none}
+.pd-hist summary em{font-style:normal;letter-spacing:0;text-transform:none;font-size:12.5px;color:var(--primary-text);font-weight:500}
+.pd-tl{list-style:none;margin:0 0 12px;padding:0 0 0 14px;border-left:2px solid var(--line)}
+.pd-tl li{position:relative;padding:3px 0 8px 8px;font-size:13px}
+.pd-tl li::before{content:"";position:absolute;left:-21px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--surface);border:2px solid var(--primary-strong)}
+.pd-tl li span{display:block;font-size:11.5px;color:var(--muted)}
+.pd-pie{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 24px;border-top:1px solid var(--line);background:var(--surface)}
+.pd-pie .oda{display:flex;gap:8px;flex-wrap:wrap;margin-right:auto}
+.pd-pie .oda .mini{min-height:40px;padding:8px 14px}
+.pd-pie .oda a.mini{text-decoration:none;display:inline-flex;align-items:center}
+.pd-woo{font-size:13px;color:var(--muted);text-decoration:none}
+.pd-woo:hover{color:var(--ink)}
+@container (max-width:760px){
+  .modal .card.pd{max-height:calc(100dvh - 24px)}
+  .pd-cab{padding:16px 16px 12px}
+  .pd-res{grid-template-columns:1fr 1fr;padding:12px 16px}
+  .pd-res .pd-cifra:first-child{grid-column:1/-1}
+  .pd-cuerpo{grid-template-columns:1fr;padding:12px 16px}
+  .pd-pie{padding:12px 16px}
+  .pd-pie .oda{width:100%}
+  .pd-pie .oda .mini.main{flex:1 1 100%;justify-content:center}
+  .pd-kv{grid-template-columns:84px 1fr}
+}
 /* La tarjeta de un producto: foto, datos y unidades por talla, sin salir de donde se está */
 .pc-top{display:flex;gap:16px;align-items:flex-start}
 .pc-top .thumb.pc-img{width:112px;height:136px;flex:none;font-size:22px}

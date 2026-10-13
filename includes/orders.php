@@ -1393,6 +1393,9 @@ function dox_pos_order_detail( $id ) {
 			'notes'           => $notes,
 			'edit_url'        => current_user_can( 'manage_woocommerce' ) ? $order->get_edit_order_url() : '',
 			'demo'            => (bool) $order->get_meta( '_dox_pos_demo' ),
+			// La clienta del saldo a favor y lo que le queda hoy (el detalle de un abono lo enseña arriba).
+			'credit_key'      => (string) $order->get_meta( '_dox_pos_credit_key' ),
+			'credit_balance'  => '' !== (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ) ) : null,
 		),
 		$see ? dox_pos_order_profit_fields( $order ) : array(),
 		// La pérdida anotada y su motivo, para quien administra (lleve costos o no).
