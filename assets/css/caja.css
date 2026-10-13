@@ -332,11 +332,6 @@ tr.off,li.off{opacity:.5}
 .qhint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.4}
 .qrow.real .qsz{color:var(--real);white-space:normal}
 .qrow.real .qsz .rt{display:table;margin:2px 0 0}
-.qrealbox{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
-.qrealbox label{font-size:12px;font-weight:600;color:var(--muted)}
-.qrealbox select{width:auto;max-width:60%;flex:none;min-height:0;font-size:13px;padding:7px 26px 7px 12px;border-radius:999px;background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%}
-.qrealbox.on label,.qrealbox.on select{color:var(--real)}
-.qrealbox.on select{border-color:var(--real);background-color:var(--real-soft);font-weight:600}
 .switch{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13.5px;font-weight:500;position:relative}
 .switch input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
 .switch-ui{width:42px;height:24px;border-radius:999px;background:var(--line);position:relative;flex:none;margin-top:1px;transition:background-color 160ms ease}
@@ -1151,3 +1146,17 @@ table.hsm td.num{white-space:nowrap}
 .playa li>span:first-child{min-width:0}
 .playa .sub .tag{margin-left:0}
 .playa .mini{margin-left:6px}
+
+/* ---------- prendas por talla real (0.52.0) ---------- */
+/* En la línea de la venta: qué prenda sale; en la de la entrada: con qué etiqueta llegó. */
+.lin .pieza{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11.5px;font-weight:500;color:var(--real);font-family:var(--ui)}
+.lin .pieza select{width:auto;min-height:0;padding:3px 24px 3px 8px;font-size:12px;border-radius:999px;border-color:var(--real);color:var(--real);background-color:var(--real-soft);background-position:calc(100% - 12px) 50%,calc(100% - 8px) 50%}
+/* En el formulario: cuántas prendas lleva cada etiqueta del grupo. */
+.qrealbox{display:block;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.qrealbox>b{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.qrealbox.on>b{color:var(--real)}
+.qrq{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 0;font-size:13px}
+.qrq input{width:64px;flex:none;text-align:center;padding:7px 4px;font-variant-numeric:tabular-nums}
+.qrqmsg{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+.qrqmsg.ok{color:var(--ok)}
+.qrqmsg.bad{color:var(--danger-ink)}

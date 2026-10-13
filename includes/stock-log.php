@@ -350,3 +350,26 @@ function dox_pos_stock_kinds() {
 		'ajustes'   => array( 'create', 'edit', 'admin', 'import', 'api', 'cli', 'other' ),
 	);
 }
+
+/**
+ * Añade una nota al último movimiento de una talla (o del producto, si la talla hereda su total), apuntado hace
+ * un momento: qué prenda real salió o volvió (includes/real-sizes.php).
+ *
+ * @param int    $variation_id La talla.
+ * @param string $note         Lo que se añade.
+ */
+function dox_pos_stock_log_note_last( $variation_id, $note ) {
+	$v = wc_get_product( (int) $variation_id );
+	if ( ! $v || '' === (string) $note ) {
+		return;
+	}
+	global $wpdb;
+	$table = dox_pos_stock_log_table();
+	$since = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - 120 ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- created_at se guarda en hora local.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT id, note FROM {$table} WHERE ( variation_id = %d OR ( product_id = %d AND variation_id = 0 ) ) AND created_at >= %s ORDER BY id DESC LIMIT 1", (int) $variation_id, (int) $v->get_parent_id(), $since ) );
+	if ( ! $row ) {
+		return;
+	}
+	$wpdb->update( $table, array( 'note' => mb_substr( trim( $row->note . ' · ' . $note, ' ·' ), 0, 255 ) ), array( 'id' => (int) $row->id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+}

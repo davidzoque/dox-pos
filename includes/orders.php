@@ -204,7 +204,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		if ( $falta ) {
 			return $falta;
 		}
-		$lines[] = array( 'product' => $p, 'qty' => $qty );
+		$lines[] = array( 'product' => $p, 'qty' => $qty, 'real' => (int) ( $l['real'] ?? 0 ) ); // real: la prenda que eligió la caja (0: la más cercana).
 	}
 	// Lo que se vende sin producto (un diseño por encargo, un arreglo): nombre, precio y cantidad. No mueve inventario.
 	$dec  = wc_get_price_decimals();
@@ -315,6 +315,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		if ( $item ) {
 			$item->set_name( dox_pos_item_name( $l['product'] ) );
 			dox_pos_tag_real_size( $item, $l['product'] ); // "Talla real: 18-24 meses" si es otra talla de su grupo.
+			dox_pos_real_tag_line( $item, $l['product'], $l['real'] ); // Y si el grupo lleva prendas por talla real: cuál sale.
 			$item->save();
 		}
 	}
@@ -940,6 +941,11 @@ function dox_pos_format_order( $order ) {
 	foreach ( dox_pos_order_deposit_lines( $order ) as $d ) {
 		/* translators: %s: what the deposit is for */
 		$items[] = sprintf( __( 'Deposit: %s', 'dox-pos' ), $d['name'] );
+	}
+	// Un abono al saldo (sin nada que entregar) no se "entrega": dice que es un abono. El estado sigue siendo el
+	// mismo para todo lo demás (botones, informes).
+	if ( $deposit > 0 && ! $order->get_items() && 'completed' === $status ) {
+		$st[1] = __( 'Deposit', 'dox-pos' );
 	}
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
 	$hold  = $caja && in_array( $status, array( 'on-hold', 'pending', 'failed' ), true );

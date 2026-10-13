@@ -375,9 +375,25 @@ function dox_pos_rest_product_card( WP_REST_Request $request ) {
 }
 
 function dox_pos_rest_update_product( WP_REST_Request $request ) {
-	return dox_pos_rest_out( dox_pos_update_product( (int) $request['id'], (array) $request->get_json_params() ) );
+	$data = (array) $request->get_json_params();
+	return dox_pos_rest_out( dox_pos_real_qty_after( dox_pos_update_product( (int) $request['id'], $data ), $data ) );
 }
 
 function dox_pos_rest_create_product( WP_REST_Request $request ) {
-	return dox_pos_rest_out( dox_pos_create_product( (array) $request->get_json_params() ) );
+	$data = (array) $request->get_json_params();
+	return dox_pos_rest_out( dox_pos_real_qty_after( dox_pos_create_product( $data ), $data ) );
+}
+
+/**
+ * Después de guardar un producto desde el formulario: las prendas por talla real (includes/real-sizes.php).
+ *
+ * @param array|WP_Error $r    Lo que devolvió el guardado.
+ * @param array          $data Lo que mandó el formulario.
+ * @return array|WP_Error
+ */
+function dox_pos_real_qty_after( $r, $data ) {
+	if ( is_array( $r ) && ! empty( $r['product']['id'] ) ) {
+		dox_pos_real_qty_save( (int) $r['product']['id'], $data );
+	}
+	return $r;
 }

@@ -269,10 +269,24 @@
 	function disponible(v) {
 		return v.stock === null ? v.status !== "outofstock" : libres(v) > 0;
 	}
+	// El grupo lleva prendas por talla real (0.52.0): el número es del grupo, y se dice de qué etiqueta hay.
+	function textoReparto(v, n) {
+		const s = v.split;
+		let t = sprintf(__("%s in the group", "dox-pos"), "<b>" + n + "</b>");
+		if (s.state === "unsplit") return t + " · " + esc(__("not split by actual size yet", "dox-pos"));
+		const mia = s.reals.find((r) => r.id === v.id) || s.reals.find((r) => r.id === s.picks[0]);
+		if (mia && mia.qty > 0) t += " · " + esc(sprintf(_n("%1$d with tag %2$s", "%1$d with tag %2$s", mia.qty, "dox-pos"), mia.qty, mia.label));
+		else if (!s.picks.length) t += " · " + esc(__("no piece with a tag close to this size", "dox-pos"));
+		if (s.state === "mismatch") t += " · " + esc(__("does not add up", "dox-pos"));
+		return t;
+	}
+	// Las prendas que pueden salir al vender esta talla, para elegir en la línea: "12-18 meses (2)".
+	const opcionesPieza = (v, todas) => (todas ? v.split.reals : v.split.picks.map((id) => v.split.reals.find((r) => r.id === id)).filter(Boolean));
 	function textoStock(v, modo) {
 		if (v.stock === null) return v.status === "outofstock" ? __("out of stock", "dox-pos") : __("no limit", "dox-pos");
 		const n = modo === "venta" ? libres(v) : v.stock;
 		if (n <= 0) return __("none left", "dox-pos");
+		if (v.split) return textoReparto(v, n);
 		if (v.shared && v.pool && v.pool !== "*") return sprintf(__("%1$s left for all %2$s sizes", "dox-pos"), "<b>" + n + "</b>", esc(v.pool_name || ""));
 		if (v.shared) return sprintf(v.talla ? __("%s left for all sizes", "dox-pos") : __("%s left for all options", "dox-pos"), "<b>" + n + "</b>");
 		return sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>");
@@ -443,8 +457,14 @@
 			const conCosto = modo === "entrada" && !!cfg.costs; // Cada línea de la entrada lleva lo que costó la unidad, en su propia fila.
 			li.className = "lin" + (conCosto ? " cost" : "") + (st.flash === modo + ":" + l.vid ? " flash" : "");
 			li.dataset.vid = String(l.vid);
+			// Qué prenda sale (venta) o con qué etiqueta llegó (entrada), si el grupo lleva prendas por talla real.
+			const sp = d.v.split && d.v.split.state !== "unsplit" ? opcionesPieza(d.v, modo === "entrada") : [];
+			if (sp.length && !sp.some((r) => r.id === l.real)) l.real = modo === "entrada" ? d.v.split.entry : sp[0].id;
+			const pieza = sp.length > 1
+				? '<label class="pieza">' + esc(modo === "entrada" ? __("Tag", "dox-pos") : __("Piece", "dox-pos")) + ' <select aria-label="' + esc(modo === "entrada" ? __("Size on the tag of what arrived", "dox-pos") : __("Which piece leaves", "dox-pos")) + '">' + sp.map((r) => '<option value="' + r.id + '"' + (r.id === l.real ? " selected" : "") + ">" + esc(r.label) + (modo === "venta" ? " (" + r.qty + ")" : "") + "</option>").join("") + "</select></label>"
+				: sp.length ? '<span class="pieza">' + esc(sprintf(modo === "entrada" ? __("Tag: %s", "dox-pos") : __("Piece: %s", "dox-pos"), sp[0].label)) + "</span>" : "";
 			li.innerHTML =
-				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i></span>" +
+				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i>" + pieza + "</span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
 					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IM + '" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
@@ -468,6 +488,8 @@
 					pintarSum();
 				});
 			}
+			const ps = li.querySelector(".pieza select");
+			if (ps) ps.onchange = () => { l.real = +ps.value; };
 			li.querySelectorAll(".qty button").forEach((b) => {
 				b.onclick = () => {
 					const delta = +b.dataset.d;
@@ -1302,7 +1324,7 @@
 			hold: hold,
 			hold_hours: hold && op ? op.hours : null,                              // El plazo de este apartado (0: sin vencer).
 			hold_deposit: hold && op && op.deposit ? op.deposit : null,            // Lo que abona al apartar: {amount, payment}.
-			lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })),
+			lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n, real: l.real || 0 })), // real: la prenda elegida (0: la más cercana).
 			free: st.libres.map((l) => ({ name: l.name, price: l.price, qty: l.n })),
 			deposit: st.abono ? { name: st.abono.name, amount: st.abono.amount } : null,
 			credit: tt.cred,
@@ -1666,7 +1688,7 @@
 		st.ocupado = true;
 		pintarSum();
 		const soltar = ocupar($("#reg2"), __("Saving\u2026", "dox-pos"));
-		const payload = { ref: uuid(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n, cost: l.c || "" })), supplier: $("#e-prov").value.trim(), invoice: $("#e-fac").value.trim(), date: $("#e-fec").value, note: $("#e-nota").value.trim() };
+		const payload = { ref: uuid(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n, cost: l.c || "", real: l.real || 0 })), supplier: $("#e-prov").value.trim(), invoice: $("#e-fac").value.trim(), date: $("#e-fec").value, note: $("#e-nota").value.trim() };
 		const resumen = resumenLineas(st.entrada);
 		const limpiar = () => {
 			st.entrada = [];
@@ -2203,7 +2225,7 @@
 	// por si la página se recarga o se cae la sesión.
 	const pr = {
 		cargado: false, abriendo: null, form: null,
-		grupos: {}, totales: {}, real: new Set(), legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
+		grupos: {}, totales: {}, real: new Set(), realQty: {}, legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
 		fotos: [],          // [{uid, file, estado: cola|subiendo|ok|error, id, url, color, kb, error}]
 		cats: [],           // ids de categoría elegidos
 		colores: [],        // [{key, id, name, hex}]; id 0 = color nuevo (key "n:nombre")
@@ -2886,7 +2908,6 @@
 	const pk = (ckey, g) => (g > 1 ? ckey + "#" + g : ckey); // La clave de la bolsa: la columna de color y, del segundo grupo en adelante, "#2"...
 	const gruposDe = (ckey, rows) => [...new Set(rows.map((r) => grupoDe(qKey(ckey, r.id))).filter(Boolean))].sort((a, b) => a - b);
 	// La talla real de un grupo (la etiqueta de la pieza física): la celda marcada que sigue en ese grupo, o "".
-	const realDe = (ckey, g, rows) => { const r = rows.find((x) => pr.real.has(qKey(ckey, x.id)) && grupoDe(qKey(ckey, x.id)) === g); return r ? qKey(ckey, r.id) : ""; };
 	// Las que se mandan al guardar: todas las marcadas que siguen compartiendo. Un grupo puede traer varias (marcadas
 	// antes de la 0.49 por la carga del inventario): se conservan hasta que se elija una en su menú.
 	const realesVivas = () => { const keys = celdas(); return [...pr.real].filter((k) => keys.includes(k) && grupoDe(k) > 0); };
@@ -2952,11 +2973,14 @@
 				const key = pk(c.key, x);
 				const n = rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).length;
 				h += '<div class="qpoolbox"><label for="p-junto-' + esc(key) + '">' + esc(varios ? sprintf(__("Shared units · group %d", "dox-pos"), x) : __("Shared units", "dox-pos")) + '</label><input id="p-junto-' + esc(key) + '" data-pool="' + esc(key) + '" inputmode="numeric" placeholder="0" value="' + (pr.totales[key] ? miles(pr.totales[key]) : "") + '"></div>';
-				if (n > 1) { // Con dos tallas o más: cuál es la de la etiqueta, para que la caja diga qué pieza sacar.
-					const rk = realDe(c.key, x, rows);
-					let ro = '<option value=""' + (rk ? "" : " selected") + ">" + esc(__("Not marked", "dox-pos")) + "</option>";
-					rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).forEach((r) => { const k = qKey(c.key, r.id); ro += '<option value="' + esc(k) + '"' + (rk === k ? " selected" : "") + ">" + esc(r.label || r.name) + "</option>"; });
-					h += '<div class="qrealbox' + (rk ? " on" : "") + '"><label for="p-real-' + esc(key) + '">' + esc(__("Actual size", "dox-pos")) + '</label><select class="qreal" id="p-real-' + esc(key) + '" data-c="' + esc(c.key) + '" data-g="' + x + '">' + ro + "</select></div>";
+				if (n > 1) { // Con dos tallas o más: cuántas prendas llevan la etiqueta de cada talla (las que llevan número son tallas reales).
+					h += '<div class="qrealbox' + (rows.some((r) => grupoDe(qKey(c.key, r.id)) === x && pr.real.has(qKey(c.key, r.id))) ? " on" : "") + '" data-c="' + esc(c.key) + '" data-g="' + x + '"><b>' + esc(__("Pieces by actual size", "dox-pos")) + "</b>" +
+						rows.filter((r) => grupoDe(qKey(c.key, r.id)) === x).map((r) => {
+							const k = qKey(c.key, r.id);
+							const val = pr.realQty[k] !== undefined ? pr.realQty[k] : "";
+							return '<label class="qrq"><span>' + esc(r.label || r.name) + '</span><input inputmode="numeric" data-rk="' + esc(k) + '" value="' + val + '" placeholder="' + (pr.real.has(k) ? "?" : "0") + '" aria-label="' + esc(sprintf(__("Pieces with the %s tag", "dox-pos"), r.label || r.name)) + '"></label>';
+						}).join("") +
+						'<p class="qrqmsg" data-msg="' + esc(key) + '"></p></div>';
 				}
 				h += '<p class="qhint">' + esc(sprintf(_n("%s takes these units.", "%s share these units: when one of them sells, they all go down.", n, "dox-pos"), nombresCompartidas(rows, [c], x))) + "</p>";
 			});
@@ -2981,7 +3005,7 @@
 			inp.addEventListener("focus", () => inp.select());
 		});
 		box.querySelectorAll("input[data-pool]").forEach((inp) => {
-			inp.oninput = () => { pr.totales[inp.dataset.pool] = uds(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); pintarResumenProducto(); };
+			inp.oninput = () => { pr.totales[inp.dataset.pool] = uds(inp.value); box.querySelectorAll('.qpool[data-pool="' + inp.dataset.pool + '"]').forEach((x) => { x.textContent = pool(inp.dataset.pool); }); box.querySelectorAll(".qrealbox").forEach(avisoReparto); pintarResumenProducto(); };
 			inp.onfocus = () => inp.select();
 		});
 		box.querySelectorAll(".qsel").forEach((sel) => {
@@ -2995,14 +3019,18 @@
 				pintarResumenProducto();
 			};
 		});
-		box.querySelectorAll(".qreal").forEach((sel) => {
-			sel.onchange = () => { // Una sola talla real por grupo.
-				const ckey = sel.dataset.c, g = +sel.dataset.g;
-				rows.forEach((r) => { const k = qKey(ckey, r.id); if (grupoDe(k) === g) pr.real.delete(k); });
-				if (sel.value) pr.real.add(sel.value);
-				pintarCantidades();
+		// Las prendas por talla real: una talla con número es real; vaciarla o poner 0 le quita la marca.
+		box.querySelectorAll(".qrq input").forEach((inp) => {
+			inp.onfocus = () => inp.select();
+			inp.oninput = () => {
+				const k = inp.dataset.rk, raw = inp.value.trim();
+				if (raw === "" || uds(raw) < 1) { pr.real.delete(k); delete pr.realQty[k]; } else { pr.real.add(k); pr.realQty[k] = uds(raw); }
+				const qb = inp.closest(".qrealbox");
+				qb.classList.toggle("on", !!qb.querySelector("input[data-rk]") && [...qb.querySelectorAll("input[data-rk]")].some((x) => pr.real.has(x.dataset.rk)));
+				avisoReparto(qb);
 			};
 		});
+		box.querySelectorAll(".qrealbox").forEach(avisoReparto);
 		box.querySelectorAll(".qshare input[data-all]").forEach((cb) => {
 			const cnt = rows.filter((r) => grupoDe(qKey(cb.dataset.all, r.id)) > 0).length;
 			cb.indeterminate = cnt > 0 && (cnt < rows.length || gruposDe(cb.dataset.all, rows).length > 1); // Unas sí y otras no, o varios grupos: a medias.
@@ -3012,6 +3040,32 @@
 				pintarResumenProducto();
 			};
 		});
+	}
+	// Cuántos grupos con dos tallas reales o más están sin repartir o no cuadran.
+	function repartoPendiente() {
+		let n = 0;
+		const rows = filas();
+		columnas().forEach((c) => gruposDe(c.key, rows).forEach((g) => {
+			const reales = rows.map((r) => qKey(c.key, r.id)).filter((k) => grupoDe(k) === g && pr.real.has(k));
+			if (reales.length < 2) return;
+			const suma = reales.reduce((a, k) => a + (pr.realQty[k] || 0), 0);
+			if (reales.some((k) => pr.realQty[k] === undefined) || suma !== (pr.totales[pk(c.key, g)] || 0)) n++;
+		}));
+		return n;
+	}
+	// Debajo de las prendas por talla real: si suman lo que tiene el grupo, si no cuadra o si falta repartir.
+	function avisoReparto(qb) {
+		const p = qb.querySelector(".qrqmsg");
+		const ins = [...qb.querySelectorAll("input[data-rk]")];
+		const reales = ins.filter((x) => pr.real.has(x.dataset.rk));
+		p.className = "qrqmsg";
+		if (reales.length < 2) { p.textContent = reales.length ? __("A single actual size: all the units are of that size.", "dox-pos") : __("Write how many pieces carry each size on their tag.", "dox-pos"); return; }
+		const total = pr.totales[pk(qb.dataset.c, +qb.dataset.g)] || 0;
+		if (reales.some((x) => pr.realQty[x.dataset.rk] === undefined)) { p.classList.add("bad"); p.textContent = __("Not split yet: write how many pieces carry each size on their tag.", "dox-pos"); return; }
+		const suma = reales.reduce((a, x) => a + (pr.realQty[x.dataset.rk] || 0), 0);
+		if (suma !== total) { p.classList.add("bad"); p.textContent = sprintf(__("They add up to %1$d and the group has %2$d. Check the numbers.", "dox-pos"), suma, total); return; }
+		p.classList.add("ok");
+		p.textContent = sprintf(__("They add up to %d, the units of the group.", "dox-pos"), suma);
 	}
 	// Las tallas (y el color, si hay más de uno) que comparten unidades, con nombre: "2-3 años, 3-4 años y 4-5 años".
 	function nombresCompartidas(rows, cols, g) {
@@ -3118,6 +3172,8 @@
 			if (cfg.costs && costoForm() > precio) avisos.push(__("The cost is higher than the price: it would sell at a loss.", "dox-pos"));
 			const paq = paqueteForm();
 			if (form.weight_matters && !paq.weight) avisos.push(__("No weight: the shipping by weight will charge it as if it weighed nothing.", "dox-pos"));
+			const rp = repartoPendiente(); // Avisa, no frena: se puede guardar y repartir después.
+			if (rp) avisos.push(sprintf(_n("%d group of shared sizes is not split by actual size, or does not add up: the register will not know which piece leaves.", "%d groups of shared sizes are not split by actual size, or do not add up: the register will not know which piece leaves.", rp, "dox-pos"), rp));
 			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
 			let tabla = "";
 			const vivas = new Set(compartidasVivas());
@@ -3184,6 +3240,7 @@
 			shared_groups: gruposVivos(),     // ...en qué grupo está cada una (1, 2...)...
 			pool_stock: totalesVivos(),       // ...y las unidades de cada bolsa (columna de color, y "#2" del segundo grupo en adelante)...
 			real_cells: realesVivas(),        // ...y la talla real de cada grupo (la etiqueta de la pieza).
+			real_qty: Object.fromEntries(realesVivas().filter((k) => pr.realQty[k] !== undefined).map((k) => [k, pr.realQty[k]])), // Y cuántas prendas de cada una.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
@@ -3209,7 +3266,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.legacy = false; pr.legacyTotal = 0;
+		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.realQty = {}; pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		pr.paquete0 = null;
@@ -3417,6 +3474,8 @@
 		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
 		pr.totales = Object.assign({}, d.pool_stock || {}); // Las unidades compartidas por columna de color.
 		pr.real = new Set((d.real_cells || []).map(String)); // La talla real de cada grupo.
+		pr.realQty = {}; // Cuántas prendas hay de cada talla real (0.52.0); las que no vienen están sin repartir.
+		Object.entries(d.real_qty || {}).forEach(([k, n]) => { if (n !== null && n !== undefined) pr.realQty[k] = +n; });
 		pr.legacy = !!d.legacy_pool; // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : uds(d.shared);
 		pr.cats = (d.categories || []).slice();
