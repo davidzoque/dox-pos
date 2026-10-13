@@ -594,7 +594,7 @@ msgstr "Contra reembolso"
 msgid "Cash payment"
 msgstr "Efectivo"
 
-#: assets/js/mostrador.js:711
+#: assets/js/mostrador.js:720
 msgid "Card"
 msgstr "Tarjeta"
 
@@ -662,7 +662,7 @@ msgstr "En mano"
 msgid "Handed over in person, no shipping"
 msgstr "Se entrega en mano, sin envío"
 
-#: assets/js/caja.js:526 assets/js/mostrador.js:379
+#: assets/js/caja.js:526 assets/js/mostrador.js:388
 msgid "Remove"
 msgstr "Quitar"
 
@@ -699,7 +699,7 @@ msgstr "Guardando…"
 msgid "There are unsaved changes."
 msgstr "Hay cambios sin guardar."
 
-#: assets/js/caja.js:1474 assets/js/mostrador.js:449
+#: assets/js/caja.js:1474 assets/js/mostrador.js:458
 msgid "Close"
 msgstr "Cerrar"
 
@@ -1086,7 +1086,7 @@ msgstr "Vestido Ella"
 msgid "How they pay"
 msgstr "Cómo paga"
 
-#: assets/js/mostrador.js:711
+#: assets/js/mostrador.js:720
 msgid "Paid: record the sale"
 msgstr "Ya ha pagado: registrar la venta"
 
@@ -1104,7 +1104,7 @@ msgstr "Marcar como enviado"
 msgid "Tracking number"
 msgstr "Número de seguimiento"
 
-#: assets/js/caja.js:1174 assets/js/mostrador.js:367
+#: assets/js/caja.js:1174 assets/js/mostrador.js:376
 msgid "Save"
 msgstr "Guardar"
 
@@ -1187,7 +1187,7 @@ msgstr "Buscar producto"
 msgid "The order"
 msgstr "El pedido"
 
-#: assets/js/mostrador.js:367
+#: assets/js/mostrador.js:376
 msgid "Search by name or SKU"
 msgstr "Buscar por nombre o SKU"
 
@@ -1286,7 +1286,7 @@ msgstr "Aquí puedes cambiar el nombre, la categoría, el precio, las fotos, la 
 msgid "View in the store"
 msgstr "Ver en la tienda"
 
-#: assets/js/caja.js:537 assets/js/mostrador.js:367
+#: assets/js/caja.js:537 assets/js/mostrador.js:376
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1329,7 +1329,7 @@ msgstr "Nombre del color"
 msgid "Name of the new color"
 msgstr "Nombre del color nuevo"
 
-#: assets/js/caja.js:537 assets/js/mostrador.js:397
+#: assets/js/caja.js:537 assets/js/mostrador.js:406
 msgid "Add"
 msgstr "Añadir"
 
@@ -1443,7 +1443,7 @@ msgstr[1] "%d zonas de envío"
 
 #. Los textos del JavaScript (assets/js/caja.js).
 
-#: assets/js/caja.js:310 assets/js/mostrador.js:293
+#: assets/js/caja.js:310 assets/js/mostrador.js:302
 msgid "Nothing matches. Try a single word."
 msgstr "No hay nada que coincida. Prueba con una sola palabra."
 
@@ -1475,7 +1475,7 @@ msgstr "agotado"
 msgid "no limit"
 msgstr "sin límite"
 
-#: assets/js/caja.js:295 assets/js/mostrador.js:287
+#: assets/js/caja.js:295 assets/js/mostrador.js:296
 msgid "%s left"
 msgstr "quedan %s"
 
@@ -1619,7 +1619,7 @@ msgstr "Ya no existe"
 msgid "Edit"
 msgstr "Editar"
 
-#: assets/js/caja.js:1504 assets/js/mostrador.js:839 assets/js/ticket.js:54
+#: assets/js/caja.js:1504 assets/js/mostrador.js:848 assets/js/ticket.js:54
 msgid "Order #%s"
 msgstr "Pedido #%s"
 
@@ -1695,7 +1695,7 @@ msgstr "Marcado como enviado"
 msgid "Tell them on WhatsApp"
 msgstr "Avisar por WhatsApp"
 
-#: assets/js/caja.js:1374 assets/js/mostrador.js:590
+#: assets/js/caja.js:1374 assets/js/mostrador.js:599
 msgid "Done"
 msgstr "Listo"
 
@@ -2078,7 +2078,7 @@ msgstr "Añadir foto"
 msgid "Create without a photo"
 msgstr "Crear sin foto"
 
-#: assets/js/caja.js:773 assets/js/mostrador.js:570
+#: assets/js/caja.js:773 assets/js/mostrador.js:579
 msgid "Back"
 msgstr "Volver"
 
@@ -2408,7 +2408,7 @@ msgid_plural "%d photos"
 msgstr[0] "%d foto"
 msgstr[1] "%d fotos"
 
-#: assets/js/caja.js:3613 assets/js/mostrador.js:519 assets/js/ticket.js:94
+#: assets/js/caja.js:3613 assets/js/mostrador.js:528 assets/js/ticket.js:94
 msgid "%d sale"
 msgid_plural "%d sales"
 msgstr[0] "%d venta"
@@ -3812,7 +3812,7 @@ msgstr "¿Quieres más? Dox POS Pro añade un código QR para reseñas o Instagr
 msgid "See Dox POS Pro"
 msgstr "Ver Dox POS Pro"
 
-#: assets/js/mostrador.js:565
+#: assets/js/mostrador.js:574
 msgid "The till is not open."
 msgstr "La caja no está abierta."
 
@@ -3895,18 +3895,18 @@ msgstr "Mostrador"
 msgid "The Counter is turned off. Ask whoever manages the shop to turn it on in Settings, Sales tab."
 msgstr "El Mostrador está apagado. Pide a quien administra la tienda que lo active en Ajustes, pestaña Ventas."
 
-#: assets/js/mostrador.js:821
+#: assets/js/mostrador.js:830
 msgid "Return"
 msgstr "Devolución"
 
 msgid "Last receipt"
 msgstr "Último tique"
 
-#: assets/js/mostrador.js:570
+#: assets/js/mostrador.js:579
 msgid "Close the till"
 msgstr "Cerrar caja"
 
-#: assets/js/mostrador.js:994
+#: assets/js/mostrador.js:1003
 msgid "This device"
 msgstr "Este equipo"
 
@@ -3928,14 +3928,14 @@ msgstr "Elegir botones"
 msgid "This sale"
 msgstr "Esta venta"
 
-#: assets/js/caja.js:2161 assets/js/mostrador.js:850
+#: assets/js/caja.js:2161 assets/js/mostrador.js:859
 msgid "Customer phone"
 msgstr "Teléfono del cliente"
 
 msgid "On hold"
 msgstr "En espera"
 
-#: assets/js/mostrador.js:915
+#: assets/js/mostrador.js:924
 msgid "Empty"
 msgstr "Vaciar"
 
@@ -3990,371 +3990,371 @@ msgstr "Ningún producto tiene el código %s. Estos son los que coinciden por no
 msgid "No product has the code %s."
 msgstr "Ningún producto tiene el código %s."
 
-#: assets/js/mostrador.js:344
+#: assets/js/mostrador.js:353
 msgid "Put here what you sell without a barcode (a gift bag, an alteration, a gift card): tap “Choose buttons”."
 msgstr "Pon aquí lo que vendes sin código de barras (una bolsa de regalo, un arreglo, una tarjeta regalo): toca «Elegir botones»."
 
-#: assets/js/mostrador.js:344
+#: assets/js/mostrador.js:353
 msgid "The shop has not chosen any buttons yet."
 msgstr "La tienda todavía no ha elegido botones."
 
-#: assets/js/mostrador.js:367
+#: assets/js/mostrador.js:376
 msgid "Buttons for products without a barcode"
 msgstr "Botones para productos sin código de barras"
 
-#: assets/js/mostrador.js:367
+#: assets/js/mostrador.js:376
 msgid "They show up on the Counter to sell with one tap. Up to 24."
 msgstr "Salen en el Mostrador para vender con un toque. Hasta 24."
 
-#: assets/js/mostrador.js:367
+#: assets/js/mostrador.js:376
 msgid "Chosen"
 msgstr "Elegidos"
 
-#: assets/js/mostrador.js:378
+#: assets/js/mostrador.js:387
 msgid "None yet."
 msgstr "Ninguno todavía."
 
-#: assets/js/mostrador.js:394
+#: assets/js/mostrador.js:403
 msgid "Up to 24 buttons."
 msgstr "Hasta 24 botones."
 
-#: assets/js/mostrador.js:409
+#: assets/js/mostrador.js:418
 msgid "Buttons saved."
 msgstr "Botones guardados."
 
-#: assets/js/mostrador.js:425
+#: assets/js/mostrador.js:434
 msgid "Sale on hold. Tap “On hold” to pick it up again."
 msgstr "Venta en espera. Toca «En espera» para retomarla."
 
-#: assets/js/mostrador.js:444
+#: assets/js/mostrador.js:453
 msgid "There are no sales on hold."
 msgstr "No hay ventas en espera."
 
-#: assets/js/mostrador.js:446
+#: assets/js/mostrador.js:455
 msgid "Sales on hold"
 msgstr "Ventas en espera"
 
-#: assets/js/mostrador.js:448
+#: assets/js/mostrador.js:457
 msgid "Sale of %s"
 msgstr "Venta de las %s"
 
-#: assets/js/mostrador.js:460
+#: assets/js/mostrador.js:469
 msgid "Amount (%s)"
 msgstr "Importe (%s)"
 
-#: assets/js/mostrador.js:460
+#: assets/js/mostrador.js:469
 msgid "Percent (%)"
 msgstr "Porcentaje (%)"
 
-#: assets/js/mostrador.js:460
+#: assets/js/mostrador.js:469
 msgid "Subtotal: %s"
 msgstr "Subtotal: %s"
 
-#: assets/js/mostrador.js:460
+#: assets/js/mostrador.js:469
 msgid "Apply"
 msgstr "Aplicar"
 
-#: assets/js/mostrador.js:460
+#: assets/js/mostrador.js:469
 msgid "No discount"
 msgstr "Sin descuento"
 
-#: assets/js/mostrador.js:514
+#: assets/js/mostrador.js:523
 msgid "The till is closed."
 msgstr "La caja está cerrada."
 
-#: assets/js/mostrador.js:514
+#: assets/js/mostrador.js:523
 msgid "Open the till"
 msgstr "Abrir caja"
 
-#: assets/js/mostrador.js:519
+#: assets/js/mostrador.js:528
 msgid "Open since %s"
 msgstr "Abierta desde las %s"
 
-#: assets/js/mostrador.js:519 assets/js/ticket.js:97
+#: assets/js/mostrador.js:528 assets/js/ticket.js:97
 msgid "Float"
 msgstr "Fondo"
 
-#: assets/js/mostrador.js:525
+#: assets/js/mostrador.js:534
 msgid "Count the cash in the drawer: it is the float, and the closing compares against it."
 msgstr "Cuenta el efectivo del cajón: es el fondo de caja, y el cierre se compara con él."
 
-#: assets/js/mostrador.js:525
+#: assets/js/mostrador.js:534
 msgid "Cash in the drawer"
 msgstr "Efectivo en el cajón"
 
-#: assets/js/mostrador.js:525
+#: assets/js/mostrador.js:534
 msgid "Not now"
 msgstr "Ahora no"
 
-#: assets/js/mostrador.js:538
+#: assets/js/mostrador.js:547
 msgid "Till open. You can charge now."
 msgstr "Caja abierta. Ya puedes cobrar."
 
-#: assets/js/mostrador.js:549
+#: assets/js/mostrador.js:558
 msgid "The till is not open yet. Count the cash in the drawer to open it."
 msgstr "La caja todavía no está abierta. Cuenta el efectivo del cajón para abrirla."
 
-#: assets/js/caja.js:1545 assets/js/mostrador.js:555 assets/js/ticket.js:96
+#: assets/js/caja.js:1545 assets/js/mostrador.js:564 assets/js/ticket.js:96
 msgid "Returns"
 msgstr "Devoluciones"
 
-#: assets/js/mostrador.js:556 assets/js/ticket.js:97
+#: assets/js/mostrador.js:565 assets/js/ticket.js:97
 msgid "Cash sales"
 msgstr "Ventas en efectivo"
 
-#: assets/js/mostrador.js:557 assets/js/ticket.js:98
+#: assets/js/mostrador.js:566 assets/js/ticket.js:98
 msgid "Cash given back"
 msgstr "Efectivo devuelto"
 
-#: assets/js/mostrador.js:559
+#: assets/js/mostrador.js:568
 msgid "Cash that should be in the drawer"
 msgstr "Efectivo que debería haber en el cajón"
 
-#: assets/js/mostrador.js:562
+#: assets/js/mostrador.js:571
 msgid "Charge the current sale or put it on hold before closing the till."
 msgstr "Cobra la venta actual o déjala en espera antes de cerrar la caja."
 
-#: assets/js/mostrador.js:570
+#: assets/js/mostrador.js:579
 msgid "Cash counted in the drawer"
 msgstr "Efectivo contado en el cajón"
 
-#: assets/js/mostrador.js:570
+#: assets/js/mostrador.js:579
 msgid "Note (optional): why it is short or over"
 msgstr "Nota (opcional): por qué falta o sobra"
 
-#: assets/js/mostrador.js:575
+#: assets/js/mostrador.js:584
 msgid "Count the drawer"
 msgstr "Cuenta el cajón"
 
-#: assets/js/mostrador.js:578 assets/js/ticket.js:102
+#: assets/js/mostrador.js:587 assets/js/ticket.js:102
 msgid "It matches"
 msgstr "Cuadra"
 
-#: assets/js/mostrador.js:578 assets/js/ticket.js:102
+#: assets/js/mostrador.js:587 assets/js/ticket.js:102
 msgid "Over"
 msgstr "Sobra"
 
-#: assets/js/mostrador.js:578 assets/js/ticket.js:102
+#: assets/js/mostrador.js:587 assets/js/ticket.js:102
 msgid "Short"
 msgstr "Falta"
 
-#: assets/js/mostrador.js:590
+#: assets/js/mostrador.js:599
 msgid "Till closed"
 msgstr "Caja cerrada"
 
-#: assets/js/mostrador.js:590
+#: assets/js/mostrador.js:599
 msgid "Print the closing"
 msgstr "Imprimir el cierre"
 
-#: assets/js/mostrador.js:617
+#: assets/js/mostrador.js:626
 msgid "The browser did not let the receipt print."
 msgstr "El navegador no ha dejado imprimir el tique."
 
-#: assets/js/mostrador.js:637
+#: assets/js/mostrador.js:646
 msgid "That order was not found."
 msgstr "No se ha encontrado ese pedido."
 
-#: assets/js/mostrador.js:641
+#: assets/js/mostrador.js:650
 msgid "No signal: the receipt could not be loaded."
 msgstr "Sin señal: no se ha podido cargar el tique."
 
-#: assets/js/mostrador.js:668
+#: assets/js/mostrador.js:677
 msgid "No signal: the total could not be calculated."
 msgstr "Sin señal: no se ha podido calcular el total."
 
-#: assets/js/mostrador.js:677
+#: assets/js/mostrador.js:686
 msgid "Total to charge"
 msgstr "Total a cobrar"
 
-#: assets/js/mostrador.js:677
+#: assets/js/mostrador.js:686
 msgid "Received"
 msgstr "Recibido"
 
-#: assets/js/mostrador.js:677
+#: assets/js/mostrador.js:686
 msgid "Exact"
 msgstr "Justo"
 
-#: assets/js/mostrador.js:677
+#: assets/js/mostrador.js:686
 msgid "Charge"
 msgstr "Cobrar"
 
-#: assets/js/mostrador.js:684
+#: assets/js/mostrador.js:693
 msgid "Missing"
 msgstr "Falta"
 
-#: assets/js/mostrador.js:711
+#: assets/js/mostrador.js:720
 msgid "Charge it on the shop’s card machine. When the payment goes through, record the sale."
 msgstr "Cóbralo en el datáfono de la tienda. Cuando el pago pase, registra la venta."
 
-#: assets/js/mostrador.js:721
+#: assets/js/mostrador.js:730
 msgid "One payment method or several: write how much goes on each. “The rest” fills in what is missing."
 msgstr "Una forma de pago o varias: escribe cuánto va en cada una. «El resto» completa lo que falta."
 
-#: assets/js/mostrador.js:721
+#: assets/js/mostrador.js:730
 msgid "The rest"
 msgstr "El resto"
 
-#: assets/js/mostrador.js:735
+#: assets/js/mostrador.js:744
 msgid "Too much (only cash gives change)"
 msgstr "De más (solo el efectivo da cambio)"
 
-#: assets/js/mostrador.js:736
+#: assets/js/mostrador.js:745
 msgid "Complete"
 msgstr "Completo"
 
-#: assets/js/mostrador.js:791
+#: assets/js/mostrador.js:800
 msgid "No signal: the sale was not recorded. Try again when the connection is back."
 msgstr "Sin señal: la venta no se ha registrado. Inténtalo de nuevo cuando vuelva la conexión."
 
-#: assets/js/mostrador.js:806
+#: assets/js/mostrador.js:815
 msgid "Sale #%s recorded"
 msgstr "Venta #%s registrada"
 
-#: assets/js/mostrador.js:806
+#: assets/js/mostrador.js:815
 msgid "The stock has already gone down."
 msgstr "El inventario ya ha bajado."
 
-#: assets/js/mostrador.js:806
+#: assets/js/mostrador.js:815
 msgid "Print again"
 msgstr "Imprimir otra vez"
 
-#: assets/js/mostrador.js:806
+#: assets/js/mostrador.js:815
 msgid "Print receipt"
 msgstr "Imprimir tique"
 
-#: assets/js/mostrador.js:806
+#: assets/js/mostrador.js:815
 msgid "Next customer"
 msgstr "Siguiente cliente"
 
-#: assets/js/mostrador.js:817
+#: assets/js/mostrador.js:826
 msgid "Charge the current sale or put it on hold before a return."
 msgstr "Cobra la venta actual o déjala en espera antes de una devolución."
 
-#: assets/js/mostrador.js:821
+#: assets/js/mostrador.js:830
 msgid "Scan the barcode on the receipt, or type the order number."
 msgstr "Escanea el código de barras del tique, o escribe el número del pedido."
 
-#: assets/js/mostrador.js:821
+#: assets/js/mostrador.js:830
 msgid "Order number"
 msgstr "Número de pedido"
 
-#: assets/js/mostrador.js:821
+#: assets/js/mostrador.js:830
 msgid "Find the order"
 msgstr "Buscar el pedido"
 
-#: assets/js/mostrador.js:832
+#: assets/js/mostrador.js:841
 msgid "No signal: the order could not be looked up."
 msgstr "Sin señal: no se ha podido buscar el pedido."
 
-#: assets/js/mostrador.js:835
+#: assets/js/mostrador.js:844
 msgid "No order has the number %s."
 msgstr "Ningún pedido tiene el número %s."
 
-#: assets/js/mostrador.js:839
+#: assets/js/mostrador.js:848
 msgid "Everything on this order has already been returned."
 msgstr "Todo lo de este pedido ya se ha devuelto."
 
-#: assets/js/mostrador.js:850
+#: assets/js/mostrador.js:859
 msgid "Return from order #%s"
 msgstr "Devolución del pedido #%s"
 
-#: assets/js/caja.js:2158 assets/js/mostrador.js:850
+#: assets/js/caja.js:2158 assets/js/mostrador.js:859
 msgid "%1$d of %2$d can be returned"
 msgstr "Se pueden devolver %1$d de %2$d"
 
-#: assets/js/mostrador.js:850
+#: assets/js/mostrador.js:859
 msgid "Cash from the drawer"
 msgstr "Efectivo del cajón"
 
-#: assets/js/mostrador.js:850
+#: assets/js/mostrador.js:859
 msgid "Same method (%s)"
 msgstr "Misma forma (%s)"
 
-#: assets/js/mostrador.js:850
+#: assets/js/mostrador.js:859
 msgid "Make the return"
 msgstr "Hacer la devolución"
 
-#: assets/js/mostrador.js:858
+#: assets/js/mostrador.js:867
 msgid "Give back in cash"
 msgstr "Devolver en efectivo"
 
-#: assets/js/mostrador.js:858
+#: assets/js/mostrador.js:867
 msgid "Give back by the same method"
 msgstr "Devolver por la misma forma de pago"
 
-#: assets/js/mostrador.js:881
+#: assets/js/mostrador.js:890
 msgid "Return done"
 msgstr "Devolución hecha"
 
-#: assets/js/mostrador.js:880
+#: assets/js/mostrador.js:889
 msgid "Give the money back from the drawer. The pieces are back in stock."
 msgstr "Devuelve el dinero del cajón. Las piezas ya han vuelto al inventario."
 
-#: assets/js/mostrador.js:880
+#: assets/js/mostrador.js:889
 msgid "Give the money back on the card machine or by the original payment method. The pieces are back in stock."
 msgstr "Devuelve el dinero en el datáfono o por la forma de pago original. Las piezas ya han vuelto al inventario."
 
-#: assets/js/mostrador.js:915
+#: assets/js/mostrador.js:924
 msgid "Empty this sale? Nothing is recorded."
 msgstr "¿Vaciar esta venta? No se registra nada."
 
-#: assets/js/mostrador.js:937
+#: assets/js/mostrador.js:946
 msgid "Point at the barcode"
 msgstr "Apunta al código de barras"
 
-#: assets/js/mostrador.js:941
+#: assets/js/mostrador.js:950
 msgid "The camera could not be opened. Check that the browser has permission to use it."
 msgstr "No se ha podido abrir la cámara. Comprueba que el navegador tenga permiso para usarla."
 
-#: assets/js/mostrador.js:967
+#: assets/js/mostrador.js:976
 msgid "The barcode reader could not be loaded. Check the connection."
 msgstr "No se ha podido cargar el lector de códigos. Comprueba la conexión."
 
-#: assets/js/mostrador.js:995
+#: assets/js/mostrador.js:1004
 msgid "This device is the counter"
 msgstr "Este equipo es el mostrador"
 
-#: assets/js/mostrador.js:995
+#: assets/js/mostrador.js:1004
 msgid "It always opens on the Counter."
 msgstr "Abre siempre en el Mostrador."
 
-#: assets/js/mostrador.js:996
+#: assets/js/mostrador.js:1005
 msgid "Print the receipt when charging"
 msgstr "Imprimir el tique al cobrar"
 
-#: assets/js/mostrador.js:996
+#: assets/js/mostrador.js:1005
 msgid "Without asking, on this device’s printer."
 msgstr "Sin preguntar, en la impresora de este equipo."
 
-#: assets/js/mostrador.js:997
+#: assets/js/mostrador.js:1006
 msgid "Keyboard shortcuts"
 msgstr "Atajos de teclado"
 
-#: assets/js/mostrador.js:998
+#: assets/js/mostrador.js:1007
 msgid "Search a product by name"
 msgstr "Buscar un producto por nombre"
 
-#: assets/js/mostrador.js:998
+#: assets/js/mostrador.js:1007
 msgid "Charge in cash"
 msgstr "Cobrar en efectivo"
 
-#: assets/js/mostrador.js:998
+#: assets/js/mostrador.js:1007
 msgid "Charge by card"
 msgstr "Cobrar con tarjeta"
 
-#: assets/js/mostrador.js:999
+#: assets/js/mostrador.js:1008
 msgid "Another payment method, or split"
 msgstr "Otra forma de pago, o dividir"
 
-#: assets/js/mostrador.js:999
+#: assets/js/mostrador.js:1008
 msgid "Put the sale on hold, or pick one up"
 msgstr "Dejar la venta en espera, o retomar una"
 
-#: assets/js/mostrador.js:1000
+#: assets/js/mostrador.js:1009
 msgid "Clear the search, or empty the sale"
 msgstr "Borrar la búsqueda, o vaciar la venta"
 
-#: assets/js/mostrador.js:1001
+#: assets/js/mostrador.js:1010
 msgid "The scanner works without tapping anything: when it reads a barcode the product goes into the sale, and the barcode of a receipt opens its return. On a laptop the F keys may need the Fn key."
 msgstr "El lector funciona sin tocar nada: cuando lee un código de barras el producto entra en la venta, y el código de un tique abre su devolución. En un portátil, las teclas F pueden necesitar la tecla Fn."
 
@@ -4422,7 +4422,7 @@ msgstr "Contado"
 msgid "Receipt"
 msgstr "Tique"
 
-#: assets/js/mostrador.js:684 assets/js/ticket.js:79
+#: assets/js/mostrador.js:693 assets/js/ticket.js:79
 msgid "Change due"
 msgstr "Cambio"
 
@@ -4436,7 +4436,7 @@ msgctxt "pay in cash"
 msgid "Cash"
 msgstr "Efectivo"
 
-#: assets/js/mostrador.js:880
+#: assets/js/mostrador.js:889
 msgid "The money is already back on the customer’s card. The pieces are back in stock."
 msgstr "El dinero ya ha vuelto a la tarjeta del cliente. Las piezas ya han vuelto al inventario."
 
@@ -4461,16 +4461,16 @@ msgstr "Descuento máximo"
 msgid "0: they cannot give discounts. 100: no limit."
 msgstr "0: no pueden hacer descuentos. 100: sin límite."
 
-#: assets/js/mostrador.js:458
+#: assets/js/mostrador.js:467
 msgid "Your user cannot give discounts."
 msgstr "Tu usuario no puede hacer descuentos."
 
-#: assets/js/mostrador.js:467
+#: assets/js/mostrador.js:476
 #, php-format
 msgid "The discount can be at most %d%% of the sale."
 msgstr "El descuento puede ser como mucho el %d%% de la venta."
 
-#: assets/js/mostrador.js:569
+#: assets/js/mostrador.js:578
 msgid "Count all the cash in the drawer, float included, and write the total. You will see whether it matches when you close."
 msgstr "Cuenta todo el efectivo del cajón, con el fondo, y escribe el total. Al cerrar verás si cuadra."
 
@@ -4560,7 +4560,7 @@ msgstr "El saldo se lleva por teléfono, y este pedido no tiene. Escríbelo."
 msgid "To store credit: %s"
 msgstr "Al saldo a favor: %s"
 
-#: assets/js/mostrador.js:850 assets/js/ticket.js:61
+#: assets/js/mostrador.js:859 assets/js/ticket.js:61
 msgid "To store credit"
 msgstr "Al saldo a favor"
 
@@ -4668,7 +4668,7 @@ msgstr "Pagado con saldo a favor"
 msgid "To pay"
 msgstr "A pagar"
 
-#: assets/js/caja.js:1318 assets/js/mostrador.js:664
+#: assets/js/caja.js:1318 assets/js/mostrador.js:673
 msgid "Paying with store credit needs a connection."
 msgstr "Pagar con saldo a favor necesita conexión."
 
@@ -4680,11 +4680,11 @@ msgstr "Anticipo registrado y saldo a favor usado"
 msgid "Deposit recorded"
 msgstr "Anticipo registrado"
 
-#: assets/js/caja.js:1374 assets/js/mostrador.js:806
+#: assets/js/caja.js:1374 assets/js/mostrador.js:815
 msgid "%1$s now has %2$s in store credit."
 msgstr "%1$s tiene ahora %2$s de saldo a favor."
 
-#: assets/js/caja.js:1374 assets/js/mostrador.js:806
+#: assets/js/caja.js:1374 assets/js/mostrador.js:815
 msgid "The customer"
 msgstr "El cliente"
 
@@ -4712,7 +4712,7 @@ msgstr "No sale dinero: lo que valen las prendas queda como saldo a favor del cl
 msgid "The pieces go back to stock"
 msgstr "Las prendas vuelven al inventario"
 
-#: assets/js/caja.js:2160 assets/js/mostrador.js:850
+#: assets/js/caja.js:2160 assets/js/mostrador.js:859
 msgid "Exchange fee (%)"
 msgstr "Cargo por cambio (%)"
 
@@ -4732,7 +4732,7 @@ msgstr "Lo que valen"
 msgid "Exchange fee (%s%%)"
 msgstr "Cargo por cambio (%s%%)"
 
-#: assets/js/caja.js:2188 assets/js/mostrador.js:881
+#: assets/js/caja.js:2188 assets/js/mostrador.js:890
 msgid "Store credit saved"
 msgstr "Saldo a favor guardado"
 
@@ -4823,23 +4823,23 @@ msgstr "Saldo que venía de la hoja de cálculo"
 msgid "Saved. The balance is now %s."
 msgstr "Guardado. El saldo ahora es %s."
 
-#: assets/js/mostrador.js:697
+#: assets/js/mostrador.js:706
 msgid "The store credit covers the whole sale: there is nothing else to charge."
 msgstr "El saldo a favor cubre toda la venta: no hay nada más que cobrar."
 
-#: assets/js/mostrador.js:697
+#: assets/js/mostrador.js:706
 msgid "Record the sale"
 msgstr "Registrar la venta"
 
-#: assets/js/mostrador.js:858
+#: assets/js/mostrador.js:867
 msgid "Stays as store credit"
 msgstr "Queda como saldo a favor"
 
-#: assets/js/mostrador.js:879
+#: assets/js/mostrador.js:888
 msgid "%1$s has %2$s in store credit now. The pieces are back in stock."
 msgstr "%1$s tiene ahora %2$s de saldo a favor. Las prendas ya han vuelto al inventario."
 
-#: assets/js/mostrador.js:880
+#: assets/js/mostrador.js:889
 msgid "%s went back to the store credit (the part paid with it)."
 msgstr "%s volvieron al saldo a favor (la parte que se pagó con él)."
 
@@ -5230,6 +5230,7 @@ msgstr "Prenda: %s"
 
 #: assets/js/caja.js:277
 
+#: assets/js/caja.js:277 assets/js/mostrador.js:290
 #, javascript-format
 msgid "%s in the group"
 msgstr "%s en el grupo"
@@ -5294,11 +5295,11 @@ msgstr "no cuadra"
 msgid "no piece with a tag close to this size"
 msgstr "ninguna prenda con etiqueta cerca de esta talla"
 
-#: assets/js/caja.js:278
+#: assets/js/caja.js:278 assets/js/mostrador.js:291
 msgid "not split by actual size yet"
 msgstr "sin repartir por talla real"
 
-#: assets/js/caja.js:281
+#: assets/js/caja.js:281 assets/js/mostrador.js:293
 #, javascript-format
 msgid "%1$d with tag %2$s"
 msgid_plural "%1$d with tag %2$s"
