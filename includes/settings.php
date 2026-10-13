@@ -954,6 +954,7 @@ function dox_pos_theme_vars( $c ) {
 	// Lo oscuro que va sobre el principal: el texto de la tienda si se lee, si no un casi negro.
 	$on_dark = dox_pos_contrast( $c['ink'], $c['primary'] ) >= 4.5 ? $c['ink'] : '#141313';
 	$white_on = dox_pos_contrast( $white, $c['primary'] );
+	$badge_prim = dox_pos_contrast( $c['primary'], $c['bar'] ) >= 1.8;
 	return array(
 		'--paper'          => $c['bg'],
 		'--bar'            => $c['bar'],
@@ -984,6 +985,10 @@ function dox_pos_theme_vars( $c ) {
 		// de la marca Dox: blanco sobre su naranja); en lo pequeño (contadores, insignias) pide 4,5:1.
 		'--on-primary'     => $white_on >= 2.25 ? $white : $on_dark,
 		'--on-primary-sm'  => $white_on >= 4.5 ? $white : $on_dark,
+		// Los contadores de las pestañas: del principal si se distingue de la barra (Cakto: barra y
+		// principal del mismo verde), si no del color de la letra de la barra.
+		'--bar-badge'      => $badge_prim ? $c['primary'] : $bar_ink,
+		'--bar-badge-ink'  => $badge_prim ? ( $white_on >= 4.5 ? $white : $on_dark ) : $c['bar'],
 	);
 }
 

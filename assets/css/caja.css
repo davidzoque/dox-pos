@@ -11,7 +11,7 @@
   --surface:#FFFFFF; --sunk:#F8F3EE; --line:#E5DFDA; --faint:#938E8A; --muted:#403C39;
   --ok:#2E7D32; --ok-soft:#E6F1E6; --real:#731C2A; --real-soft:#F6E9EB; --warn:#26221F; --warn-soft:#EEE8E3; --scrim:rgba(38,34,31,.45);
   --primary-deep:#E07C22; --primary-tint:#FFF1E5; --primary-strong:#AD601B;
-  --on-primary:#FFFFFF; --on-primary-sm:#26221F;
+  --on-primary:#FFFFFF; --on-primary-sm:#26221F; --bar-badge:#FF8D27; --bar-badge-ink:#26221F;
   /* Estados y canales (dox-design): fijos en todas las tiendas, porque significan algo. El color de
      la marca nunca los sustituye: un "agotado" en el rosa de la tienda dejaría de leerse como aviso. */
   --st-ok:#047857; --st-ok-soft:#D1FAE5; --st-warn:#8A5A00; --st-warn-soft:#FBF0D9;
@@ -58,9 +58,8 @@ button,a,input,select,textarea{touch-action:manipulation} /* sin zoom por doble 
 .tabs button:not([aria-pressed="true"]){color:color-mix(in srgb,var(--bar-ink) 68%,transparent)}
 .tabs button svg{width:17px;height:17px;flex:none}
 .tabs button[aria-pressed="true"]{background:var(--tab-on);color:var(--tab-on-ink)}
-.tabs button[aria-pressed="true"] svg{color:var(--primary-strong)}
 .tabs button:active{transform:scale(.96)}
-.tabs .tn{font:700 10.5px/1 var(--ui);background:var(--primary);color:var(--on-primary-sm);border-radius:999px;padding:3px 6px;font-variant-numeric:tabular-nums}
+.tabs .tn{font:700 10.5px/1 var(--ui);background:var(--bar-badge);color:var(--bar-badge-ink);border-radius:999px;padding:3px 6px;font-variant-numeric:tabular-nums}
 .tabs .tn:empty{display:none}
 .user{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--bar-ink);opacity:.8;white-space:nowrap}
 .user a{color:var(--bar-ink);text-decoration:none;font-weight:600;padding:10px 0}
@@ -536,7 +535,7 @@ tr.off,li.off{opacity:.5}
 .pdays button{flex:none;min-width:48px;padding:7px 10px;font-variant-numeric:tabular-nums}
 .pbars{display:flex;align-items:flex-end;gap:var(--sep,5px);height:132px;padding-top:10px}
 .pbar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
-.pbar i{display:block;width:100%;max-width:min(var(--bw,34px),70%);height:var(--h,0%);min-height:3px;background:var(--primary-tint);border-radius:5px 5px 2px 2px;transition:height 300ms ease}
+.pbar i{display:block;width:100%;max-width:min(var(--bw,34px),70%);height:var(--h,0%);min-height:3px;background:color-mix(in srgb,var(--primary) 32%,var(--surface));border-radius:5px 5px 2px 2px;transition:height 300ms ease}
 .pbar.now i{background:var(--primary)}
 .pbar span{height:14px;line-height:14px;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums} /* alto fijo: las barras sin día debajo apoyan a la misma altura */
 /* Las listas: lo más vendido a un lado y las tres cuentas cortas al otro, cada tarjeta con su alto. */
@@ -604,7 +603,7 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .usotope span.alto{background:var(--danger-ink)}
 .usog{display:flex;align-items:stretch;gap:3px;height:120px;margin:6px 0}
 .usob{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:4px}
-.usob b{display:block;width:100%;background:var(--primary-tint);border-radius:4px 4px 0 0;min-height:2px}
+.usob b{display:block;width:100%;background:color-mix(in srgb,var(--primary) 32%,var(--surface));border-radius:4px 4px 0 0;min-height:2px}
 .usob.hoy b{background:var(--primary)}
 .usob i{font-size:9px;line-height:10px;height:10px;color:var(--muted);font-style:normal;text-align:center}
 .bl.uso li span:first-child{flex:1;min-width:0;white-space:normal}

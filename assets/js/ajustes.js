@@ -124,11 +124,13 @@
 		const tabOn = darkBar ? W : legible(c.bar, brand, 1.6);
 		const onDark = contraste(c.ink, c.primary) >= 4.5 ? c.ink : "#141313";
 		const whiteOn = contraste(W, c.primary);
+		const badgePrim = contraste(c.primary, c.bar) >= 1.8;
+		const barInk = darkBar ? W : legible(c.bar, brand, 4.5);
 		const [r, g, b] = rgb(c.ink);
 		return {
 			"--paper": c.bg, "--bar": c.bar, "--primary": c.primary, "--soft": c.soft, "--ink": c.ink,
 			"--primary-ink": darkPrim ? W : c.ink,
-			"--bar-ink": darkBar ? W : legible(c.bar, brand, 4.5),
+			"--bar-ink": barInk,
 			"--primary-text": hacia(c.primary, c.bg, 4.5),
 			"--soft-ink": darkSoft ? W : c.ink,
 			"--soft-accent": darkSoft ? W : hacia(c.primary, c.soft, 3),
@@ -145,6 +147,8 @@
 			"--primary-strong": hacia(c.primary, W, 4.5),
 			"--on-primary": whiteOn >= 2.25 ? W : onDark,
 			"--on-primary-sm": whiteOn >= 4.5 ? W : onDark,
+			"--bar-badge": badgePrim ? c.primary : barInk,
+			"--bar-badge-ink": badgePrim ? (whiteOn >= 4.5 ? W : onDark) : c.bar,
 		};
 	}
 	const swatches = $$(".dp-swatch");
