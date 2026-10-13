@@ -42,6 +42,8 @@
 		quoteKey: "",
 		ocupado: false,
 		rapidos: C.quick || [],
+		saldo: null,     // el saldo a favor de la clienta del teléfono escrito: {key, name, balance}
+		usar: 0,         // cuánto de ese saldo paga esta venta
 	};
 	const recordar = (prod) => prod.variations.forEach((v) => { m.vars[v.id] = { v: v, p: prod }; });
 	m.rapidos.forEach(recordar);
@@ -146,13 +148,51 @@
 		if (k === claveVenta()) { m.quote = out; m.quoteKey = k; }
 		return out;
 	}
+	// ---------- el saldo a favor: se mira al escribir el teléfono y se usa como parte del pago ----------
+	let saldoTimer = 0, saldoPedido = "";
+	const credito = (total) => redondear(Math.max(0, Math.min(m.usar || 0, total, m.saldo ? m.saldo.balance : 0)));
+	function programarSaldo() {
+		clearTimeout(saldoTimer);
+		saldoTimer = setTimeout(buscarSaldo, 450);
+	}
+	async function buscarSaldo() {
+		const tel = $("#m-tel").value.trim();
+		if (tel.replace(/\D/g, "").length < 7) { m.saldo = null; m.usar = 0; pintarSum(); return; }
+		if (tel === saldoPedido) return;
+		saldoPedido = tel;
+		try {
+			const d = await api("credit?phone=" + encodeURIComponent(tel));
+			if ($("#m-tel").value.trim() !== tel) return;
+			m.saldo = d.balance > 0 ? d : null;
+			if (!m.saldo) m.usar = 0;
+			if (d.name && !$("#m-nom").value.trim()) $("#m-nom").value = d.name;
+			pintarSum();
+		} catch (e) { saldoPedido = ""; }
+	}
+	function pintarSaldo(total) {
+		const box = $("#m-saldo");
+		if (!box) return;
+		if (!m.saldo) { box.hidden = true; box.innerHTML = ""; return; }
+		box.hidden = false;
+		const quien = m.saldo.name ? m.saldo.name.split(" ")[0] : "";
+		if (!m.usar) {
+			box.innerHTML = "<span>" + esc(quien ? sprintf(__("%s has store credit", "dox-pos"), quien) : __("This customer has store credit", "dox-pos")) + " · <b>" + dinero(m.saldo.balance) + '</b></span><button type="button" class="mini" id="m-saldo-usar">' + esc(__("Use it", "dox-pos")) + "</button>";
+			$("#m-saldo-usar").onclick = () => { if (!m.lineas.length) { toast(__("Add something to the sale first.", "dox-pos")); return; } m.usar = m.saldo.balance; pintarSum(); };
+			return;
+		}
+		box.innerHTML = "<span>" + esc(sprintf(__("Paid with store credit (has %s)", "dox-pos"), dinero(m.saldo.balance))) + " · <b>" + (total === null ? "…" : dinero(credito(total))) + '</b></span><button type="button" class="mini sec" id="m-saldo-no">' + esc(__("Do not use", "dox-pos")) + "</button>";
+		$("#m-saldo-no").onclick = () => { m.usar = 0; pintarSum(); };
+	}
 	function pintarSum() {
 		const t = C.taxes && m.lineas.length ? (m.quoteKey === claveVenta() ? m.quote : null) : totalLocal();
 		const s = sub(), d = descMonto();
+		const cr = t ? credito(t.total) : 0;
+		pintarSaldo(t ? t.total : null);
 		let h = "<div><span>" + esc(__("Subtotal", "dox-pos")) + "</span><span>" + dinero(s) + "</span></div>";
 		if (d) h += "<div><span>" + esc(m.desc.tipo === "%" ? sprintf(__("Discount (%s%%)", "dox-pos"), m.desc.valor) : __("Discount", "dox-pos")) + "</span><span>−" + dinero(d) + "</span></div>";
 		if (C.taxes) h += "<div><span>" + esc(__("Tax", "dox-pos")) + "</span><span>" + (t ? dinero(t.tax) : "…") + "</span></div>";
-		h += '<div class="tot"><span>' + esc(__("Total", "dox-pos")) + "</span><span>" + (t ? dinero(t.total) : "…") + "</span></div>";
+		if (cr) h += "<div><span>" + esc(__("Paid with store credit", "dox-pos")) + "</span><span>−" + dinero(cr) + "</span></div>";
+		h += '<div class="tot"><span>' + esc(cr ? __("To pay", "dox-pos") : __("Total", "dox-pos")) + "</span><span>" + (t ? dinero(t.total - cr) : "…") + "</span></div>";
 		$("#m-sum").innerHTML = h;
 		const vacio = !m.lineas.length || m.ocupado;
 		["#m-efectivo", "#m-tarjeta", "#m-otro"].forEach((s2) => { $(s2).disabled = vacio; });
@@ -168,7 +208,8 @@
 			subtotal: dinero(s),
 			discount: d ? dinero(d) : "",
 			tax: C.taxes ? (t ? dinero(t.tax) : "…") : "",
-			total: t ? dinero(t.total) : "…",
+			credit: cr ? dinero(cr) : "",
+			total: t ? dinero(t.total - cr) : "…",
 		});
 	}
 	function pintarEspera() {
@@ -618,7 +659,11 @@
 		if (!(await permitido())) return null;
 		if (!(await asegurarCaja())) return null;
 		try {
-			return await cotizar();
+			const t = await cotizar();
+			const cr = credito(t.total);
+			if (cr && !navigator.onLine) { toast(__("Paying with store credit needs a connection.", "dox-pos")); return null; }
+			m.credito = cr; // Lo que se manda con la venta.
+			return Object.assign({}, t, { credit: cr, total: redondear(t.total - cr) });
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.red ? __("No signal: the total could not be calculated.", "dox-pos") : e.message);
 			return null;
@@ -627,6 +672,7 @@
 	async function efectivo() {
 		const t = await totalParaCobrar();
 		if (!t) return;
+		if (t.credit && t.total <= 0) return todoConSaldo(t);
 		const sug = sugerencias(t.total);
 		modal('<div class="total"><span>' + esc(__("Total to charge", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><div class="field recibe"><label for="mc-r">' + esc(__("Received", "dox-pos")) + '</label><input id="mc-r" inputmode="' + IM + '" autocomplete="off" placeholder="' + esc(dinero(t.total)) + '"></div><div class="billetes"><button type="button" class="chip" data-v="' + t.total + '" data-exact="1" aria-pressed="true">' + esc(__("Exact", "dox-pos")) + "</button>" + sug.map((v) => '<button type="button" class="chip" data-v="' + v + '" aria-pressed="false">' + dinero(v) + "</button>").join("") + '</div><div class="cambio" id="mc-cambio"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mc-ok">' + esc(__("Charge", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		const inp = $("#mc-r");
@@ -646,10 +692,18 @@
 		$("#mc-ok").onclick = () => { if (recibido() + 1e-9 < t.total) return; cerrarModal(true); registrar("efectivo", recibido(), t.total); };
 		repintar();
 	}
+	// El saldo cubre toda la venta: no hay nada que cobrar con otra forma de pago.
+	function todoConSaldo(t) {
+		modal('<div class="total"><span>' + esc(__("Paid with store credit", "dox-pos")) + "</span><b>" + dinero(t.credit) + '</b></div><p class="mp">' + esc(__("The store credit covers the whole sale: there is nothing else to charge.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mc-ok">' + esc(__("Record the sale", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		$("#m-no").onclick = () => cerrarModal(false);
+		$("#mc-ok").onclick = () => { cerrarModal(true); registrar("saldo", null, 0); };
+		$("#mc-ok").focus();
+	}
 	let cobroTarjeta = null; // El Pro cobra aquí con el lector de tarjetas (Stripe Terminal).
 	async function tarjeta() {
 		const t = await totalParaCobrar();
 		if (!t) return;
+		if (t.credit && t.total <= 0) return todoConSaldo(t);
 		if (cobroTarjeta) {
 			const ref = uuid();
 			return cobroTarjeta({ total: t.total, quote: t, ref: ref, lines: lineasPayload(), discount: descMonto(), lineas: m.lineas, registrar: (extra) => registrar("tarjeta", null, t.total, null, Object.assign({ ref: ref }, extra)) });
@@ -663,6 +717,7 @@
 	async function otro() {
 		const t = await totalParaCobrar();
 		if (!t) return;
+		if (t.credit && t.total <= 0) return todoConSaldo(t);
 		modal('<div class="total"><span>' + esc(__("Charge", "dox-pos")) + "</span><b>" + dinero(t.total) + '</b></div><p class="mp">' + esc(__("One payment method or several: write how much goes on each. “The rest” fills in what is missing.", "dox-pos")) + '</p><div class="partes">' + (C.payments || []).map((p) => '<div class="parte"><label for="mp-' + esc(p.key) + '">' + esc(p.title) + '</label><button type="button" class="mini" data-resto="' + esc(p.key) + '">' + esc(__("The rest", "dox-pos")) + '</button><input id="mp-' + esc(p.key) + '" data-k="' + esc(p.key) + '" inputmode="' + IM + '" autocomplete="off" placeholder="0"></div>').join("") + '</div><div class="cambio falta" id="mp-falta"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mp-ok" disabled>' + esc(__("Charge", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		const card = $("#modal-card");
 		const ins = Array.prototype.slice.call(card.querySelectorAll("input[data-k]"));
@@ -720,12 +775,13 @@
 			customer: { name: $("#m-nom").value.trim(), phone: $("#m-tel").value.trim() },
 		};
 		if (pago === "efectivo" && recibido != null) payload.tendered = recibido;
+		if (m.credito) payload.credit = m.credito;
 		if (partes) payload.payments = partes;
 		if (extra) Object.assign(payload, extra);
 		try {
 			const d = await post("orders", payload);
 			limpiar();
-			exito(d.order || {}, total);
+			exito(d.order || {}, total, d.credit);
 			D.emit("pedido", d.order);
 			D.refrescarStock();
 			D.cargarPedidos();
@@ -742,12 +798,12 @@
 		return ok;
 	}
 	// La venta quedó: el cambio en grande (si lo hay) y el ticket, solo o con un toque.
-	function exito(o, total) {
+	function exito(o, total, credito) {
 		guardar(MEM_ULTIMO, o.id);
 		pintarUltimo();
 		const auto = !!leer(EQ_IMPRIMIR, false);
 		const cambio = o.change != null ? o.change : null;
-		modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + "</b></div>" + (cambio != null ? '<div class="cambio"><span>' + esc(__("Change due", "dox-pos")) + "</span><b>" + dinero(cambio) + "</b></div>" : '<p class="mp">' + esc(__("The stock has already gone down.", "dox-pos")) + "</p>") + '<div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(auto ? __("Print again", "dox-pos") : __("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+		modal('<div class="total"><span>' + esc(sprintf(__("Sale #%s recorded", "dox-pos"), o.number)) + "</span><b>" + dinero(o.total != null ? o.total : total) + "</b></div>" + (cambio != null ? '<div class="cambio"><span>' + esc(__("Change due", "dox-pos")) + "</span><b>" + dinero(cambio) + "</b></div>" : '<p class="mp">' + esc(__("The stock has already gone down.", "dox-pos")) + "</p>") + (credito ? '<p class="mp">' + esc(sprintf(__("%1$s now has %2$s in store credit.", "dox-pos"), credito.name || __("The customer", "dox-pos"), dinero(credito.balance))) + "</p>" : "") + '<div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(auto ? __("Print again", "dox-pos") : __("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Next customer", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 		$("#m-no").onclick = () => cerrarModal(true);
 		$("#mt-print").onclick = () => imprimirPedido("DOXPOS-" + o.id);
 		$("#m-no").focus();
@@ -786,17 +842,23 @@
 		}
 		const sel = {};
 		// Se propone devolver como pagó: en efectivo, del cajón; con tarjeta u otro medio, por el mismo.
-		let metodo = r.pay_key === "efectivo" ? "efectivo" : "original";
+		// Pagada entera con saldo a favor: no entró dinero, así que solo vuelve al saldo.
+		const soloSaldo = r.credit > 0 && !(r.payments || []).length;
+		let metodo = soloSaldo ? "saldo" : r.pay_key === "efectivo" ? "efectivo" : "original";
+		const fee0 = cfg.credit && cfg.credit.fee ? cfg.credit.fee : 0;
 		const original = (r.payments || []).map((p) => p.title).join(" + ");
-		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0"><button type="button" class="chip" data-m="efectivo" aria-pressed="' + (metodo === "efectivo") + '">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="' + (metodo === "original") + '">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + '</button></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
+		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0">' + (soloSaldo ? "" : '<button type="button" class="chip" data-m="efectivo" aria-pressed="' + (metodo === "efectivo") + '">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="' + (metodo === "original") + '">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + "</button>") + '<button type="button" class="chip" data-m="saldo" aria-pressed="' + (metodo === "saldo") + '">' + esc(__("To store credit", "dox-pos")) + '</button></div><div class="g2" id="mv-saldo" hidden><div class="field"><label for="mv-fee">' + esc(__("Exchange fee (%)", "dox-pos")) + '</label><input id="mv-fee" inputmode="decimal" value="' + esc(String(fee0)) + '"></div><div class="field"><label for="mv-tel">' + esc(__("Customer phone", "dox-pos")) + '</label><input id="mv-tel" type="tel" autocomplete="off" value="' + esc(r.phone || "") + '"></div></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
 		const monto = () => redondear(lineas.reduce((a, l) => a + (sel[l.id] || 0) * l.gross, 0));
+		const pct = () => Math.max(0, Math.min(100, parseFloat(String($("#mv-fee").value).replace(",", ".")) || 0));
 		const repintar = () => {
 			lineas.forEach((l) => { $("#mv-n" + l.id).textContent = sel[l.id] || 0; $("#mv-v" + l.id).textContent = dinero((sel[l.id] || 0) * l.gross); });
-			const a = monto(), box = $("#mv-tot");
+			const a = metodo === "saldo" ? redondear(monto() - redondear(monto() * pct() / 100)) : monto(), box = $("#mv-tot");
+			$("#mv-saldo").hidden = metodo !== "saldo";
 			box.className = "cambio" + (a ? "" : " falta");
-			box.innerHTML = "<span>" + esc(metodo === "efectivo" ? __("Give back in cash", "dox-pos") : __("Give back by the same method", "dox-pos")) + "</span><b>" + dinero(a) + "</b>";
+			box.innerHTML = "<span>" + esc(metodo === "saldo" ? __("Stays as store credit", "dox-pos") : metodo === "efectivo" ? __("Give back in cash", "dox-pos") : __("Give back by the same method", "dox-pos")) + "</span><b>" + dinero(a) + "</b>";
 			$("#mv-ok").disabled = !a;
 		};
+		$("#mv-fee").addEventListener("input", repintar);
 		$("#modal-card").querySelectorAll(".devol .qty button").forEach((b) => {
 			b.onclick = () => {
 				const l = lineas.find((x) => String(x.id) === b.dataset.id);
@@ -810,10 +872,13 @@
 			const lines = lineas.filter((l) => sel[l.id]).map((l) => ({ id: l.id, qty: sel[l.id] }));
 			$("#mv-ok").disabled = true;
 			try {
-				const d = await post("counter/refund", { order: r.id, lines: lines, method: metodo });
+				if (metodo === "saldo" && $("#mv-tel").value.replace(/\D/g, "").length < 7) { $("#mv-ok").disabled = false; $("#mv-tel").focus(); return; }
+				const d = await post("counter/refund", { order: r.id, lines: lines, method: metodo, fee: pct(), phone: metodo === "saldo" ? $("#mv-tel").value.trim() : "" });
 				if (d.shift) { m.shift = d.shift; pintarTurno(); }
-				const dev = { amount: d.amount, method: d.method, lines: lines.map((l) => ({ name: lineas.find((x) => x.id === l.id).name, qty: l.qty })) };
-				modal('<div class="total"><span>' + esc(__("Return done", "dox-pos")) + "</span><b>" + dinero(d.amount) + '</b></div><p class="mp">' + esc(d.method === "efectivo" ? __("Give the money back from the drawer. The pieces are back in stock.", "dox-pos") : d.to_card ? __("The money is already back on the customer’s card. The pieces are back in stock.", "dox-pos") : __("Give the money back on the card machine or by the original payment method. The pieces are back in stock.", "dox-pos")) + '</p><div class="fila"><button type="button" class="go alt" id="mt-print">' + esc(__("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
+				const dev = { amount: d.amount, method: d.method, credit: d.method === "saldo" ? 0 : d.credit || 0, lines: lines.map((l) => ({ name: lineas.find((x) => x.id === l.id).name, qty: l.qty })) };
+				const txt = d.method === "saldo" ? sprintf(__("%1$s has %2$s in store credit now. The pieces are back in stock.", "dox-pos"), d.name || __("The customer", "dox-pos"), dinero(d.balance))
+					: (d.method === "efectivo" ? __("Give the money back from the drawer. The pieces are back in stock.", "dox-pos") : d.to_card ? __("The money is already back on the customer’s card. The pieces are back in stock.", "dox-pos") : __("Give the money back on the card machine or by the original payment method. The pieces are back in stock.", "dox-pos")) + (d.credit ? " " + sprintf(__("%s went back to the store credit (the part paid with it).", "dox-pos"), dinero(d.credit)) : "");
+				modal('<div class="total"><span>' + esc(d.method === "saldo" ? __("Store credit saved", "dox-pos") : __("Return done", "dox-pos")) + "</span><b>" + dinero(d.amount) + '</b></div><p class="mp">' + esc(txt) + '</p><div class="fila">' + (d.message ? '<a class="go alt" href="' + esc(d.message) + '" target="_blank" rel="noopener">' + esc(D.MSG.tell) + "</a>" : "") + '<button type="button" class="go alt" id="mt-print">' + esc(__("Print receipt", "dox-pos")) + '<kbd>P</kbd></button><button type="button" class="go" id="m-no">' + esc(__("Done", "dox-pos")) + "<kbd>Enter</kbd></button></div>", "cobro");
 				$("#m-no").onclick = () => cerrarModal(true);
 				$("#m-no").focus();
 				$("#mt-print").onclick = async () => { if (!(await aImpresora({ tipo: "venta", id: d.receipt.id, dev: dev }))) imprimir(ticketHtml(d.receipt, dev), d.receipt.store); };
@@ -834,6 +899,10 @@
 		m.quoteKey = "";
 		$("#m-nom").value = "";
 		$("#m-tel").value = "";
+		m.saldo = null;
+		m.usar = 0;
+		m.credito = 0;
+		saldoPedido = "";
 		$("#m-ultimo").hidden = true;
 		$("#m-q").value = "";
 		cerrarResultados();
@@ -997,6 +1066,7 @@
 		});
 		document.addEventListener("keydown", teclado);
 		$("#m-efectivo").onclick = efectivo;
+		$("#m-tel").addEventListener("input", programarSaldo);
 		$("#m-tarjeta").onclick = tarjeta;
 		$("#m-otro").onclick = otro;
 		$("#m-espera").onclick = verEspera;

@@ -76,7 +76,7 @@ dox_pos_enqueue_caja( $cfg );
 					<div class="volver"><button type="button" class="atras" data-seg="#paneseg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><?php esc_html_e( 'Keep searching', 'dox-pos' ); ?></button><button type="button" class="vaciar" id="vaciar"><?php esc_html_e( 'Empty all', 'dox-pos' ); ?></button></div>
 					<div class="scroll">
 						<div class="grp">
-							<h4><?php esc_html_e( 'Products', 'dox-pos' ); ?> <span id="n-lin" class="cnt"></span></h4>
+							<h4><?php esc_html_e( 'Products', 'dox-pos' ); ?> <span id="n-lin" class="cnt"></span> <button type="button" class="undo" id="f-libre"><?php esc_html_e( 'Without a product', 'dox-pos' ); ?></button></h4>
 							<ul class="res" id="lineas"></ul>
 						</div>
 						<div class="grp">
@@ -102,6 +102,7 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Payment', 'dox-pos' ); ?></h4>
+							<div class="saldo" id="f-saldo" hidden></div>
 							<div class="chips" id="f-pago"></div>
 							<div class="field mt"<?php echo 0 === dox_pos_discount_max() ? ' hidden' : ''; // Sin descuentos para este usuario (Ajustes > Ventas). ?>><label for="f-desc"><?php esc_html_e( 'Discount', 'dox-pos' ); ?></label><input id="f-desc" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
@@ -331,6 +332,7 @@ dox_pos_enqueue_caja( $cfg );
 					<button type="button" data-v="ventas" aria-pressed="true"><?php esc_html_e( 'Sales', 'dox-pos' ); ?></button>
 					<button type="button" data-v="caja" aria-pressed="false"><?php esc_html_e( 'Daily cash', 'dox-pos' ); ?></button>
 					<button type="button" data-v="mov" aria-pressed="false"><?php esc_html_e( 'Movements', 'dox-pos' ); ?></button>
+					<button type="button" data-v="saldo" aria-pressed="false"><?php esc_html_e( 'Store credit', 'dox-pos' ); ?></button>
 					<?php do_action( 'dox_pos_history_views', $cfg ); // Vistas de los añadidos (el Pro pone Rendimiento): un botón data-v="<vista>". ?>
 				</div>
 				<?php endif; ?>
@@ -343,6 +345,7 @@ dox_pos_enqueue_caja( $cfg );
 				<div id="h-ventas"></div>
 				<div id="h-caja" hidden></div>
 				<div id="h-mov" hidden></div>
+				<div id="h-saldo" hidden></div>
 				<?php do_action( 'dox_pos_history_panels', $cfg ); // Sus paneles: un div id="h-<vista>" oculto. ?>
 			</div></div>
 		</section>

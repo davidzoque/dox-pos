@@ -348,8 +348,9 @@ function dox_pos_can_see_losses() {
 
 /**
  * El costo y la ganancia de un pedido. La ganancia es lo que pagó la clienta por los productos
- * (con el descuento ya aplicado, sin el envío, que se le paga a la transportadora, y sin
- * impuestos) menos el costo de lo vendido y menos la pérdida anotada, si la hay. Si a alguna
+ * (con el descuento ya aplicado, sin el envío, que se le paga a la transportadora, sin impuestos,
+ * sin lo que pagó con saldo a favor y sin lo que se le devolvió en dinero) menos el costo de lo
+ * que se llevó y menos la pérdida anotada, si la hay. Si a alguna
  * línea le falta el costo, la ganancia no se sabe (null) y se dice cuántas faltan.
  *
  * @param WC_Order $order El pedido.
@@ -359,16 +360,21 @@ function dox_pos_order_profit( $order ) {
 	$cost    = 0.0;
 	$missing = 0;
 	$n       = 0;
-	foreach ( $order->get_items() as $it ) {
+	foreach ( $order->get_items() as $id => $it ) {
 		$n++;
 		$u = dox_pos_line_unit_cost( $it );
 		if ( null === $u ) {
 			$missing++;
 			continue;
 		}
-		$cost += $u * (int) $it->get_quantity();
+		// Lo que volvió al inventario (devuelto por dinero o al saldo a favor) no se vendió: su costo no cuenta.
+		$cost += $u * max( 0, (int) $it->get_quantity() - abs( (int) $order->get_qty_refunded_for_item( $id ) ) );
 	}
-	$revenue = round( (float) $order->get_total() - (float) $order->get_shipping_total() - (float) $order->get_total_tax(), 2 );
+	// Lo que entró: el total (ya sin lo pagado con saldo a favor, que contó cuando entró), sin envío ni
+	// impuestos, y sin lo devuelto en dinero.
+	$refunded = (float) $order->get_total_refunded() - (float) $order->get_total_tax_refunded() - (float) $order->get_total_shipping_refunded();
+	// Nunca negativo: una venta pagada entera con saldo a favor (impuesto incluido) no trajo dinero nuevo.
+	$revenue  = max( 0.0, round( (float) $order->get_total() - (float) $order->get_shipping_total() - (float) $order->get_total_tax() - $refunded, 2 ) );
 	$loss    = dox_pos_order_loss( $order );
 	if ( ! $n || $missing === $n ) {
 		return array( 'cost' => null, 'profit' => null, 'revenue' => $revenue, 'loss' => $loss, 'complete' => false, 'missing' => $missing );

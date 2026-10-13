@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.49.1
+Stable tag: 0.50.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,14 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.50.0 =
+* New: store credit. Money a customer leaves with the shop to use later, kept under their phone number. Take a deposit in Sell (Without a product, Deposit to store credit), for example 50% of a made-to-order piece: it counts as a sale on the day the money comes in, with its payment method.
+* New: pay with store credit in Sell and at the Counter, all of it or part, together with another payment method or a split payment. That part does not count as a sale again, because it already counted when the money came in. The tax is still charged in full.
+* New: return pieces to store credit instead of giving money back, from the order detail (Orders) or at the Counter (Return, To store credit). The pieces go back to stock and the shop can keep an exchange fee (Settings, Sales, Store credit; 0% by default, it can be changed on each return).
+* New: Reports, Store credit: what the shop owes in store credit, each customer's balance and the history of every amount (where it came from and where it was used), adjustments with a reason and "Load a balance" for balances kept in a spreadsheet. The customer gets the balance by WhatsApp or text message, and the receipt shows the credit used and what is left.
+* New: sell something that is not in the catalog (Sell, Without a product): a made-to-order piece or a repair, with its own price. It does not touch the stock.
+* Fix: money given back at the Counter now comes off Sales, Daily cash and the Dashboard (it only came off the till closing). Returned units no longer count as sold, and their cost no longer counts in the profit.
+
 = 0.49.1 =
 * Fix: Edit this product did not save a product whose sizes have different prices. With the Price field empty (which leaves the price of each size as it is), the register sent a price of 0 and the store answered "The price has to be greater than zero", so nothing was saved. An empty Price goes again as "do not touch the prices"; creating a product still asks for a price.
 * Fix: in that same case, the line under the cost said "The price is missing" (or "Enter a price and a cost"), as if a price had to be typed, and typing one replaces the price of every size. It now says that the sizes have different prices, from the lowest to the highest.
@@ -123,8 +131,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * New: receipts for 58 or 80 mm paper printed from the browser on any printer, with a basic editor in Settings > Sales (top, bottom, logo, what it shows) and a barcode that opens the return of that sale.
 * New: returns at the Counter: scan the receipt, choose the pieces and give the money back in cash or by the same method. The pieces go back into stock.
 * New: a Counter cashier role that only reaches the Counter, a maximum discount for whoever does not manage the shop (Settings > Sales > Discounts, 0% turns discounts off) and a blind till closing for them.
-
-= 0.47.1 =
-* Improved: with Colciudades on a store in Colombia, a city typed by hand in the register ("medellin", "MEDELLIN", "bogota") is saved with its name from the list ("Medellín", "Bogotá"), ignoring accents, capital letters and extra spaces. The register fixes it when you leave the field, and the server does it again when the order is saved. A place that is not on the list (a rural district, for instance) is saved as typed.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

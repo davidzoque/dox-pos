@@ -287,15 +287,16 @@ function dox_pos_top_products( $days = 30, $fresh = false ) {
 		if ( ! in_array( $o->get_status(), DOX_POS_SOLD, true ) ) {
 			continue;
 		}
-		foreach ( $o->get_items() as $it ) {
+		foreach ( $o->get_items() as $iid => $it ) {
 			$pid = (int) $it->get_product_id();
-			if ( ! $pid ) {
+			$qty = (int) $it->get_quantity() - abs( (int) $o->get_qty_refunded_for_item( $iid ) ); // Lo devuelto no se vendió.
+			if ( ! $pid || $qty <= 0 ) {
 				continue;
 			}
 			if ( ! isset( $agg[ $pid ] ) ) {
 				$agg[ $pid ] = array( 'id' => $pid, 'units' => 0, 'total' => 0.0 );
 			}
-			$agg[ $pid ]['units'] += (int) $it->get_quantity();
+			$agg[ $pid ]['units'] += $qty;
 			$agg[ $pid ]['total'] += (float) $it->get_total();
 		}
 	}

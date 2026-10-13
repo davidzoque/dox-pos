@@ -51,6 +51,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<input id="m-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Name', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Customer name', 'dox-pos' ); ?>">
 								<input id="m-tel" type="tel" autocomplete="off" placeholder="<?php esc_attr_e( 'Phone', 'dox-pos' ); ?>" aria-label="<?php esc_attr_e( 'Customer phone', 'dox-pos' ); ?>">
 							</div>
+							<div class="saldo mt" id="m-saldo" hidden></div>
 						</div>
 					</div>
 					<div class="foot">

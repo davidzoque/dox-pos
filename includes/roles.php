@@ -132,7 +132,7 @@ function dox_pos_counter_only_allows( $request ) {
 		return false; // Con el Mostrador apagado, quien solo cobra en él no tiene nada que hacer en la caja.
 	}
 	if ( 'GET' === $method ) {
-		$ok = (bool) preg_match( '#^/(search|top|orders|counter/(scan|shift|order))$#', $route );
+		$ok = (bool) preg_match( '#^/(search|top|orders|credit|counter/(scan|shift|order))$#', $route ); // credit: el saldo de la clienta, para cobrar con él.
 	} elseif ( '/orders' === $route ) {
 		$b  = (array) $request->get_json_params();
 		$ok = ! empty( $b['counter'] ) && empty( $b['hold'] );

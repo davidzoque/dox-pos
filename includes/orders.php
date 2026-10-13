@@ -93,6 +93,22 @@ function dox_pos_statuses_for_payment( $statuses, $order ) {
 	return $statuses;
 }
 
+// Lo vendido sin producto (un diseño por encargo, un arreglo) se entrega como cualquier prenda: al pagarse
+// queda "por enviar", no "entregado" (WooCommerce da por entregado lo que no tiene un producto físico).
+add_filter( 'woocommerce_payment_complete_order_status', 'dox_pos_free_lines_need_processing', 10, 3 );
+function dox_pos_free_lines_need_processing( $status, $order_id, $order = null ) {
+	$order = $order instanceof WC_Order ? $order : wc_get_order( $order_id );
+	if ( 'completed' !== $status || ! $order instanceof WC_Order || DOX_POS_VIA !== $order->get_created_via() ) {
+		return $status;
+	}
+	foreach ( $order->get_items() as $item ) {
+		if ( $item->get_meta( '_dox_pos_free' ) ) {
+			return 'processing';
+		}
+	}
+	return $status;
+}
+
 // Los correos al administrador sobran: el pedido lo acaba de crear él mismo desde la caja.
 foreach ( array( 'new_order', 'cancelled_order', 'failed_order' ) as $dox_pos_mail ) {
 	add_filter( 'woocommerce_email_enabled_' . $dox_pos_mail, 'dox_pos_disable_admin_mail', 10, 2 );
@@ -107,11 +123,33 @@ function dox_pos_disable_admin_mail( $enabled, $order ) {
 /**
  * Crea el pedido. Si $hold, queda en espera (apartado) con su plazo; si no, es una venta.
  *
- * @param array $data lines, channel, customer{name, phone, state, city, address, postcode}, payment, discount, shipping{label, method_id, instance_id, cost}, note, ref.
+ * @param array $data lines, free [{name, price, qty}] (lo que se vende sin producto), deposit {name, amount} (un abono al saldo
+ *                    a favor), credit (lo que se paga con saldo), channel, customer{name, phone, state, city, address, postcode},
+ *                    payment, discount, shipping{label, method_id, instance_id, cost}, note, ref.
  * @param bool  $hold Apartado en vez de venta.
  * @return array|WP_Error El pedido formateado, con el mensaje de WhatsApp.
  */
 function dox_pos_create_order( $data, $hold ) {
+	// Con pago con saldo, la clienta queda bloqueada mientras se crea el pedido: otra caja que quisiera
+	// gastar el mismo saldo a la vez espera a que este termine y ve lo que queda.
+	$cust = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
+	$key  = (float) ( $data['credit'] ?? 0 ) > 0 ? dox_pos_credit_key( (string) ( $cust['phone'] ?? '' ) ) : '';
+	if ( '' !== $key && ! dox_pos_credit_lock( $key ) ) {
+		return new WP_Error( 'dox_pos_ocupado', __( 'That balance is being used on another device. Try again in a moment.', 'dox-pos' ) );
+	}
+	try {
+		return dox_pos_create_order_locked( $data, $hold );
+	} finally {
+		if ( '' !== $key ) {
+			dox_pos_credit_unlock( $key );
+		}
+	}
+}
+
+/**
+ * El pedido, ya con el saldo de la clienta bloqueado si lo usa (ver dox_pos_create_order).
+ */
+function dox_pos_create_order_locked( $data, $hold ) {
 	// Si la misma venta ya entró (la cola sin señal reintenta), se devuelve la que existe.
 	$ref = sanitize_text_field( $data['ref'] ?? '' );
 	if ( $ref ) {
@@ -141,7 +179,31 @@ function dox_pos_create_order( $data, $hold ) {
 		}
 		$lines[] = array( 'product' => $p, 'qty' => $qty );
 	}
-	if ( ! $lines ) {
+	// Lo que se vende sin producto (un diseño por encargo, un arreglo): nombre, precio y cantidad. No mueve inventario.
+	$dec  = wc_get_price_decimals();
+	$free = array();
+	foreach ( (array) ( $data['free'] ?? array() ) as $f ) {
+		if ( ! is_array( $f ) ) {
+			continue;
+		}
+		$fname  = sanitize_text_field( (string) ( $f['name'] ?? '' ) );
+		$fprice = dox_pos_parse_money( $f['price'] ?? '' );
+		if ( '' === $fname || null === $fprice || $fprice <= 0 ) {
+			continue;
+		}
+		$free[] = array( 'name' => $fname, 'price' => round( $fprice, $dec ), 'qty' => max( 1, min( 999, (int) ( $f['qty'] ?? 1 ) ) ) );
+	}
+	// Un abono al saldo a favor de la clienta (credit.php): plata que entra hoy y se usa después.
+	$deposit = null;
+	if ( is_array( $data['deposit'] ?? null ) ) {
+		$damt = dox_pos_parse_money( $data['deposit']['amount'] ?? '' );
+		if ( null !== $damt && $damt > 0 ) {
+			$deposit = array( 'name' => sanitize_text_field( (string) ( $data['deposit']['name'] ?? '' ) ), 'amount' => round( $damt, $dec ) );
+		}
+	}
+	$credit_want = dox_pos_parse_money( $data['credit'] ?? 0 );
+	$credit_want = null === $credit_want ? 0.0 : max( 0.0, round( $credit_want, $dec ) );
+	if ( ! $lines && ! $free && ! $deposit ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'The order has no products.', 'dox-pos' ) );
 	}
 	// Varias tallas que comparten un mismo total pasan una a una la comprobación de arriba: se suman.
@@ -154,6 +216,9 @@ function dox_pos_create_order( $data, $hold ) {
 	$subtotal = 0.0;
 	foreach ( $lines as $l ) {
 		$subtotal += (float) $l['product']->get_price() * $l['qty'];
+	}
+	foreach ( $free as $f ) {
+		$subtotal += $f['price'] * $f['qty'];
 	}
 	if ( $discount > $subtotal ) {
 		return new WP_Error( 'dox_pos_descuento', __( 'The discount cannot be more than the products.', 'dox-pos' ) );
@@ -188,7 +253,7 @@ function dox_pos_create_order( $data, $hold ) {
 	$methods = $counter ? dox_pos_counter_payments() : dox_pos_payment_methods();
 	$pay_key = sanitize_key( $data['payment'] ?? 'transferencia' );
 	$pay     = $methods[ $pay_key ] ?? $methods[ dox_pos_default_payment() ] ?? reset( $methods );
-	$cust    = (array) ( $data['customer'] ?? array() );
+	$cust    = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
 	$name    = sanitize_text_field( $cust['name'] ?? '' );
 	$parts   = preg_split( '/\s+/', trim( $name ), 2 );
 	$state   = sanitize_text_field( $cust['state'] ?? '' );
@@ -202,6 +267,15 @@ function dox_pos_create_order( $data, $hold ) {
 		'postcode'   => wc_format_postcode( sanitize_text_field( $cust['postcode'] ?? '' ), dox_pos_country() ),
 		'country'    => dox_pos_country(),
 	);
+	// El saldo se lleva por teléfono: sin él no hay a quién abonarle ni de quién gastar.
+	$credit_key = dox_pos_credit_key( $address['phone'] );
+	if ( ( $deposit || $credit_want > 0 ) && '' === $credit_key ) {
+		return new WP_Error( 'dox_pos_telefono', __( 'Store credit is kept by phone number: write the customer’s phone.', 'dox-pos' ) );
+	}
+	// Un abono es plata que entra ya: no se aparta ni se deja para cobrar en la entrega.
+	if ( $deposit && ( $hold || ( ! $counter && empty( $pay['paid'] ) ) ) ) {
+		return new WP_Error( 'dox_pos_abono', __( 'A deposit is money that comes in now: record it as paid, with the payment method it came in.', 'dox-pos' ) );
+	}
 
 	$order = wc_create_order( array( 'customer_id' => 0, 'created_via' => DOX_POS_VIA ) );
 	if ( is_wp_error( $order ) ) {
@@ -217,13 +291,33 @@ function dox_pos_create_order( $data, $hold ) {
 			$item->save();
 		}
 	}
+	// Las líneas sin producto. El precio escrito es lo que paga la clienta: si la tienda pone sus precios
+	// con impuesto incluido, la línea lleva el precio sin él, como hace WooCommerce con un producto.
+	foreach ( $free as $f ) {
+		$gross = $f['price'] * $f['qty'];
+		$net   = $gross;
+		if ( wc_tax_enabled() && wc_prices_include_tax() ) {
+			$net = $gross - array_sum( WC_Tax::calc_tax( $gross, WC_Tax::get_base_tax_rates( '' ), true ) );
+		}
+		$item = new WC_Order_Item_Product();
+		$item->set_name( $f['name'] );
+		$item->set_quantity( $f['qty'] );
+		$item->set_subtotal( $net );
+		$item->set_total( $net );
+		$item->add_meta_data( '_dox_pos_free', 1, true );
+		$order->add_item( $item );
+	}
 	if ( $discount > 0 ) {
 		$fee = new WC_Order_Item_Fee();
 		$fee->set_name( __( 'Discount', 'dox-pos' ) );
 		$fee->set_amount( -$discount );
 		$fee->set_total( -$discount );
 		$fee->set_tax_status( 'none' );
+		$fee->add_meta_data( '_dox_pos_fee', 'discount', true );
 		$order->add_item( $fee );
+	}
+	if ( $deposit ) {
+		dox_pos_add_deposit_fee( $order, $deposit['name'], $deposit['amount'] );
 	}
 	$ship = $counter ? array() : (array) ( $data['shipping'] ?? array() );
 	if ( ! empty( $ship['label'] ) ) {
@@ -255,10 +349,45 @@ function dox_pos_create_order( $data, $hold ) {
 		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
 	}
 	$order->calculate_totals();
+	// El pago con saldo, ya con el total (impuestos incluidos): como mucho lo que la clienta tiene y lo
+	// que cuesta la venta (un abono no se paga con saldo). Si mientras tanto gastó parte en otra caja,
+	// se avisa en vez de cobrar menos de lo que se dijo.
+	if ( $credit_want > 0 ) {
+		$balance = dox_pos_credit_balance( $credit_key );
+		if ( $balance + 0.00001 < $credit_want ) {
+			$order->delete( true );
+			/* translators: %s: balance */
+			return new WP_Error( 'dox_pos_saldo', sprintf( __( 'The customer’s store credit is %s now. Check the amount.', 'dox-pos' ), dox_pos_money( $balance ) ), array( 'balance' => $balance ) );
+		}
+		$room = round( (float) $order->get_total() - ( $deposit ? $deposit['amount'] : 0 ), $dec );
+		$take = round( min( $credit_want, max( 0.0, $room ) ), $dec );
+		if ( $take > 0 ) {
+			// Sin volver a calcular: WooCommerce reparte un cargo negativo entre los impuestos (como un
+			// descuento) y lo limita al subtotal sin impuesto. Pagar con saldo es una forma de pago: el
+			// impuesto se cobra entero y el saldo también puede pagarlo.
+			dox_pos_add_credit_fee( $order, $take );
+			$order->set_total( round( (float) $order->get_total() - $take, $dec ) );
+		}
+	}
+	if ( $deposit || dox_pos_order_credit_used( $order ) > 0 ) {
+		$order->update_meta_data( '_dox_pos_credit_key', $credit_key );
+	}
+	// Pagada entera con saldo: no entró dinero por ninguna forma de pago.
+	$all_credit = dox_pos_order_credit_used( $order ) > 0 && (float) $order->get_total() <= 0;
+	if ( $all_credit ) {
+		$pay_key = 'saldo';
+		$pay     = array( 'id' => 'dox_pos_credit', 'title' => __( 'Store credit', 'dox-pos' ), 'paid' => true );
+		$order->set_payment_method( $pay['id'] );
+		$order->set_payment_method_title( $pay['title'] );
+	}
 	// Cómo se cobró: una forma de pago o varias, y en efectivo con cuánto pagó y el cambio, para el
 	// ticket y el cierre de caja. Si no alcanza (el total cambió entre que se cobró y se guardó), no
 	// se registra nada.
-	if ( $counter ) {
+	if ( $counter && $all_credit ) {
+		$order->update_meta_data( '_dox_pos_pay_key', 'saldo' );
+		$order->update_meta_data( '_dox_pos_payments', array() );
+		$order->update_meta_data( '_dox_pos_shift', (int) $shift->id );
+	} elseif ( $counter ) {
 		$split = dox_pos_counter_split( (array) ( $data['payments'] ?? array() ), $pay_key, (float) $order->get_total(), isset( $data['tendered'] ) ? (float) wc_format_decimal( $data['tendered'] ) : null );
 		if ( is_wp_error( $split ) ) {
 			$order->delete( true );
@@ -314,6 +443,9 @@ function dox_pos_create_order( $data, $hold ) {
 			return $charged;
 		}
 	}
+
+	// El pedido ya quedó: ahora sí se apunta en el saldo lo que abona y lo que gasta.
+	dox_pos_credit_post_order( $order );
 
 	$who = $counter
 		? sprintf( /* translators: %s: user */ __( 'Recorded at the counter by %s.', 'dox-pos' ), $user->display_name )
@@ -602,6 +734,10 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			if ( ! $boss && ! $order->has_status( array( 'pending', 'on-hold', 'failed', 'processing' ) ) ) {
 				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can cancel an order that was already shipped or delivered.', 'dox-pos' ) );
 			}
+			$can = dox_pos_credit_can_cancel( $order ); // Un abono cuyo saldo ya se gastó no se anula sin más.
+			if ( is_wp_error( $can ) ) {
+				return $can;
+			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->update_status( 'cancelled', sprintf( /* translators: %s: who voided it */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
 			break;
@@ -690,6 +826,11 @@ function dox_pos_format_order( $order ) {
 		/* translators: %s: the size on the label of the piece, e.g. "18-24 months" */
 		$items[] = $item->get_name() . ( '' !== $real ? ' (' . sprintf( __( 'actual size %s', 'dox-pos' ), $real ) . ')' : '' ) . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
 	}
+	$deposit = dox_pos_order_deposit( $order );
+	foreach ( dox_pos_order_deposit_lines( $order ) as $d ) {
+		/* translators: %s: what the deposit is for */
+		$items[] = sprintf( __( 'Deposit: %s', 'dox-pos' ), $d['name'] );
+	}
 	$until = (int) $order->get_meta( '_dox_pos_hold_until' );
 	$hold  = $caja && in_array( $status, array( 'on-hold', 'pending', 'failed' ), true );
 	$open  = ! in_array( $status, array( 'completed', 'cancelled', 'refunded' ), true );
@@ -724,6 +865,9 @@ function dox_pos_format_order( $order ) {
 		'cod'          => 'cod' === $order->get_payment_method(), // Contraentrega: "procesando" no es pagado.
 		'loss'         => dox_pos_can_see_losses() ? dox_pos_order_loss( $order ) : null, // La pérdida anotada, para marcarla en la lista (solo quien administra).
 		'total'        => (float) $order->get_total(),
+		'credit_used'  => dox_pos_order_credit_used( $order ), // Lo que pagó con saldo a favor (no está en el total).
+		'deposit'      => $deposit,                            // Lo que abonó a su saldo.
+		'refunded'     => (float) $order->get_total_refunded(), // Lo devuelto en dinero.
 		'status'       => $st[0],
 		'label'        => $st[1],
 		'hours_left'   => $hold && $until ? max( 0, (int) ceil( ( $until - time() ) / HOUR_IN_SECONDS ) ) : 0,
@@ -747,6 +891,17 @@ function dox_pos_format_order( $order ) {
  */
 function dox_pos_order_response( $order, $hold ) {
 	$out = array( 'order' => dox_pos_format_order( $order ) );
+	// Si abonó o pagó con saldo: cuánto le queda y el mensaje para avisarle.
+	$key = (string) $order->get_meta( '_dox_pos_credit_key' );
+	if ( '' !== $key ) {
+		$out['credit'] = array(
+			'used'     => dox_pos_order_credit_used( $order ),
+			'deposit'  => dox_pos_order_deposit( $order ),
+			'balance'  => dox_pos_credit_balance( $key ),
+			'name'     => trim( $order->get_formatted_billing_full_name() ),
+			'whatsapp' => dox_pos_credit_message_url( $key ),
+		);
+	}
 	if ( $hold ) {
 		$out['message']  = dox_pos_hold_message( $order );
 		$out['whatsapp'] = dox_pos_whatsapp_url( $order->get_billing_phone(), $out['message'] );
@@ -1009,6 +1164,10 @@ function dox_pos_order_detail( $id ) {
 			}
 		}
 		$items[] = array(
+			'line'         => (int) $it->get_id(),                 // La línea del pedido (para devolverla).
+			'free'         => (bool) $it->get_meta( '_dox_pos_free' ), // Se vendió sin producto.
+			'refundable'   => max( 0, $qty - abs( (int) $order->get_qty_refunded_for_item( $it->get_id() ) ) ),
+			'unit_value'   => $qty > 0 ? round( dox_pos_unit_value( $order, $it ), wc_get_price_decimals() ) : 0, // Lo que vale una unidad devuelta.
 			'id'           => $vid ? $vid : $pid,
 			'product_id'   => $pid,
 			'variation_id' => $vid,
@@ -1028,11 +1187,19 @@ function dox_pos_order_detail( $id ) {
 			'real_size'    => (string) $it->get_meta( DOX_POS_REAL_SIZE_ITEM ), // La talla de la pieza que hay que sacar, si se vendió otra de su grupo.
 		);
 	}
-	$discount = 0.0;
-	foreach ( $order->get_fees() as $fee ) {
-		if ( (float) $fee->get_total() < 0 ) {
-			$discount += - (float) $fee->get_total();
-		}
+	$discount = dox_pos_order_discount( $order );
+	// Lo devuelto: en dinero (el Mostrador) o al saldo a favor.
+	$returns = array();
+	foreach ( $order->get_refunds() as $r ) {
+		$credit    = (string) $r->get_meta( '_dox_pos_credit' );
+		$returns[] = array(
+			'date'   => $r->get_date_created() ? $r->get_date_created()->date_i18n( 'd/m H:i' ) : '',
+			'amount' => (float) $r->get_amount(),
+			'credit' => '' !== $credit ? (float) $credit : null,
+			'fee'    => '' !== (string) $r->get_meta( '_dox_pos_credit_fee' ) ? (float) $r->get_meta( '_dox_pos_credit_fee' ) : null,
+			'units'  => array_sum( array_map( fn( $i ) => abs( (int) $i->get_quantity() ), $r->get_items() ) ),
+			'reason' => (string) $r->get_reason(),
+		);
 	}
 	$ship_method = '';
 	foreach ( $order->get_shipping_methods() as $sm ) {
@@ -1065,6 +1232,10 @@ function dox_pos_order_detail( $id ) {
 			'items_list'      => $items,
 			'subtotal'        => (float) $order->get_subtotal(),
 			'discount'        => $discount,
+			'deposits'        => dox_pos_order_deposit_lines( $order ),
+			'returns'         => $returns,
+			// ¿Se puede devolver al saldo? Quien administra, en una venta pagada con algo por devolver.
+			'can_credit'      => current_user_can( 'manage_woocommerce' ) && in_array( $order->get_status(), array( 'processing', 'enviado', 'completed' ), true ) && ! ( 'cod' === $order->get_payment_method() && ! $order->has_status( 'completed' ) ) && array_sum( wp_list_pluck( $items, 'refundable' ) ) > 0,
 			'shipping_total'  => (float) $order->get_shipping_total(),
 			'shipping_method' => $ship_method,
 			'address2'        => (string) ( $ship ? $order->get_shipping_address_2() : $order->get_billing_address_2() ),

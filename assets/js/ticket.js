@@ -58,22 +58,27 @@
 			if (dev) {
 				h += '<div class="c big">' + esc(__("RETURN", "dox-pos")) + "</div><hr>";
 				dev.lines.forEach((l) => { h += fila(esc(l.name), "") + '<div class="s">' + esc(sprintf(__("%d returned", "dox-pos"), l.qty)) + "</div>"; });
-				h += "<hr>" + fila(esc(__("RETURNED", "dox-pos")), dinero(dev.amount), "big") + '<div class="s0">' + esc(dev.method === "efectivo" ? __("In cash", "dox-pos") : sprintf(__("By the same payment method (%s)", "dox-pos"), (r.payments || []).map((p) => p.title).join(" + "))) + "</div>";
+				h += "<hr>" + fila(esc(__("RETURNED", "dox-pos")), dinero(dev.amount), "big") + '<div class="s0">' + esc(dev.method === "saldo" ? __("To store credit", "dox-pos") : dev.method === "efectivo" ? __("In cash", "dox-pos") : sprintf(__("By the same payment method (%s)", "dox-pos"), (r.payments || []).map((p) => p.title).join(" + "))) + "</div>";
+				if (dev.credit) h += fila(esc(__("Back to store credit", "dox-pos")), dinero(dev.credit));
+				if (r.balance != null && (dev.method === "saldo" || dev.credit)) h += fila(esc(__("Store credit left", "dox-pos")), dinero(r.balance));
 			} else {
 				r.lines.forEach((l) => { h += fila(esc(l.name), dinero(l.total)) + '<div class="s">' + esc(l.qty + " x " + dinero(l.unit) + (l.sku && ver(s, "sku") ? " · " + l.sku : "")) + "</div>"; });
 				h += "<hr>" + fila(esc(__("Subtotal", "dox-pos")), dinero(r.subtotal));
 				if (r.discount) h += fila(esc(__("Discount", "dox-pos")), "−" + dinero(r.discount));
+				(r.deposits || []).forEach((x) => { h += fila(esc(sprintf(__("Deposit: %s", "dox-pos"), x.name)), dinero(x.total)); });
 				const tax = (r.taxes || []).reduce((a, t) => a + t.amount, 0);
 				if (!r.included && tax) {
 					if (ver(s, "taxes")) (r.taxes || []).forEach((t) => { h += fila(esc(t.label), dinero(t.amount)); });
 					else h += fila(esc(__("Tax", "dox-pos")), dinero(tax)); // Sin desglose: una sola línea.
 				}
+				if (r.credit) h += fila(esc(__("Paid with store credit", "dox-pos")), "−" + dinero(r.credit));
 				h += fila(esc(__("TOTAL", "dox-pos")), dinero(r.total), "big");
 				if (r.included && tax && ver(s, "taxes")) h += '<div class="s0">' + esc(sprintf(__("Includes %s", "dox-pos"), r.taxes.map((t) => t.label + " " + dinero(t.amount)).join(", "))) + "</div>";
 				h += "<hr>";
 				(r.payments || []).forEach((p) => { h += fila(esc(p.title), dinero(p.amount)); });
 				if (r.tendered != null) h += fila(esc(__("Cash received", "dox-pos")), dinero(r.tendered)) + fila(esc(__("Change due", "dox-pos")), dinero(r.change || 0));
 				if (r.refunded) h += fila(esc(__("Returned", "dox-pos")), "−" + dinero(r.refunded));
+				if (r.balance != null && (r.credit || (r.deposits || []).length)) h += fila(esc(__("Store credit left", "dox-pos")), dinero(r.balance));
 			}
 			h += "<hr>" + (s.footer ? '<div class="c pre">' + esc(s.footer) + "</div>" : "");
 			h += extras(s, r, dev);

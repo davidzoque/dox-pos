@@ -8,8 +8,8 @@
  * que son cosas del plugin que ya no existe, no datos de la tienda. Con él se van además el rol
  * "caja", el permiso, todos los ajustes (la clave de OpenAI incluida) y los pedidos de prueba.
  *
- * Los pedidos, el stock y las tablas de entradas, del kardex y del asistente (el histórico de lo
- * que hizo) no se tocan en ningún caso. Tampoco las zonas ni los costos de envío puestos desde la
+ * Los pedidos, el stock y las tablas de entradas, del kardex, del saldo a favor de los clientes (es
+ * dinero suyo) y del asistente (el histórico de lo que hizo) no se tocan en ningún caso. Tampoco las zonas ni los costos de envío puestos desde la
  * caja: son de WooCommerce (un envío por peso sin el plugin queda inerte y vuelve si se reinstala).
  *
  * @package DoxPos

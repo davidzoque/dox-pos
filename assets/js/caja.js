@@ -75,6 +75,10 @@
 		canal: CANALES[0].name,
 		pago: pagoInicial,
 		lineas: [],                               // el pedido: [{vid, n}]
+		libres: [],                               // lo que se vende sin producto: [{name, price, n}]
+		abono: null,                              // un abono al saldo a favor: {name, amount}
+		saldo: null,                              // el saldo de la clienta del teléfono escrito: {key, name, balance}
+		usar: 0,                                  // cuánto de ese saldo paga esta venta
 		entrada: [],                              // lo que llegó: [{vid, n}]
 		res: { venta: [], entrada: [] },          // últimos resultados de cada pestaña
 		abierto: { venta: null, entrada: null },  // producto desplegado en cada pestaña
@@ -412,7 +416,7 @@
 			const b = $(sel);
 			if (!b) return;
 			const arr = modo === "venta" ? st.lineas : st.entrada;
-			const u = arr.reduce((a, l) => a + l.n, 0);
+			const u = arr.reduce((a, l) => a + l.n, 0) + (modo === "venta" ? st.libres.reduce((a, l) => a + l.n, 0) + (st.abono ? 1 : 0) : 0);
 			if ($(vac)) $(vac).disabled = !u;
 			b.hidden = !u || $(ord).dataset.off === "0";
 			if (!b.hidden) {
@@ -430,7 +434,8 @@
 		if (b) b.click();
 	}
 	function pintarLineas(ul, arr, modo) {
-		ul.innerHTML = arr.length ? "" : '<li class="empty" style="padding:8px 2px">' + esc(__("Tap a product on the left to add it.", "dox-pos")) + "</li>";
+		const extras = modo === "venta" && (st.libres.length || st.abono);
+		ul.innerHTML = arr.length || extras ? "" : '<li class="empty" style="padding:8px 2px">' + esc(__("Tap a product on the left to add it.", "dox-pos")) + "</li>";
 		arr.forEach((l, i) => {
 			const d = st.vars[l.vid];
 			if (!d) return;
@@ -475,22 +480,121 @@
 			li.prepend(miniatura(d.p, true));
 			ul.appendChild(li);
 		});
+		if (modo === "venta") pintarExtras(ul);
+	}
+	// Lo que va en la venta sin ser un producto: las líneas libres (un diseño por encargo, un arreglo) y el abono al saldo.
+	function pintarExtras(ul) {
+		st.libres.forEach((l, i) => {
+			const li = document.createElement("li");
+			li.className = "lin libre";
+			li.innerHTML = '<span class="thumb sm">+</span><span class="n">' + esc(l.name) + "<i>" + esc(__("Without a product", "dox-pos")) + "</i></span>" +
+				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
+				'<span class="v">' + dinero(l.n * l.price) + "</span>";
+			li.querySelectorAll(".qty button").forEach((b) => {
+				b.onclick = () => { l.n += +b.dataset.d; if (l.n < 1) st.libres.splice(i, 1); pintarTodo(); };
+			});
+			ul.appendChild(li);
+		});
+		if (st.abono) {
+			const li = document.createElement("li");
+			li.className = "lin libre abono";
+			li.innerHTML = '<span class="thumb sm">+</span><span class="n">' + esc(st.abono.name || __("Deposit", "dox-pos")) + "<i>" + esc(__("Deposit to the customer’s store credit", "dox-pos")) + '</i></span><span class="qty"><button type="button" aria-label="' + esc(__("Remove", "dox-pos")) + '">×</button></span><span class="v">' + dinero(st.abono.amount) + "</span>";
+			li.querySelector(".qty button").onclick = () => { st.abono = null; pintarTodo(); };
+			ul.appendChild(li);
+		}
+	}
+	// "Sin producto": algo que se vende sin estar en el catálogo, o un abono que queda como saldo a favor.
+	function modalLibre() {
+		let tipo = "libre";
+		modal("<h3>" + esc(__("Without a product", "dox-pos")) + '</h3><div class="chips" id="ml-tipo" style="margin-bottom:12px"></div><p class="mp" id="ml-hint"></p>' +
+			'<div class="field"><label for="ml-nom">' + esc(__("Description", "dox-pos")) + '</label><input id="ml-nom" autocomplete="off"></div>' +
+			'<div class="field mt"><label for="ml-val" id="ml-val-l"></label><input id="ml-val" inputmode="' + IM + '" placeholder="0" autocomplete="off"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Add", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		const pintarTipo = () => {
+			chips($("#ml-tipo"), [["libre", __("Sold without a product", "dox-pos")], ["abono", __("Deposit to store credit", "dox-pos")]], tipo, (x) => { tipo = x; pintarTipo(); });
+			$("#ml-hint").textContent = tipo === "abono"
+				? __("Money the customer leaves now to use later, for example 50% of a made-to-order piece. It counts as a sale today and stays as store credit under the customer’s phone number. When the piece is handed over, it is paid with that credit and does not count again.", "dox-pos")
+				: __("A made-to-order piece, a repair or anything that is not in the catalog. It does not touch the stock.", "dox-pos");
+			$("#ml-nom").placeholder = tipo === "abono" ? __("Deposit for the custom design", "dox-pos") : __("Custom design", "dox-pos");
+			$("#ml-val-l").textContent = tipo === "abono" ? __("Amount of the deposit", "dox-pos") : __("Price", "dox-pos");
+		};
+		pintarTipo();
+		const val = $("#ml-val");
+		val.addEventListener("input", () => formatearMiles(val));
+		$("#m-no").onclick = () => cerrarModal(false);
+		$("#m-ok").onclick = () => {
+			const nombre = $("#ml-nom").value.trim(), v = num(val.value);
+			if (tipo === "libre" && !nombre) { $("#ml-nom").focus(); return; }
+			if (v <= 0) { val.focus(); return; }
+			if (tipo === "abono") st.abono = { name: nombre, amount: v };
+			else st.libres.push({ name: nombre, price: v, n: 1 });
+			cerrarModal(true);
+			pintarTodo();
+			if (tipo === "abono" && !$("#f-tel").value.trim()) toast(__("Write the customer’s phone: the store credit is kept under it.", "dox-pos"));
+		};
+		$("#ml-nom").focus();
+	}
+	// ---------- el saldo a favor de la clienta del teléfono escrito ----------
+	let saldoTimer = 0, saldoPedido = "";
+	function programarSaldo() {
+		clearTimeout(saldoTimer);
+		saldoTimer = setTimeout(buscarSaldo, 450);
+	}
+	async function buscarSaldo() {
+		const tel = $("#f-tel").value.trim();
+		const digitos = tel.replace(/\D/g, "");
+		if (digitos.length < 7) { st.saldo = null; st.usar = 0; pintarSum(); return; }
+		if (tel === saldoPedido) return;
+		saldoPedido = tel;
+		try {
+			const d = await api("credit?phone=" + encodeURIComponent(tel));
+			if ($("#f-tel").value.trim() !== tel) return; // Ya escribieron otro.
+			st.saldo = d.balance > 0 ? d : null;
+			if (!st.saldo) st.usar = 0;
+			if (d.name && !$("#f-nom").value.trim()) $("#f-nom").value = d.name;
+			pintarSum();
+		} catch (e) { saldoPedido = ""; }
+	}
+	function pintarSaldo(t) {
+		const box = $("#f-saldo");
+		if (!box) return;
+		if (!st.saldo) { box.hidden = true; box.innerHTML = ""; return; }
+		box.hidden = false;
+		const quien = st.saldo.name ? st.saldo.name.split(" ")[0] : "";
+		if (!st.usar) {
+			box.innerHTML = "<span>" + esc(quien ? sprintf(__("%s has store credit", "dox-pos"), quien) : __("This customer has store credit", "dox-pos")) + " · <b>" + dinero(st.saldo.balance) + '</b></span><button type="button" class="mini" id="f-saldo-usar">' + esc(__("Use it", "dox-pos")) + "</button>";
+			$("#f-saldo-usar").onclick = () => { st.usar = Math.min(st.saldo.balance, t.base); if (!st.usar) { toast(__("Add something to the sale first.", "dox-pos")); return; } pintarSum(); };
+			return;
+		}
+		box.innerHTML = '<label for="f-saldo-v">' + esc(sprintf(__("Paid with store credit (has %s)", "dox-pos"), dinero(st.saldo.balance))) + '</label><input id="f-saldo-v" inputmode="' + IM + '" value="' + esc(miles(t.cred)) + '"><button type="button" class="mini sec" id="f-saldo-no">' + esc(__("Do not use", "dox-pos")) + "</button>";
+		const inp = $("#f-saldo-v");
+		inp.addEventListener("input", () => { formatearMiles(inp); st.usar = num(inp.value); pintarSum(true); });
+		inp.addEventListener("change", () => pintarSum());
+		$("#f-saldo-no").onclick = () => { st.usar = 0; pintarSum(); };
 	}
 	function totales() {
-		const sub = st.lineas.reduce((a, l) => a + l.n * (st.vars[l.vid] ? st.vars[l.vid].v.price : 0), 0);
+		const sub = st.lineas.reduce((a, l) => a + l.n * (st.vars[l.vid] ? st.vars[l.vid].v.price : 0), 0) + st.libres.reduce((a, l) => a + l.n * l.price, 0);
 		const desc = num($("#f-desc").value);
 		const env = sinEnvio() ? 0 : num($("#f-env").value);
-		return { sub: sub, desc: desc, env: env, tot: Math.max(0, sub - desc + env) };
+		const base = Math.max(0, sub - desc + env);          // Lo que cuesta la venta (un abono no se paga con saldo).
+		const abono = st.abono ? st.abono.amount : 0;
+		const cred = redondear(Math.max(0, Math.min(st.usar || 0, base, st.saldo ? st.saldo.balance : 0)));
+		return { sub: sub, desc: desc, env: env, base: base, abono: abono, cred: cred, tot: base + abono - cred };
 	}
-	function pintarSum() {
+	const hayVenta = () => !!(st.lineas.length || st.libres.length || st.abono);
+	// escribiendo: el importe del saldo se está escribiendo, y su campo no se vuelve a pintar (se perdería el cursor).
+	function pintarSum(escribiendo) {
 		const t = totales();
 		$("#sum").innerHTML =
 			"<div><span>" + esc(__("Subtotal", "dox-pos")) + "</span><span>" + dinero(t.sub) + "</span></div>" +
 			(t.desc ? "<div><span>" + esc(__("Discount", "dox-pos")) + "</span><span>−" + dinero(t.desc) + "</span></div>" : "") +
 			(sinEnvio() ? "" : "<div><span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + dinero(t.env) + "</span></div>") +
-			'<div class="tot"><span>' + esc(__("Total", "dox-pos")) + "</span><span>" + dinero(t.tot) + "</span></div>";
-		$("#reg").disabled = st.ocupado || !st.lineas.length;
-		$("#apartar").disabled = st.ocupado || !st.lineas.length;
+			(t.abono ? "<div><span>" + esc(__("Deposit to store credit", "dox-pos")) + "</span><span>" + dinero(t.abono) + "</span></div>" : "") +
+			(t.cred ? "<div><span>" + esc(__("Paid with store credit", "dox-pos")) + "</span><span>−" + dinero(t.cred) + "</span></div>" : "") +
+			'<div class="tot"><span>' + esc(t.cred ? __("To pay", "dox-pos") : __("Total", "dox-pos")) + "</span><span>" + dinero(t.tot) + "</span></div>";
+		if (!escribiendo) pintarSaldo(t);
+		$("#reg").disabled = st.ocupado || !hayVenta();
+		$("#apartar").disabled = st.ocupado || !(st.lineas.length || st.libres.length) || !!st.abono; // Un abono es plata que entra ya: no se aparta.
 		const uds = st.entrada.reduce((a, l) => a + l.n, 0);
 		const costo = cfg.costs ? st.entrada.reduce((a, l) => a + l.n * (l.c || 0), 0) : 0;
 		const sinCosto = cfg.costs ? st.entrada.filter((l) => !l.c).length : 0;
@@ -504,7 +608,7 @@
 		pintarLineas($("#lineas"), st.lineas, "venta");
 		pintarLineas($("#lineas2"), st.entrada, "entrada");
 		st.flash = null;
-		const u = st.lineas.reduce((a, l) => a + l.n, 0);
+		const u = st.lineas.reduce((a, l) => a + l.n, 0) + st.libres.reduce((a, l) => a + l.n, 0);
 		$("#n-lin").textContent = u ? sprintf(_n("%d unit", "%d units", u, "dox-pos"), u) : "";
 		$("#npane").textContent = u ? "· " + u : "";
 		const u2 = st.entrada.reduce((a, l) => a + l.n, 0);
@@ -1172,10 +1276,21 @@
 
 	// ---------- registrar la venta o apartar ----------
 	async function cerrar(hold) {
-		if (st.ocupado || !st.lineas.length) return;
+		if (st.ocupado || !hayVenta()) return;
 		if (hold && !$("#f-tel").value.trim()) {
 			toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
 			$("#f-tel").focus();
+			return;
+		}
+		const tt = totales();
+		if ((st.abono || tt.cred) && !$("#f-tel").value.trim()) {
+			toast(__("Write the customer’s phone: the store credit is kept under it.", "dox-pos"));
+			$("#f-tel").focus();
+			return;
+		}
+		// El saldo se mira y se gasta en la tienda en ese momento: sin señal no se puede.
+		if (tt.cred && !navigator.onLine) {
+			toast(__("Paying with store credit needs a connection.", "dox-pos"));
 			return;
 		}
 		st.ocupado = true;
@@ -1186,6 +1301,9 @@
 			ref: uuid(),
 			hold: hold,
 			lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })),
+			free: st.libres.map((l) => ({ name: l.name, price: l.price, qty: l.n })),
+			deposit: st.abono ? { name: st.abono.name, amount: st.abono.amount } : null,
+			credit: tt.cred,
 			channel: st.canal,
 			payment: st.pago,
 			discount: num($("#f-desc").value),
@@ -1194,7 +1312,7 @@
 			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
 		};
 		const tipo = hold ? "apartado" : "venta";
-		const resumen = resumenLineas(st.lineas);
+		const resumen = [resumenLineas(st.lineas)].concat(st.libres.map((l) => l.name + (l.n > 1 ? " ×" + l.n : "")), st.abono ? [st.abono.name || __("Deposit", "dox-pos")] : []).filter(Boolean).join(" + ");
 		if (!navigator.onLine) {
 			encolar(tipo, "orders", payload, resumen);
 			limpiarPedido();
@@ -1204,6 +1322,7 @@
 				limpiarPedido();
 				await Promise.all([refrescarStock(), cargarPedidos()]);
 				if (hold) modalWhatsApp(data);
+				else if (data.credit) modalSaldoVenta(data);
 				else toast(sprintf(__("Sale recorded: order #%s. The stock has already gone down.", "dox-pos"), data.order.number));
 			} catch (e) {
 				if (e.red) {
@@ -1218,6 +1337,13 @@
 		soltar();
 		pintarSum();
 	}
+	// La venta con saldo: lo que abonó o gastó, lo que le queda, y el mensaje para avisarle.
+	function modalSaldoVenta(data) {
+		const c = data.credit;
+		const que = c.deposit && c.used ? __("Deposit recorded and store credit used", "dox-pos") : c.deposit ? __("Deposit recorded", "dox-pos") : __("Paid with store credit", "dox-pos");
+		modal("<h3>" + esc(que) + " · #" + esc(data.order.number) + '</h3><p class="mp">' + esc(sprintf(__("%1$s now has %2$s in store credit.", "dox-pos"), c.name || __("The customer", "dox-pos"), dinero(c.balance))) + '</p><div class="mbtn"><a class="go" href="' + esc(c.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.tell) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
+		$("#m-no").onclick = cerrarModal;
+	}
 	function resumenLineas(arr) {
 		return arr.map((l) => {
 			const d = st.vars[l.vid];
@@ -1226,6 +1352,11 @@
 	}
 	function limpiarPedido() {
 		st.lineas = [];
+		st.libres = [];
+		st.abono = null;
+		st.saldo = null;
+		st.usar = 0;
+		saldoPedido = "";
 		st.rate = null;
 		st.rates = [];
 		st.sinTarifa = false;
@@ -1329,7 +1460,7 @@
 			'<div class="odi"><b>' + esc(it.name) + "</b>" +
 			(it.real_size ? '<span class="rs">' + esc(sprintf(__("Actual size: %s", "dox-pos"), it.real_size)) + "</span>" : "") +
 			'<span class="sub">' + (it.sku ? '<span class="sku">' + esc(it.sku) + "</span> · " : "") + it.qty + " × " + dinero(it.price) + (it.stock !== null && it.stock !== undefined ? " · " + esc(it.shared && it.pool_name ? sprintf(__("%1$d left for all %2$s sizes", "dox-pos"), it.stock, it.pool_name) : sprintf(it.shared ? __("%d left for all sizes", "dox-pos") : __("%d left", "dox-pos"), it.stock)) : "") + (it.unit_cost !== null && it.unit_cost !== undefined ? " · " + esc(sprintf(__("cost %s", "dox-pos"), dinero(it.unit_cost))) : "") + "</span>" +
-			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
+			'<span class="odlinks">' + (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a>' : '<span class="sub">' + (it.free ? __("Without a product", "dox-pos") : it.exists ? __("Hidden in the store", "dox-pos") : __("It no longer exists", "dox-pos")) + "</span>") + (it.editable && hayProducto() ? ' · <button type="button" class="lnk" data-edit="' + it.product_id + '">' + esc(__("Edit", "dox-pos")) + '</button>' : "") + "</span>" +
 			"</div>" +
 			'<span class="num">' + dinero(it.total) + "</span></li>").join("");
 		const dir = [d.address, d.address2, d.city].filter(Boolean).join(", ");
@@ -1339,6 +1470,8 @@
 		h += "<section><h4>" + esc(__("Products", "dox-pos")) + "</h4>" + (items ? '<ul class="odl">' + items + "</ul>" : '<p class="sub">' + esc(__("No products.", "dox-pos")) + "</p>");
 		h += '<table class="tot"><tbody><tr><td>' + esc(__("Subtotal", "dox-pos")) + "</td><td>" + dinero(d.subtotal) + "</td></tr>" +
 			(d.discount ? "<tr><td>" + esc(__("Discount", "dox-pos")) + "</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
+			(d.deposits || []).map((x) => "<tr><td>" + esc(sprintf(__("Deposit: %s", "dox-pos"), x.name)) + "</td><td>" + dinero(x.total) + "</td></tr>").join("") +
+			(d.credit_used ? "<tr><td>" + esc(__("Paid with store credit", "dox-pos")) + "</td><td>−" + dinero(d.credit_used) + "</td></tr>" : "") +
 			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
 			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
 			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un imprevisto). Solo quien administra.
@@ -1359,11 +1492,23 @@
 		if (d.tracking) h += "<span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
 		if (d.completed_at) h += "<span>" + esc(__("Delivered", "dox-pos")) + "</span><span>" + esc(d.completed_at) + "</span>";
 		h += "</div></section>";
+		if (d.returns && d.returns.length) {
+			h += "<section><h4>" + esc(__("Returns", "dox-pos")) + '</h4><ul class="odn">' + d.returns.map((r) => '<li><span class="sub">' + esc(r.date) + "</span>" +
+				esc(r.credit !== null ? sprintf(_n("%1$d piece to store credit: %2$s", "%1$d pieces to store credit: %2$s", r.units, "dox-pos"), r.units, dinero(r.credit)) + (r.fee ? " · " + sprintf(__("exchange fee %s", "dox-pos"), dinero(r.fee)) : "") : sprintf(_n("%1$d piece, money back: %2$s", "%1$d pieces, money back: %2$s", r.units, "dox-pos"), r.units, dinero(r.amount))) + "</li>").join("") + "</ul></section>";
+		}
 		if (d.notes && d.notes.length) h += "<section><h4>" + esc(__("History", "dox-pos")) + '</h4><ul class="odn">' + d.notes.map((n) => '<li><span class="sub">' + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></section>";
 		h += "</div>";
 		h += '<div class="mbtn stick odb"><div class="oda"></div>' + (d.edit_url ? '<a class="mini sec" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + '</a>' : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>";
 		modal(h, "wide");
 		botonesPedido(d, $("#modal-card .oda"), true);
+		if (d.can_credit) {
+			const b = document.createElement("button");
+			b.type = "button";
+			b.className = "mini sec";
+			b.textContent = __("Return to store credit", "dox-pos");
+			b.onclick = () => modalDevolverSaldo(d);
+			$("#modal-card .oda").appendChild(b);
+		}
 		$("#m-no").onclick = cerrarModal;
 		if ($("#m-loss")) $("#m-loss").onclick = () => modalPerdida(d);
 		$("#modal-card").querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { cerrarModal(); editarDesdeLista(+b.dataset.edit); }; });
@@ -1441,7 +1586,7 @@
 				'<td class="items"><button type="button" class="lnk items" data-ver="' + p.id + '">' + esc(p.items) + "</button>" + (p.note ? '<br><span class="sub">' + esc(p.note) + "</span>" : "") + "</td>" +
 				"<td>" + canal + "</td>" +
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
-				'<td class="num">' + dinero(p.total) + "</td>" +
+				'<td class="num">' + dinero(p.total) + (p.credit_used ? '<br><span class="sub">' + esc(sprintf(__("+ %s store credit", "dox-pos"), dinero(p.credit_used))) + "</span>" : "") + "</td>" +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
 					(p.status === "apartado" ? '<br><span class="sub">' + esc(sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>" : "") +
@@ -1795,6 +1940,55 @@
 			accion(p, "shipped", extra);
 		};
 		$("#m-no").onclick = cerrarModal;
+	}
+	// Un cambio o una devolución sin dinero: las prendas vuelven (al inventario, si se marca) y lo que
+	// valen, menos el cargo por cambio de la tienda, queda como saldo a favor de la clienta.
+	function modalDevolverSaldo(d) {
+		const lineas = (d.items_list || []).filter((it) => it.refundable > 0);
+		const sel = {};
+		const sinTel = !d.phone;
+		const fee0 = cfg.credit && cfg.credit.fee ? cfg.credit.fee : 0;
+		modal("<h3>" + esc(sprintf(__("Return from order #%s to store credit", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("No money goes out: what the pieces are worth stays as the customer’s store credit, for a later purchase.", "dox-pos")) + "</p>" +
+			'<ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + " · " + dinero(l.unit_value) + '</i></span><span class="qty"><button type="button" data-id="' + l.line + '" data-d="-1">−</button><span id="ms-n' + l.line + '">0</span><button type="button" data-id="' + l.line + '" data-d="1">+</button></span><span class="v" id="ms-v' + l.line + '">' + dinero(0) + "</span></li>").join("") + "</ul>" +
+			'<label class="chk mt"><input type="checkbox" id="ms-stock" checked> ' + esc(__("The pieces go back to stock", "dox-pos")) + "</label>" +
+			'<div class="g2 mt"><div class="field"><label for="ms-fee">' + esc(__("Exchange fee (%)", "dox-pos")) + '</label><input id="ms-fee" inputmode="decimal" value="' + esc(String(fee0)) + '"></div>' +
+			(sinTel ? '<div class="field"><label for="ms-tel">' + esc(__("Customer phone", "dox-pos")) + '</label><input id="ms-tel" inputmode="tel" autocomplete="off"></div>' : "") + "</div>" +
+			'<div class="field mt"><label for="ms-nota">' + esc(__("Why", "dox-pos")) + '</label><input id="ms-nota" placeholder="' + esc(__("Exchange: it did not fit", "dox-pos")) + '"></div>' +
+			'<div class="sum mt" id="ms-sum"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok" disabled>' + esc(__("Leave it as store credit", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>", "wide");
+		const pct = () => Math.max(0, Math.min(100, parseFloat(String($("#ms-fee").value).replace(",", ".")) || 0));
+		const valor = () => redondear(lineas.reduce((a, l) => a + (sel[l.line] || 0) * l.unit_value, 0));
+		const repintar = () => {
+			lineas.forEach((l) => { $("#ms-n" + l.line).textContent = sel[l.line] || 0; $("#ms-v" + l.line).textContent = dinero((sel[l.line] || 0) * l.unit_value); });
+			const v = valor(), f = redondear(v * pct() / 100);
+			$("#ms-sum").innerHTML = "<div><span>" + esc(__("What they are worth", "dox-pos")) + "</span><span>" + dinero(v) + "</span></div>" + (f ? "<div><span>" + esc(sprintf(__("Exchange fee (%s%%)", "dox-pos"), pct())) + "</span><span>−" + dinero(f) + "</span></div>" : "") + '<div class="tot"><span>' + esc(__("Store credit", "dox-pos")) + "</span><span>" + dinero(v - f) + "</span></div>";
+			$("#m-ok").disabled = !v;
+		};
+		$("#modal-card").querySelectorAll(".devol .qty button").forEach((b) => {
+			b.onclick = () => {
+				const l = lineas.find((x) => String(x.line) === b.dataset.id);
+				sel[l.line] = Math.max(0, Math.min(l.refundable, (sel[l.line] || 0) + +b.dataset.d));
+				repintar();
+			};
+		});
+		$("#ms-fee").addEventListener("input", repintar);
+		$("#m-no").onclick = () => { cerrarModal(); verPedido(d.id); };
+		$("#m-ok").onclick = async () => {
+			const tel = sinTel ? $("#ms-tel").value.trim() : "";
+			if (sinTel && tel.replace(/\D/g, "").length < 7) { $("#ms-tel").focus(); return; }
+			$("#m-ok").disabled = true;
+			try {
+				const r = await post("orders/" + d.id + "/credit", { lines: lineas.filter((l) => sel[l.line]).map((l) => ({ id: l.line, qty: sel[l.line] })), restock: $("#ms-stock").checked, fee: pct(), note: $("#ms-nota").value.trim(), phone: tel });
+				modal("<h3>" + esc(__("Store credit saved", "dox-pos")) + '</h3><p class="mp">' + esc(sprintf(__("%1$s gets %2$s in store credit. Their balance is now %3$s.", "dox-pos"), r.name || __("The customer", "dox-pos"), dinero(r.credit), dinero(r.balance))) + (r.fee ? " " + esc(sprintf(__("The shop keeps %s as the exchange fee.", "dox-pos"), dinero(r.fee))) : "") + '</p><div class="mbtn"><a class="go" href="' + esc(r.message) + '" target="_blank" rel="noopener">' + esc(MSG.tell) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
+				$("#m-no").onclick = cerrarModal;
+				await Promise.all([cargarPedidos(), refrescarStock()]);
+				emit("pedido", { id: d.id, act: "credit" });
+			} catch (e) {
+				$("#m-ok").disabled = false;
+				if (e.message !== "sesion") toast(e.message);
+			}
+		};
+		repintar();
 	}
 	// La pérdida de un pedido: se anota desde su detalle con el motivo, y se puede cambiar o quitar.
 	function modalPerdida(d) {
@@ -3148,6 +3342,8 @@
 		const n = ++hi.req;
 		Object.keys(vistasHist).forEach((k) => { const el = $("#h-" + k); if (el) el.hidden = k !== hi.vista; });
 		$("#h-fil").hidden = hi.vista !== "mov";
+		// El saldo a favor no depende del periodo: sus botones no se ven (sin moverse lo demás).
+		["#h-periodo", "#h-fechas"].forEach((sel) => { const el = $(sel); if (el) el.style.visibility = hi.vista === "saldo" ? "hidden" : ""; });
 		if (!box.dataset.listo) box.innerHTML = '<p class="empty">' + esc(__("Loading\u2026", "dox-pos")) + "</p>";
 		box.style.opacity = ".55";
 		try {
@@ -3194,6 +3390,13 @@
 			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
 			(d.losses && t.loss > 0 ? kpi("−" + dinero(t.loss), sprintf(_n("Loss on %d sale", "Losses on %d sales", t.loss_n, "dox-pos"), t.loss_n)) : "") +
 			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n)) : "") + "</div>";
+		if (t.refunded > 0 || t.deposits > 0 || t.credit_used > 0) {
+			const partes = [];
+			if (t.refunded > 0) partes.push(sprintf(__("%s was given back in money and is already taken off.", "dox-pos"), dinero(t.refunded)));
+			if (t.deposits > 0) partes.push(sprintf(__("It includes %s in deposits to store credit.", "dox-pos"), dinero(t.deposits)));
+			if (t.credit_used > 0) partes.push(sprintf(__("%s was paid with store credit: it does not add up here, it already counted when the money came in.", "dox-pos"), dinero(t.credit_used)));
+			h += '<p class="hint">' + esc(partes.join(" ")) + "</p>";
+		}
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Inventory.", "dox-pos")) + "</p>";
 		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel) + listaHist(__("By payment method", "dox-pos"), d.by_payment) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
 			(d.by_day.length > 1 ? listaHist(__("By day", "dox-pos"), d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
@@ -3209,6 +3412,7 @@
 		const conCosto = !!d.costs;
 		const conPerdida = !!d.losses && t.loss > 0; // Hubo pérdidas anotadas en el periodo: salen como cifra y como columna.
 		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos")) + kpi(dinero(t.sold), __("Sold", "dox-pos")) + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos")) : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos")) : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		if (t.refunded > 0) h += '<p class="hint">' + esc(sprintf(_n("%1$s went out in %2$d return, on the day it was given back and by the payment method it went out with.", "%1$s went out in %2$d returns, on the day they were given back and by the payment method they went out with.", t.refunds_n, "dox-pos"), dinero(t.refunded), t.refunds_n)) + "</p>";
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
 		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals) + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("By day", "dox-pos")) + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
@@ -3260,6 +3464,68 @@
 
 	vistaHistorial({ id: "ventas", cargar: (a, b) => api("history/sales?from=" + a + "&to=" + b), pintar: pintarVentas });
 	vistaHistorial({ id: "caja", cargar: (a, b) => api("history/cash?from=" + a + "&to=" + b), pintar: pintarCaja });
+	// ----- el saldo a favor: lo que la tienda debe y cada clienta con sus movimientos (no depende del periodo) -----
+	const sa = { q: "", page: 1, timer: 0 };
+	function pintarSaldos(d) {
+		const box = $("#h-saldo");
+		if (!box.querySelector("#hs-q")) {
+			box.innerHTML = '<p class="hsub">' + esc(__("Store credit", "dox-pos")) + '</p><div id="hs-top"></div><div class="hfil"><div class="searchwrap"><input id="hs-q" type="search" placeholder="' + esc(__("Name or phone", "dox-pos")) + '" autocomplete="off" aria-label="' + esc(__("Search customers", "dox-pos")) + '"></div>' + (cfg.credit && cfg.credit.manage ? '<button type="button" class="mini" id="hs-nuevo">' + esc(__("Load a balance", "dox-pos")) + "</button>" : "") + '</div><div id="hs-list"></div>';
+			$("#hs-q").addEventListener("input", () => { clearTimeout(sa.timer); sa.timer = setTimeout(() => { sa.q = $("#hs-q").value.trim(); sa.page = 1; cargarHistorial(); }, 300); });
+			if ($("#hs-nuevo")) $("#hs-nuevo").onclick = () => modalAjusteSaldo(null);
+		}
+		$("#hs-top").innerHTML = '<div class="kpis">' + kpi(dinero(d.owed), __("Owed in store credit", "dox-pos"), sprintf(_n("%d customer with a balance", "%d customers with a balance", d.owed_n, "dox-pos"), d.owed_n)) + '</div><p class="hint">' + esc(__("Deposits and exchanges that customers have not used yet. Each one counted as a sale when the money came in; when it is used, it does not count again.", "dox-pos")) + "</p>";
+		let h = "";
+		if (!d.items.length) h = '<p class="empty">' + esc(sa.q ? __("No customer matches.", "dox-pos") : __("No store credit yet. It appears when you take a deposit (Sell, Without a product) or return pieces to store credit from an order.", "dox-pos")) + "</p>";
+		else h = '<ul class="bl hs">' + d.items.map((c) => '<li><button type="button" class="lnk" data-tel="' + esc(c.key) + '"><span class="who">' + esc(c.name || c.phone) + '</span></button><span class="sub">' + esc(c.phone) + " · " + esc(sprintf(__("last change %s", "dox-pos"), c.last)) + "</span><span><b" + (c.balance > 0 ? "" : ' class="sub"') + ">" + dinero(c.balance) + "</b></span></li>").join("") + "</ul>";
+		if (d.page > 1 || d.more) h += '<div class="pager"><button type="button" class="mini" id="hs-prev"' + (d.page <= 1 ? " disabled" : "") + ">" + esc(__("Previous", "dox-pos")) + '</button><span>' + d.page + '</span><button type="button" class="mini" id="hs-next"' + (d.more ? "" : " disabled") + ">" + esc(__("Next", "dox-pos")) + "</button></div>";
+		$("#hs-list").innerHTML = h;
+		$("#hs-list").querySelectorAll("[data-tel]").forEach((b) => { b.onclick = () => verClienta(b.dataset.tel); });
+		if ($("#hs-prev")) $("#hs-prev").onclick = () => { sa.page--; cargarHistorial(); };
+		if ($("#hs-next")) $("#hs-next").onclick = () => { sa.page++; cargarHistorial(); };
+	}
+	async function verClienta(tel) {
+		modal("<h3>" + esc(__("Store credit", "dox-pos")) + '</h3><p class="mp">' + esc(__("Loading\u2026", "dox-pos")) + "</p>", "wide");
+		let c;
+		try { c = await api("credit/customer?phone=" + encodeURIComponent("+" + String(tel).replace(/^\+/, ""))); } catch (e) {
+			if (e.message !== "sesion") { toast(e.message); cerrarModal(); }
+			return;
+		}
+		// Dos columnas, para que quepa también en el teléfono: qué fue (con la fecha, el pedido y quién lo hizo) y el importe con el saldo que quedó.
+		const mov = c.movements.map((m) => "<tr><td><b>" + esc(m.label) + "</b>" + (m.note ? '<br><span class="sub">' + esc(m.note) + "</span>" : "") + '<br><span class="sub">' + esc(m.date) + " · " + (m.order ? '<button type="button" class="lnk" data-ver="' + m.order + '">' + esc(sprintf(__("Order #%s", "dox-pos"), m.number)) + "</button> · " : "") + esc(m.user) + '</span></td><td class="num"><span class="delta ' + (m.amount > 0 ? "in" : "out") + '">' + (m.amount > 0 ? "+" : "−") + dinero(Math.abs(m.amount)) + '</span><br><span class="sub">' + esc(sprintf(__("balance %s", "dox-pos"), dinero(m.balance))) + "</span></td></tr>").join("");
+		modal("<h3>" + esc(c.name || c.phone) + '</h3><p class="mp">' + esc(c.phone) + '</p><div class="kpis">' + kpi(dinero(c.balance), __("Store credit", "dox-pos")) + "</div>" +
+			(mov ? '<table class="ped hsm"><thead><tr><th>' + esc(__("Movements", "dox-pos")) + '</th><th class="num">' + esc(__("Amount", "dox-pos")) + "</th></tr></thead><tbody>" + mov + "</tbody></table>" : "") +
+			'<div class="mbtn stick odb"><div class="oda">' + (c.message ? '<a class="mini sec" href="' + esc(c.message) + '" target="_blank" rel="noopener">' + esc(MSG.tell) + "</a>" : "") + (cfg.credit && cfg.credit.manage ? '<button type="button" class="mini" id="mc-aj">' + esc(__("Adjust", "dox-pos")) + "</button>" : "") + '</div><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "wide");
+		$("#m-no").onclick = cerrarModal;
+		if ($("#mc-aj")) $("#mc-aj").onclick = () => modalAjusteSaldo(c);
+	}
+	// Un ajuste a mano, con su motivo (corregir un error, o cargar un saldo que se llevaba en una hoja de cálculo).
+	function modalAjusteSaldo(c) {
+		modal("<h3>" + esc(c ? sprintf(__("Adjust the balance of %s", "dox-pos"), c.name || c.phone) : __("Load a balance", "dox-pos")) + '</h3><p class="mp">' + esc(c ? sprintf(__("Balance now: %s. Write a negative amount to lower it.", "dox-pos"), dinero(c.balance)) : __("For a balance you kept somewhere else (a spreadsheet, a notebook). It does not count as a sale: that money already came in.", "dox-pos")) + "</p>" +
+			(c ? "" : '<div class="g2"><div class="field"><label for="ma-tel">' + esc(__("Customer phone", "dox-pos")) + '</label><input id="ma-tel" inputmode="tel" autocomplete="off"></div><div class="field"><label for="ma-nom">' + esc(__("Name", "dox-pos")) + '</label><input id="ma-nom" autocomplete="off"></div></div>') +
+			'<div class="field mt"><label for="ma-v">' + esc(__("Amount", "dox-pos")) + '</label><input id="ma-v" inputmode="text" placeholder="0" autocomplete="off"></div><div class="field mt"><label for="ma-n">' + esc(__("Why", "dox-pos")) + '</label><input id="ma-n" placeholder="' + esc(c ? __("Correction", "dox-pos") : __("Balance carried over from the spreadsheet", "dox-pos")) + '"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		$("#m-no").onclick = () => (c ? verClienta(c.key) : cerrarModal());
+		$("#m-ok").onclick = async () => {
+			const raw = $("#ma-v").value.trim();
+			const neg = /^[-−]/.test(raw);
+			const v = num(raw.replace(/^[-−]/, ""));
+			if (!v) { $("#ma-v").focus(); return; }
+			if (!$("#ma-n").value.trim()) { $("#ma-n").focus(); return; }
+			const tel = c ? c.phone : $("#ma-tel").value.trim();
+			if (!c && tel.replace(/\D/g, "").length < 7) { $("#ma-tel").focus(); return; }
+			$("#m-ok").disabled = true;
+			try {
+				const r = await post("credit/adjust", { phone: tel, name: c ? c.name : $("#ma-nom").value.trim(), amount: (neg ? "-" : "") + v, note: $("#ma-n").value.trim() });
+				toast(sprintf(__("Saved. The balance is now %s.", "dox-pos"), dinero(r.balance)));
+				verClienta(r.key);
+				cargarHistorial();
+			} catch (e) {
+				$("#m-ok").disabled = false;
+				if (e.message !== "sesion") toast(e.message);
+			}
+		};
+	}
+	vistaHistorial({ id: "saldo", cargar: () => api("credit/customers?q=" + encodeURIComponent(sa.q) + "&page=" + sa.page), pintar: pintarSaldos });
 	vistaHistorial({ id: "mov", cargar: (a, b) => api("history/stock?from=" + a + "&to=" + b + "&q=" + encodeURIComponent(hi.q) + "&product=" + hi.producto + "&kind=" + hi.tipo + "&page=" + hi.page), pintar: pintarMovimientos });
 
 	// ---------- los costos de golpe: el Excel del inventario con la columna Costo llena ----------
@@ -3579,7 +3845,9 @@
 		$("#q2").addEventListener("input", () => programar("entrada"));
 		// Inventario: al llegar abajo de la lista del catálogo, la siguiente página.
 		listaDe("entrada").parentElement.addEventListener("scroll", (e) => { const el = e.target; if (st.catOn && st.cat.more && !st.cat.loading && el.scrollTop + el.clientHeight >= el.scrollHeight - 240) mostrarCatalogo(true); });
-		["#f-desc", "#f-env"].forEach((s) => $(s).addEventListener("input", pintarSum));
+		["#f-desc", "#f-env"].forEach((s) => $(s).addEventListener("input", () => pintarSum()));
+		$("#f-tel").addEventListener("input", programarSaldo);
+		$("#f-libre").onclick = modalLibre;
 		["#f-ciu", "#f-dir", "#f-cp"].forEach((s) => { if ($(s)) $(s).addEventListener("input", programarEnvio); });
 		$("#f-ciu").addEventListener("change", fijarCiudad); // Al salir del campo o al elegir la sugerencia.
 		// Los costos de envío se ponen sin salir de la caja (quien administra): el engranaje y el enlace del envío de la venta.
@@ -3624,7 +3892,7 @@
 	// los añadidos, así que todo lo que toca ya existe y sus pestañas ya están registradas. Esperar a
 	// DOMContentLoaded es una trampa con optimizadores que retrasan el JS (el evento ya pasó, o fingen readyState).
 	window.DoxPOS = {
-		cfg, M, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, ks, chip, chips, uuid, ocupar,
+		cfg, M, MSG, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, ks, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
 		verPedido, verProducto, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,

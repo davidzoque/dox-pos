@@ -658,13 +658,8 @@ function dox_pos_counter_receipt( $order ) {
 			'gross'      => $qty ? dox_pos_counter_unit_refund( $order, $item ) : 0, // Lo que se devuelve por unidad, con su parte del descuento y del impuesto.
 		);
 	}
-	$discount = 0.0;
-	foreach ( $order->get_fees() as $fee ) {
-		if ( (float) $fee->get_total() < 0 ) {
-			$discount += abs( (float) $fee->get_total() );
-		}
-	}
-	$taxes = array();
+	$discount = dox_pos_order_discount( $order );
+	$taxes    = array();
 	foreach ( $order->get_tax_totals() as $t ) {
 		$taxes[] = array( 'label' => $t->label, 'amount' => (float) $t->amount );
 	}
@@ -678,11 +673,16 @@ function dox_pos_counter_receipt( $order ) {
 		'lines'    => $lines,
 		'subtotal' => (float) $order->get_subtotal(),
 		'discount' => $discount,
+		'deposits' => dox_pos_order_deposit_lines( $order ), // Los abonos al saldo a favor.
+		'credit'   => dox_pos_order_credit_used( $order ),   // Lo que se pagó con saldo a favor.
+		'balance'  => (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ) ) : null, // El saldo que le queda, hoy.
+		'phone'    => (string) $order->get_billing_phone(),
 		'taxes'    => $taxes,
 		'included' => wc_prices_include_tax(),
 		'total'    => (float) $order->get_total(),
 		'refunded' => (float) $order->get_total_refunded(),
-		'payments' => array_map( function ( $p ) { return array( 'title' => $p['title'], 'amount' => (float) $p['amount'] ); }, dox_pos_counter_order_payments( $order ) ),
+		// Las formas de pago con dinero (una venta pagada entera con saldo a favor no tiene ninguna).
+		'payments' => array_values( array_filter( array_map( function ( $p ) { return array( 'title' => $p['title'], 'amount' => (float) $p['amount'] ); }, dox_pos_counter_order_payments( $order ) ), fn( $p ) => $p['amount'] > 0 || 'saldo' !== $order->get_meta( '_dox_pos_pay_key' ) ) ),
 		'tendered' => '' !== (string) $order->get_meta( '_dox_pos_tendered' ) ? (float) $order->get_meta( '_dox_pos_tendered' ) : null,
 		'change'   => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,
 		'pay_key'  => (string) $order->get_meta( '_dox_pos_pay_key' ),
@@ -692,23 +692,11 @@ function dox_pos_counter_receipt( $order ) {
 }
 
 /**
- * Lo que vale una unidad devuelta: lo que pagó por ella, con su parte del descuento (un cargo
- * negativo del pedido, repartido según lo que pesa cada línea) y del impuesto.
+ * Lo que vale una unidad devuelta: lo que pagó por ella, con su parte del descuento y del impuesto
+ * (dox_pos_unit_value, en credit.php: el pago con saldo no rebaja lo que vale la prenda).
  */
 function dox_pos_counter_unit_refund( $order, $item ) {
-	$items = 0.0;
-	foreach ( $order->get_items() as $it ) {
-		$items += (float) $it->get_total() + (float) $it->get_total_tax();
-	}
-	$fees = 0.0;
-	foreach ( $order->get_fees() as $fee ) {
-		if ( (float) $fee->get_total() < 0 ) {
-			$fees += (float) $fee->get_total() + (float) $fee->get_total_tax();
-		}
-	}
-	$factor = $items > 0 ? ( $items + $fees ) / $items : 1;
-	$qty    = max( 1, (int) $item->get_quantity() );
-	return ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor / $qty;
+	return dox_pos_unit_value( $order, $item );
 }
 
 /**
@@ -785,8 +773,30 @@ function dox_pos_counter_find_order( $q ) {
  * @param string $reason   Por qué.
  * @return array|WP_Error
  */
-function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '' ) {
+function dox_pos_counter_refund( $order_id, $lines, $method, $reason = '', $extra = array() ) {
 	global $wpdb;
+	// Al saldo a favor: no sale dinero del cajón ni de la tarjeta (credit.php, con su propio candado).
+	if ( 'saldo' === $method ) {
+		$order = dox_pos_counter_order_access( wc_get_order( (int) $order_id ) );
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+		$r = dox_pos_credit_return( $order->get_id(), $lines, array_merge( (array) $extra, array( 'note' => $reason ) ) );
+		if ( is_wp_error( $r ) ) {
+			return $r;
+		}
+		$shift = dox_pos_counter_open_shift();
+		return array_merge(
+			$r,
+			array(
+				'amount'  => $r['credit'],
+				'method'  => 'saldo',
+				'to_card' => false,
+				'receipt' => dox_pos_counter_receipt( wc_get_order( $order->get_id() ) ),
+				'shift'   => $shift ? dox_pos_counter_format_shift( $shift ) : null,
+			)
+		);
+	}
 	// Una devolución a la vez por pedido: dos peticiones iguales a la vez pasarían las dos la cuenta de
 	// lo que queda por devolver y sacarían el dinero dos veces.
 	$lock = 'dox_pos_refund_' . (int) $order_id;
@@ -871,7 +881,26 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 	if ( ! $items ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'Choose what is being returned.', 'dox-pos' ) );
 	}
-	$amount = min( round( $amount, $dec ), (float) $order->get_remaining_refund_amount() );
+	// Si parte de la venta se pagó con saldo a favor, esa parte vuelve al saldo y no sale del cajón: el
+	// dinero que se devuelve es lo que se pagó en dinero, en proporción.
+	$amount   = round( $amount, $dec );
+	$credit   = dox_pos_order_credit_used( $order );
+	$to_saldo = 0.0;
+	if ( $credit > 0 ) {
+		$paid     = (float) $order->get_total() + $credit - dox_pos_order_deposit( $order );
+		$to_saldo = $paid > 0 ? round( min( $amount, $amount * $credit / $paid ), $dec ) : 0.0;
+		if ( $to_saldo > 0 && $amount > 0 ) {
+			// Las líneas del reembolso, en la misma proporción: suman lo que sale en dinero.
+			$ratio = ( $amount - $to_saldo ) / $amount;
+			foreach ( $items as &$it ) {
+				$it['refund_total'] = round( $it['refund_total'] * $ratio, $dec );
+				$it['refund_tax']   = array_map( fn( $t ) => round( $t * $ratio, $dec ), $it['refund_tax'] );
+			}
+			unset( $it );
+		}
+		$amount = round( $amount - $to_saldo, $dec );
+	}
+	$amount = min( $amount, (float) $order->get_remaining_refund_amount() );
 	// Quien no administra devuelve en efectivo como mucho lo que se pagó en efectivo (y aún no se
 	// devolvió): una venta con tarjeta no puede salir del cajón.
 	if ( 'efectivo' === $method && ! current_user_can( 'manage_woocommerce' ) ) {
@@ -893,6 +922,18 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 	if ( is_wp_error( $paid_back ) ) {
 		return $paid_back;
 	}
+	// Una venta pagada entera con saldo tiene total 0, y WooCommerce la daría por reembolsada entera con
+	// la primera prenda devuelta. Mientras queden prendas por devolver, sigue como estaba.
+	$left_units = 0;
+	foreach ( $order->get_items() as $iid => $it ) {
+		$left_units += (int) $it->get_quantity() - abs( (int) $order->get_qty_refunded_for_item( $iid ) );
+	}
+	$left_units -= array_sum( $want );
+	$keep        = function ( $status ) use ( $left_units ) {
+		return $left_units > 0 ? false : $status;
+	};
+	add_filter( 'woocommerce_order_fully_refunded_status', $keep );
+	$ctx    = dox_pos_stock_context( 'refund', $order->get_id() ); // El kardex: "Reembolso #123".
 	$refund = wc_create_refund(
 		array(
 			'order_id'       => $order->get_id(),
@@ -903,8 +944,14 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 			'refund_payment' => false,  // El dinero lo da la tienda: del cajón o en el datáfono.
 		)
 	);
+	dox_pos_stock_context_end( $ctx );
+	remove_filter( 'woocommerce_order_fully_refunded_status', $keep );
 	if ( is_wp_error( $refund ) ) {
 		return $refund;
+	}
+	if ( $to_saldo > 0 ) {
+		/* translators: %s: order number */
+		$to_saldo = dox_pos_credit_give_back( $order, $to_saldo, sprintf( __( 'Return at the counter, order #%s: the part paid with store credit', 'dox-pos' ), $order->get_order_number() ) );
 	}
 	$refund->update_meta_data( '_dox_pos_refund_method', 'efectivo' === $method ? 'efectivo' : 'original' );
 	$refund->update_meta_data( '_dox_pos_seller_name', $user->display_name );
@@ -915,6 +962,7 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 	$order->add_order_note( sprintf( /* translators: 1: amount, 2: user, 3: how */ __( 'Returned at the counter: %1$s by %2$s (%3$s).', 'dox-pos' ), html_entity_decode( wp_strip_all_tags( wc_price( $amount ) ) ), $user->display_name, 'efectivo' === $method ? __( 'cash from the drawer', 'dox-pos' ) : __( 'same payment method', 'dox-pos' ) ) );
 	return array(
 		'amount'  => $amount,
+		'credit'  => $to_saldo, // Lo que volvió al saldo a favor (la parte que se pagó con él).
 		'method'  => 'efectivo' === $method ? 'efectivo' : 'original',
 		'to_card' => 'card' === $paid_back, // El lector conectado ya devolvió el dinero a la tarjeta.
 		'receipt' => dox_pos_counter_receipt( wc_get_order( $order->get_id() ) ),
@@ -982,7 +1030,7 @@ function dox_pos_rest_counter_order( WP_REST_Request $request ) {
 
 function dox_pos_rest_counter_refund( WP_REST_Request $request ) {
 	$b = (array) $request->get_json_params();
-	return dox_pos_rest_out( dox_pos_counter_refund( (int) ( $b['order'] ?? 0 ), (array) ( $b['lines'] ?? array() ), sanitize_key( $b['method'] ?? 'efectivo' ), (string) ( $b['reason'] ?? '' ) ) );
+	return dox_pos_rest_out( dox_pos_counter_refund( (int) ( $b['order'] ?? 0 ), (array) ( $b['lines'] ?? array() ), sanitize_key( $b['method'] ?? 'efectivo' ), (string) ( $b['reason'] ?? '' ), array( 'fee' => $b['fee'] ?? '', 'phone' => (string) ( $b['phone'] ?? '' ), 'name' => (string) ( $b['name'] ?? '' ) ) ) );
 }
 
 /**

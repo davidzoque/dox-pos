@@ -85,12 +85,45 @@ function dox_pos_history_orders( $range, $seller = 0 ) {
 	return $orders;
 }
 
+/**
+ * Las unidades que se llevó la clienta: las de cada línea menos las que devolvió (por dinero o al saldo).
+ */
 function dox_pos_order_units( $order ) {
 	$u = 0;
-	foreach ( $order->get_items() as $item ) {
-		$u += (int) $item->get_quantity();
+	foreach ( $order->get_items() as $id => $item ) {
+		$u += max( 0, (int) $item->get_quantity() - abs( (int) $order->get_qty_refunded_for_item( $id ) ) );
 	}
 	return $u;
+}
+
+/**
+ * Las devoluciones en dinero del periodo (por su fecha), de los pedidos que la caja enseña. Las que
+ * pasaron al saldo a favor van por 0 y no cuentan: no salió dinero.
+ *
+ * @param array $range Lo que devuelve dox_pos_history_range().
+ * @return array [{day, amount, method, order}]
+ */
+function dox_pos_history_refunds( $range ) {
+	$out    = array();
+	$titles = function_exists( 'dox_pos_counter_payments' ) ? wp_list_pluck( dox_pos_counter_payments(), 'title' ) : array();
+	foreach ( wc_get_orders( array( 'type' => 'shop_order_refund', 'limit' => -1, 'date_created' => $range['start'] . '...' . $range['end'] ) ) as $r ) {
+		$amount = abs( (float) $r->get_amount() );
+		if ( $amount <= 0 ) {
+			continue;
+		}
+		$parent = wc_get_order( $r->get_parent_id() );
+		if ( ! $parent instanceof WC_Order || ( ! dox_pos_show_web_orders() && DOX_POS_VIA !== $parent->get_created_via() ) ) {
+			continue;
+		}
+		$out[] = array(
+			'day'    => $r->get_date_created() ? $r->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'],
+			'amount' => $amount,
+			// Del cajón, en efectivo; si no, por la forma de pago con que se pagó.
+			'method' => 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ? ( $titles['efectivo'] ?? __( 'Cash', 'dox-pos' ) ) : $parent->get_payment_method_title(),
+			'order'  => $parent->get_order_number(),
+		);
+	}
+	return $out;
 }
 
 /**
@@ -107,7 +140,9 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 	$orders = dox_pos_history_orders( $range, $seller );
 	$see    = dox_pos_can_see_costs(); // El costo y la ganancia: solo para quien administra.
 	$losses = dox_pos_can_see_losses(); // Las pérdidas anotadas en los pedidos: también solo para quien administra.
-	$t      = array( 'orders' => 0, 'units' => 0, 'sold' => 0.0, 'avg' => 0.0, 'pending_n' => 0, 'pending' => 0.0, 'cancelled_n' => 0 );
+	// sold: lo vendido, ya sin lo devuelto en dinero. credit_used: lo que se pagó con saldo a favor (no
+	// suma: contó cuando entró como abono o cuando se pagó la venta devuelta). deposits: lo que entró como abono.
+	$t      = array( 'orders' => 0, 'units' => 0, 'sold' => 0.0, 'avg' => 0.0, 'pending_n' => 0, 'pending' => 0.0, 'cancelled_n' => 0, 'refunded' => 0.0, 'credit_used' => 0.0, 'deposits' => 0.0 );
 	if ( $see ) {
 		// La ganancia suma solo las ventas con el costo de todas sus líneas; las que no lo tienen se cuentan aparte.
 		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'revenue' => 0.0, 'margin' => null, 'profit_n' => 0, 'no_cost_n' => 0 );
@@ -146,10 +181,14 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 			$f['loss']      = dox_pos_order_loss( $o );
 			$f['loss_note'] = (string) $o->get_meta( '_dox_pos_loss_note' );
 		}
+		$f['net'] = round( $f['total'] - $f['refunded'], 2 ); // Lo que quedó de la venta después de lo devuelto en dinero.
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$t['orders']++;
-			$t['units'] += $f['units'];
-			$t['sold']  += $f['total'];
+			$t['units']       += $f['units'];
+			$t['sold']        += $f['net'];
+			$t['refunded']    += $f['refunded'];
+			$t['credit_used'] += $f['credit_used'];
+			$t['deposits']    += $f['deposit'];
 			if ( $losses && $f['loss'] > 0 ) {
 				$t['loss'] += $f['loss'];
 				$t['loss_n']++;
@@ -166,10 +205,10 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 					$t['no_cost_n']++;
 				}
 			}
-			$add( $by['channel'], $f['channel'], $f['total'], $f['units'], $profit );
-			$add( $by['payment'], $f['payment'], $f['total'], $f['units'], $profit );
-			$add( $by['seller'], $f['seller'] ? $f['seller'] : ( 'caja' === $f['origin'] ? '' : $f['origin_label'] ), $f['total'], $f['units'], $profit );
-			$add( $by['day'], $f['day'], $f['total'], $f['units'], $profit );
+			$add( $by['channel'], $f['channel'], $f['net'], $f['units'], $profit );
+			$add( $by['payment'], $f['payment'], $f['net'], $f['units'], $profit );
+			$add( $by['seller'], $f['seller'] ? $f['seller'] : ( 'caja' === $f['origin'] ? '' : $f['origin_label'] ), $f['net'], $f['units'], $profit );
+			$add( $by['day'], $f['day'], $f['net'], $f['units'], $profit );
 		} elseif ( in_array( $status, DOX_POS_OPEN, true ) ) {
 			$t['pending_n']++;
 			$t['pending'] += $f['total'];
@@ -219,7 +258,7 @@ function dox_pos_history_cash( $from, $to ) {
 	$losses  = dox_pos_can_see_losses();
 	$days    = array();
 	$methods = array();
-	$t       = array( 'orders' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'cod' => 0.0, 'cod_n' => 0, 'holds' => 0.0, 'holds_n' => 0 );
+	$t       = array( 'orders' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'cod' => 0.0, 'cod_n' => 0, 'holds' => 0.0, 'holds_n' => 0, 'refunded' => 0.0, 'refunds_n' => 0 );
 	if ( $see ) {
 		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'no_cost_n' => 0 ); // La ganancia del día, con las ventas que tienen costo completo.
 	}
@@ -232,7 +271,7 @@ function dox_pos_history_cash( $from, $to ) {
 		$day    = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status = $o->get_status();
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0 );
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'refunded' => 0.0 );
 		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$days[ $day ]['n']++;
@@ -261,7 +300,7 @@ function dox_pos_history_cash( $from, $to ) {
 				$t['cod_n']++;
 				$f['kind']  = 'cod';
 				$pending[]  = $f;
-			} else {
+			} elseif ( abs( $f['total'] ) > 0.00001 ) { // Pagada entera con saldo a favor: no entró dinero por ninguna forma de pago.
 				$m = $f['payment'] ? $f['payment'] : __( 'No payment method', 'dox-pos' );
 				$days[ $day ]['cashed']        += $f['total'];
 				$days[ $day ]['methods'][ $m ]  = ( $days[ $day ]['methods'][ $m ] ?? 0 ) + $f['total'];
@@ -280,7 +319,25 @@ function dox_pos_history_cash( $from, $to ) {
 			$pending[] = $f;
 		}
 	}
-	$days = array_filter( $days, fn( $d ) => $d['n'] || $d['holds'] > 0 );
+	// Lo devuelto en dinero sale de la caja el día que se devolvió, por la forma de pago con que sale.
+	foreach ( dox_pos_history_refunds( $range ) as $r ) {
+		$day = $r['day'];
+		if ( ! isset( $days[ $day ] ) ) {
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'refunded' => 0.0 );
+		}
+		$m                              = '' !== $r['method'] ? $r['method'] : __( 'No payment method', 'dox-pos' );
+		$days[ $day ]['refunded']      += $r['amount'];
+		$days[ $day ]['cashed']        -= $r['amount'];
+		$days[ $day ]['methods'][ $m ]  = ( $days[ $day ]['methods'][ $m ] ?? 0 ) - $r['amount'];
+		$t['cashed']                   -= $r['amount'];
+		$t['refunded']                 += $r['amount'];
+		$t['refunds_n']++;
+		if ( ! isset( $methods[ $m ] ) ) {
+			$methods[ $m ] = array( 'name' => $m, 'n' => 0, 'total' => 0.0 );
+		}
+		$methods[ $m ]['total'] -= $r['amount'];
+	}
+	$days = array_filter( $days, fn( $d ) => $d['n'] || $d['holds'] > 0 || $d['refunded'] > 0 );
 	ksort( $days );
 	usort( $methods, fn( $a, $b ) => $b['total'] <=> $a['total'] );
 	return array(

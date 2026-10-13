@@ -1270,6 +1270,7 @@ function dox_pos_sanitize_sales( $in ) {
 	$out['default_payment'] = $default;
 	$out['web_orders']      = ! empty( $in['web_orders'] );
 	$out['discount_max']    = max( 0, min( 100, (int) ( $in['discount_max'] ?? 100 ) ) ); // El descuento máximo de quien no administra (%).
+	$out['exchange_fee']    = round( max( 0, min( 100, (float) str_replace( ',', '.', (string) ( $in['exchange_fee'] ?? 0 ) ) ) ), 2 ); // El cargo por cambio que se queda la tienda al pasar prendas al saldo a favor (%).
 	$out['open_panel']      = ! empty( $in['open_panel'] );
 	$out['counter']         = ! empty( $in['counter'] );
 	// El ticket del Mostrador: ancho del papel, encabezado y pie, y si lleva el logo.
@@ -1933,6 +1934,21 @@ function dox_pos_settings_page() {
 								<span class="dp-unit">%</span>
 							</div>
 							<p class="dp-hint"><?php esc_html_e( '0: they cannot give discounts. 100: no limit.', 'dox-pos' ); ?></p>
+						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Store credit', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Money a customer leaves with the shop to use later: a deposit on a made-to-order piece, or what returned items are worth when the shop does not give money back. It is kept by phone number, it is used as a payment method in Sell and at the Counter, and the Reports tab shows each customer\'s balance and history.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-field dp-field-short">
+							<label class="dp-label" for="dp-exchange-fee"><?php esc_html_e( 'Exchange fee', 'dox-pos' ); ?></label>
+							<div class="dp-unitfield">
+								<input type="number" min="0" max="100" step="0.5" id="dp-exchange-fee" name="dox_pos_sales[exchange_fee]" value="<?php echo esc_attr( (string) dox_pos_exchange_fee() ); ?>" class="dp-input" inputmode="decimal">
+								<span class="dp-unit">%</span>
+							</div>
+							<p class="dp-hint"><?php esc_html_e( 'What the shop keeps when returned items go to store credit. 0: the customer keeps their full value. It can be changed on each return.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
 
