@@ -417,6 +417,7 @@ return array(
 		'For a balance you kept somewhere else (a spreadsheet, a notebook). It does not count as a sale: that money already came in.' => 'Para un saldo que llevabas en otro lado (una hoja de cálculo, un cuaderno). No cuenta como venta: esa plata ya entró.',
 		'Formula' => 'Fórmula',
 		'Formulas, coupons and zones for other countries are set in WooCommerce.' => 'Las fórmulas, los cupones y las zonas de otros países se ponen en WooCommerce.',
+		'Four colors dress the whole register; the border and background shades, and the tint of what is chosen, come from them. The text on the bar and on the buttons is decided on its own, from how dark the background is.' => 'Cuatro colores visten toda la caja; de ellos salen los tonos de bordes y fondos, y el tinte de lo elegido. El texto sobre la barra y los botones se decide solo según lo oscuro que sea el fondo.',
 		'Free' => 'Gratis',
 		'Free from' => 'Gratis desde',
 		'Free shipping' => 'Envío gratis',
