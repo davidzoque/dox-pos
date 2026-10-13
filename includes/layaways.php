@@ -41,10 +41,29 @@ function dox_pos_is_layaway( $order ) {
 }
 
 /**
+ * Lo abonado a un apartado (los abonos, no el saldo que la clienta ya tenía). Para la ganancia: el
+ * apartado vende todo lo que vale, aunque parte del dinero entrara antes en sus pedidos de abono.
+ *
+ * @param WC_Order $order El pedido.
+ * @return float
+ */
+function dox_pos_order_layaway_deposits( $order ) {
+	$sum = 0.0;
+	foreach ( $order->get_fees() as $fee ) {
+		if ( $fee->get_meta( '_dox_pos_dep_order' ) ) {
+			$sum += - (float) $fee->get_total();
+		}
+	}
+	return $sum;
+}
+
+/**
  * ¿Sigue apartado (sin pagar ni cancelar)?
  */
 function dox_pos_layaway_open( $order ) {
-	return dox_pos_is_layaway( $order ) && $order->has_status( array( 'on-hold', 'pending', 'failed' ) );
+	// Uno cancelado que alguien vuelve a poner en espera desde WooCommerce ya devolvió sus abonos al
+	// saldo: no se trata como apartado abierto, o esos abonos contarían dos veces.
+	return dox_pos_is_layaway( $order ) && $order->has_status( array( 'on-hold', 'pending', 'failed' ) ) && ! (float) $order->get_meta( '_dox_pos_credit_restored' );
 }
 
 /**
@@ -198,6 +217,10 @@ function dox_pos_layaway_change_deadline( $order, $hours ) {
 	if ( ! dox_pos_layaway_open( $order ) ) {
 		return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 	}
+	// Un plazo que no es un número no se toma como "Sin vencer": se avisa.
+	if ( ! is_numeric( $hours ) || (float) $hours < 0 ) {
+		return new WP_Error( 'dox_pos_plazo', __( 'Choose the deadline.', 'dox-pos' ) );
+	}
 	$hours = dox_pos_hold_hours_from( $hours );
 	dox_pos_layaway_set_deadline( $order, $hours );
 	/* translators: 1: who changed it, 2: "It expires on ..." or "It has no deadline." */
@@ -222,7 +245,8 @@ function dox_pos_layaway_change_deadline( $order, $hours ) {
  */
 function dox_pos_layaway_add_deposit( $order_id, $amount, $payment, $ref = '' ) {
 	$order = wc_get_order( (int) $order_id );
-	if ( ! dox_pos_layaway_open( $order ) ) {
+	// Con referencia, uno ya pagado puede ser el reintento del abono que lo pagó: lo mira la función de abajo.
+	if ( ! dox_pos_is_layaway( $order ) || ( '' === (string) $ref && ! dox_pos_layaway_open( $order ) ) ) {
 		return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 	}
 	$key = dox_pos_credit_key( $order->get_billing_phone() );
@@ -244,6 +268,16 @@ function dox_pos_layaway_add_deposit( $order_id, $amount, $payment, $ref = '' ) 
  */
 function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref, $key ) {
 	$order = wc_get_order( $order_id ); // Otra vez, ya con el candado: pudo cambiar mientras se esperaba.
+	// El reintento de la caja sin señal: si ese abono ya entró, no se apunta otra vez (aunque con él
+	// el apartado ya quedara pagado y no siga abierto).
+	$ref = sanitize_text_field( (string) $ref );
+	if ( '' !== $ref && $order instanceof WC_Order ) {
+		foreach ( $order->get_fees() as $fee ) {
+			if ( $ref === (string) $fee->get_meta( '_dox_pos_dep_ref' ) ) {
+				return array( 'order' => dox_pos_format_order( $order ), 'deposit' => null );
+			}
+		}
+	}
 	if ( ! dox_pos_layaway_open( $order ) ) {
 		return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 	}
@@ -263,15 +297,6 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	if ( empty( $methods[ $pay_key ]['paid'] ) ) {
 		return new WP_Error( 'dox_pos_abono', __( 'A deposit is money that comes in now: choose the payment method it came in.', 'dox-pos' ) );
 	}
-	// El reintento de la caja sin señal: si ese abono ya entró, no se apunta otra vez.
-	$ref = sanitize_text_field( (string) $ref );
-	if ( '' !== $ref ) {
-		foreach ( $order->get_fees() as $fee ) {
-			if ( $ref === (string) $fee->get_meta( '_dox_pos_dep_ref' ) ) {
-				return array( 'order' => dox_pos_format_order( $order ), 'deposit' => null );
-			}
-		}
-	}
 
 	// El dinero que entra: un pedido de abono, como los del saldo a favor.
 	$num  = $order->get_order_number();
@@ -288,14 +313,17 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 			'address'  => $order->get_billing_address_1(),
 			'postcode' => $order->get_billing_postcode(),
 		),
-		'ref'      => '' !== $ref ? $ref . '-dep' : '',
+		// Con el apartado dentro: la referencia la manda la caja y no debe poder coincidir con la de otro pedido.
+		'ref'      => '' !== $ref ? 'layaway-' . $order->get_id() . '-' . $ref . '-dep' : '',
 	);
 	$made = dox_pos_create_order_locked( $data, false );
 	if ( is_wp_error( $made ) ) {
 		return $made;
 	}
 	$dep = wc_get_order( (int) $made['order']['id'] );
-	if ( ! $dep instanceof WC_Order ) {
+	// Si esa referencia ya tenía pedido (un reintento), tiene que ser este mismo abono.
+	$own = $dep instanceof WC_Order && in_array( (int) $dep->get_meta( '_dox_pos_layaway_of' ), array( 0, $order->get_id() ), true ) && abs( dox_pos_order_deposit( $dep ) - $amount ) < 0.00001;
+	if ( ! $own ) {
 		return new WP_Error( 'dox_pos_abono', __( 'The deposit could not be recorded. Nothing was changed.', 'dox-pos' ) );
 	}
 	$dep->update_meta_data( '_dox_pos_layaway_of', $order->get_id() );
@@ -350,17 +378,16 @@ function dox_pos_layaway_complete( $order, $payment ) {
 	$left = round( (float) $order->get_total(), wc_get_price_decimals() );
 	if ( $left <= 0 ) {
 		$order->set_payment_method( 'dox_pos_credit' );
-		$order->set_payment_method_title( dox_pos_order_credit_used( $order ) > 0 ? __( 'Deposits', 'dox-pos' ) : __( 'Store credit', 'dox-pos' ) );
+		$order->set_payment_method_title( dox_pos_order_layaway_deposits( $order ) > 0 ? __( 'Deposits', 'dox-pos' ) : __( 'Store credit', 'dox-pos' ) );
 	} else {
 		$methods = dox_pos_payment_methods();
 		$key     = sanitize_key( (string) $payment );
-		if ( '' !== $key ) {
-			if ( empty( $methods[ $key ]['paid'] ) ) {
-				return new WP_Error( 'dox_pos_pago', __( 'Choose how the rest was paid.', 'dox-pos' ) );
-			}
-			$order->set_payment_method( $methods[ $key ]['id'] );
-			$order->set_payment_method_title( $methods[ $key ]['title'] );
+		// Siempre con la forma de pago del resto: la de cuando se apartó pudo ser una que no entra ya (contraentrega).
+		if ( empty( $methods[ $key ]['paid'] ) ) {
+			return new WP_Error( 'dox_pos_pago', __( 'Choose how the rest was paid.', 'dox-pos' ) );
 		}
+		$order->set_payment_method( $methods[ $key ]['id'] );
+		$order->set_payment_method_title( $methods[ $key ]['title'] );
 	}
 	if ( function_exists( 'as_unschedule_all_actions' ) ) {
 		as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
@@ -392,19 +419,21 @@ function dox_pos_layaway_complete( $order, $payment ) {
  *
  * @param WC_Order $order   El apartado, ya cancelado.
  * @param string   $payment Con qué se devuelve (una forma de pago de la tienda).
- * @return float Lo devuelto.
+ * @return array {back: lo devuelto, failed: los números de los pedidos de abono que no se pudieron devolver}.
  */
 function dox_pos_layaway_refund_deposits( $order, $payment ) {
 	$methods = dox_pos_payment_methods();
 	$key     = sanitize_key( (string) $payment );
 	$title   = $methods[ $key ]['title'] ?? '';
 	$back    = 0.0;
+	$failed  = array();
 	// Al cliente no le sale el correo de "reembolsado" de WooCommerce (se lo dice la tienda) y el pedido de abono no cambia de estado.
 	add_filter( 'woocommerce_email_enabled_customer_refunded_order', '__return_false' );
 	add_filter( 'woocommerce_order_fully_refunded_status', '__return_false' );
 	foreach ( dox_pos_layaway_deposits( $order ) as $d ) {
 		$dep = $d['order'] ? wc_get_order( $d['order'] ) : null;
-		if ( ! $dep instanceof WC_Order ) {
+		// Un abono que ya se anuló o se devolvió por otro lado (desde WooCommerce) no se devuelve otra vez.
+		if ( ! $dep instanceof WC_Order || $dep->has_status( array( 'cancelled', 'refunded', 'failed' ) ) || $dep->get_meta( '_dox_pos_deposit_reversed' ) ) {
 			continue;
 		}
 		$amount = round( (float) $dep->get_total() - (float) $dep->get_total_refunded(), wc_get_price_decimals() );
@@ -421,6 +450,7 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 			)
 		);
 		if ( is_wp_error( $refund ) ) {
+			$failed[] = $dep->get_order_number();
 			continue;
 		}
 		$refund->update_meta_data( '_dox_pos_refund_method', '' !== $title ? $key : 'original' );
@@ -441,7 +471,46 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 		/* translators: 1: amount, 2: payment method */
 		$order->add_order_note( sprintf( __( 'Deposits given back to the customer: %1$s (%2$s).', 'dox-pos' ), dox_pos_money( $back ), '' !== $title ? $title : __( 'same payment method', 'dox-pos' ) ) );
 	}
-	return $back;
+	if ( $failed ) {
+		/* translators: %s: deposit order numbers */
+		$order->add_order_note( sprintf( __( 'These deposits could not be given back and stay as the customer’s store credit: #%s.', 'dox-pos' ), implode( ', #', $failed ) ) );
+	}
+	return array( 'back' => $back, 'failed' => $failed );
+}
+
+/**
+ * Antes de liberar o cancelar devolviendo el dinero: solo quien administra saca dinero de la caja (como
+ * las devoluciones del Mostrador), y con una forma de pago de la tienda.
+ *
+ * @param array $extra Lo que mandó la caja (refund, refund_payment).
+ * @return true|WP_Error
+ */
+function dox_pos_layaway_refund_check( $extra ) {
+	if ( empty( $extra['refund'] ) ) {
+		return true;
+	}
+	if ( ! current_user_can( 'manage_woocommerce' ) ) {
+		return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can give the money back. Leave it as store credit.', 'dox-pos' ) );
+	}
+	$methods = dox_pos_payment_methods();
+	if ( empty( $methods[ sanitize_key( (string) ( $extra['refund_payment'] ?? '' ) ) ]['paid'] ) ) {
+		return new WP_Error( 'dox_pos_pago', __( 'Choose how the money is given back.', 'dox-pos' ) );
+	}
+	return true;
+}
+
+/**
+ * Lo que la caja enseña después de devolver: si algún abono no se pudo devolver, lo dice.
+ *
+ * @param array $r Lo que devuelve dox_pos_layaway_refund_deposits.
+ * @return string Vacío si todo salió.
+ */
+function dox_pos_layaway_refund_warning( $r ) {
+	if ( empty( $r['failed'] ) ) {
+		return '';
+	}
+	/* translators: %s: deposit order numbers */
+	return sprintf( __( 'Layaway released, but these deposits could not be given back and stay as the customer’s store credit: #%s.', 'dox-pos' ), implode( ', #', $r['failed'] ) );
 }
 
 /* =====================================================================
@@ -460,10 +529,20 @@ function dox_pos_layaways_due( $days = 3 ) {
 	$limit  = time() + $days * DAY_IN_SECONDS;
 	$orders = wc_get_orders(
 		array(
-			'limit'       => 200,
+			'limit'       => 100,
 			'type'        => 'shop_order',
 			'created_via' => DOX_POS_VIA,
 			'status'      => array( 'wc-on-hold', 'wc-pending', 'wc-failed' ),
+			// Solo los que tienen fecha y vencen dentro del límite (los vencidos también), desde la base:
+			// en una tienda con muchos pedidos abiertos, los más viejos no se quedan fuera.
+			'meta_query'  => array( // phpcs:ignore WordPress.DB.SlowDBQuery
+				array(
+					'key'     => '_dox_pos_hold_until',
+					'value'   => array( 1, $limit ),
+					'compare' => 'BETWEEN',
+					'type'    => 'NUMERIC',
+				),
+			),
 		)
 	);
 	foreach ( $orders as $o ) {

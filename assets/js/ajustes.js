@@ -478,7 +478,7 @@
 	function pintarMensaje() {
 		const s = cfg.sample || {};
 		const t = mensaje.value.trim() || defaults.message || "";
-		// El plazo de ejemplo es el de Ajustes; sin vencer, las líneas con {due} y {hours} se quitan (como en la caja).
+		// El plazo de ejemplo es el de Ajustes; sin vencer, las frases con {due} y {hours} se quitan (como en la caja).
 		const nunca = !!(sinVencer && sinVencer.checked);
 		const n = parseInt(horas.value, 10) > 0 ? parseInt(horas.value, 10) : defaults.hours || 48;
 		const h = unidad && unidad.value === "days" ? n * 24 : n;
@@ -495,7 +495,9 @@
 			.replace(/\{remaining\}/g, s.remaining || "")
 			.replace(/\{link\}/g, s.link || "")
 			.replace(/\{store\}/g, $("#dp-name").value.trim() || cfg.siteName || "");
-		out = out.split("\n").filter((l) => l.indexOf(VACIO) < 0).join("\n");
+		// Se quita la frase con el dato vacío, no la línea entera, y nunca el enlace (como en la caja).
+		const frases = (l) => l.split(/(?<=[.!?])\s+/u).filter((f) => f.indexOf(VACIO) < 0 || (s.link && f.indexOf(s.link) >= 0)).map((f) => f.split(VACIO).join("")).join(" ");
+		out = out.split("\n").map((l) => (l.indexOf(VACIO) < 0 ? l : frases(l).trim() || null)).filter((l) => l !== null).join("\n");
 		out = out.replace(/[ \t]+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ");
 		const extra = nota.value.trim();
 		if (extra) out += "\n" + extra;

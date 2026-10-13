@@ -106,12 +106,14 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * New: layaways with their own deadline. When you put something on layaway you choose how long it is held (24 hours, 2, 7 or 30 days, any number of hours or days, or no deadline); it starts with the one in Settings, Layaways, which can now be set in hours or days or as "Layaways do not expire". The deadline can be extended, shortened or removed later from the order detail (Change deadline).
 * New: deposits on a layaway. Take part of the money when putting something on layaway, with its payment method, and add more deposits later from the order detail (Add deposit), each one on its own day. Each deposit counts as a sale on the day the money comes in, and the layaway's total (and its payment link) becomes what is left to pay. A deposit that covers everything marks the layaway as paid.
 * New: Charge the rest. Paying a layaway now asks how the rest was paid, and only what is left counts as a sale, on the day it is paid.
-* New: releasing a layaway with deposits asks what happens with the money: it stays as the customer's store credit (the default) or it is given back, with the payment method you choose (it comes off Sales on the day it goes out).
+* New: releasing a layaway with deposits asks what happens with the money: it stays as the customer's store credit (the default) or it is given back, with the payment method you choose (it comes off Sales on the day it goes out). Only administrators and shop managers can give money back; the Cashier role leaves it as store credit.
 * New: a layaway with deposits does not cancel itself when it expires: it shows up as expired until you extend it or release it. Layaways with no deposit still cancel themselves, as before.
 * New: Dashboard, Layaways due soon: the ones that expire within 3 days and the expired ones with deposits, with what was deposited, what is left and the WhatsApp button.
 * New: in Orders and in the order detail each layaway shows what it is worth, what has been deposited, what is left and when it expires.
-* New: the layaway message has {due} (when that layaway expires), {deposit} and {remaining}; a line whose placeholder does not apply removes itself. {hours} is now the hours left on that layaway.
+* New: the layaway message has {due} (when that layaway expires), {deposit} and {remaining}; a sentence whose placeholder does not apply removes itself (the payment link always stays). {hours} is now the hours left on that layaway.
 * Change: a layaway now counts as a sale on the day it is paid, not on the day it was put on layaway (only layaways created from this version on: past reports do not change).
+* Change: the profit of a layaway counts everything it is worth on the day it is paid; its deposit orders count as sales but not as sales without a cost.
+* Change: in stores whose prices exclude tax, the Put on layaway window says that tax is added when it is saved.
 
 = 0.50.0 =
 * New: store credit. Money a customer leaves with the shop to use later, kept under their phone number. Take a deposit in Sell (Without a product, Deposit to store credit), for example 50% of a made-to-order piece: it counts as a sale on the day the money comes in, with its payment method.

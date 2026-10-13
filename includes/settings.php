@@ -1326,9 +1326,11 @@ function dox_pos_sanitize_sales( $in ) {
 }
 
 function dox_pos_sanitize_hours( $v ) {
-	$n = absint( $v );
 	// El número llega en la unidad elegida en el mismo formulario (horas o días): se guarda en horas.
+	// Se lee del formulario y no de $v: la primera vez que se guarda, WordPress pasa el valor dos veces
+	// por aquí (update_option y luego add_option) y la segunda ya vendría en horas.
 	$days = isset( $_POST['dox_pos_hold_unit'] ) && 'days' === $_POST['dox_pos_hold_unit']; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- options.php ya comprobó el nonce.
+	$n    = $days && isset( $_POST['dox_pos_hold_hours'] ) ? absint( wp_unslash( $_POST['dox_pos_hold_hours'] ) ) : absint( $v ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( $n <= 0 ) {
 		return 48;
 	}

@@ -1653,6 +1653,7 @@
 			else if (act === "release" && p.layaway && p.layaway.deposited > 0) msg = __("Layaway released. What was deposited is now the customer’s store credit.", "dox-pos");
 			if (act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido")) msg = __("Order cancelled.", "dox-pos");
 			else if (act === "loss") msg = extra && extra.amount > 0 ? __("Loss noted.", "dox-pos") : __("Loss removed.", "dox-pos");
+			if (r && r.order && r.order.warning) msg = r.order.warning; // Algún abono no se pudo devolver.
 			toast(msg);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.message);
@@ -1821,6 +1822,7 @@
 				quitarDeCola(item.id);
 				hechos++;
 				if (item.tipo === "entrada") toast(sprintf(__("Entry saved: %s.", "dox-pos"), item.resumen));
+				else if (item.tipo === "apartado" && d.deposit_error) toast(sprintf(__("Layaway #%1$s recorded, but its deposit did not go in: %2$s Charge the money again from the order.", "dox-pos"), d.order.number, d.deposit_error)); // Sin esto, el abono cobrado sin señal se perdería sin aviso.
 				else if (item.tipo === "apartado") toast(sprintf(MSG.recorded, d.order.number));
 				else toast(sprintf(__("Sale recorded: order #%s.", "dox-pos"), d.order.number));
 			} catch (e) {
@@ -2022,7 +2024,8 @@
 			$("#ap-sum").innerHTML = fila(__("Worth", "dox-pos"), dinero(tt.base)) +
 				(tt.cred ? fila(__("Paid with store credit", "dox-pos"), "−" + dinero(tt.cred)) : "") +
 				(dep ? fila(__("Deposit now", "dox-pos"), "−" + dinero(dep)) : "") +
-				'<div class="tot"><span>' + esc(__("Left to pay", "dox-pos")) + "</span><span>" + dinero(Math.max(0, falta0 - dep)) + "</span></div>";
+				'<div class="tot"><span>' + esc(__("Left to pay", "dox-pos")) + "</span><span>" + dinero(Math.max(0, falta0 - dep)) + "</span></div>" +
+				(cfg.tax_extra ? '<p class="sub">' + esc(__("Plus tax: the exact amount is calculated when the layaway is saved.", "dox-pos")) + "</p>" : "");
 		};
 		$("#modal-card").addEventListener("input", sum);
 		sum();
@@ -2030,7 +2033,8 @@
 			const h = plazo();
 			if (h === null) { toast(__("Write how long the layaway lasts.", "dox-pos")); $("#pz-n").focus(); return; }
 			const a = abono();
-			if (a && a.amount > falta0 + 0.00001) { toast(sprintf(__("The deposit cannot be more than what is left to pay (%s).", "dox-pos"), dinero(falta0))); return; }
+			// Con impuesto aparte, el tope lo pone la tienda al guardar (aquí no se sabe el impuesto).
+			if (a && !cfg.tax_extra && a.amount > falta0 + 0.00001) { toast(sprintf(__("The deposit cannot be more than what is left to pay (%s).", "dox-pos"), dinero(falta0))); return; }
 			cerrarModal();
 			cerrar(true, { hours: h, deposit: a && a.amount > 0 ? a : null });
 		};
@@ -2097,6 +2101,10 @@
 			if (PAGOS_YA.length) chips($("#lb-pago"), PAGOS_YA, pago, (x) => { pago = x; pintar(); });
 		};
 		pintar();
+		// Devolver el dinero es de quien administra (como las devoluciones del Mostrador); la caja lo deja en su saldo.
+		if (!(cfg.credit && cfg.credit.manage)) {
+			$("#lb-modo").innerHTML = '<p class="sub">' + esc(__("What was deposited stays as the customer’s store credit. Only administrators and shop managers can give the money back.", "dox-pos")) + "</p>";
+		}
 		$("#m-ok").onclick = () => { cerrarModal(); accion(p, "release", modo === "dinero" ? { refund: true, refund_payment: pago } : {}); };
 		$("#m-no").onclick = cerrarModal;
 	}
