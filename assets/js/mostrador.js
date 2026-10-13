@@ -322,7 +322,7 @@
 					vb.type = "button";
 					vb.className = "var";
 					vb.disabled = libres(v) < 1;
-					vb.innerHTML = '<span class="l">' + esc(v.label) + "<i>" + esc(v.sku) + '</i></span><span class="s">' + textoStock(v) + "</span>";
+					vb.innerHTML = '<span class="l">' + esc(v.label) + "<i>" + esc(v.sku) + '</i></span><span class="s' + (libres(v) <= 0 ? " bad" : libres(v) <= (+cfg.low_stock || 0) ? " warn" : "") + '">' + textoStock(v) + "</span>";
 					vb.onclick = () => { añadir(v.id); volverAlLector(); };
 					box.appendChild(vb);
 				});

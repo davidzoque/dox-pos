@@ -49,13 +49,13 @@ button,a,input,select,textarea{touch-action:manipulation} /* sin zoom por doble 
 .brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
 .logo{height:18px;width:auto;display:block}
 .brand-text{font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--bar-ink)}
-.cajita{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bar-ink);opacity:.62;
+.cajita{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--bar-ink);opacity:.78;
   font-weight:600;padding-left:10px;border-left:1px solid rgba(0,0,0,.18)}
 .tabs{display:flex;gap:2px;margin-left:6px;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{appearance:none;border:0;background:none;color:var(--bar-ink);font:600 13px var(--ui);display:flex;align-items:center;gap:7px;
   padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;white-space:nowrap;transition:var(--press)}
-.tabs button:not([aria-pressed="true"]){color:color-mix(in srgb,var(--bar-ink) 68%,transparent)}
+.tabs button:not([aria-pressed="true"]){color:color-mix(in srgb,var(--bar-ink) 82%,transparent)}
 .tabs button svg{width:17px;height:17px;flex:none}
 .tabs button[aria-pressed="true"]{background:var(--tab-on);color:var(--tab-on-ink)}
 .tabs button:active{transform:scale(.96)}
@@ -174,11 +174,11 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 /* ---------- el pedido ---------- */
 .grp{padding:14px 0;border-bottom:1px solid var(--line)}
 .grp:last-of-type{border-bottom:0}
-.grp h4{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+.grp h4{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
   margin:0 0 10px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
 .cnt{font-weight:500;letter-spacing:0;text-transform:none;font-size:12px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.field{display:grid;gap:5px}
+.field{display:grid;gap:5px;align-content:start} /* al lado de un campo con nota debajo, el suyo no se estira */
 .field label{font-size:11px;color:var(--muted);font-weight:500}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
@@ -223,7 +223,7 @@ button.epz:active{transform:scale(.98)}
 .sum div{display:flex;justify-content:space-between;font-size:13px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
 .sum div.tot{color:var(--ink);font-family:var(--serif);font-weight:700;font-size:30px;letter-spacing:-.03em;align-items:baseline;padding-top:4px}
 .sum div.tot span:first-child{font-family:var(--ui);font-size:11.5px;letter-spacing:.1em;
-  text-transform:uppercase;font-weight:700;color:var(--faint)}
+  text-transform:uppercase;font-weight:700;color:var(--muted)}
 .go{appearance:none;border:0;width:100%;background:var(--primary);color:var(--on-primary);border-radius:12px;
   padding:14px;min-height:50px;font:700 15.5px var(--ui);cursor:pointer;transition:var(--press),opacity 150ms ease}
 .go:active:not(:disabled){transform:scale(.98)}
@@ -237,7 +237,7 @@ button.epz:active{transform:scale(.98)}
 .wrapx{overflow:auto;flex:1;min-height:0;padding:14px 16px 16px}
 /* Las tablas: una tarjeta con la cabecera hundida y filas que se iluminan al pasar. */
 table.ped{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:15px}
-table.ped th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+table.ped th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
   font-weight:700;padding:11px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--sunk);z-index:1;white-space:nowrap}
 table.ped th:first-child{border-top-left-radius:14px}
 table.ped th:last-child{border-top-right-radius:14px}
@@ -496,7 +496,7 @@ tr.off,li.off{opacity:.5}
 .kpis{display:flex;flex-wrap:wrap;gap:10px} /* en flex la última fila se reparte lo que queda: nunca deja el hueco de una rejilla */
 .kpi{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px 16px;min-width:0}
 .kpi b{display:block;font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.kpi span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
 /* ---- el Panel: lo de hoy en grande, la franja de los periodos, la gráfica y las listas ---- */
 .pnl{padding-bottom:24px}
 .pnl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -518,7 +518,7 @@ tr.off,li.off{opacity:.5}
    así no quedan huecos aunque los módulos añadan o quiten casillas. */
 .kstrip{display:flex;flex-wrap:wrap;gap:1px;margin-top:10px;background:var(--line);border:1px solid var(--line);border-radius:15px;overflow:hidden}
 .ks{flex:1 1 210px;min-width:0;background:var(--surface);padding:11px 14px;transition:background-color 150ms ease}
-.ks span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.ks span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .ks b{display:block;margin-top:1px;font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ks em{font-style:normal;font-weight:600;font-size:12.5px}
 .ks i{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
@@ -544,7 +544,7 @@ tr.off,li.off{opacity:.5}
 .pcard.pwide{flex:1 1 100%}
 .pmain{flex:3 1 330px}
 .pside{flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:12px}
-.pcard h4{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.pcard h4{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .pcard h4 .cnt{font-family:var(--serif);font-size:15px;color:var(--ink)}
 .pcard .empty{padding:8px 0 2px}
 .ptop li{align-items:center;gap:10px}
@@ -607,6 +607,11 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .usob.hoy b{background:var(--primary)}
 .usob i{font-size:9px;line-height:10px;height:10px;color:var(--muted);font-style:normal;text-align:center}
 .bl.uso li span:first-child{flex:1;min-width:0;white-space:normal}
+/* Saldo a favor: las clientas en una tarjeta, como las demás listas de Informes. */
+.bl.hs{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:2px 16px;margin-top:12px}
+.bl.hs .who{font-weight:600;color:var(--primary-text)}
+.bl.hs li{align-items:center;padding:12px 0}
+.bl.hs li .sub{flex:1;min-width:0}
 .bl.uso li span:first-child em{display:block;height:3px;min-width:3px;margin-top:5px;border-radius:3px;background:var(--primary-tint)}
 .bl li .sub2{display:block;font-size:11.5px;line-height:1.35;color:var(--muted);font-style:normal;margin-top:2px;white-space:normal}
 .bl li .tag{font-size:10px;padding:1px 6px;margin-left:6px;vertical-align:1px}
@@ -753,7 +758,7 @@ table.ped td.num .lnk{font-variant-numeric:tabular-nums;font-weight:600;color:va
 table.ped .lnk.items{white-space:normal}
 .modal .card.wide{max-width:680px}
 .od{display:flex;flex-direction:column;gap:16px;margin-top:6px}
-.od h4{margin:0 0 8px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.od h4{margin:0 0 8px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .odl{list-style:none;margin:0;padding:0}
 .odl li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
 .odl .thumb{width:48px;height:58px}
@@ -1049,16 +1054,17 @@ table.ped .lnk.items{white-space:normal}
    botón para quitar una sin ir a revisar. */
 .varrow{position:relative;display:flex;min-width:0}
 .varrow .var{flex:1;min-width:0}
-.varrow .var .l{padding-right:34px} /* el sitio del botón de quitar una */
+/* El botón de quitar una va en la esquina, por fuera del cuadro: no le quita sitio al nombre ni a las existencias. */
 /* Un tinte claro del color de la marca: --soft puede ser oscuro (cakto) y no dejaría leer la talla. */
 .var.puesto{border-color:var(--primary-strong);background:var(--primary-tint)}
 /* En Inventario lo que entra sube las existencias: en verde. */
 .var.puesto.add{border-color:var(--st-ok);background:var(--st-ok-soft)}
 .var.puesto.add .lleg{background:var(--st-ok);color:#fff}
+.var.puesto.add .s{background:var(--surface)} /* la píldora de existencias no se pierde sobre el verde */
 /* La última que quedaba ya está en el pedido: no se puede añadir otra, pero se sigue leyendo bien. */
 .var.puesto:disabled{opacity:1;cursor:default}
 .var .lleg{display:inline-block;margin-left:6px;font:700 11px/1.6 var(--ui);letter-spacing:0;color:var(--on-primary-sm);background:var(--primary);border-radius:999px;padding:0 7px;vertical-align:3px}
-.menos{appearance:none;position:absolute;top:7px;right:7px;width:30px;height:30px;border:1px solid var(--primary-strong);background:var(--surface);color:var(--primary-strong);border-radius:9px;
+.menos{appearance:none;position:absolute;top:-9px;right:-9px;z-index:1;width:28px;height:28px;border:1px solid var(--primary-strong);background:var(--surface);color:var(--primary-strong);border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.12);
   font:600 18px/1 var(--ui);cursor:pointer;display:grid;place-items:center;padding:0;transition:var(--press)}
 .add~.menos{border-color:var(--st-ok);color:var(--st-ok)}
 .menos:active{transform:scale(.94)}

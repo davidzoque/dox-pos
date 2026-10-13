@@ -237,7 +237,7 @@
 	}
 	const vacio = (txt) => '<li class="empty">' + esc(txt) + "</li>";
 	function iniciales(n) {
-		return n.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+		return n.replace(/[^\p{L} ]/gu, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 	}
 	function miniatura(p, sm) {
 		const t = document.createElement("span");
@@ -1460,7 +1460,7 @@
 		const t = String(nom || "").trim();
 		let h = 0;
 		for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 7;
-		return '<span class="av c' + (h + 1) + '" aria-hidden="true">' + esc(t ? iniciales(t) : "?") + "</span>";
+		return '<span class="av c' + (h + 1) + '" aria-hidden="true">' + esc((t && iniciales(t)) || "?") + "</span>";
 	};
 	// El canal de una venta con su icono de color (el de Vender).
 	const canalIc = (nom) => '<span class="chan" data-k="' + claseCanal(nom) + '"><span class="ic">' + iconoChip(claseCanal(nom)) + "</span>" + esc(nom) + "</span>";
@@ -1583,7 +1583,7 @@
 		if (d.note) h += "<span>" + esc(__("Note", "dox-pos")) + "</span><span>" + esc(d.note) + "</span>";
 		h += "</div></section>";
 		h += '<section><h4>' + esc(__("Payment and shipping", "dox-pos")) + '</h4><div class="kv">';
-		h += "<span>" + esc(__("Payment", "dox-pos")) + "</span><span>" + esc(d.payment) + (pago ? " · " + pago : "") + "</span>";
+		h += "<span>" + esc(__("Payment", "dox-pos")) + "</span><span>" + [esc(d.payment), pago].filter(Boolean).join(" · ") + "</span>";
 		if (d.status === "apartado" && d.hold_until && !d.layaway) h += "<span>" + esc(__("Layaway", "dox-pos")) + "</span><span>" + esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) + "</span>";
 		if (d.tracking) h += "<span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
 		if (d.completed_at) h += "<span>" + esc(__("Delivered", "dox-pos")) + "</span><span>" + esc(d.completed_at) + "</span>";
@@ -1679,10 +1679,10 @@
 				: canalIc(p.channel) + '<br><span class="sub">' + esc(__("POS", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
 			tr.innerHTML =
 				'<td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
-				'<td><div class="whoav">' + avatar(p.customer) + '<div><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></div></div></td>" +
+				'<td><div class="whoav">' + avatar(p.customer) + '<div><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + [p.city, p.phone].filter(Boolean).map(esc).join(" · ") + "</span></div></div></td>" +
 				'<td class="items"><button type="button" class="lnk items" data-ver="' + p.id + '">' + esc(p.items) + "</button>" + (p.note ? '<br><span class="sub">' + esc(p.note) + "</span>" : "") + "</td>" +
 				"<td>" + canal + "</td>" +
-				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
+				"<td>" + (p.payment ? esc(p.payment) + "<br>" : "") + '<span class="sub">' + pago + "</span></td>" + // Sin forma de pago (web), el estado del pago arriba.
 				(p.layaway && p.layaway.open
 					? '<td class="num">' + dinero(p.layaway.value) + (p.layaway.deposited ? '<br><span class="sub">' + esc(sprintf(__("deposited %1$s · left %2$s", "dox-pos"), dinero(p.layaway.deposited), dinero(p.layaway.remaining))) + "</span>" : "") + "</td>"
 					: p.layaway && p.layaway.deposited > 0 && p.status !== "anulado" && p.status !== "reembolsado"
@@ -1925,7 +1925,7 @@
 			const par = Array.isArray(x) ? x : [x, x];
 			const b = chip(par[1], sel === par[0], () => cb(par[0]));
 			if (tipo) {
-				b.dataset.k = tipo === "canal" ? claseCanal(par[1]) : clasePago(par[0]);
+				b.dataset.k = tipo === "canal" ? claseCanal(par[1]) : clasePago(par[0]) !== "otro" ? clasePago(par[0]) : clasePago(par[1]); // Las formas de pago propias (p_…) se reconocen por el nombre.
 				b.insertAdjacentHTML("afterbegin", '<span class="ic">' + iconoChip(b.dataset.k) + "</span>");
 			}
 			el.appendChild(b);
