@@ -1142,3 +1142,12 @@ table.hsm td b{font-weight:500}
 table.hsm td.num{white-space:nowrap}
 .card .chk{border:0;padding:4px 0;background:none}
 .cobro .fila a.go{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+
+/* ---------- apartados: plazo y abonos (0.51.0) ---------- */
+#modal-card p.lbl{margin:16px 0 6px;font-size:12px;font-weight:600;color:var(--ink)}
+#modal-card p.lbl.mt{margin-top:16px}
+#modal-card #ap-plazo .g2,#modal-card #pz-box .g2{margin-top:10px}
+.playa li{align-items:center}
+.playa li>span:first-child{min-width:0}
+.playa .sub .tag{margin-left:0}
+.playa .mini{margin-left:6px}

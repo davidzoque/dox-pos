@@ -79,10 +79,38 @@ function dox_pos_history_orders( $range, $seller = 0 ) {
 		$args['created_via'] = DOX_POS_VIA;
 	}
 	$orders = wc_get_orders( $args );
+	// Un apartado cuenta el día que se paga, no el día que se apartó (sus abonos ya contaron cada uno
+	// el suyo): salen los pagados fuera del periodo y entran los pagados en él aunque se apartaran antes.
+	$paid = $args;
+	unset( $paid['date_created'] );
+	$paid['date_paid']  = $range['start'] . '...' . $range['end'];
+	$paid['meta_query'] = array( array( 'key' => '_dox_pos_layaway', 'compare' => 'EXISTS' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+	$byid               = array();
+	foreach ( array_merge( $orders, wc_get_orders( $paid ) ) as $o ) {
+		$t = dox_pos_order_sale_date( $o );
+		if ( $t && $t->getTimestamp() >= $range['start'] && $t->getTimestamp() <= $range['end'] ) {
+			$byid[ $o->get_id() ] = $o;
+		}
+	}
+	$orders = array_values( $byid );
+	usort( $orders, fn( $a, $b ) => dox_pos_order_sale_date( $b )->getTimestamp() <=> dox_pos_order_sale_date( $a )->getTimestamp() );
 	if ( $seller ) {
 		$orders = array_values( array_filter( $orders, fn( $o ) => (int) $o->get_meta( '_dox_pos_seller' ) === (int) $seller ) );
 	}
 	return $orders;
+}
+
+/**
+ * El día en que cuenta una venta: el de su creación, salvo un apartado ya pagado, que cuenta el día del pago.
+ *
+ * @param WC_Order $o El pedido.
+ * @return WC_DateTime|null
+ */
+function dox_pos_order_sale_date( $o ) {
+	if ( $o->get_meta( '_dox_pos_layaway' ) && $o->get_date_paid() && ! $o->has_status( DOX_POS_OPEN ) ) {
+		return $o->get_date_paid();
+	}
+	return $o->get_date_created();
 }
 
 /**
@@ -119,11 +147,27 @@ function dox_pos_history_refunds( $range ) {
 			'day'    => $r->get_date_created() ? $r->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'],
 			'amount' => $amount,
 			// Del cajón, en efectivo; si no, por la forma de pago con que se pagó.
-			'method' => 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ? ( $titles['efectivo'] ?? __( 'Cash', 'dox-pos' ) ) : $parent->get_payment_method_title(),
+			'method' => dox_pos_refund_method_title( $r, $parent, $titles ),
 			'order'  => $parent->get_order_number(),
 		);
 	}
 	return $out;
+}
+
+/**
+ * Con qué salió el dinero de una devolución: del cajón en efectivo, por la forma de pago que eligió la
+ * tienda (los abonos devueltos de un apartado) o, si no consta, por la que se pagó el pedido.
+ */
+function dox_pos_refund_method_title( $refund, $parent, $titles ) {
+	$m = (string) $refund->get_meta( '_dox_pos_refund_method' );
+	if ( 'efectivo' === $m ) {
+		return $titles['efectivo'] ?? __( 'Cash', 'dox-pos' );
+	}
+	$methods = function_exists( 'dox_pos_payment_methods' ) ? dox_pos_payment_methods() : array();
+	if ( '' !== $m && isset( $methods[ $m ] ) ) {
+		return $methods[ $m ]['title'];
+	}
+	return $parent->get_payment_method_title();
 }
 
 /**
@@ -167,7 +211,7 @@ function dox_pos_history_sales( $from, $to, $seller = 0, $limit = 300 ) {
 	foreach ( $orders as $o ) {
 		$f          = dox_pos_format_order( $o );
 		$f['units'] = dox_pos_order_units( $o );
-		$f['day']   = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
+		$f['day']   = dox_pos_order_sale_date( $o ) ? dox_pos_order_sale_date( $o )->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status     = $o->get_status();
 		$pr         = null;
 		if ( $see ) {
@@ -268,7 +312,7 @@ function dox_pos_history_cash( $from, $to ) {
 	$pending = array();
 	foreach ( $orders as $o ) {
 		$f      = dox_pos_format_order( $o );
-		$day    = $o->get_date_created() ? $o->get_date_created()->date_i18n( 'Y-m-d' ) : $range['from'];
+		$day    = dox_pos_order_sale_date( $o ) ? dox_pos_order_sale_date( $o )->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status = $o->get_status();
 		if ( ! isset( $days[ $day ] ) ) {
 			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'refunded' => 0.0 );

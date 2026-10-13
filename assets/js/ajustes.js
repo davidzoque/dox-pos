@@ -457,6 +457,7 @@
 
 	// ---------- apartados: horas, mensaje y nota ----------
 	const mensaje = $("#dox_pos_hold_message"), nota = $("#dox_pos_payment_note"), horas = $("#dox_pos_hold_hours");
+	const unidad = $('[name="dox_pos_hold_unit"]'), sinVencer = $('[name="dox_pos_hold_never"]');
 	function linkear(text) {
 		const frag = document.createDocumentFragment();
 		const re = /https?:\/\/[^\s]+/g;
@@ -477,13 +478,24 @@
 	function pintarMensaje() {
 		const s = cfg.sample || {};
 		const t = mensaje.value.trim() || defaults.message || "";
+		// El plazo de ejemplo es el de Ajustes; sin vencer, las líneas con {due} y {hours} se quitan (como en la caja).
+		const nunca = !!(sinVencer && sinVencer.checked);
+		const n = parseInt(horas.value, 10) > 0 ? parseInt(horas.value, 10) : defaults.hours || 48;
+		const h = unidad && unidad.value === "days" ? n * 24 : n;
+		const vence = new Date(Date.now() + h * 3600000);
+		const fecha = vence.toLocaleDateString(document.documentElement.lang || undefined, { month: "long", day: "numeric" }) + ", " + vence.getHours() + ":" + String(vence.getMinutes()).padStart(2, "0");
+		const VACIO = "\u0000";
 		let out = t
 			.replace(/\{name\}/g, s.name || "")
 			.replace(/\{items\}/g, s.products || "")
 			.replace(/\{total\}/g, s.total || "")
-			.replace(/\{hours\}/g, String(parseInt(horas.value, 10) > 0 ? parseInt(horas.value, 10) : defaults.hours || 48))
+			.replace(/\{hours\}/g, nunca ? VACIO : String(h))
+			.replace(/\{due\}/g, nunca ? VACIO : fecha)
+			.replace(/\{deposit\}/g, s.deposit || "")
+			.replace(/\{remaining\}/g, s.remaining || "")
 			.replace(/\{link\}/g, s.link || "")
 			.replace(/\{store\}/g, $("#dp-name").value.trim() || cfg.siteName || "");
+		out = out.split("\n").filter((l) => l.indexOf(VACIO) < 0).join("\n");
 		out = out.replace(/[ \t]+([,.!?])/g, "$1").replace(/[ \t]{2,}/g, " ");
 		const extra = nota.value.trim();
 		if (extra) out += "\n" + extra;

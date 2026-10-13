@@ -142,7 +142,7 @@ function dox_pos_builtin_payments() {
 }
 
 function dox_pos_default_hold_message() {
-	return __( "Hi {name}, I am holding {items} for you for {total}. I will keep it for {hours} hours.\nTo confirm it you can pay here:\n{link}", 'dox-pos' );
+	return __( "Hi {name}, I am holding {items} for you for {total}.\nI will keep it for you until {due}.\nDeposited: {deposit}. Left to pay: {remaining}.\nYou can pay here:\n{link}", 'dox-pos' );
 }
 
 /* =====================================================================
@@ -643,11 +643,19 @@ function dox_pos_ship_message_template() {
 }
 
 /**
- * Horas que se guarda un apartado antes de liberarse solo.
+ * Horas que se guarda un apartado antes de liberarse solo (el plazo de fábrica de Ajustes > Apartados;
+ * cada apartado puede llevar el suyo). Si la tienda eligió "Sin vencer", ver dox_pos_hold_default_hours().
  */
 function dox_pos_hold_hours() {
 	$h = (int) get_option( 'dox_pos_hold_hours', 48 );
 	return $h > 0 ? $h : 48;
+}
+
+/**
+ * En qué se escribe el plazo en Ajustes: horas o días (se guarda siempre en horas).
+ */
+function dox_pos_hold_unit() {
+	return 'days' === get_option( 'dox_pos_hold_unit', 'hours' ) ? 'days' : 'hours';
 }
 
 /**
@@ -802,7 +810,7 @@ function dox_pos_money( $amount ) {
  * El total de ejemplo de la vista previa y del mensaje del apartado: lo que costaría un vestido en la
  * moneda de la tienda. Un solo número fijo (189.000) quedaba bien en pesos y salía "$189,000.00" en dólares.
  */
-function dox_pos_sample_total() {
+function dox_pos_sample_total( $raw = false ) {
 	$amounts = array(
 		'COP' => 189000,
 		'CLP' => 45000,
@@ -820,7 +828,8 @@ function dox_pos_sample_total() {
 		'BRL' => 249,
 	);
 	$currency = get_woocommerce_currency();
-	return dox_pos_money( $amounts[ $currency ] ?? 49 );
+	$amount   = $amounts[ $currency ] ?? 49;
+	return $raw ? $amount : dox_pos_money( $amount );
 }
 
 /* =====================================================================
@@ -1060,6 +1069,8 @@ function dox_pos_register_settings() {
 	register_setting( 'dox_pos', 'dox_pos_screen', array( 'type' => 'array', 'sanitize_callback' => 'dox_pos_sanitize_screen', 'default' => array() ) );
 	register_setting( 'dox_pos', 'dox_pos_sales', array( 'type' => 'array', 'sanitize_callback' => 'dox_pos_sanitize_sales', 'default' => array() ) );
 	register_setting( 'dox_pos', 'dox_pos_hold_hours', array( 'type' => 'integer', 'sanitize_callback' => 'dox_pos_sanitize_hours', 'default' => 48 ) );
+	register_setting( 'dox_pos', 'dox_pos_hold_unit', array( 'type' => 'string', 'sanitize_callback' => fn( $v ) => 'days' === $v ? 'days' : 'hours', 'default' => 'hours' ) );
+	register_setting( 'dox_pos', 'dox_pos_hold_never', array( 'type' => 'integer', 'sanitize_callback' => fn( $v ) => empty( $v ) ? 0 : 1, 'default' => 0 ) );
 	register_setting( 'dox_pos', 'dox_pos_hold_message', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_hold_message', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_ship_message', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_ship_message', 'default' => '' ) );
 	register_setting( 'dox_pos', 'dox_pos_payment_note', array( 'type' => 'string', 'sanitize_callback' => 'dox_pos_sanitize_note', 'default' => '' ) );
@@ -1315,8 +1326,13 @@ function dox_pos_sanitize_sales( $in ) {
 }
 
 function dox_pos_sanitize_hours( $v ) {
-	$h = absint( $v );
-	return $h > 0 ? $h : 48;
+	$n = absint( $v );
+	// El número llega en la unidad elegida en el mismo formulario (horas o días): se guarda en horas.
+	$days = isset( $_POST['dox_pos_hold_unit'] ) && 'days' === $_POST['dox_pos_hold_unit']; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- options.php ya comprobó el nonce.
+	if ( $n <= 0 ) {
+		return 48;
+	}
+	return $days ? min( 366, $n ) * 24 : min( 8784, $n );
 }
 
 function dox_pos_sanitize_hold_message( $v ) {
@@ -1546,6 +1562,9 @@ function dox_pos_admin_assets( $hook ) {
 				'name'     => __( 'Ana', 'dox-pos' ),
 				'products' => __( 'Ella dress (M · Pink)', 'dox-pos' ),
 				'total'    => dox_pos_sample_total(),
+				// Un abono de ejemplo, de algo menos de la mitad, y lo que falta.
+				'deposit'   => dox_pos_money( round( dox_pos_sample_total( true ) * 0.4, wc_get_price_decimals() ) ),
+				'remaining' => dox_pos_money( dox_pos_sample_total( true ) - round( dox_pos_sample_total( true ) * 0.4, wc_get_price_decimals() ) ),
 				'link'     => add_query_arg( array( 'pay_for_order' => 'true', 'key' => 'wc_order_ejemplo' ), wc_get_endpoint_url( 'order-pay', 1234, wc_get_checkout_url() ) ),
 			),
 			'notices'  => dox_pos_settings_notices(),
@@ -2030,15 +2049,20 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Deadline', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'A layaway keeps the product reserved. If it is not paid within the deadline, it cancels itself and the product goes back to stock.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'A layaway keeps the product reserved. If it is not paid within the deadline, it cancels itself and the product goes back to stock. A layaway with deposits does not cancel itself: it shows up as expired on the Dashboard until you extend it or cancel it. Each layaway can have its own deadline: this is the one it starts with.', 'dox-pos' ); ?></p>
 						</div>
+						<?php $hold_days = 'days' === dox_pos_hold_unit() && 0 === dox_pos_hold_hours() % 24; ?>
 						<div class="dp-field dp-field-short">
 							<label class="dp-label" for="dox_pos_hold_hours"><?php esc_html_e( 'Held for', 'dox-pos' ); ?></label>
 							<div class="dp-unitfield">
-								<input type="number" min="1" max="720" step="1" id="dox_pos_hold_hours" name="dox_pos_hold_hours" value="<?php echo esc_attr( dox_pos_hold_hours() ); ?>" class="dp-input" inputmode="numeric">
-								<span class="dp-unit"><?php esc_html_e( 'hours', 'dox-pos' ); ?></span>
+								<input type="number" min="1" max="8784" step="1" id="dox_pos_hold_hours" name="dox_pos_hold_hours" value="<?php echo esc_attr( $hold_days ? dox_pos_hold_hours() / 24 : dox_pos_hold_hours() ); ?>" class="dp-input" inputmode="numeric">
+								<select class="dp-unit" name="dox_pos_hold_unit" aria-label="<?php esc_attr_e( 'Hours or days', 'dox-pos' ); ?>">
+									<option value="hours" <?php selected( ! $hold_days ); ?>><?php esc_html_e( 'hours', 'dox-pos' ); ?></option>
+									<option value="days" <?php selected( $hold_days ); ?>><?php esc_html_e( 'days', 'dox-pos' ); ?></option>
+								</select>
 							</div>
 						</div>
+						<label class="dp-toggle dp-mt"><input type="checkbox" role="switch" name="dox_pos_hold_never" value="1" <?php checked( (bool) get_option( 'dox_pos_hold_never' ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Layaways do not expire', 'dox-pos' ); ?></b><span><?php esc_html_e( 'New layaways start with no deadline. You can still give one a deadline when you put it on layaway.', 'dox-pos' ); ?></span></span></label>
 					</div>
 
 					<div class="dp-card">
@@ -2050,12 +2074,12 @@ function dox_pos_settings_page() {
 						<div class="dp-field">
 							<label class="dp-label" for="dox_pos_hold_message"><?php esc_html_e( 'Text', 'dox-pos' ); ?></label>
 							<div class="dp-chips" id="dp-placeholders" aria-label="<?php esc_attr_e( 'Placeholders', 'dox-pos' ); ?>">
-								<?php foreach ( array( 'name', 'items', 'total', 'hours', 'link', 'store' ) as $p ) : ?>
+								<?php foreach ( array( 'name', 'items', 'total', 'due', 'deposit', 'remaining', 'hours', 'link', 'store' ) as $p ) : ?>
 								<button type="button" class="dp-chip" data-insert="{<?php echo esc_attr( $p ); ?>}">{<?php echo esc_html( $p ); ?>}</button>
 								<?php endforeach; ?>
 							</div>
 							<textarea id="dox_pos_hold_message" name="dox_pos_hold_message" rows="5" class="dp-input dp-textarea"><?php echo esc_textarea( dox_pos_hold_message_template() ); ?></textarea>
-							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> is the order\'s payment link and <code>{store}</code> is the brand name.', 'dox-pos' ), $kses_a ); ?></p>
+							<p class="dp-hint"><?php echo wp_kses( __( '<code>{link}</code> is the order\'s payment link and <code>{store}</code> is the brand name.', 'dox-pos' ), $kses_a ); ?> <?php echo wp_kses( __( '<code>{due}</code> is when that layaway expires, <code>{deposit}</code> what has been paid on it and <code>{remaining}</code> what is left. A line whose placeholder does not apply (no deadline, no deposits) removes itself.', 'dox-pos' ), $kses_a ); ?></p>
 						</div>
 						<div class="dp-field">
 							<label class="dp-label" for="dox_pos_payment_note"><?php esc_html_e( 'How to pay outside the link', 'dox-pos' ); ?></label>
