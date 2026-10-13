@@ -385,9 +385,10 @@ function dox_pos_layaway_complete( $order, $payment ) {
  * abono, con un reembolso de WooCommerce que resta de las ventas el día que sale). Lo que pagó con el
  * saldo que ya tenía vuelve a su saldo, como siempre.
  *
- * Se llama después de cancelar el apartado (que ya devolvió todo al saldo): cada reembolso deja el
- * pedido de abono como reembolsado y credit.php saca ese abono del saldo, así que el saldo queda
- * como estaba antes del apartado.
+ * Se llama después de cancelar el apartado (que ya devolvió todo al saldo). Cada pedido de abono
+ * conserva su estado (como las devoluciones del Mostrador y las del saldo): si pasara a "reembolsado",
+ * Caja del día dejaría de sumar su cobro y además restaría la devolución, dos veces. El abono se saca
+ * del saldo aquí mismo, así que el saldo queda como estaba antes del apartado.
  *
  * @param WC_Order $order   El apartado, ya cancelado.
  * @param string   $payment Con qué se devuelve (una forma de pago de la tienda).
@@ -398,8 +399,9 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 	$key     = sanitize_key( (string) $payment );
 	$title   = $methods[ $key ]['title'] ?? '';
 	$back    = 0.0;
-	// Al cliente no le sale el correo de "reembolsado" de WooCommerce: se lo dice la tienda.
+	// Al cliente no le sale el correo de "reembolsado" de WooCommerce (se lo dice la tienda) y el pedido de abono no cambia de estado.
 	add_filter( 'woocommerce_email_enabled_customer_refunded_order', '__return_false' );
+	add_filter( 'woocommerce_order_fully_refunded_status', '__return_false' );
 	foreach ( dox_pos_layaway_deposits( $order ) as $d ) {
 		$dep = $d['order'] ? wc_get_order( $d['order'] ) : null;
 		if ( ! $dep instanceof WC_Order ) {
@@ -424,8 +426,17 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 		$refund->update_meta_data( '_dox_pos_refund_method', '' !== $title ? $key : 'original' );
 		$refund->save_meta_data();
 		$back += $amount;
+		// Ese abono sale del saldo: la plata se le devolvió.
+		$dep = wc_get_order( $dep->get_id() );
+		if ( ! $dep->get_meta( '_dox_pos_deposit_reversed' ) ) {
+			/* translators: %s: layaway order number */
+			dox_pos_credit_insert( (string) $dep->get_meta( '_dox_pos_credit_key' ), trim( $dep->get_formatted_billing_full_name() ), -$amount, 'reversal', $dep->get_id(), sprintf( __( 'Layaway #%s cancelled: deposit given back', 'dox-pos' ), $order->get_order_number() ) );
+			$dep->update_meta_data( '_dox_pos_deposit_reversed', 1 );
+			$dep->save_meta_data();
+		}
 	}
 	remove_filter( 'woocommerce_email_enabled_customer_refunded_order', '__return_false' );
+	remove_filter( 'woocommerce_order_fully_refunded_status', '__return_false' );
 	if ( $back > 0 ) {
 		/* translators: 1: amount, 2: payment method */
 		$order->add_order_note( sprintf( __( 'Deposits given back to the customer: %1$s (%2$s).', 'dox-pos' ), dox_pos_money( $back ), '' !== $title ? $title : __( 'same payment method', 'dox-pos' ) ) );

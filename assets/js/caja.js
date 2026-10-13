@@ -1613,8 +1613,10 @@
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
 				(p.layaway && p.layaway.open
 					? '<td class="num">' + dinero(p.layaway.value) + (p.layaway.deposited ? '<br><span class="sub">' + esc(sprintf(__("deposited %1$s · left %2$s", "dox-pos"), dinero(p.layaway.deposited), dinero(p.layaway.remaining))) + "</span>" : "") + "</td>"
-					: p.layaway && p.layaway.deposited > 0
+					: p.layaway && p.layaway.deposited > 0 && p.status !== "anulado" && p.status !== "reembolsado"
 					? '<td class="num">' + dinero(p.layaway.value) + '<br><span class="sub">' + esc(sprintf(__("with %s in deposits", "dox-pos"), dinero(p.layaway.deposited))) + "</span></td>"
+					: p.layaway && p.layaway.deposited > 0
+					? '<td class="num">' + dinero(p.layaway.value) + "</td>" // Liberado: sus abonos ya están en su saldo o se le devolvieron.
 					: '<td class="num">' + dinero(p.total) + (p.credit_used ? '<br><span class="sub">' + esc(sprintf(__("+ %s store credit", "dox-pos"), dinero(p.credit_used))) + "</span>" : "") + "</td>") +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
