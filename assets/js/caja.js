@@ -499,7 +499,7 @@
 				});
 			}
 			const ps = li.querySelector(".pieza select");
-			if (ps) ps.onchange = () => { l.real = +ps.value; };
+			if (ps) ps.onchange = () => { l.real = +ps.value; pintarTodo(); }; // Los cuadros de tallas cuentan con la prenda elegida.
 			li.querySelectorAll(".qty button").forEach((b) => {
 				b.onclick = () => {
 					const delta = +b.dataset.d;
@@ -634,7 +634,19 @@
 			'<div class="tot"><span>' + esc(__("Units coming in", "dox-pos")) + "</span><span>" + uds + "</span></div>";
 		$("#reg2").disabled = st.ocupado || !st.entrada.length;
 	}
+	// La prenda de cada línea se decide antes de pintar nada, para que los cuadros de tallas ya cuenten con
+	// ella. En la venta, la más cercana que aún tenga prendas libres para esta línea.
+	function fijarPieza(l, modo) {
+		const d = st.vars[l.vid];
+		const sp = d && d.v.split && d.v.split.state !== "unsplit" ? opcionesPieza(d.v, modo === "entrada") : [];
+		if (!sp.length || sp.some((r) => r.id === l.real)) return;
+		if (modo === "entrada") { l.real = d.v.split.entry; return; }
+		l.real = 0;
+		l.real = (sp.find((r) => piezasLibres(r) >= l.n) || sp[0]).id;
+	}
 	function pintarTodo() {
+		st.lineas.forEach((l) => fijarPieza(l, "venta"));
+		st.entrada.forEach((l) => fijarPieza(l, "entrada"));
 		if (st.res.venta.length) pintarResultados("venta");
 		if (st.res.entrada.length) pintarResultados("entrada");
 		pintarLineas($("#lineas"), st.lineas, "venta");
