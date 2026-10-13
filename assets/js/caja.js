@@ -270,12 +270,15 @@
 		return v.stock === null ? v.status !== "outofstock" : libres(v) > 0;
 	}
 	// El grupo lleva prendas por talla real (0.52.0): el número es del grupo, y se dice de qué etiqueta hay.
+	// Las prendas de una talla real que quedan, sin las que ya van en esta venta.
+	const piezasLibres = (r) => r.qty - st.lineas.reduce((a, l) => a + (l.real === r.id ? l.n : 0), 0);
 	function textoReparto(v, n) {
 		const s = v.split;
 		let t = sprintf(__("%s in the group", "dox-pos"), "<b>" + n + "</b>");
 		if (s.state === "unsplit") return t + " · " + esc(__("not split by actual size yet", "dox-pos"));
-		const mia = s.reals.find((r) => r.id === v.id) || s.reals.find((r) => r.id === s.picks[0]);
-		if (mia && mia.qty > 0) t += " · " + esc(sprintf(_n("%1$d with tag %2$s", "%1$d with tag %2$s", mia.qty, "dox-pos"), mia.qty, mia.label));
+		const mia = s.reals.find((r) => r.id === v.id) || s.reals.find((r) => s.picks.includes(r.id) && piezasLibres(r) > 0) || s.reals.find((r) => r.id === s.picks[0]);
+		const quedan = mia ? Math.max(0, piezasLibres(mia)) : 0;
+		if (mia && quedan > 0) t += " · " + esc(sprintf(_n("%1$d with tag %2$s", "%1$d with tag %2$s", quedan, "dox-pos"), quedan, mia.label));
 		else if (!s.picks.length) t += " · " + esc(__("no piece with a tag close to this size", "dox-pos"));
 		if (s.state === "mismatch") t += " · " + esc(__("does not add up", "dox-pos"));
 		return t;
@@ -353,7 +356,7 @@
 			if (n) vb.classList.add("puesto");
 			vb.innerHTML =
 				'<span class="l">' + esc(v.label) + (n ? '<span class="lleg">+' + n + "</span>" : "") + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
-				'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
+				'<span class="s">' + (v.real_of && !v.split ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
 			vb.onclick = () => añadir(v.id, modo);
 			if (!n) { box.appendChild(vb); return; }
 			// Al lado, quitar una sin ir a revisar: por si se tocó la que no era.
@@ -3245,7 +3248,9 @@
 		};
 		try {
 			const d = await post(pr.edit ? "products/" + pr.edit.id : "products", payload);
+			const rp = repartoPendiente(); // Se guarda igual; se avisa.
 			if (pr.edit) modalProductoGuardado(d.product);
+			if (rp) toast(sprintf(_n("Saved. %d group of shared sizes is not split by actual size, or does not add up.", "Saved. %d groups of shared sizes are not split by actual size, or do not add up.", rp, "dox-pos"), rp));
 			else { borrarBorrador(); modalProductoCreado(d.product); }
 			volverDeFicha(false);
 			refrescarStock().catch(() => {}); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
@@ -3389,7 +3394,7 @@
 	// Cómo está la ficha ahora: si al salir no es igual que al abrirla, hay cambios sin guardar.
 	function huellaProducto() {
 		return JSON.stringify([$("#p-nom").value, $("#p-precio").value, $("#p-costo") ? $("#p-costo").value : "", $("#p-desc").value, $("#p-pub").checked,
-			pr.cats, pr.tallas, pr.colores, pr.qty, pr.grupos, pr.totales, paqueteForm(), pr.fotos.map((f) => [f.id, f.color, f.estado])]);
+			pr.cats, pr.tallas, pr.colores, pr.qty, pr.grupos, pr.totales, [...pr.real].sort(), pr.realQty, paqueteForm(), pr.fotos.map((f) => [f.id, f.color, f.estado])]);
 	}
 	const fichaConCambios = () => (pr.edit ? huellaProducto() !== pr.huella : pr.modo === "nuevo" && formularioTocado());
 	// Volver a la lista (o a donde se vino). Si quedan cambios, se pregunta antes de perderlos.
