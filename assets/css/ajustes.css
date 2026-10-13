@@ -140,7 +140,7 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-logo-actions .dp-hint{flex-basis:100%;margin-top:2px}
 
 /* ---------- colores ---------- */
-.dp-swatches{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.dp-swatches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media screen and (max-width:960px){.dp-swatches{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media screen and (max-width:560px){.dp-swatches{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .dp-swatch{border:1px solid var(--dp-line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;background:#fff;transition:border-color 150ms ease,box-shadow 150ms ease}
@@ -302,25 +302,26 @@ select.dp-unit{border:0;border-left:1px solid var(--dp-line);border-radius:0;fon
 .dp-brand{font-family:var(--serif);font-weight:600;font-size:15px;white-space:nowrap}
 .dp-cajita{font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.8;font-weight:500;padding-left:9px;border-left:1px solid currentColor;white-space:nowrap}
 .dp-tabs{margin-left:auto;display:flex;gap:3px}
-.dp-tab{font-size:11px;font-weight:500;padding:5px 10px;border-radius:8px}
+.dp-tab{font-size:11px;font-weight:600;padding:5px 10px;border-radius:8px;color:color-mix(in srgb,var(--bar-ink) 68%,transparent)}
+.dp-tab.on{color:var(--tab-on-ink)}
 .dp-tab.on{background:var(--tab-on);color:var(--tab-on-ink)}
 .dp-body-prev{padding:16px}
-.dp-card-prev{background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:14px}
-.dp-lbl{margin:0 0 8px;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.dp-card-prev{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}
+.dp-lbl{margin:0 0 8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
 .dp-chips-prev{margin:0 0 12px;display:flex;flex-wrap:wrap;gap:6px;min-height:26px}
 .dp-chips-prev span{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:500;color:var(--ink);transition:background-color 150ms ease,color 150ms ease}
-.dp-chips-prev span.on{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.dp-chips-prev span.on{background:var(--primary);color:var(--on-primary-sm);border-color:var(--primary)}
 .dp-chips-prev span.faint{color:var(--muted);border-style:dashed}
-.dp-line{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
+.dp-line{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .dp-line>span:nth-child(2){flex:1;font-weight:500}
 .dp-line i{display:block;font-style:normal;font-weight:400;font-size:11px;color:var(--muted)}
-.dp-thumb{width:32px;height:38px;border-radius:6px;background:var(--soft);color:var(--soft-accent);display:grid;place-items:center;font:500 10px Menlo,monospace}
-.dp-tag-prev{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--soft-accent)}
+.dp-thumb{width:32px;height:38px;border-radius:8px;background:var(--primary-tint);color:var(--primary-strong);display:grid;place-items:center;font:500 10px Menlo,monospace}
+.dp-tag-prev{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#EDE9FE;color:#6D28D9} /* el estado: fijo, como en la caja */
 .dp-total{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px}
 .dp-total span{font-size:10px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;color:var(--muted)}
-.dp-total b{font-family:var(--serif);font-weight:600;font-size:20px}
-.dp-go{display:block;text-align:center;background:var(--primary);color:var(--primary-ink);border-radius:10px;padding:10px;font-weight:600;font-size:13px}
-.dp-go.alt{background:#fff;color:var(--primary-text);border:1px solid var(--primary-text);margin-top:6px;padding:7px;font-size:12px;font-weight:500}
+.dp-total b{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.03em}
+.dp-go{display:block;text-align:center;background:var(--primary);color:var(--on-primary);border-radius:10px;padding:10px;font-weight:700;font-size:13px}
+.dp-go.alt{background:var(--sunk);color:var(--ink);border:1px solid var(--line);margin-top:6px;padding:7px;font-size:12px;font-weight:600}
 
 /* El mensaje, como se ve en WhatsApp. */
 .dp-wa{background:#EFE7DD;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}

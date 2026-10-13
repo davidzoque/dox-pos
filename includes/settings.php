@@ -1767,12 +1767,13 @@ function dox_pos_settings_page() {
 					<div class="dp-card">
 						<div class="dp-card-head">
 							<h2><?php esc_html_e( 'Colors', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'Five colors dress the whole register; the border and background shades come from them. The text on the bar and on the buttons is decided on its own, from how dark the background is.', 'dox-pos' ); ?></p>
+							<p><?php esc_html_e( 'Four colors dress the whole register; the border and background shades, and the tint of what is chosen, come from them. The text on the bar and on the buttons is decided on its own, from how dark the background is.', 'dox-pos' ); ?></p>
 							<button type="button" class="dp-btn dp-btn-link dp-card-action" id="dp-colors-reset" disabled><?php echo wp_kses( dox_pos_icon( 'undo' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Back to the site\'s colors', 'dox-pos' ); ?></button>
 						</div>
 						<div class="dp-swatches">
 							<?php foreach ( $labels as $k => $label ) : ?>
-							<div class="dp-swatch" data-key="<?php echo esc_attr( $k ); ?>" data-default="<?php echo esc_attr( $defaults[ $k ] ); ?>" style="--sw:<?php echo esc_attr( $colors[ $k ] ); ?>">
+							<?php // El suave ya no pinta nada en la caja (los tintes salen del principal): no se enseña, pero se conserva lo guardado. ?>
+							<div class="dp-swatch" data-key="<?php echo esc_attr( $k ); ?>" data-default="<?php echo esc_attr( $defaults[ $k ] ); ?>" style="--sw:<?php echo esc_attr( $colors[ $k ] ); ?>"<?php echo 'soft' === $k ? ' hidden' : ''; ?>>
 								<label class="dp-swatch-well" for="dp-pick-<?php echo esc_attr( $k ); ?>">
 									<input type="color" id="dp-pick-<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $colors[ $k ] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: colour name */ __( 'Pick the color: %s', 'dox-pos' ), $label ) ); ?>">
 								</label>

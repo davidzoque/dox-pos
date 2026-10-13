@@ -893,6 +893,8 @@
 				new MutationObserver(limpiar).observe(n, { childList: true, characterData: true, subtree: true });
 			});
 		});
+		// En una tableta no caben todas: la elegida se desliza a la vista.
+		on("pestaña", (t) => { const b = document.querySelector('#tabs button[data-t="' + t + '"]'); if (b) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
 	}
 	function armarBarraMovil() {
 		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button")).filter((b) => !b.hidden); // Las escondidas (el cajero de mostrador) no bajan.
