@@ -277,6 +277,12 @@
 		if (v.shared) return sprintf(v.talla ? __("%s left for all sizes", "dox-pos") : __("%s left for all options", "dox-pos"), "<b>" + n + "</b>");
 		return sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>");
 	}
+	// Cuántas quedan, en color: verde hay, ámbar pocas (el umbral de WooCommerce), rojo ninguna.
+	function nivelStock(v, modo) {
+		if (v.stock === null) return v.status === "outofstock" ? "bad" : "ok";
+		const n = modo === "venta" ? libres(v) : v.stock;
+		return n <= 0 ? "bad" : n <= (+cfg.low_stock || 0) ? "warn" : "ok";
+	}
 	function pintarResultados(modo) {
 		const ul = listaDe(modo);
 		const items = st.res[modo];
@@ -318,7 +324,7 @@
 		b.setAttribute("aria-expanded", st.abierto[modo] === p.id);
 		b.innerHTML =
 			'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i></span>" +
-			'<span class="p">' + dinero(p.price) + "<i>" + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
+			'<span class="p">' + dinero(p.price) + '<i class="' + (sinLimite || hay ? "" : "bad") + '">' + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
 		b.prepend(miniatura(p));
 		b.onclick = () => desplegarProducto(p.id, modo);
 		li.dataset.id = String(p.id);
@@ -337,9 +343,10 @@
 			if (modo === "venta" && !disponible(v)) vb.disabled = true;
 			const n = enPedido(v.id, modo); // Las que ya van en el pedido (o en lo que llegó).
 			if (n) vb.classList.add("puesto");
+			if (n && modo === "entrada") vb.classList.add("add"); // Lo que entra sube el inventario: en verde.
 			vb.innerHTML =
 				'<span class="l">' + esc(v.label) + (n ? '<span class="lleg">+' + n + "</span>" : "") + (v.real ? ' <span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + "<i>" + esc(v.sku) + "</i></span>" +
-				'<span class="s">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
+				'<span class="s ' + nivelStock(v, modo) + '">' + (v.real_of ? esc(sprintf(__("Also fits · it is the %s one", "dox-pos"), v.real_of)) + "<br>" : "") + textoStock(v, modo) + "</span>";
 			vb.onclick = () => añadir(v.id, modo);
 			if (!n) { box.appendChild(vb); return; }
 			// Al lado, quitar una sin ir a revisar: por si se tocó la que no era.
@@ -869,10 +876,24 @@
 		producto: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
 		historial: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
 		asistente: '<path d="M12 3l1.9 5.6 5.6 1.9-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 2v4M17 4h4"/>',
+		mostrador: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v6"/><path d="M10 7h4M7 15h2M11 15h2M15 15h2"/>',
 		mas: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
 		otra: '<circle cx="12" cy="12" r="8"/>',
 	};
 	const icono = (id) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONO[id] || ICONO.otra) + "</svg>";
+	// Las pestañas de arriba con su icono (los mismos de la barra del teléfono), y los contadores
+	// ("· 3", que escriben la caja y el Pro) como globito con el número solo.
+	function vestirPestanas() {
+		document.querySelectorAll("#tabs button").forEach((b) => {
+			if (!b.querySelector("svg")) b.insertAdjacentHTML("afterbegin", icono(b.dataset.t));
+			b.querySelectorAll("span").forEach((n) => {
+				n.classList.add("tn");
+				const limpiar = () => { const m = n.textContent.match(/^\s*·\s*(\d+)\s*$/); if (m) n.textContent = m[1]; };
+				limpiar();
+				new MutationObserver(limpiar).observe(n, { childList: true, characterData: true, subtree: true });
+			});
+		});
+	}
 	function armarBarraMovil() {
 		const nav = $("#tabbar"), tabs = Array.from(document.querySelectorAll("#tabs button")).filter((b) => !b.hidden); // Las escondidas (el cajero de mostrador) no bajan.
 		if (!nav || tabs.length < 2) return; // Con una sola pestaña no hace falta barra.
@@ -1848,11 +1869,43 @@
 	}
 	function chips(el, lista, sel, cb) {
 		el.innerHTML = "";
+		const tipo = CHIP_TIPO[el.id]; // Canales y formas de pago: cada uno con su color y su icono.
 		lista.forEach((x) => {
 			const par = Array.isArray(x) ? x : [x, x];
-			el.appendChild(chip(par[1], sel === par[0], () => cb(par[0])));
+			const b = chip(par[1], sel === par[0], () => cb(par[0]));
+			if (tipo) {
+				b.dataset.k = tipo === "canal" ? claseCanal(par[1]) : clasePago(par[0]);
+				b.insertAdjacentHTML("afterbegin", '<span class="ic">' + iconoChip(b.dataset.k) + "</span>");
+			}
+			el.appendChild(b);
 		});
 	}
+	// De qué tipo es un canal o una forma de pago, por su nombre o su clave (las de cada tienda son libres:
+	// lo que no se reconoce va en neutro).
+	const CHIP_TIPO = { "f-canal": "canal", "f-pago": "pago", "ab-pago": "pago", "cr-pago": "pago", "lb-pago": "pago" };
+	const claseCanal = (n) => {
+		const t = String(n).toLowerCase();
+		return /whats/.test(t) ? "wa" : /insta/.test(t) ? "ig" : /face|messenger/.test(t) ? "fb" : /tik/.test(t) ? "tt" : /web|p[aá]gina|site|online|tienda en l/.test(t) ? "web" : /person|tienda|local|store|mostrador|counter/.test(t) ? "per" : "otro";
+	};
+	const clasePago = (k) => {
+		const t = String(k).toLowerCase();
+		return /efectivo|cash/.test(t) ? "cash" : /tarjeta|card|dat[aá]fono|cr[eé]dito|d[eé]bito/.test(t) ? "card" : /contra|cod|delivery/.test(t) ? "cod" : /saldo|credit/.test(t) ? "credit" : /transf|bank|nequi|davi|zelle|venmo|pse|yape|plin|pix|mercado|paypal|bizum|sinpe/.test(t) ? "transfer" : "otro";
+	};
+	const ICONO_CHIP = {
+		wa: '<path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z"/>',
+		ig: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/>',
+		fb: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
+		tt: '<path d="M9 12a4 4 0 1 0 4 4V2a5 5 0 0 0 5 5"/>',
+		web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+		per: '<path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20v3a2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0 2 2 0 0 1-4 0z"/>',
+		cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+		card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+		transfer: '<path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/>',
+		cod: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.6a1 1 0 0 0-.2-.6l-3.5-4.4A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+		credit: '<path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+		otro: '<circle cx="12" cy="12" r="3"/>',
+	};
+	const iconoChip = (k) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONO_CHIP[k] || ICONO_CHIP.otro) + "</svg>";
 	function pintarChips() {
 		chips($("#f-canal"), CANALES.map((c) => c.name), st.canal, (x) => { st.canal = x; pintarChips(); pintarSum(); pintarEnvio(); programarEnvio(); });
 		chips($("#f-pago"), PAGOS, st.pago, (x) => { st.pago = x; pintarChips(); });
@@ -3996,6 +4049,7 @@
 			let hqTimer = null;
 			$("#h-q").addEventListener("input", () => { clearTimeout(hqTimer); hqTimer = setTimeout(() => { hi.q = $("#h-q").value.trim(); hi.page = 1; cargarHistorial(); }, 300); });
 		}
+		vestirPestanas();
 		armarBarraMovil();
 		emit("arranque"); // Los añadidos enganchan lo suyo (el Pro: el chat, la insignia, el aviso de demostración).
 		abrirDesdeHash(true);

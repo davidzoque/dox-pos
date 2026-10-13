@@ -419,6 +419,7 @@ function dox_pos_js_config() {
 			'decimals' => wc_get_price_decimals(),
 		),
 		'tax_extra'       => wc_tax_enabled() && ! wc_prices_include_tax(),     // Los precios van sin impuesto: el pedido lo suma al guardarse.
+		'low_stock'       => max( 0, (int) get_option( 'woocommerce_notify_low_stock_amount', 2 ) ), // Pocas unidades: el umbral de WooCommerce (Inventario).
 		'hold_hours'      => dox_pos_hold_default_hours(),                 // El plazo con que empieza un apartado, en horas (0: sin vencer).
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
