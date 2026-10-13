@@ -391,7 +391,7 @@ function dox_pos_js_config() {
 	$country  = dox_pos_country();
 	$payments = array();
 	foreach ( dox_pos_payment_methods() as $key => $m ) {
-		$payments[] = array( 'key' => $key, 'title' => $m['title'] );
+		$payments[] = array( 'key' => $key, 'title' => $m['title'], 'paid' => ! empty( $m['paid'] ) ); // paid: entra ya (sirve para un abono).
 	}
 	$cfg = array(
 		'rest'            => esc_url_raw( rest_url( 'dox-pos/v1/' ) ),
@@ -418,7 +418,8 @@ function dox_pos_js_config() {
 			'decimal'  => wc_get_price_decimal_separator(),
 			'decimals' => wc_get_price_decimals(),
 		),
-		'hold_hours'      => dox_pos_hold_hours(),
+		'tax_extra'       => wc_tax_enabled() && ! wc_prices_include_tax(),     // Los precios van sin impuesto: el pedido lo suma al guardarse.
+		'hold_hours'      => dox_pos_hold_default_hours(),                 // El plazo con que empieza un apartado, en horas (0: sin vencer).
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
 		'open_tab'        => dox_pos_history_full() && dox_pos_open_panel() ? 'panel' : '', // Sin # al entrar: quien administra cae en el Panel, si el ajuste lo dice.

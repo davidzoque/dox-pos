@@ -125,25 +125,52 @@ function dox_pos_disable_admin_mail( $enabled, $order ) {
  *
  * @param array $data lines, free [{name, price, qty}] (lo que se vende sin producto), deposit {name, amount} (un abono al saldo
  *                    a favor), credit (lo que se paga con saldo), channel, customer{name, phone, state, city, address, postcode},
- *                    payment, discount, shipping{label, method_id, instance_id, cost}, note, ref.
+ *                    payment, discount, shipping{label, method_id, instance_id, cost}, note, ref. En un apartado, además:
+ *                    hold_hours (el plazo en horas, 0 = sin vencer; sin dato, el de Ajustes) y hold_deposit {amount, payment}
+ *                    (lo que abona al apartar, includes/layaways.php).
  * @param bool  $hold Apartado en vez de venta.
  * @return array|WP_Error El pedido formateado, con el mensaje de WhatsApp.
  */
 function dox_pos_create_order( $data, $hold ) {
+	$cust = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
+	// El abono al apartar, revisado antes de crear nada (y antes del candado): con qué entra y a nombre de quién.
+	$hd     = $hold && is_array( $data['hold_deposit'] ?? null ) ? $data['hold_deposit'] : null;
+	$hd_amt = $hd ? dox_pos_parse_money( $hd['amount'] ?? '' ) : null;
+	if ( null !== $hd_amt && $hd_amt > 0 ) {
+		$methods = dox_pos_payment_methods();
+		if ( empty( $methods[ sanitize_key( (string) ( $hd['payment'] ?? '' ) ) ]['paid'] ) ) {
+			return new WP_Error( 'dox_pos_abono', __( 'A deposit is money that comes in now: choose the payment method it came in.', 'dox-pos' ) );
+		}
+		if ( '' === dox_pos_credit_key( (string) ( $cust['phone'] ?? '' ) ) ) {
+			return new WP_Error( 'dox_pos_telefono', __( 'A deposit on a layaway needs the customer’s phone number.', 'dox-pos' ) );
+		}
+	} else {
+		$hd = null;
+	}
 	// Con pago con saldo, la clienta queda bloqueada mientras se crea el pedido: otra caja que quisiera
 	// gastar el mismo saldo a la vez espera a que este termine y ve lo que queda.
-	$cust = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
 	$key  = (float) ( $data['credit'] ?? 0 ) > 0 ? dox_pos_credit_key( (string) ( $cust['phone'] ?? '' ) ) : '';
 	if ( '' !== $key && ! dox_pos_credit_lock( $key ) ) {
 		return new WP_Error( 'dox_pos_ocupado', __( 'That balance is being used on another device. Try again in a moment.', 'dox-pos' ) );
 	}
 	try {
-		return dox_pos_create_order_locked( $data, $hold );
+		$out = dox_pos_create_order_locked( $data, $hold );
 	} finally {
 		if ( '' !== $key ) {
 			dox_pos_credit_unlock( $key );
 		}
 	}
+	// El apartado ya quedó: ahora entra su abono. Si fallara, el apartado sigue en pie sin abono y se avisa.
+	if ( $hd && ! is_wp_error( $out ) ) {
+		$ref = sanitize_text_field( $data['ref'] ?? '' );
+		$dep = dox_pos_layaway_add_deposit( (int) $out['order']['id'], $hd_amt, (string) $hd['payment'], '' !== $ref ? $ref . '-h' : '' );
+		if ( is_wp_error( $dep ) ) {
+			$out['deposit_error'] = $dep->get_error_message();
+		} else {
+			$out = dox_pos_order_response( wc_get_order( (int) $out['order']['id'] ), true );
+		}
+	}
+	return $out;
 }
 
 /**
@@ -341,9 +368,10 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	if ( $ref ) {
 		$order->update_meta_data( '_dox_pos_ref', $ref );
 	}
-	$hours = dox_pos_hold_hours();
+	$hours = $hold ? dox_pos_hold_hours_from( $data['hold_hours'] ?? null ) : 0;
 	if ( $hold ) {
-		$order->update_meta_data( '_dox_pos_hold_until', time() + $hours * HOUR_IN_SECONDS );
+		$order->update_meta_data( '_dox_pos_layaway', 1 );
+		$order->update_meta_data( '_dox_pos_hold_until', $hours > 0 ? time() + $hours * HOUR_IN_SECONDS : 0 );
 	}
 	if ( $counter ) {
 		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
@@ -451,8 +479,11 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		? sprintf( /* translators: %s: user */ __( 'Recorded at the counter by %s.', 'dox-pos' ), $user->display_name )
 		: sprintf( /* translators: 1: user, 2: sales channel */ __( 'Recorded from the register by %1$s. Channel: %2$s.', 'dox-pos' ), $user->display_name, $channel );
 	if ( $hold ) {
-		$order->update_status( 'on-hold', sprintf( /* translators: %d: hours */ __( 'On layaway. If it is not paid within %d hours it cancels itself. ', 'dox-pos' ), $hours ) . $who );
-		dox_pos_schedule_release( $order->get_id(), $hours );
+		/* translators: %s: "It expires on ..." or "It has no deadline." */
+		$order->update_status( 'on-hold', sprintf( __( 'On layaway. %s', 'dox-pos' ), dox_pos_deadline_phrase( $hours ) ) . ' ' . $who );
+		if ( $hours > 0 ) {
+			dox_pos_schedule_release( $order->get_id(), $hours );
+		}
 	} elseif ( $pay['paid'] ) {
 		$order->add_order_note( $who );
 		$order->payment_complete();
@@ -630,6 +661,17 @@ add_action( 'dox_pos_release_hold', 'dox_pos_release_hold' );
 function dox_pos_release_hold( $order_id ) {
 	$order = wc_get_order( (int) $order_id );
 	if ( $order && $order->has_status( 'on-hold' ) && DOX_POS_VIA === $order->get_created_via() ) {
+		// Con abonos no se cancela solo: la clienta ya pagó una parte. Queda vencido, en el Panel, hasta
+		// que la tienda le alargue el plazo o lo cancele (y entonces decide qué pasa con su dinero).
+		// Cuentan los abonos, no el saldo que ya tenía y usó al apartar (ese vuelve a su saldo al cancelarse).
+		if ( dox_pos_order_layaway_deposits( $order ) > 0 ) {
+			if ( ! $order->get_meta( '_dox_pos_hold_expired_noted' ) ) {
+				$order->update_meta_data( '_dox_pos_hold_expired_noted', 1 );
+				$order->save_meta_data();
+				$order->add_order_note( __( 'Layaway expired. It has deposits, so it was not cancelled: extend the deadline or cancel it from the register.', 'dox-pos' ) );
+			}
+			return;
+		}
 		$ctx = dox_pos_stock_context( 'release', $order->get_id(), __( 'The deadline passed', 'dox-pos' ) );
 		$order->update_status( 'cancelled', __( 'Layaway expired: the stock is released.', 'dox-pos' ) );
 		dox_pos_stock_context_end( $ctx );
@@ -657,14 +699,34 @@ function dox_pos_get_own_order( $id ) {
  * Cambios de estado desde la lista de pedidos.
  *
  * @param int    $id     Pedido.
- * @param string $action paid | release | shipped | delivered | cancel | loss.
- * @param array  $extra  carrier, tracking (shipped); amount, note (loss).
+ * @param string $action paid | release | shipped | delivered | cancel | loss | deposit | deadline.
+ * @param array  $extra  carrier, tracking (shipped); amount, note (loss); payment (paid: con qué se pagó el resto de un
+ *                       apartado); amount, payment, ref (deposit); hours (deadline: 0 = sin vencer); refund y
+ *                       refund_payment (release, cancel: devolver en dinero los abonos de un apartado en vez de dejarlos en su saldo).
  * @return array|WP_Error
  */
 function dox_pos_order_action( $id, $action, $extra = array() ) {
+	static $locked = false;
 	$order = dox_pos_get_own_order( $id );
 	if ( is_wp_error( $order ) ) {
 		return $order;
+	}
+	// Un apartado se cobra, se libera o se cancela con la clienta bloqueada, como al abonar: así un abono
+	// que entra a la vez desde otro aparato no se queda fuera de lo que vuelve al saldo.
+	if ( ! $locked && in_array( $action, array( 'paid', 'release', 'cancel' ), true ) && dox_pos_is_layaway( $order ) ) {
+		$key = dox_pos_credit_key( $order->get_billing_phone() );
+		if ( '' !== $key ) {
+			if ( ! dox_pos_credit_lock( $key ) ) {
+				return new WP_Error( 'dox_pos_ocupado', __( 'That balance is being used on another device. Try again in a moment.', 'dox-pos' ) );
+			}
+			$locked = true;
+			try {
+				return dox_pos_order_action( $id, $action, $extra ); // Otra vez, ya con el candado: lo lee de nuevo.
+			} finally {
+				$locked = false;
+				dox_pos_credit_unlock( $key );
+			}
+		}
 	}
 	$who  = wp_get_current_user()->display_name;
 	$caja = DOX_POS_VIA === $order->get_created_via();
@@ -684,20 +746,48 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			if ( ! $caja && ! $boss ) {
 				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can confirm the payment of a website order.', 'dox-pos' ) );
 			}
+			// Un apartado: se cobra lo que falta, con la forma de pago con que entró.
+			if ( $caja && dox_pos_is_layaway( $order ) ) {
+				$done = dox_pos_layaway_complete( $order, (string) ( $extra['payment'] ?? '' ) );
+				if ( is_wp_error( $done ) ) {
+					return $done;
+				}
+				break;
+			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->delete_meta_data( '_dox_pos_hold_until' );
 			$order->add_order_note( sprintf( /* translators: %s: who confirmed it */ __( 'Payment confirmed from the register by %s.', 'dox-pos' ), $who ) );
 			$order->payment_complete();
+			break;
+		case 'deposit':
+			$r = dox_pos_layaway_add_deposit( $order->get_id(), $extra['amount'] ?? '', (string) ( $extra['payment'] ?? '' ), (string) ( $extra['ref'] ?? '' ) );
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
+			break;
+		case 'deadline':
+			$r = dox_pos_layaway_change_deadline( $order, $extra['hours'] ?? null );
+			if ( is_wp_error( $r ) ) {
+				return $r;
+			}
 			break;
 		case 'release':
 			// Liberar es solo para los apartados de la caja; un pedido de la web se anula.
 			if ( ! $caja || ! $order->has_status( array( 'on-hold', 'pending', 'failed' ) ) ) {
 				return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 			}
+			$ok = dox_pos_layaway_refund_check( $extra );
+			if ( is_wp_error( $ok ) ) {
+				return $ok;
+			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$ctx = dox_pos_stock_context( 'release', $order->get_id() );
 			$order->update_status( 'cancelled', sprintf( /* translators: %s: who released it */ __( 'Layaway released from the register by %s.', 'dox-pos' ), $who ) );
 			dox_pos_stock_context_end( $ctx );
+			// Sus abonos ya volvieron al saldo de la clienta (credit.php); si la tienda prefiere devolver el dinero, se devuelve.
+			if ( ! empty( $extra['refund'] ) ) {
+				$warn = dox_pos_layaway_refund_warning( dox_pos_layaway_refund_deposits( wc_get_order( $order->get_id() ), (string) ( $extra['refund_payment'] ?? '' ) ) );
+			}
 			break;
 		case 'shipped':
 			if ( ! $order->has_status( 'processing' ) ) {
@@ -734,12 +824,28 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			if ( ! $boss && ! $order->has_status( array( 'pending', 'on-hold', 'failed', 'processing' ) ) ) {
 				return new WP_Error( 'dox_pos_permiso', __( 'Only administrators and shop managers can cancel an order that was already shipped or delivered.', 'dox-pos' ) );
 			}
+			// Un abono de un apartado que sigue en pie no se anula suelto: se libera o se cancela el apartado.
+			$of = wc_get_order( (int) $order->get_meta( '_dox_pos_layaway_of' ) );
+			if ( $of && dox_pos_layaway_open( $of ) ) {
+				/* translators: %s: layaway order number */
+				return new WP_Error( 'dox_pos_estado', sprintf( __( 'This is a deposit on layaway #%s. To give it back, release the layaway.', 'dox-pos' ), $of->get_order_number() ) );
+			}
+			$layaway = $caja && dox_pos_is_layaway( $order );
+			if ( $layaway ) {
+				$ok = dox_pos_layaway_refund_check( $extra );
+				if ( is_wp_error( $ok ) ) {
+					return $ok;
+				}
+			}
 			$can = dox_pos_credit_can_cancel( $order ); // Un abono cuyo saldo ya se gastó no se anula sin más.
 			if ( is_wp_error( $can ) ) {
 				return $can;
 			}
 			as_unschedule_all_actions( 'dox_pos_release_hold', array( 'order_id' => $order->get_id() ), 'dox-pos' );
 			$order->update_status( 'cancelled', sprintf( /* translators: %s: who voided it */ __( 'Cancelled from the register by %s. The stock goes back.', 'dox-pos' ), $who ) );
+			if ( $layaway && ! empty( $extra['refund'] ) ) {
+				$warn = dox_pos_layaway_refund_warning( dox_pos_layaway_refund_deposits( wc_get_order( $order->get_id() ), (string) ( $extra['refund_payment'] ?? '' ) ) );
+			}
 			break;
 		case 'loss':
 			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un flete
@@ -772,6 +878,9 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 	if ( isset( $ship ) ) {
 		$out['ship'] = $ship;
 	}
+	if ( ! empty( $warn ) ) {
+		$out['warning'] = $warn;
+	}
 	return $out;
 }
 
@@ -790,6 +899,7 @@ function dox_pos_list_orders( $limit = 80 ) {
 	if ( ! dox_pos_show_web_orders() ) {
 		$args['created_via'] = DOX_POS_VIA;
 	}
+	$args['meta_query'] = array( array( 'key' => '_dox_pos_layaway_of', 'compare' => 'NOT EXISTS' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 	return array_map( 'dox_pos_format_order', wc_get_orders( $args ) );
 }
 
@@ -871,6 +981,8 @@ function dox_pos_format_order( $order ) {
 		'status'       => $st[0],
 		'label'        => $st[1],
 		'hours_left'   => $hold && $until ? max( 0, (int) ceil( ( $until - time() ) / HOUR_IN_SECONDS ) ) : 0,
+		'layaway'      => dox_pos_layaway_brief( $order ),                       // Vale, abonado, falta y vence (null si no es apartado).
+		'layaway_of'   => (int) $order->get_meta( '_dox_pos_layaway_of' ),       // Un pedido de abono: de qué apartado.
 		'tracking'     => $order->get_meta( '_dox_pos_tracking' ),
 		'carrier'      => (string) $order->get_meta( '_dox_pos_carrier' ),
 		'guide'        => (string) $order->get_meta( '_dox_pos_guide' ),
@@ -918,17 +1030,45 @@ function dox_pos_hold_message( $order ) {
 	foreach ( $order->get_items() as $item ) {
 		$items[] = $item->get_name() . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
 	}
-	$text = strtr(
+	$info = dox_pos_layaway_info( $order );
+	// Un dato que no aplica (sin plazo, sin abonos) se queda vacío y se quita la frase que lo lleva (no
+	// la línea entera: una plantilla de una sola línea perdería el saludo). Así la misma plantilla sirve
+	// para un apartado con fecha o sin ella, con abono o sin él. El enlace de pago nunca se quita.
+	$vacio = "\x00";
+	$link  = $order->get_checkout_payment_url();
+	$text  = strtr(
 		dox_pos_hold_message_template(),
 		array(
-			'{name}'  => $order->get_billing_first_name(),
-			'{items}' => implode( ' + ', $items ),
-			'{total}' => dox_pos_money( $order->get_total() ),
-			'{hours}' => dox_pos_hold_hours(),
-			'{link}'  => $order->get_checkout_payment_url(),
-			'{store}' => dox_pos_brand_name(),
+			'{name}'      => $order->get_billing_first_name(),
+			'{items}'     => implode( ' + ', $items ),
+			'{total}'     => dox_pos_money( $info ? $info['value'] : $order->get_total() ),
+			'{hours}'     => $info && $info['until'] && ! $info['expired'] ? (string) $info['hours_left'] : $vacio, // Vencido: no se le dice una fecha que ya pasó.
+			'{due}'       => $info && $info['due'] && ! $info['expired'] ? $info['due'] : $vacio,
+			'{deposit}'   => $info && $info['deposited'] > 0 ? dox_pos_money( $info['deposited'] ) : $vacio,
+			'{remaining}' => $info && $info['deposited'] > 0 ? dox_pos_money( $info['remaining'] ) : $vacio,
+			'{link}'      => $link,
+			'{store}'     => dox_pos_brand_name(),
 		)
 	);
+	$lines = array();
+	foreach ( explode( "\n", $text ) as $line ) {
+		if ( false === strpos( $line, $vacio ) ) {
+			$lines[] = $line;
+			continue;
+		}
+		$keep = array();
+		foreach ( preg_split( '/(?<=[.!?])\s+/u', $line ) as $sentence ) {
+			if ( false === strpos( $sentence, $vacio ) ) {
+				$keep[] = $sentence;
+			} elseif ( false !== strpos( $sentence, $link ) ) {
+				$keep[] = str_replace( $vacio, '', $sentence );
+			}
+		}
+		if ( '' !== trim( implode( ' ', $keep ) ) ) {
+			$lines[] = implode( ' ', $keep );
+		}
+	}
+	$text = implode( "\n", $lines );
 	// Sin nombre, "Hola , te aparté" queda "Hola, te aparté".
 	$text = preg_replace( '/[ \t]+([,.!?])/', '$1', $text );
 	$text = preg_replace( '/[ \t]{2,}/', ' ', $text );
@@ -1243,6 +1383,7 @@ function dox_pos_order_detail( $id ) {
 			'paid_at'         => $order->get_date_paid() ? $order->get_date_paid()->date_i18n( $fmt ) : '',
 			'completed_at'    => $order->get_date_completed() ? $order->get_date_completed()->date_i18n( $fmt ) : '',
 			'hold_until'      => $until ? wp_date( $fmt, $until ) : '',
+			'layaway'         => dox_pos_layaway_info( $order ), // Con la lista de abonos.
 			'notes'           => $notes,
 			'edit_url'        => current_user_can( 'manage_woocommerce' ) ? $order->get_edit_order_url() : '',
 			'demo'            => (bool) $order->get_meta( '_dox_pos_demo' ),

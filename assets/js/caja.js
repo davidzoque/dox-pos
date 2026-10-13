@@ -21,7 +21,7 @@
 		open: SMS ? __("Open Messages", "dox-pos") : __("Open WhatsApp", "dox-pos"),
 		tell: SMS ? __("Text them", "dox-pos") : __("Tell them on WhatsApp", "dox-pos"),
 		also: SMS ? __("If you want, text them too: the message already carries the tracking number.", "dox-pos") : __("If you want, tell them on WhatsApp too: the message already carries the tracking number.", "dox-pos"),
-		hold: SMS ? __("The product is already reserved. Messages opens with the text written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos") : __("The product is already reserved. WhatsApp opens with the message written: you only have to send it. If it is not paid within %d hours, it goes back to stock on its own.", "dox-pos"),
+		hold: SMS ? __("The product is already reserved. Messages opens with the text written: you only have to send it.", "dox-pos") : __("The product is already reserved. WhatsApp opens with the message written: you only have to send it.", "dox-pos"),
 		recorded: SMS ? __("Layaway recorded: order #%s. The message button is in Orders.", "dox-pos") : __("Layaway recorded: order #%s. The WhatsApp button is in Orders.", "dox-pos"),
 		noEmail: SMS ? __("No email address: when you mark it as shipped, the text message with the tracking number is ready for you.", "dox-pos") : __("No email address: when you mark it as shipped, the WhatsApp message with the tracking number is ready for you.", "dox-pos"),
 	};
@@ -1275,7 +1275,7 @@
 	}
 
 	// ---------- registrar la venta o apartar ----------
-	async function cerrar(hold) {
+	async function cerrar(hold, op) {
 		if (st.ocupado || !hayVenta()) return;
 		if (hold && !$("#f-tel").value.trim()) {
 			toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
@@ -1300,6 +1300,8 @@
 		const payload = {
 			ref: uuid(),
 			hold: hold,
+			hold_hours: hold && op ? op.hours : null,                              // El plazo de este apartado (0: sin vencer).
+			hold_deposit: hold && op && op.deposit ? op.deposit : null,            // Lo que abona al apartar: {amount, payment}.
 			lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n })),
 			free: st.libres.map((l) => ({ name: l.name, price: l.price, qty: l.n })),
 			deposit: st.abono ? { name: st.abono.name, amount: st.abono.amount } : null,
@@ -1321,7 +1323,10 @@
 				const data = await post("orders", payload);
 				limpiarPedido();
 				await Promise.all([refrescarStock(), cargarPedidos()]);
-				if (hold) modalWhatsApp(data);
+				if (hold) {
+					modalWhatsApp(data);
+					if (data.deposit_error) toast(data.deposit_error); // El apartado quedó, pero su abono no entró.
+				}
 				else if (data.credit) modalSaldoVenta(data);
 				else toast(sprintf(__("Sale recorded: order #%s. The stock has already gone down.", "dox-pos"), data.order.number));
 			} catch (e) {
@@ -1410,8 +1415,14 @@
 		// Un pedido web sin pagar (o con el pago rechazado) no ha descontado inventario; uno "por confirmar", sí.
 		const sinStock = p.status === "sin_pagar" || p.status === "fallido";
 		if (p.status === "apartado") {
-			btn(__("Paid", "dox-pos"), false, () => accion(p, "paid"));
-			btn(__("Release", "dox-pos"), true, () => confirmar(sprintf(__("Release the layaway for %s? The product goes back to stock.", "dox-pos"), p.customer || __("this customer", "dox-pos")), () => accion(p, "release")));
+			const l = p.layaway;
+			btn(__("Charge the rest", "dox-pos"), false, () => modalCobrarResto(p));
+			// En el detalle, además: otro abono y cambiar el plazo.
+			if (enModal && l && l.open) {
+				if (PAGOS_YA.length && l.remaining > 0) btn(__("Add deposit", "dox-pos"), true, () => modalAbono(p));
+				btn(__("Change deadline", "dox-pos"), true, () => modalPlazo(p));
+			}
+			btn(__("Release", "dox-pos"), true, () => (l && l.deposited > 0 ? modalLiberar(p) : confirmar(sprintf(__("Release the layaway for %s? The product goes back to stock.", "dox-pos"), p.customer || __("this customer", "dox-pos")), () => accion(p, "release"))));
 			wa();
 		} else if (SIN_PAGAR.includes(p.status)) {
 			btn(__("Paid", "dox-pos"), false, () => confirmar(sprintf(sinStock ? __("Confirm the payment of order #%s? It moves to ready to ship and the stock goes down.", "dox-pos") : __("Confirm the payment of order #%s? It moves to ready to ship.", "dox-pos"), p.number), () => accion(p, "paid")));
@@ -1452,6 +1463,7 @@
 		const web = d.origin !== "caja";
 		let pago = __("Pays on delivery", "dox-pos");
 		if (d.paid && !d.cod) pago = d.paid_at ? sprintf(__("Paid on %s", "dox-pos"), esc(d.paid_at)) : __("Paid", "dox-pos");
+		else if (d.status === "apartado" && d.layaway && d.layaway.deposited > 0) pago = __("Partly paid", "dox-pos");
 		else if (d.status === "apartado" || d.status === "sin_pagar" || d.status === "fallido") pago = __("Unpaid", "dox-pos");
 		else if (d.status === "por_confirmar") pago = __("In progress", "dox-pos");
 		else if (d.status === "anulado" || d.status === "reembolsado") pago = "";
@@ -1471,7 +1483,7 @@
 		h += '<table class="tot"><tbody><tr><td>' + esc(__("Subtotal", "dox-pos")) + "</td><td>" + dinero(d.subtotal) + "</td></tr>" +
 			(d.discount ? "<tr><td>" + esc(__("Discount", "dox-pos")) + "</td><td>−" + dinero(d.discount) + "</td></tr>" : "") +
 			(d.deposits || []).map((x) => "<tr><td>" + esc(sprintf(__("Deposit: %s", "dox-pos"), x.name)) + "</td><td>" + dinero(x.total) + "</td></tr>").join("") +
-			(d.credit_used ? "<tr><td>" + esc(__("Paid with store credit", "dox-pos")) + "</td><td>−" + dinero(d.credit_used) + "</td></tr>" : "") +
+			(d.credit_used ? "<tr><td>" + esc(d.layaway ? __("Deposits", "dox-pos") : __("Paid with store credit", "dox-pos")) + "</td><td>−" + dinero(d.credit_used) + "</td></tr>" : "") +
 			(d.shipping_total || d.shipping_method ? "<tr><td>" + esc(__("Shipping", "dox-pos")) + (d.shipping_method ? " · " + esc(d.shipping_method) : "") + "</td><td>" + dinero(d.shipping_total) + "</td></tr>" : "") +
 			'<tr class="t"><td>' + esc(__("Total", "dox-pos")) + "</td><td>" + dinero(d.total) + "</td></tr>" +
 			// La pérdida: lo que ese pedido costó de más (un envío más caro de lo cobrado, un imprevisto). Solo quien administra.
@@ -1479,6 +1491,18 @@
 			// La ganancia, para quien administra, en las ventas hechas: con el costo congelado al venderse (y la pérdida ya restada), en color según el margen.
 			(d.cost !== undefined && ["por_enviar", "enviado", "entregado"].includes(d.status) ? (d.profit !== null ? "<tr><td>" + esc(__("Profit", "dox-pos")) + "</td><td>" + pildoraGanancia(d.profit, d.margin) + "</td></tr>" : "<tr><td>" + esc(__("Profit", "dox-pos")) + '</td><td><span class="sub">' + esc(sprintf(_n("no cost on %d line", "no cost on %d lines", d.cost_missing, "dox-pos"), d.cost_missing)) + "</span></td></tr>") : "") +
 			"</tbody></table></section>";
+		// El apartado: lo que vale, cada abono, lo que falta y cuándo vence.
+		const lw = d.layaway;
+		if (lw && (lw.open || lw.deposits.length)) {
+			h += "<section><h4>" + esc(__("Layaway", "dox-pos")) + '</h4><div class="kv">';
+			h += "<span>" + esc(__("Worth", "dox-pos")) + "</span><span>" + dinero(lw.value) + "</span>";
+			if (lw.deposits.length) h += "<span>" + esc(__("Deposits", "dox-pos")) + "</span><span>" + lw.deposits.map((x) => esc([x.date, x.method, x.user].filter(Boolean).join(" · ")) + " · <b>" + dinero(x.amount) + "</b>" + (x.order ? ' <button type="button" class="lnk" data-ver="' + x.order + '">#' + esc(x.number) + "</button>" : "")).join("<br>") + "</span>";
+			if (lw.open) {
+				h += "<span>" + esc(__("Left to pay", "dox-pos")) + "</span><span><b>" + dinero(lw.remaining) + "</b></span>";
+				h += "<span>" + esc(__("Deadline", "dox-pos")) + "</span><span>" + (lw.expired ? '<span class="tag r">' + esc(sprintf(__("Expired on %s", "dox-pos"), lw.due)) + "</span>" : esc(lw.never ? __("No deadline", "dox-pos") : sprintf(__("expires on %s", "dox-pos"), lw.due))) + "</span>";
+			}
+			h += "</div></section>";
+		}
 		h += '<section><h4>' + esc(__("Customer", "dox-pos")) + '</h4><div class="kv">';
 		h += "<span>" + esc(__("Name", "dox-pos")) + "</span><span>" + esc(d.customer || __("No name", "dox-pos")) + "</span>";
 		if (d.phone) h += "<span>" + esc(__("Phone", "dox-pos")) + "</span><span>" + esc(d.phone) + (d.whatsapp ? ' · <a href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.name) + "</a>" : "") + "</span>";
@@ -1488,7 +1512,7 @@
 		h += "</div></section>";
 		h += '<section><h4>' + esc(__("Payment and shipping", "dox-pos")) + '</h4><div class="kv">';
 		h += "<span>" + esc(__("Payment", "dox-pos")) + "</span><span>" + esc(d.payment) + (pago ? " · " + pago : "") + "</span>";
-		if (d.status === "apartado" && d.hold_until) h += "<span>" + esc(__("Layaway", "dox-pos")) + "</span><span>" + esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) + "</span>";
+		if (d.status === "apartado" && d.hold_until && !d.layaway) h += "<span>" + esc(__("Layaway", "dox-pos")) + "</span><span>" + esc(sprintf(__("expires on %s", "dox-pos"), d.hold_until)) + "</span>";
 		if (d.tracking) h += "<span>" + esc(__("Shipping", "dox-pos")) + "</span><span>" + (d.tracking_url ? '<a href="' + esc(d.tracking_url) + '" target="_blank" rel="noopener">' + esc(d.tracking) + "</a>" : esc(d.tracking)) + "</span>";
 		if (d.completed_at) h += "<span>" + esc(__("Delivered", "dox-pos")) + "</span><span>" + esc(d.completed_at) + "</span>";
 		h += "</div></section>";
@@ -1573,6 +1597,7 @@
 			const web = p.origin !== "caja";
 			let pago = __("Pays on delivery", "dox-pos");
 			if (p.paid && !p.cod) pago = __("Paid", "dox-pos");
+			else if (p.status === "apartado" && p.layaway && p.layaway.deposited > 0) pago = __("Partly paid", "dox-pos");
 			else if (p.status === "apartado" || p.status === "sin_pagar" || p.status === "fallido") pago = __("Unpaid", "dox-pos");
 			else if (p.status === "por_confirmar") pago = __("In progress", "dox-pos");
 			else if (p.status === "anulado" || p.status === "reembolsado") pago = "";
@@ -1586,10 +1611,16 @@
 				'<td class="items"><button type="button" class="lnk items" data-ver="' + p.id + '">' + esc(p.items) + "</button>" + (p.note ? '<br><span class="sub">' + esc(p.note) + "</span>" : "") + "</td>" +
 				"<td>" + canal + "</td>" +
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
-				'<td class="num">' + dinero(p.total) + (p.credit_used ? '<br><span class="sub">' + esc(sprintf(__("+ %s store credit", "dox-pos"), dinero(p.credit_used))) + "</span>" : "") + "</td>" +
+				(p.layaway && p.layaway.open
+					? '<td class="num">' + dinero(p.layaway.value) + (p.layaway.deposited ? '<br><span class="sub">' + esc(sprintf(__("deposited %1$s · left %2$s", "dox-pos"), dinero(p.layaway.deposited), dinero(p.layaway.remaining))) + "</span>" : "") + "</td>"
+					: p.layaway && p.layaway.deposited > 0 && p.status !== "anulado" && p.status !== "reembolsado"
+					? '<td class="num">' + dinero(p.layaway.value) + '<br><span class="sub">' + esc(sprintf(__("with %s in deposits", "dox-pos"), dinero(p.layaway.deposited))) + "</span></td>"
+					: p.layaway && p.layaway.deposited > 0
+					? '<td class="num">' + dinero(p.layaway.value) + "</td>" // Liberado: sus abonos ya están en su saldo o se le devolvieron.
+					: '<td class="num">' + dinero(p.total) + (p.credit_used ? '<br><span class="sub">' + esc(sprintf(__("+ %s store credit", "dox-pos"), dinero(p.credit_used))) + "</span>" : "") + "</td>") +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
-					(p.status === "apartado" ? '<br><span class="sub">' + esc(sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>" : "") +
+					(p.status === "apartado" ? (p.layaway && p.layaway.expired ? '<br><span class="tag r">' + esc(__("Expired", "dox-pos")) + "</span>" : '<br><span class="sub">' + esc(p.layaway ? textoPlazo(p.layaway) : sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>") : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
 			const td = document.createElement("td");
 			td.className = "acts";
@@ -1614,8 +1645,15 @@
 			}
 			const msgs = { paid: __("Payment confirmed. It is now ready to ship.", "dox-pos"), release: __("Layaway released. The product goes back to stock.", "dox-pos"), shipped: __("Marked as shipped.", "dox-pos"), delivered: __("Delivered. The order is closed.", "dox-pos"), cancel: __("Order cancelled. The stock goes back.", "dox-pos") };
 			let msg = msgs[act];
+			const lo = r && r.order && r.order.layaway;
+			if (act === "paid" && p.status === "apartado") msg = __("Layaway paid. It is now ready to ship.", "dox-pos");
+			else if (act === "deposit") msg = lo && lo.open ? sprintf(__("Deposit recorded. Left to pay: %s.", "dox-pos"), dinero(lo.remaining)) : __("Deposit recorded: the layaway is paid in full.", "dox-pos");
+			else if (act === "deadline") msg = lo && lo.never ? __("Deadline changed: it has no deadline now.", "dox-pos") : sprintf(__("Deadline changed: it expires on %s.", "dox-pos"), lo ? lo.due : "");
+			else if (act === "release" && extra && extra.refund) msg = __("Layaway released. The deposits were given back to the customer.", "dox-pos");
+			else if (act === "release" && p.layaway && p.layaway.deposited > 0) msg = __("Layaway released. What was deposited is now the customer’s store credit.", "dox-pos");
 			if (act === "cancel" && (p.status === "sin_pagar" || p.status === "fallido")) msg = __("Order cancelled.", "dox-pos");
 			else if (act === "loss") msg = extra && extra.amount > 0 ? __("Loss noted.", "dox-pos") : __("Loss removed.", "dox-pos");
+			if (r && r.order && r.order.warning) msg = r.order.warning; // Algún abono no se pudo devolver.
 			toast(msg);
 		} catch (e) {
 			if (e.message !== "sesion") toast(e.message);
@@ -1784,6 +1822,7 @@
 				quitarDeCola(item.id);
 				hechos++;
 				if (item.tipo === "entrada") toast(sprintf(__("Entry saved: %s.", "dox-pos"), item.resumen));
+				else if (item.tipo === "apartado" && d.deposit_error) toast(sprintf(__("Layaway #%1$s recorded, but its deposit did not go in: %2$s Charge the money again from the order.", "dox-pos"), d.order.number, d.deposit_error)); // Sin esto, el abono cobrado sin señal se perdería sin aviso.
 				else if (item.tipo === "apartado") toast(sprintf(MSG.recorded, d.order.number));
 				else toast(sprintf(__("Sale recorded: order #%s.", "dox-pos"), d.order.number));
 			} catch (e) {
@@ -1924,7 +1963,149 @@
 		preguntar(texto).then((ok) => { if (ok) fn(); });
 	}
 	function modalWhatsApp(d) {
-		modal("<h3>" + esc(sprintf(__("Layaway #%s", "dox-pos"), d.order.number)) + '</h3><p class="mp">' + esc(sprintf(MSG.hold, cfg.hold_hours || 48)) + '</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.open) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>");
+		const l = d.order.layaway || {};
+		const extra = [l.never ? __("It has no deadline.", "dox-pos") : (l.due ? sprintf(__("It expires on %s.", "dox-pos"), l.due) : ""), l.deposited ? sprintf(__("Deposited: %1$s. Left to pay: %2$s.", "dox-pos"), dinero(l.deposited), dinero(l.remaining)) : ""].filter(Boolean).join(" ");
+		modal("<h3>" + esc(sprintf(__("Layaway #%s", "dox-pos"), d.order.number)) + '</h3><p class="mp">' + esc(MSG.hold + (extra ? " " + extra : "")) + '</p><div class="burb">' + esc(d.message) + '</div><div class="mbtn"><a class="go" href="' + esc(d.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.open) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>");
+		$("#m-no").onclick = cerrarModal;
+	}
+	// ---------- apartados: el plazo y los abonos ----------
+	const PAGOS_YA = (cfg.payments || []).filter((p) => p.paid).map((p) => [p.key, p.title]); // Las que entran ya: sirven para un abono.
+	const pagoYa = () => (PAGOS_YA.some((x) => x[0] === st.pago) ? st.pago : (PAGOS_YA[0] || [""])[0]);
+	const PLAZOS = [[24, __("24 h", "dox-pos")], [48, __("2 days", "dox-pos")], [168, __("7 days", "dox-pos")], [720, __("30 days", "dox-pos")], [0, __("No deadline", "dox-pos")]];
+	// El plazo de un apartado en pocas palabras: vencido, sin vencer, en horas si falta poco, si no la fecha.
+	function textoPlazo(l) {
+		if (!l) return "";
+		if (l.expired) return __("Expired", "dox-pos");
+		if (l.never) return __("No deadline", "dox-pos");
+		if (!l.until) return "";
+		return l.hours_left <= 48 ? sprintf(__("expires in %d h", "dox-pos"), l.hours_left) : sprintf(__("expires on %s", "dox-pos"), l.due);
+	}
+	// El plazo: los atajos y "Otro" en horas o días. Devuelve con qué leerlo: horas, 0 sin vencer, null si falta el número.
+	function campoPlazo(box, inicial) {
+		const hit = PLAZOS.some((x) => x[0] === inicial);
+		const enDias = !hit && inicial > 0 && inicial % 24 === 0;
+		let sel = hit ? inicial : "otro";
+		box.innerHTML = '<div class="chips" id="pz-chips"></div><div class="g2 mt" id="pz-otro"><div class="field"><label for="pz-n">' + esc(__("How long", "dox-pos")) + '</label><input id="pz-n" inputmode="numeric" value="' + (hit ? "" : (enDias ? inicial / 24 : inicial)) + '"></div><div class="field"><label for="pz-u">' + esc(__("In", "dox-pos")) + '</label><select id="pz-u"><option value="h">' + esc(__("hours", "dox-pos")) + '</option><option value="d"' + (enDias ? " selected" : "") + ">" + esc(__("days", "dox-pos")) + "</option></select></div></div>";
+		const pintar = () => {
+			chips($("#pz-chips"), PLAZOS.concat([["otro", __("Other", "dox-pos")]]), sel, (x) => { sel = x; pintar(); if (x === "otro") $("#pz-n").focus(); });
+			$("#pz-otro").hidden = sel !== "otro";
+		};
+		pintar();
+		return () => {
+			if (sel !== "otro") return sel;
+			const n = uds($("#pz-n").value);
+			return n > 0 ? ($("#pz-u").value === "d" ? n * 24 : n) : null;
+		};
+	}
+	// Un abono: cuánto y con qué entró (solo las formas de pago que entran ya). Devuelve con qué leerlo.
+	function campoAbono(box, rotulo) {
+		let pago = pagoYa();
+		box.innerHTML = '<div class="field"><label for="ab-v">' + esc(rotulo) + '</label><input id="ab-v" inputmode="' + IM + '" placeholder="0" autocomplete="off"></div><p class="lbl mt">' + esc(__("How it came in", "dox-pos")) + '</p><div class="chips" id="ab-pago"></div>';
+		const pintar = () => chips($("#ab-pago"), PAGOS_YA, pago, (x) => { pago = x; pintar(); });
+		pintar();
+		const v = $("#ab-v");
+		v.addEventListener("input", () => { const n = num(v.value); const f = miles(n); if (f && f !== v.value && M.decimals === 0) v.value = f; });
+		return () => ({ amount: num(v.value), payment: pago });
+	}
+	// Apartar: el plazo de este apartado y, si quiere, un abono ya.
+	function modalApartar() {
+		const tt = totales();
+		const falta0 = redondear(tt.base - tt.cred);
+		modal("<h3>" + esc(__("Put on layaway", "dox-pos")) + '</h3><p class="mp">' + esc(resumenLineas(st.lineas) || "") + "</p>" +
+			'<p class="lbl mt">' + esc(__("Deadline", "dox-pos")) + '</p><div id="ap-plazo"></div>' +
+			(PAGOS_YA.length ? '<p class="lbl mt">' + esc(__("Deposit now (optional)", "dox-pos")) + '</p><div id="ap-abono"></div>' : "") +
+			'<div class="sum mt" id="ap-sum"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Put on layaway", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>", "wide");
+		const plazo = campoPlazo($("#ap-plazo"), +cfg.hold_hours || 0);
+		const abono = PAGOS_YA.length ? campoAbono($("#ap-abono"), __("Amount", "dox-pos")) : () => null;
+		const fila = (k, v) => "<div><span>" + esc(k) + "</span><span>" + v + "</span></div>";
+		const sum = () => {
+			const a = abono(), dep = a ? a.amount : 0;
+			$("#ap-sum").innerHTML = fila(__("Worth", "dox-pos"), dinero(tt.base)) +
+				(tt.cred ? fila(__("Paid with store credit", "dox-pos"), "−" + dinero(tt.cred)) : "") +
+				(dep ? fila(__("Deposit now", "dox-pos"), "−" + dinero(dep)) : "") +
+				'<div class="tot"><span>' + esc(__("Left to pay", "dox-pos")) + "</span><span>" + dinero(Math.max(0, falta0 - dep)) + "</span></div>" +
+				(cfg.tax_extra ? '<p class="sub">' + esc(__("Plus tax: the exact amount is calculated when the layaway is saved.", "dox-pos")) + "</p>" : "");
+		};
+		$("#modal-card").addEventListener("input", sum);
+		sum();
+		$("#m-ok").onclick = () => {
+			const h = plazo();
+			if (h === null) { toast(__("Write how long the layaway lasts.", "dox-pos")); $("#pz-n").focus(); return; }
+			const a = abono();
+			// Con impuesto aparte, el tope lo pone la tienda al guardar (aquí no se sabe el impuesto).
+			if (a && !cfg.tax_extra && a.amount > falta0 + 0.00001) { toast(sprintf(__("The deposit cannot be more than what is left to pay (%s).", "dox-pos"), dinero(falta0))); return; }
+			cerrarModal();
+			cerrar(true, { hours: h, deposit: a && a.amount > 0 ? a : null });
+		};
+		$("#m-no").onclick = cerrarModal;
+	}
+	// Cobrar el resto: lo que falta y con qué entró.
+	function modalCobrarResto(p) {
+		const l = p.layaway || {};
+		const falta = l.remaining !== undefined ? l.remaining : p.total;
+		if (!(falta > 0)) {
+			confirmar(sprintf(__("Layaway #%s is paid in full with its deposits. Mark it as paid?", "dox-pos"), p.number), () => accion(p, "paid"));
+			return;
+		}
+		let pago = pagoYa();
+		modal("<h3>" + esc(sprintf(__("Charge the rest of layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc((l.deposited ? sprintf(__("It is worth %1$s and %2$s has been deposited.", "dox-pos"), dinero(l.value), dinero(l.deposited)) + " " : "") + sprintf(__("Left to pay: %s.", "dox-pos"), dinero(falta))) + "</p>" +
+			(PAGOS_YA.length ? '<p class="lbl">' + esc(__("How it came in", "dox-pos")) + '</p><div class="chips" id="cr-pago"></div>' : "") +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(sprintf(__("Paid %s", "dox-pos"), dinero(falta))) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>");
+		const pintar = () => { if (PAGOS_YA.length) chips($("#cr-pago"), PAGOS_YA, pago, (x) => { pago = x; pintar(); }); };
+		pintar();
+		$("#m-ok").onclick = () => { cerrarModal(); accion(p, "paid", pago ? { payment: pago } : {}); };
+		$("#m-no").onclick = cerrarModal;
+	}
+	// Otro abono al mismo apartado, cada uno en su día.
+	function modalAbono(p) {
+		const l = p.layaway || {};
+		if (!PAGOS_YA.length) return;
+		modal("<h3>" + esc(sprintf(__("Deposit on layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(sprintf(__("Left to pay: %s.", "dox-pos"), dinero(l.remaining))) + '</p><div id="ab-box"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Record the deposit", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>");
+		const abono = campoAbono($("#ab-box"), __("Amount", "dox-pos"));
+		$("#ab-v").focus();
+		$("#m-ok").onclick = () => {
+			const a = abono();
+			if (!(a.amount > 0)) { toast(__("Write how much the deposit is.", "dox-pos")); return; }
+			if (a.amount > l.remaining + 0.00001) { toast(sprintf(__("The deposit cannot be more than what is left to pay (%s).", "dox-pos"), dinero(l.remaining))); return; }
+			cerrarModal();
+			accion(p, "deposit", { amount: a.amount, payment: a.payment, ref: uuid() });
+		};
+		$("#m-no").onclick = cerrarModal;
+	}
+	// Cambiar el plazo: alargarlo, acortarlo o dejarlo sin vencer.
+	function modalPlazo(p) {
+		const l = p.layaway || {};
+		modal("<h3>" + esc(sprintf(__("Deadline of layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(l.never ? __("Now it has no deadline.", "dox-pos") : (l.due ? sprintf(l.expired ? __("It expired on %s.", "dox-pos") : __("Now it expires on %s.", "dox-pos"), l.due) : "")) + " " + esc(__("The new deadline counts from now.", "dox-pos")) + '</p><div id="pz-box"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Change the deadline", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>");
+		const plazo = campoPlazo($("#pz-box"), +cfg.hold_hours || 0);
+		$("#m-ok").onclick = () => {
+			const h = plazo();
+			if (h === null) { toast(__("Write how long the layaway lasts.", "dox-pos")); $("#pz-n").focus(); return; }
+			cerrarModal();
+			accion(p, "deadline", { hours: h });
+		};
+		$("#m-no").onclick = cerrarModal;
+	}
+	// Liberar un apartado con abonos: lo abonado queda en su saldo a favor (de fábrica) o se le devuelve el dinero.
+	function modalLiberar(p) {
+		const l = p.layaway || {};
+		let modo = "saldo", pago = pagoYa();
+		modal("<h3>" + esc(sprintf(__("Release layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(sprintf(__("The product goes back to stock. %1$s had deposited %2$s: what happens with that money?", "dox-pos"), p.customer || __("The customer", "dox-pos"), dinero(l.deposited))) + "</p>" +
+			'<div class="chips" id="lb-modo"></div><div id="lb-pago-box" class="mt" hidden><p class="lbl">' + esc(__("Given back by", "dox-pos")) + '</p><div class="chips" id="lb-pago"></div><p class="sub mt">' + esc(__("The deposits made on this layaway are given back. Any store credit the customer already had goes back to their store credit.", "dox-pos")) + "</p></div>" +
+			'<div class="mbtn"><button type="button" class="go peligro" id="m-ok">' + esc(__("Release", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>");
+		const pintar = () => {
+			chips($("#lb-modo"), [["saldo", __("Leave it as store credit", "dox-pos")], ["dinero", __("Give the money back", "dox-pos")]], modo, (x) => { modo = x; pintar(); });
+			$("#lb-pago-box").hidden = modo !== "dinero";
+			if (PAGOS_YA.length) chips($("#lb-pago"), PAGOS_YA, pago, (x) => { pago = x; pintar(); });
+		};
+		pintar();
+		// Devolver el dinero es de quien administra (como las devoluciones del Mostrador); la caja lo deja en su saldo.
+		if (!(cfg.credit && cfg.credit.manage)) {
+			$("#lb-modo").innerHTML = '<p class="sub">' + esc(__("What was deposited stays as the customer’s store credit. Only administrators and shop managers can give the money back.", "dox-pos")) + "</p>";
+		}
+		$("#m-ok").onclick = () => { cerrarModal(); accion(p, "release", modo === "dinero" ? { refund: true, refund_payment: pago } : {}); };
 		$("#m-no").onclick = cerrarModal;
 	}
 	function modalEnvio(p) {
@@ -3601,6 +3782,15 @@
 			(d.top.length ? '<ul class="bl ptop">' + d.top.map((x) => "<li>" + thumbHtml(x) + '<button type="button" class="lnk n" data-prod="' + x.id + '">' + esc(x.name) + "</button><span>" + esc(unidadesN(x.units)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("No sales in the last 30 days.", "dox-pos")) + "</p>") + "</div>";
 		h += '<div class="pside"><div class="pcard"><h4>' + esc(__("Collected today", "dox-pos")) + '<span class="cnt">' + dinero(t.cashed) + "</span></h4>" +
 			(d.methods.length ? '<ul class="bl">' + d.methods.map((x) => "<li><span>" + esc(x.name) + "</span><span>" + esc(ventasN(x.n)) + " · <b>" + dinero(x.total) + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing collected yet today.", "dox-pos")) + "</p>") + "</div>";
+		// Los apartados que vencen pronto (y los vencidos con abonos): para llamar a la clienta antes de que se cancele.
+		const lay = d.layaways || [];
+		if (lay.length) {
+			h += '<div class="pcard"><h4>' + esc(__("Layaways due soon", "dox-pos")) + '<span class="cnt">' + lay.length + '</span></h4><ul class="bl playa">' + lay.map((x) =>
+				'<li><span><button type="button" class="lnk" data-ver="' + x.id + '">' + esc((x.customer || __("No name", "dox-pos")) + " · #" + x.number) + '</button><br><span class="sub">' +
+				(x.expired ? '<span class="tag r">' + esc(__("Expired", "dox-pos")) + "</span> " : esc(x.hours_left <= 48 ? sprintf(__("in %d h", "dox-pos"), x.hours_left) : x.due) + " · ") +
+				esc(x.deposited ? sprintf(__("deposited %s", "dox-pos"), dinero(x.deposited)) : __("no deposit", "dox-pos")) + "</span></span>" +
+				"<span><b>" + esc(sprintf(__("left %s", "dox-pos"), dinero(x.remaining))) + "</b>" + (x.whatsapp ? ' <a class="mini sec" href="' + esc(x.whatsapp) + '" target="_blank" rel="noopener">' + esc(MSG.name) + "</a>" : "") + "</span></li>").join("") + "</ul></div>";
+		}
 		const pend = [[__("To ship", "dox-pos"), p.por_enviar], [__("On the way", "dox-pos"), p.enviado], [__("Layaways", "dox-pos"), p.apartado], [__("Payments to confirm", "dox-pos"), p.por_confirmar], [__("Website orders unpaid", "dox-pos"), p.sin_pagar]].filter((f) => f[1] > 0);
 		h += '<div class="pcard"><h4>' + esc(__("Orders to handle", "dox-pos")) + "</h4>" +
 			(pend.length ? '<ul class="bl">' + pend.map((f) => '<li><button type="button" class="lnk" data-go="pedidos">' + esc(f[0]) + "</button><span><b>" + f[1] + "</b></span></li>").join("") + "</ul>" : '<p class="empty">' + esc(__("Nothing pending.", "dox-pos")) + "</p>") + "</div>";
@@ -3856,7 +4046,14 @@
 		if ($("#f-envio-cfg")) $("#f-envio-cfg").onclick = abrirCostos;
 		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && hojaAbierta() && $("#modal").hidden && (!$("#gearmenu") || $("#gearmenu").hidden)) volver(); });
 		$("#reg").onclick = () => cerrar(false);
-		$("#apartar").onclick = () => cerrar(true);
+		$("#apartar").onclick = () => {
+			if (!$("#f-tel").value.trim()) {
+				toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
+				$("#f-tel").focus();
+				return;
+			}
+			modalApartar();
+		};
 		$("#reg2").onclick = guardarEntrada;
 		if ($("#e-costos")) {
 			$("#e-costos").onclick = () => $("#e-costos-file").click();

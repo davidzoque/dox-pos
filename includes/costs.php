@@ -357,6 +357,11 @@ function dox_pos_can_see_losses() {
  * @return array{cost: float|null, profit: float|null, revenue: float, loss: float, complete: bool, missing: int}
  */
 function dox_pos_order_profit( $order ) {
+	// El pedido de un abono a un apartado no vende nada por sí mismo: la ganancia la lleva el apartado
+	// el día que se paga, con todo lo que vale (ver abajo). Aquí va en 0, sin contarlo como venta sin costo.
+	if ( $order->get_meta( '_dox_pos_layaway_of' ) ) {
+		return array( 'cost' => 0.0, 'profit' => 0.0, 'revenue' => 0.0, 'loss' => 0.0, 'complete' => true, 'missing' => 0 );
+	}
 	$cost    = 0.0;
 	$missing = 0;
 	$n       = 0;
@@ -374,7 +379,7 @@ function dox_pos_order_profit( $order ) {
 	// impuestos, y sin lo devuelto en dinero.
 	$refunded = (float) $order->get_total_refunded() - (float) $order->get_total_tax_refunded() - (float) $order->get_total_shipping_refunded();
 	// Nunca negativo: una venta pagada entera con saldo a favor (impuesto incluido) no trajo dinero nuevo.
-	$revenue  = max( 0.0, round( (float) $order->get_total() - (float) $order->get_shipping_total() - (float) $order->get_total_tax() - $refunded, 2 ) );
+	$revenue  = max( 0.0, round( (float) $order->get_total() + dox_pos_order_layaway_deposits( $order ) - (float) $order->get_shipping_total() - (float) $order->get_total_tax() - $refunded, 2 ) );
 	$loss    = dox_pos_order_loss( $order );
 	if ( ! $n || $missing === $n ) {
 		return array( 'cost' => null, 'profit' => null, 'revenue' => $revenue, 'loss' => $loss, 'complete' => false, 'missing' => $missing );

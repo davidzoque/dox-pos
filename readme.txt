@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.50.0
+Stable tag: 0.51.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -21,7 +21,7 @@ It follows the country of the store (WooCommerce > Settings > General): the paym
 
 = What it does =
 
-* **Sell and put on layaway.** Channel, customer, city, shipping, discount and payment method. A sale becomes a WooCommerce order, so the stock, the reports and the emails are the ones the store already had. A layaway holds the stock and cancels itself if it is not paid within the deadline you set.
+* **Sell and put on layaway.** Channel, customer, city, shipping, discount and payment method. A sale becomes a WooCommerce order, so the stock, the reports and the emails are the ones the store already had. A layaway holds the stock until its deadline (or with no deadline), takes deposits that count as sales on the day the money comes in, and cancels itself if it is not paid in time, unless it already has deposits.
 * **Inventory.** Record what arrives with supplier, invoice and cost. It adds to the stock and warns you if the same invoice was already recorded from another phone.
 * **Orders.** The ones from the register and, if you want, the ones from the website, with their status and the WhatsApp message ready. Mark them shipped with a carrier and a tracking number, and the customer gets an email with the tracking link, using the store's own email design.
 * **Products.** Create and edit products from the phone: photos (iPhone HEIC included, stored as WebP), sizes, colors, units per size, weight and size for shipping, and an automatic SKU that follows the one the store already uses.
@@ -102,6 +102,19 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.51.0 =
+* New: layaways with their own deadline. When you put something on layaway you choose how long it is held (24 hours, 2, 7 or 30 days, any number of hours or days, or no deadline); it starts with the one in Settings, Layaways, which can now be set in hours or days or as "Layaways do not expire". The deadline can be extended, shortened or removed later from the order detail (Change deadline).
+* New: deposits on a layaway. Take part of the money when putting something on layaway, with its payment method, and add more deposits later from the order detail (Add deposit), each one on its own day. Each deposit counts as a sale on the day the money comes in, and the layaway's total (and its payment link) becomes what is left to pay. A deposit that covers everything marks the layaway as paid.
+* New: Charge the rest. Paying a layaway now asks how the rest was paid, and only what is left counts as a sale, on the day it is paid.
+* New: releasing a layaway with deposits asks what happens with the money: it stays as the customer's store credit (the default) or it is given back, with the payment method you choose (it comes off Sales on the day it goes out). Only administrators and shop managers can give money back; the Cashier role leaves it as store credit.
+* New: a layaway with deposits does not cancel itself when it expires: it shows up as expired until you extend it or release it. Layaways with no deposit still cancel themselves, as before.
+* New: Dashboard, Layaways due soon: the ones that expire within 3 days and the expired ones with deposits, with what was deposited, what is left and the WhatsApp button.
+* New: in Orders and in the order detail each layaway shows what it is worth, what has been deposited, what is left and when it expires.
+* New: the layaway message has {due} (when that layaway expires), {deposit} and {remaining}; a sentence whose placeholder does not apply removes itself (the payment link always stays). {hours} is now the hours left on that layaway.
+* Change: a layaway now counts as a sale on the day it is paid, not on the day it was put on layaway (only layaways created from this version on: past reports do not change).
+* Change: the profit of a layaway counts everything it is worth on the day it is paid; its deposit orders count as sales but not as sales without a cost.
+* Change: in stores whose prices exclude tax, the Put on layaway window says that tax is added when it is saved.
+
 = 0.50.0 =
 * New: store credit. Money a customer leaves with the shop to use later, kept under their phone number. Take a deposit in Sell (Without a product, Deposit to store credit), for example 50% of a made-to-order piece: it counts as a sale on the day the money comes in, with its payment method.
 * New: pay with store credit in Sell and at the Counter, all of it or part, together with another payment method or a split payment. That part does not count as a sale again, because it already counted when the money came in. The tax is still charged in full.
@@ -123,13 +136,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.48.1 =
 * Fix: on the phone, tapping a product further down the Inventory or Sell list opened it but sent the list back to the top (Safari on iPhone), so you had to scroll down again to find it. Now it opens in place and the list stays where it was, also when you add a size.
-
-= 0.48.0 =
-* New: the Counter, for a physical store. Turn it on in WooCommerce > Dox POS > Sales and the register gets a Counter tab: scan barcodes with a USB or Bluetooth scanner or with the camera (ZXing on Safari), quick buttons for products without a barcode, keyboard shortcuts (F2 to F9), sales on hold and a discount.
-* New: charge cash with suggested bills and the change in large type, by card, or split between several payment methods. Each sale is a WooCommerce order handed over at the counter, with the tax worked out from the store address.
-* New: open the till with its float and close it counting the drawer. The closing shows the sales by payment method and whether the cash matches, is short or is over.
-* New: receipts for 58 or 80 mm paper printed from the browser on any printer, with a basic editor in Settings > Sales (top, bottom, logo, what it shows) and a barcode that opens the return of that sale.
-* New: returns at the Counter: scan the receipt, choose the pieces and give the money back in cash or by the same method. The pieces go back into stock.
-* New: a Counter cashier role that only reaches the Counter, a maximum discount for whoever does not manage the shop (Settings > Sales > Discounts, 0% turns discounts off) and a blind till closing for them.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

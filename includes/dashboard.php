@@ -107,6 +107,7 @@ function dox_pos_dashboard() {
 		'series'     => dox_pos_dashboard_series( DOX_POS_DASH_DAYS, $today, $days ),
 		'methods'    => $cash['method_totals'],
 		'pending'    => dox_pos_dashboard_pending(),
+		'layaways'   => dox_pos_layaways_due( 3 ), // Los que vencen en 3 días y los vencidos con abonos: para llamar a la clienta a tiempo.
 		'top'        => $top,
 		'stock'      => dox_pos_dashboard_stock(),
 		'costs'      => $see,
