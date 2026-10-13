@@ -3,11 +3,23 @@
    ajuste (WooCommerce > Dox POS) en un <style> después de este archivo. Aquí van los valores de
    fábrica, los de la marca Dox, y los tonos que se derivan de esos cinco. */
 :root{
+  /* Los cinco del ajuste y los tonos que dox_pos_theme_vars() saca de ellos (PHP los escribe siempre;
+     estos son los de fábrica, por si el <style> no llega). */
   --paper:#FFF9F4; --bar:#26221F; --primary:#FF8D27; --soft:#FFE8CC; --ink:#26221F;
-  --primary-ink:#26221F; --bar-ink:#FFFFFF; --soft-ink:#26221F; --soft-accent:#FF8D27;
-  --tab-on:#FFFFFF; --tab-on-ink:#26221F; --primary-text:#FF8D27;
-  --surface:#FFFFFF; --sunk:#F8F3EE; --line:#E5DFDA; --faint:#928E8A; --muted:#403C39;
+  --primary-ink:#26221F; --bar-ink:#FFFFFF; --soft-ink:#26221F; --soft-accent:#C26B1E;
+  --tab-on:#FFFFFF; --tab-on-ink:#26221F; --primary-text:#AD601B;
+  --surface:#FFFFFF; --sunk:#F8F3EE; --line:#E5DFDA; --faint:#938E8A; --muted:#403C39;
   --ok:#2E7D32; --ok-soft:#E6F1E6; --real:#731C2A; --real-soft:#F6E9EB; --warn:#26221F; --warn-soft:#EEE8E3; --scrim:rgba(38,34,31,.45);
+  --primary-deep:#E07C22; --primary-tint:#FFF1E5; --primary-strong:#AD601B;
+  --on-primary:#FFFFFF; --on-primary-sm:#26221F;
+  /* Estados y canales (dox-design): fijos en todas las tiendas, porque significan algo. El color de
+     la marca nunca los sustituye: un "agotado" en el rosa de la tienda dejaría de leerse como aviso. */
+  --st-ok:#047857; --st-ok-soft:#D1FAE5; --st-warn:#8A5A00; --st-warn-soft:#FBF0D9;
+  --st-bad:#B42318; --st-bad-soft:#FDE8E8; --st-info:#1D4ED8; --st-info-soft:#DBEAFE;
+  --st-vio:#6D28D9; --st-vio-soft:#EDE9FE;
+  --ch-wa:#15803D; --ch-ig:#BE185D; --ch-web:#1D4ED8; --ch-per:#B45309;
+  /* Peligro: errores de un campo, borrar, vaciar. */
+  --danger:#B3261E; --danger-ink:#8E2B21; --danger-ring:rgba(142,43,33,.12); --danger-soft:#F6E2DF; --badge:#D93025;
   --ui:"Poppins",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --serif:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -208,8 +220,8 @@ td.acts{white-space:nowrap}
 td.items{max-width:280px}
 tr.off,li.off{opacity:.5}
 .tag.d{background:var(--sunk);color:var(--muted);text-decoration:line-through}
-.tag.y{background:#FBF0D9;color:#8A5A00}
-.tag.r{background:#FDE8E8;color:#B42318}
+.tag.y{background:var(--st-warn-soft);color:var(--st-warn)}
+.tag.r{background:var(--st-bad-soft);color:var(--st-bad)}
 .tot .tag{font-size:12.5px;padding:3px 10px}
 .tot .tag+.lnk{margin-left:6px}
 .undo{appearance:none;background:none;border:0;color:var(--primary-text);font:500 12px var(--ui);
@@ -309,7 +321,7 @@ tr.off,li.off{opacity:.5}
 .pstatus{font-size:11.5px;color:var(--muted);min-height:16px}
 .pstatus:empty{display:none}
 .pstatus.ok{color:var(--ok)}
-.pstatus.bad{color:#8E2B21}
+.pstatus.bad{color:var(--danger-ink)}
 /* Las unidades: una tarjeta por color (apiladas en el teléfono, en rejilla en pantalla grande) */
 .qcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .qcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
@@ -352,9 +364,9 @@ tr.off,li.off{opacity:.5}
 }
 
 /* ---------- a prueba de errores: el aviso se queda en el campo, el repaso antes de crear ---------- */
-.field.bad input,.field.bad textarea{border-color:#8E2B21;box-shadow:0 0 0 3px rgba(142,43,33,.12)}
-.field.bad label,.field.bad .lbl,.grp.bad h4{color:#8E2B21}
-.ferr{margin:6px 0 0;font-size:12.5px;color:#8E2B21;font-weight:500}
+.field.bad input,.field.bad textarea{border-color:var(--danger-ink);box-shadow:0 0 0 3px var(--danger-ring)}
+.field.bad label,.field.bad .lbl,.grp.bad h4{color:var(--danger-ink)}
+.ferr{margin:6px 0 0;font-size:12.5px;color:var(--danger-ink);font-weight:500}
 .fwarn{margin:6px 0 0;font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:8px 10px;line-height:1.45}
 .fwarn .undo{padding:0;font-size:12.5px}
 .newbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0 0}
@@ -460,7 +472,7 @@ table.hped{min-width:760px}
 table.kdx{min-width:800px}
 table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .delta.in{color:var(--ok);font-weight:600}
-.delta.out{color:#8E2B21;font-weight:600}
+.delta.out{color:var(--danger-ink);font-weight:600}
 .linkp{appearance:none;background:none;border:0;padding:0;color:var(--ink);font:500 13px var(--ui);cursor:pointer;text-align:left;text-decoration:underline dotted;text-underline-offset:3px}
 .grp h4 .cnt .undo,.hint .undo{text-decoration:underline;padding:0}
 .hfil{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:12px}
@@ -484,7 +496,7 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .aicard a:hover,.pend .pt a:hover,.bl a:hover,.adv p a:hover{text-decoration-thickness:2px}
 .pend{list-style:none;margin:0;padding:0;columns:430px 2;column-gap:10px} /* dos columnas: se leen de arriba abajo y no queda medio renglón vacío en cada aviso */
 .pend li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;align-items:stretch;gap:8px;break-inside:avoid;margin:0 0 10px}
-.pend li.alta{border-left:3px solid #8E2B21}
+.pend li.alta{border-left:3px solid var(--danger-ink)}
 .pend li.media{border-left:3px solid var(--primary)}
 .pend .pt{display:grid;gap:3px;min-width:0;justify-items:start}
 .pend .pt b{font-weight:600;font-size:13.5px}
@@ -495,7 +507,7 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 /* Uso: el tope del mes, el gasto día a día y en qué se va */
 .usotope{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:2px 0 4px}
 .usotope span{display:block;height:100%;background:var(--primary);border-radius:6px;transition:width .3s ease-out}
-.usotope span.alto{background:#8E2B21}
+.usotope span.alto{background:var(--danger-ink)}
 .usog{display:flex;align-items:stretch;gap:3px;height:120px;margin:6px 0}
 .usob{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:4px}
 .usob b{display:block;width:100%;background:var(--soft);border-radius:4px 4px 0 0;min-height:2px}
@@ -517,7 +529,7 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .chkh b{font-weight:600;font-size:14px;display:block}
 .chkh>div>span{font-size:12.5px;color:var(--muted);line-height:1.4}
 .chk .n{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font:600 15px var(--ui);font-variant-numeric:tabular-nums;background:var(--sunk);color:var(--muted)}
-.chk .n.alta{background:#F6E2DF;color:#8E2B21}
+.chk .n.alta{background:var(--danger-soft);color:var(--danger-ink)}
 .chk .n.media{background:var(--soft);color:var(--soft-accent)}
 .chk .n.baja{background:var(--sunk);color:var(--ink)}
 .chk .n.ok{background:var(--ok-soft);color:var(--ok)}
@@ -690,7 +702,7 @@ table.ped .lnk.items{white-space:normal}
 .lin.cost .cst input{width:96px;text-align:right;padding:7px 8px;font-variant-numeric:tabular-nums;font-size:13px}
 .lin.cost .cst .vt{min-width:78px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
 .margen{margin:9px 0 0;font-size:13px;color:var(--muted);line-height:1.4}
-.margen.bad{color:#B3261E}
+.margen.bad{color:var(--danger)}
 
 /* ---------- el paquete del producto (peso y medidas) y los campos con su unidad dentro ---------- */
 .pack{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:start}
@@ -701,7 +713,7 @@ table.ped .lnk.items{white-space:normal}
 .uwrap input,.uwrap input:focus-visible{flex:1;min-width:0;border:0;border-radius:0;background:none;box-shadow:none;outline:none;padding:10px 0;font-variant-numeric:tabular-nums}
 .uwrap i{flex:none;font-style:normal;font-size:13px;color:var(--faint);white-space:nowrap;pointer-events:none}
 .uwrap.pre{flex-direction:row-reverse} /* el símbolo de la moneda, del lado que lo pone la tienda */
-.field.bad .uwrap{border-color:#8E2B21;box-shadow:0 0 0 3px rgba(142,43,33,.12)}
+.field.bad .uwrap{border-color:var(--danger-ink);box-shadow:0 0 0 3px var(--danger-ring)}
 .field.bad .uwrap input{box-shadow:none} /* el aro del error va en el marco, no en la casilla de dentro */
 /* La tira de paquetes. No se llama "row": esa clase es la de las filas de la hoja, y sus reglas le caían encima. */
 .chips.tira{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px 12px;padding:0 16px 2px;scrollbar-width:none}
@@ -832,11 +844,11 @@ table.ped .lnk.items{white-space:normal}
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink);animation:dp-spin .6s linear infinite}
 @keyframes dp-spin{to{transform:rotate(360deg)}}
 .sh-foot{padding:18px 0 2px;display:grid;gap:4px}
-.sh-del{appearance:none;border:0;background:none;color:#B3261E;font:500 14px var(--ui);min-height:44px;cursor:pointer;border-radius:10px;transition:var(--press)}
+.sh-del{appearance:none;border:0;background:none;color:var(--danger);font:500 14px var(--ui);min-height:44px;cursor:pointer;border-radius:10px;transition:var(--press)}
 .sh-del:active{transform:scale(.97);background:rgba(179,38,30,.08)}
 .tramo{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.15fr) 36px;gap:8px;align-items:center;margin-bottom:8px}
 .tramo .tl{font-size:13px;color:var(--muted);white-space:nowrap}
-.tramo.bad .uwrap{border-color:#8E2B21;box-shadow:0 0 0 3px rgba(142,43,33,.12)}
+.tramo.bad .uwrap{border-color:var(--danger-ink);box-shadow:0 0 0 3px var(--danger-ring)}
 .tx{appearance:none;border:0;background:var(--sunk);color:var(--muted);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;transition:var(--press)}
 .tx svg{width:14px;height:14px}
 .tx:active{transform:scale(.9)}
@@ -871,10 +883,10 @@ table.ped .lnk.items{white-space:normal}
   .tabbar button[aria-pressed="true"]{color:var(--primary-text)}
   .tb-ic{position:relative;width:54px;height:30px;border-radius:15px;display:grid;place-items:center;transition:background-color 200ms var(--out),transform 160ms var(--out)}
   .tb-ic svg{width:22px;height:22px}
-  .tabbar button[aria-pressed="true"] .tb-ic{background:var(--sunk);background:color-mix(in srgb,var(--primary-text) 13%,transparent)}
+  .tabbar button[aria-pressed="true"] .tb-ic{background:var(--primary-tint)}
   .tabbar button:active .tb-ic{transform:scale(.9)}
   .tb-n{position:absolute;top:-3px;left:calc(50% + 5px);min-width:18px;height:18px;line-height:18px;border-radius:9px;padding:0 5px;box-sizing:content-box;
-    background:#D93025;color:#fff;font:700 10.5px/18px var(--ui);text-align:center;border:2px solid var(--surface);font-variant-numeric:tabular-nums}
+    background:var(--badge);color:#fff;font:700 10.5px/18px var(--ui);text-align:center;border:2px solid var(--surface);font-variant-numeric:tabular-nums}
   .tb-n.dot{min-width:0;width:9px;height:9px;padding:0;top:1px;left:calc(50% + 9px)}
   /* Con la barra debajo, el pie de la venta ya no toca el borde del teléfono, y los avisos salen por encima de la barra. */
   .con-tabbar .foot{padding-bottom:12px}
@@ -926,7 +938,7 @@ table.ped .lnk.items{white-space:normal}
   .volver{display:flex;align-items:center;gap:8px;flex:none;padding:12px 16px 4px}
   .volver button{appearance:none;border:0;background:none;display:flex;align-items:center;gap:4px;font:600 14px var(--ui);color:var(--primary-text);cursor:pointer;padding:6px 4px 6px 0}
   .volver button svg{width:20px;height:20px}
-  .volver .vaciar{margin-left:auto;color:#B3261E;font-weight:500;font-size:13px}
+  .volver .vaciar{margin-left:auto;color:var(--danger);font-weight:500;font-size:13px}
   .volver .vaciar:disabled{opacity:.35;cursor:default}
   .xl{display:flex;gap:8px;flex:none;padding:0 16px 8px}
   .xlb{appearance:none;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);
@@ -941,9 +953,8 @@ table.ped .lnk.items{white-space:normal}
    botón para quitar una sin ir a revisar. */
 .varrow{display:flex;gap:6px;align-items:stretch}
 .varrow .var{flex:1;min-width:0}
-.var.puesto{border-color:var(--primary-text);background:var(--sunk)}
 /* Un tinte claro del color de la marca: --soft puede ser oscuro (cakto) y no dejaría leer la talla. */
-@supports (color:color-mix(in srgb,red,blue)){.var.puesto{background:color-mix(in srgb,var(--primary-text) 9%,var(--surface))}}
+.var.puesto{border-color:var(--primary-text);background:var(--primary-tint)}
 /* La última que quedaba ya está en el pedido: no se puede añadir otra, pero se sigue leyendo bien. */
 .var.puesto:disabled{opacity:1;cursor:default}
 .var .lleg{display:inline-block;margin-left:8px;font:600 11.5px/1.5 var(--ui);color:var(--primary-ink);background:var(--primary);border-radius:999px;padding:0 8px;vertical-align:1px}
@@ -967,8 +978,8 @@ table.ped .lnk.items{white-space:normal}
 #p-buscar .searchwrap{padding:0 0 8px}
 /* Una pregunta con tres salidas (guardar, descartar, seguir): los botones uno debajo de otro. */
 .mbtn.col3{flex-direction:column}
-.go.peligro{background:#B3261E;color:#fff}
-.go.alt.peligro{background:var(--surface);color:#B3261E;border-color:#B3261E}
+.go.peligro{background:var(--danger);color:#fff}
+.go.alt.peligro{background:var(--surface);color:var(--danger);border-color:var(--danger)}
 
 /* ---------- el Mostrador: la caja de la tienda física (includes/counter.php, mostrador.js) ---------- */
 #t-mostrador .turno{display:flex;align-items:center;gap:14px;padding:6px 16px;background:var(--surface);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted);flex:none;min-height:44px}
@@ -983,7 +994,7 @@ table.ped .lnk.items{white-space:normal}
 .caja-esc .cam svg{width:18px;height:18px}
 .lector .estado{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-top:8px;padding:0 4px;min-height:18px}
 .lector .estado .ok{color:var(--ok);font-weight:600}
-.lector .estado .no{color:#8E2B21;font-weight:600}
+.lector .estado .no{color:var(--danger-ink);font-weight:600}
 .ultimo{margin:0 16px 4px;display:flex;align-items:center;gap:12px;background:var(--ok-soft);border-radius:12px;padding:8px 14px;font-size:13px;flex:none}
 .ultimo b{font-weight:600}
 .ultimo .v{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}

@@ -905,11 +905,83 @@ function dox_pos_readable( $bg, $cands, $min ) {
 }
 
 /**
- * El <style> que viste la caja con los colores y fuentes del ajuste. Si los
- * colores son los de fábrica no se toca nada: caja.css ya los trae exactos.
+ * El color, oscurecido (o aclarado, sobre un fondo oscuro) hasta que se lea sobre el fondo. Así un
+ * enlace o un texto de la marca sigue siendo de la marca: el naranja de fábrica pasa a un naranja
+ * tostado en vez de caer en el negro del texto.
+ *
+ * @param string $color El color de la marca.
+ * @param string $bg    El fondo sobre el que va.
+ * @param float  $min   El contraste que basta.
+ */
+function dox_pos_toward( $color, $bg, $min ) {
+	$to = dox_pos_is_dark( $bg ) ? '#FFFFFF' : '#000000';
+	for ( $i = 0; $i <= 22; $i++ ) { // Pasos de 0,04 contados en enteros: ajustes.js da los mismos.
+		$c = dox_pos_mix( $color, $to, $i * 0.04 );
+		if ( dox_pos_contrast( $c, $bg ) >= $min ) {
+			return $c;
+		}
+	}
+	return dox_pos_mix( $color, $to, 0.92 );
+}
+
+/**
+ * Los colores de la caja: los cinco del ajuste y los tonos que salen de ellos. Se calculan siempre,
+ * también con los de fábrica, para que la caja y la vista previa de Ajustes > Marca no lleven cada
+ * una su copia. ajustes.js repite estas mismas reglas (tools/test-colors.js comprueba que coinciden).
+ *
+ * @param array $c Los cinco colores (bg, bar, primary, soft, ink).
+ * @return array<string,string> variable => valor.
+ */
+function dox_pos_theme_vars( $c ) {
+	$white     = '#FFFFFF';
+	$dark_bar  = dox_pos_is_dark( $c['bar'] );
+	$dark_prim = dox_pos_is_dark( $c['primary'] );
+	$dark_soft = dox_pos_is_dark( $c['soft'] );
+	// El principal hace de letra sobre la barra clara y sobre el suave: solo si se lee. Si no (Cakto:
+	// barra y principal del mismo verde), el suave o el texto.
+	$brand   = array( $c['primary'], $c['soft'], $c['ink'] );
+	$bar_ink = $dark_bar ? $white : dox_pos_readable( $c['bar'], $brand, 4.5 );
+	$tab_on  = $dark_bar ? $white : dox_pos_readable( $c['bar'], $brand, 1.6 ); // Una píldora: basta con que se distinga.
+	// Lo oscuro que va sobre el principal: el texto de la tienda si se lee, si no un casi negro.
+	$on_dark = dox_pos_contrast( $c['ink'], $c['primary'] ) >= 4.5 ? $c['ink'] : '#141313';
+	$white_on = dox_pos_contrast( $white, $c['primary'] );
+	return array(
+		'--paper'          => $c['bg'],
+		'--bar'            => $c['bar'],
+		'--primary'        => $c['primary'],
+		'--soft'           => $c['soft'],
+		'--ink'            => $c['ink'],
+		'--primary-ink'    => $dark_prim ? $white : $c['ink'],
+		'--bar-ink'        => $bar_ink,
+		// Texto de la marca sobre el fondo y sobre el suave: el principal, llevado hasta que se lea.
+		'--primary-text'   => dox_pos_toward( $c['primary'], $c['bg'], 4.5 ),
+		'--soft-ink'       => $dark_soft ? $white : $c['ink'],
+		'--soft-accent'    => $dark_soft ? $white : dox_pos_toward( $c['primary'], $c['soft'], 3 ),
+		// Con la barra oscura, la pestaña activa se pinta al revés para que siempre se vea.
+		'--tab-on'         => $tab_on,
+		'--tab-on-ink'     => $dark_bar ? $c['bar'] : ( dox_pos_is_dark( $tab_on ) ? $white : $c['ink'] ),
+		'--sunk'           => dox_pos_mix( $c['bg'], $c['ink'], 0.03 ),
+		'--line'           => dox_pos_mix( $c['bg'], $c['ink'], 0.12 ),
+		'--faint'          => dox_pos_mix( $c['bg'], $c['ink'], 0.5 ),
+		'--muted'          => dox_pos_mix( $c['ink'], $c['bg'], 0.12 ),
+		'--warn-soft'      => dox_pos_mix( $c['bg'], $c['ink'], 0.08 ),
+		'--scrim'          => 'rgba(' . implode( ',', sscanf( ltrim( $c['ink'], '#' ), '%02x%02x%02x' ) ) . ',.45)',
+		// Los tonos del rediseño (dox-design): todo lo elegido sale del principal, nunca del suave,
+		// que en algunas tiendas es oscuro.
+		'--primary-deep'   => dox_pos_mix( $c['primary'], '#000000', 0.12 ),
+		'--primary-tint'   => dox_pos_mix( $white, $c['primary'], 0.12 ),
+		'--primary-strong' => dox_pos_toward( $c['primary'], $white, 4.5 ),
+		// Letra sobre el principal: en botones y titulares grandes vale el blanco desde 2,25:1 (la regla
+		// de la marca Dox: blanco sobre su naranja); en lo pequeño (contadores, insignias) pide 4,5:1.
+		'--on-primary'     => $white_on >= 2.25 ? $white : $on_dark,
+		'--on-primary-sm'  => $white_on >= 4.5 ? $white : $on_dark,
+	);
+}
+
+/**
+ * El <style> que viste la caja con los colores y fuentes del ajuste.
  */
 function dox_pos_theme_css() {
-	$c     = dox_pos_colors();
 	$f     = dox_pos_fonts();
 	$on    = dox_pos_fonts_on();
 	$ui    = dox_pos_font_name( $f['ui'] ); // Limpias aquí mismo, justo antes de entrar en el CSS.
@@ -918,38 +990,7 @@ function dox_pos_theme_css() {
 	$vars  = array(
 		'--ui'    => ( $on && $ui ? '"' . $ui . '",' : '' ) . dox_pos_system_stack(),
 		'--serif' => ( $on && $serif ? '"' . $serif . '",' : '' ) . $local,
-	);
-	if ( dox_pos_default_colors() !== $c ) {
-		$dark_bar   = dox_pos_is_dark( $c['bar'] );
-		$dark_prim  = dox_pos_is_dark( $c['primary'] );
-		$dark_soft  = dox_pos_is_dark( $c['soft'] );
-		// El principal hace de letra sobre la barra clara, sobre el fondo y sobre el suave: solo si se
-		// lee. Si no (Cakto: barra y principal del mismo verde), el suave o el texto. Mismas reglas en ajustes.js.
-		$brand      = array( $c['primary'], $c['soft'], $c['ink'] );
-		$bar_ink    = $dark_bar ? '#FFFFFF' : dox_pos_readable( $c['bar'], $brand, 4.5 );
-		$tab_on     = $dark_bar ? '#FFFFFF' : dox_pos_readable( $c['bar'], $brand, 1.6 ); // Una píldora: basta con que se distinga.
-		$vars      += array(
-			'--paper'       => $c['bg'],
-			'--bar'         => $c['bar'],
-			'--primary'     => $c['primary'],
-			'--soft'        => $c['soft'],
-			'--ink'         => $c['ink'],
-			'--primary-ink' => $dark_prim ? '#FFFFFF' : $c['ink'],
-			'--bar-ink'     => $bar_ink,
-			'--primary-text' => dox_pos_readable( $c['bg'], $brand, 3 ),
-			'--soft-ink'    => $dark_soft ? '#FFFFFF' : $c['ink'],
-			'--soft-accent' => $dark_soft ? '#FFFFFF' : dox_pos_readable( $c['soft'], array( $c['primary'], $c['ink'] ), 3 ),
-			// Con la barra oscura, la pestaña activa se pinta al revés para que siempre se vea.
-			'--tab-on'      => $tab_on,
-			'--tab-on-ink'  => $dark_bar ? $c['bar'] : ( dox_pos_is_dark( $tab_on ) ? '#FFFFFF' : $c['ink'] ),
-			'--sunk'        => dox_pos_mix( $c['bg'], $c['ink'], 0.03 ),
-			'--line'        => dox_pos_mix( $c['bg'], $c['ink'], 0.12 ),
-			'--faint'       => dox_pos_mix( $c['bg'], $c['ink'], 0.5 ),
-			'--muted'       => dox_pos_mix( $c['ink'], $c['bg'], 0.12 ),
-			'--warn-soft'   => dox_pos_mix( $c['bg'], $c['ink'], 0.08 ),
-			'--scrim'       => 'rgba(' . implode( ',', sscanf( ltrim( $c['ink'], '#' ), '%02x%02x%02x' ) ) . ',.45)',
-		);
-	}
+	) + dox_pos_theme_vars( dox_pos_colors() );
 	$css = '';
 	foreach ( $vars as $k => $v ) {
 		$css .= $k . ':' . $v . ';';

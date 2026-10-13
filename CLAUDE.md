@@ -16,7 +16,9 @@ Lee esto antes de tocar nada. Vale para cualquier sesión, en el Mac o en el PC.
 ## Cada cambio
 
 1. Código en inglés, comentarios en español. Sin guion largo en ningún texto.
-2. `php -l` de cada archivo PHP y `node --check` de cada JS antes de subir.
+2. `php -l` de cada archivo PHP y `node --check` de cada JS antes de subir. Si se tocan los colores de la marca
+   (`dox_pos_theme_vars()` en `includes/settings.php` o `temaVars()` en `assets/js/ajustes.js`, que llevan las mismas
+   reglas para la caja y para la vista previa de Ajustes > Marca), `node tools/test-colors.js` tiene que decir "iguales".
 3. Si el cambio se publica: sube la versión en la cabecera `Version:` y en `DOX_POS_VERSION`
    (tienen que coincidir), y añade la entrada al principio del changelog de `readme.txt` y de
    `changelog.txt` (y el `Stable tag`). El readme guarda **solo las 5 últimas versiones** y termina en

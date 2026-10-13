@@ -106,6 +106,47 @@
 		}
 		return best;
 	}
+	// El color llevado hacia el negro (o el blanco, sobre fondo oscuro) hasta que se lea (dox_pos_toward).
+	function hacia(color, bg, min) {
+		const to = isDark(bg) ? "#FFFFFF" : "#000000";
+		for (let i = 0; i <= 22; i++) {
+			const x = mix(color, to, i * 0.04);
+			if (contraste(x, bg) >= min) return x;
+		}
+		return mix(color, to, 0.92);
+	}
+	// Los colores de la caja a partir de los cinco del ajuste: dox_pos_theme_vars() en PHP, regla por regla
+	// (tools/test-colors.js comprueba que los dos dan lo mismo).
+	function temaVars(c) {
+		const W = "#FFFFFF";
+		const darkBar = isDark(c.bar), darkPrim = isDark(c.primary), darkSoft = isDark(c.soft);
+		const brand = [c.primary, c.soft, c.ink];
+		const tabOn = darkBar ? W : legible(c.bar, brand, 1.6);
+		const onDark = contraste(c.ink, c.primary) >= 4.5 ? c.ink : "#141313";
+		const whiteOn = contraste(W, c.primary);
+		const [r, g, b] = rgb(c.ink);
+		return {
+			"--paper": c.bg, "--bar": c.bar, "--primary": c.primary, "--soft": c.soft, "--ink": c.ink,
+			"--primary-ink": darkPrim ? W : c.ink,
+			"--bar-ink": darkBar ? W : legible(c.bar, brand, 4.5),
+			"--primary-text": hacia(c.primary, c.bg, 4.5),
+			"--soft-ink": darkSoft ? W : c.ink,
+			"--soft-accent": darkSoft ? W : hacia(c.primary, c.soft, 3),
+			"--tab-on": tabOn,
+			"--tab-on-ink": darkBar ? c.bar : (isDark(tabOn) ? W : c.ink),
+			"--sunk": mix(c.bg, c.ink, 0.03),
+			"--line": mix(c.bg, c.ink, 0.12),
+			"--faint": mix(c.bg, c.ink, 0.5),
+			"--muted": mix(c.ink, c.bg, 0.12),
+			"--warn-soft": mix(c.bg, c.ink, 0.08),
+			"--scrim": "rgba(" + r + "," + g + "," + b + ",.45)",
+			"--primary-deep": mix(c.primary, "#000000", 0.12),
+			"--primary-tint": mix(W, c.primary, 0.12),
+			"--primary-strong": hacia(c.primary, W, 4.5),
+			"--on-primary": whiteOn >= 2.25 ? W : onDark,
+			"--on-primary-sm": whiteOn >= 4.5 ? W : onDark,
+		};
+	}
 	const swatches = $$(".dp-swatch");
 	swatches.forEach((t) => { t.dataset.last = hex($(".dp-hex", t).value) || t.dataset.default; });
 	function pintarColores() {
@@ -117,21 +158,8 @@
 			t.style.setProperty("--sw", c[t.dataset.key]);
 			$('input[type="color"]', t).value = c[t.dataset.key];
 		});
-		const darkBar = isDark(c.bar), darkPrim = isDark(c.primary), darkSoft = isDark(c.soft);
-		const brand = [c.primary, c.soft, c.ink];
-		const tabOn = darkBar ? "#FFFFFF" : legible(c.bar, brand, 1.6);
-		const vars = {
-			"--bg": c.bg, "--bar": c.bar, "--primary": c.primary, "--soft": c.soft, "--ink": c.ink,
-			"--primary-ink": darkPrim ? "#FFFFFF" : c.ink,
-			"--bar-ink": darkBar ? "#FFFFFF" : legible(c.bar, brand, 4.5),
-			"--primary-text": legible(c.bg, brand, 3),
-			"--soft-accent": darkSoft ? "#FFFFFF" : legible(c.soft, [c.primary, c.ink], 3),
-			"--tab-on": tabOn,
-			"--tab-on-ink": darkBar ? c.bar : (isDark(tabOn) ? "#FFFFFF" : c.ink),
-			"--sunk": mix(c.bg, c.ink, 0.03),
-			"--line": mix(c.bg, c.ink, 0.12),
-			"--muted": mix(c.ink, c.bg, 0.12),
-		};
+		const darkBar = isDark(c.bar);
+		const vars = temaVars(c);
 		Object.keys(vars).forEach((k) => prev.style.setProperty(k, vars[k]));
 		const tile = $("#dp-logo-tile");
 		if (tile) { tile.style.setProperty("--tile", c.bar); tile.style.color = darkBar ? "#fff" : "rgba(0,0,0,.6)"; }
