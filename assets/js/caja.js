@@ -4226,7 +4226,9 @@
 		setInterval(vaciarCola, 30000);
 		pintarCola();
 		vaciarCola();
-		$("#q").focus();
+		// En el teléfono no: el buscador con el foco esconde la barra de abajo (como mientras se escribe) aunque el
+		// teclado no salga, y la caja abría sin pestañas.
+		if (!matchMedia("(pointer: coarse) and (max-width: 620px)").matches) $("#q").focus();
 	}
 	// Lo que los añadidos pueden usar (el Pro se cuelga de aquí). El script va al final del body y el arranque
 	// (DoxPOS.arrancar(), un script en línea del handle dox-pos-start que depende de todos) se imprime después de

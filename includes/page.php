@@ -366,6 +366,13 @@ function dox_pos_head() {
 	?>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+	<?php
+	// En el iPhone y el iPad, Safari amplía la página al tocar un campo con letra de menos de 16 px y no
+	// vuelve: la caja quedaba más grande, cortada y con la barra de abajo debajo de la de Safari. Con
+	// maximum-scale=1 no amplía solo, y se sigue pudiendo ampliar con dos dedos. Solo ahí: en Android
+	// impediría ampliar.
+	wp_print_inline_script_tag( 'if(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){var m=document.querySelector(\'meta[name="viewport"]\');if(m)m.content+=",maximum-scale=1";}' );
+	?>
 	<meta name="robots" content="noindex,nofollow,noarchive">
 	<meta name="theme-color" content="<?php echo esc_attr( $colors['bar'] ); ?>">
 	<title><?php echo esc_html( dox_pos_screen_name() . ' · ' . dox_pos_brand_name() ); ?></title>

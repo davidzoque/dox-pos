@@ -973,7 +973,7 @@ table.ped .lnk.items{white-space:normal}
   .con-tabbar .tabs{display:none}
   .con-tabbar .bar{flex-wrap:nowrap}
   .tabbar{display:grid;grid-template-columns:repeat(var(--tb-cols,5),minmax(0,1fr));flex:none;background:var(--surface);border-top:1px solid var(--line);
-    padding:6px 4px max(8px,env(safe-area-inset-bottom));position:relative;z-index:2}
+    padding:6px 4px calc(max(8px,env(safe-area-inset-bottom)));position:relative;z-index:2}
   .tabbar button{appearance:none;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;min-height:50px;
     padding:2px 0;color:var(--faint);font:600 10.5px/1.2 var(--ui);cursor:pointer}
   .tabbar .tb-l{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
