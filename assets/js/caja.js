@@ -1596,7 +1596,7 @@
 			if (d.discount) filas.push([__("Discount", "dox-pos"), "−" + dinero(d.discount)]);
 			(d.deposits || []).forEach((x) => filas.push([sprintf(__("Deposit: %s", "dox-pos"), x.name), dinero(x.total)]));
 			if (d.credit_used) filas.push([lw ? __("Deposits", "dox-pos") : __("Paid with store credit", "dox-pos"), "−" + dinero(d.credit_used)]);
-			if (d.shipping_total || d.shipping_method) filas.push([__("Shipping", "dox-pos") + (d.shipping_method ? " · " + d.shipping_method : ""), dinero(d.shipping_total)]);
+			if (d.shipping_total || d.shipping_method) filas.push([__("Shipping", "dox-pos") + (d.shipping_method && d.shipping_method !== __("Shipping", "dox-pos") ? " · " + d.shipping_method : ""), dinero(d.shipping_total)]);
 			izq += '<div class="pd-tot">' + filas.map((f) => "<div><span>" + esc(f[0]) + "</span><span>" + f[1] + "</span></div>").join("") + '<div class="t"><span>' + esc(lw && lw.open ? __("Worth", "dox-pos") : __("Total", "dox-pos")) + "</span><span>" + dinero(lw && lw.open ? lw.value : d.total) + "</span></div></div></section>";
 		} else if (abono) {
 			izq += '<section class="pd-bl"><h4>' + esc(__("The deposit", "dox-pos")) + '</h4><div class="pd-kv">' + d.deposits.map((x) => fila(__("Concept", "dox-pos"), esc(x.name) + " · <b>" + dinero(x.total) + "</b>")).join("") + fila(__("Paid with", "dox-pos"), [esc(d.payment), pago].filter(Boolean).join(" · ")) + (d.note ? fila(__("Note", "dox-pos"), esc(d.note)) : "") + "</div></section>";

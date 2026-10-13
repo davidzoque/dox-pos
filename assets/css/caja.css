@@ -863,13 +863,17 @@ table.ped .lnk.items{white-space:normal}
 .pd-woo{font-size:13px;color:var(--muted);text-decoration:none}
 .pd-woo:hover{color:var(--ink)}
 @container (max-width:760px){
-  .modal .card.pd{max-height:calc(100dvh - 24px)}
+  /* En el teléfono baja la ventana entera (la cabecera y las cifras se van con el resto) y las acciones quedan abajo. */
+  .modal .card.pd{max-height:calc(100dvh - 24px);overflow:auto}
+  .pd-cuerpo{overflow:visible;flex:none}
+  .pd-pie{position:sticky;bottom:0}
+  .pd-pie .oda{display:contents}
+  .pd-woo{margin-left:auto}
   .pd-cab{padding:16px 16px 12px}
   .pd-res{grid-template-columns:1fr 1fr;padding:12px 16px}
   .pd-res .pd-cifra:first-child{grid-column:1/-1}
   .pd-cuerpo{grid-template-columns:1fr;padding:12px 16px}
   .pd-pie{padding:12px 16px}
-  .pd-pie .oda{width:100%}
   .pd-pie .oda .mini.main{flex:1 1 100%;justify-content:center}
   .pd-kv{grid-template-columns:84px 1fr}
 }
