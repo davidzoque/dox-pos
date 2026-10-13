@@ -229,23 +229,45 @@ button.epz:active{transform:scale(.98)}
 .go.dl svg{width:18px;height:18px;flex:none}
 
 /* ---------- pedidos ---------- */
-.wrapx{overflow:auto;flex:1;min-height:0;padding:0 6px 16px}
-table.ped{width:100%;border-collapse:collapse;font-size:13px}
-table.ped th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
-  font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:1}
-table.ped td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.wrapx{overflow:auto;flex:1;min-height:0;padding:14px 16px 16px}
+/* Las tablas: una tarjeta con la cabecera hundida y filas que se iluminan al pasar. */
+table.ped{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:15px}
+table.ped th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  font-weight:700;padding:11px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--sunk);z-index:1;white-space:nowrap}
+table.ped th:first-child{border-top-left-radius:14px}
+table.ped th:last-child{border-top-right-radius:14px}
+table.ped td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.ped tbody tr:last-child td{border-bottom:0}
+table.ped tbody tr{transition:background-color .2s var(--curve)}
 table.ped td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 table.ped th.num{text-align:right}
 table.ped .who{font-weight:600}
 table.ped .sub{color:var(--muted);font-size:12px}
-.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+/* Los estados de un pedido, con su punto: fijos en todas las tiendas. */
+.tag.s-ok,.tag.s-warn,.tag.s-bad,.tag.s-info,.tag.s-vio{display:inline-flex;align-items:center;gap:6px;padding:4px 9px}
+.tag.s-ok::before,.tag.s-warn::before,.tag.s-bad::before,.tag.s-info::before,.tag.s-vio::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.tag.s-ok{background:var(--st-ok-soft);color:var(--st-ok)}
+.tag.s-warn{background:var(--st-warn-soft);color:var(--st-warn)}
+.tag.s-bad{background:var(--st-bad-soft);color:var(--st-bad)}
+.tag.s-info{background:var(--st-info-soft);color:var(--st-info)}
+.tag.s-vio{background:var(--st-vio-soft);color:var(--st-vio)}
+/* La persona con su círculo de iniciales y el canal con su icono. */
+.whoav{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.av{--c:#0EA5E9;width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px var(--ui);color:color-mix(in srgb,var(--c) 75%,#000);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.av.c1{--c:#0EA5E9}.av.c2{--c:#8B5CF6}.av.c3{--c:#EC4899}.av.c4{--c:#10B981}.av.c5{--c:#F59E0B}.av.c6{--c:#6366F1}.av.c7{--c:#EF4444}
+.chan{--c:var(--muted);display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.chan .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);flex:none}
+.chan .ic svg{width:15px;height:15px}
+.chan[data-k="wa"]{--c:var(--ch-wa)}.chan[data-k="ig"]{--c:var(--ch-ig)}.chan[data-k="fb"],.chan[data-k="web"]{--c:var(--ch-web)}.chan[data-k="per"]{--c:var(--ch-per)}.chan[data-k="tt"]{--c:var(--ink)}
 .tag.a{background:var(--primary-tint);color:var(--primary-strong)}
 .tag.b{background:var(--warn-soft);color:var(--warn)}
 .tag.c{background:var(--ok-soft);color:var(--ok)}
 .tag.e{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
-.tag.w{background:var(--surface);color:var(--primary-text);border:1px solid var(--primary-text)}
+.tag.w{background:var(--st-info-soft);color:var(--st-info)} /* la página web: el azul de la web */
 .mini{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
-  border-radius:8px;padding:6px 11px;min-height:34px;font:500 12px var(--ui);cursor:pointer;white-space:nowrap;transition:var(--press)}
+  border-radius:10px;padding:6px 12px;min-height:34px;font:600 12.5px var(--ui);cursor:pointer;white-space:nowrap;transition:var(--press)}
+.mini.main{background:var(--ink);border-color:var(--ink);color:var(--surface)} /* la acción principal de la fila */
 .mini:active{transform:scale(.96)}
 .mini+.mini{margin-left:6px}
 .mini.sec{border-color:transparent;color:var(--muted)}
@@ -269,6 +291,8 @@ tr.off,li.off{opacity:.5}
   .var:not(:disabled):hover{border-color:var(--faint)}
   .qty button:hover{border-color:var(--faint)}
   .mini:hover{background:var(--sunk);border-color:var(--line)}
+  .mini.main:hover{background:color-mix(in srgb,var(--ink) 86%,var(--surface));border-color:transparent}
+  table.ped tbody tr:hover{background:color-mix(in srgb,var(--sunk) 70%,transparent)}
   .go:not(:disabled):hover{filter:brightness(.94)} /* oscurece cualquier color de botón (el de la marca, el rojo de peligro) */
   .go.alt:not(:disabled):hover{background:var(--sunk);border-color:var(--faint)}
   .ks[data-go]:hover{background:var(--sunk)}

@@ -1413,12 +1413,24 @@
 	}
 	const SIN_PAGAR = ["sin_pagar", "por_confirmar", "fallido"]; // Estados de un pedido web que aún no pagó.
 	// Los botones de un pedido según su estado; los mismos en la lista y en el detalle (ahí cierran el detalle antes).
+	// El color de cada estado de un pedido, en un solo sitio (lista, historial y detalle): fijos en todas
+	// las tiendas, porque significan algo.
+	const claseEstado = (st0) => ({ apartado: "s-vio", sin_pagar: "s-bad", fallido: "s-bad", por_confirmar: "s-info", por_enviar: "s-warn", enviado: "s-info", entregado: "s-ok", anulado: "d", reembolsado: "d" })[st0] || "e";
+	// La persona con sus iniciales en un círculo de color (el mismo color para el mismo nombre).
+	const avatar = (nom) => {
+		const t = String(nom || "").trim();
+		let h = 0;
+		for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 7;
+		return '<span class="av c' + (h + 1) + '" aria-hidden="true">' + esc(t ? iniciales(t) : "?") + "</span>";
+	};
+	// El canal de una venta con su icono de color (el de Vender).
+	const canalIc = (nom) => '<span class="chan" data-k="' + claseCanal(nom) + '"><span class="ic">' + iconoChip(claseCanal(nom)) + "</span>" + esc(nom) + "</span>";
 	function botonesPedido(p, box, enModal) {
 		const run = (fn) => () => { if (enModal) cerrarModal(); fn(); };
 		const btn = (txt, sec, fn) => {
 			const b = document.createElement("button");
 			b.type = "button";
-			b.className = "mini" + (sec ? " sec" : "");
+			b.className = "mini" + (sec ? " sec" : box.querySelector(".mini.main") ? "" : " main"); // La acción principal, en oscuro.
 			b.textContent = txt;
 			b.onclick = run(fn);
 			box.appendChild(b);
@@ -1480,7 +1492,7 @@
 		return '<span class="tag ' + cls + '">' + dinero(profit) + (sin ? "" : " · " + margin + " %") + "</span>";
 	}
 	function pintarDetalle(d) {
-		const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[d.status] || "e";
+		const cls = claseEstado(d.status);
 		const web = d.origin !== "caja";
 		let pago = __("Pays on delivery", "dox-pos");
 		if (d.paid && !d.cod) pago = d.paid_at ? sprintf(__("Paid on %s", "dox-pos"), esc(d.paid_at)) : __("Paid", "dox-pos");
@@ -1614,7 +1626,7 @@
 		st.pedidos.forEach((p) => {
 			const tr = document.createElement("tr");
 			if (p.status === "anulado" || p.status === "reembolsado") tr.className = "off";
-			const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[p.status] || "e";
+			const cls = claseEstado(p.status);
 			const web = p.origin !== "caja";
 			let pago = __("Pays on delivery", "dox-pos");
 			if (p.paid && !p.cod) pago = __("Paid", "dox-pos");
@@ -1625,10 +1637,10 @@
 			// El canal: en la caja, por dónde entró la venta y quién la registró; en la web, la etiqueta y de dónde llegó el cliente.
 			const canal = web
 				? '<span class="tag w">' + esc(p.origin_label) + "</span>" + (p.source ? '<br><span class="sub">' + esc(sprintf(__("from %s", "dox-pos"), p.source)) + "</span>" : "")
-				: esc(p.channel) + '<br><span class="sub">' + esc(__("POS", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
+				: canalIc(p.channel) + '<br><span class="sub">' + esc(__("POS", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
 			tr.innerHTML =
 				'<td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
-				'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></td>" +
+				'<td><div class="whoav">' + avatar(p.customer) + '<div><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + (p.phone ? " · " + esc(p.phone) : "") + "</span></div></div></td>" +
 				'<td class="items"><button type="button" class="lnk items" data-ver="' + p.id + '">' + esc(p.items) + "</button>" + (p.note ? '<br><span class="sub">' + esc(p.note) + "</span>" : "") + "</td>" +
 				"<td>" + canal + "</td>" +
 				"<td>" + esc(p.payment) + '<br><span class="sub">' + pago + "</span></td>" +
@@ -3604,11 +3616,11 @@
 	}
 	function filaPedidoHist(p, conCosto) {
 		const vendido = ["por_enviar", "enviado", "entregado"].includes(p.status);
-		const cls = { apartado: "b", sin_pagar: "b", por_confirmar: "b", fallido: "b", por_enviar: "a", enviado: "e", entregado: "c", anulado: "d", reembolsado: "d" }[p.status] || "e";
+		const cls = claseEstado(p.status);
 		const web = p.origin !== "caja";
-		const canal = web ? '<span class="tag w">' + esc(p.origin_label) + "</span>" : esc(p.channel) + (p.seller ? '<br><span class="sub">' + esc(p.seller) + "</span>" : "");
+		const canal = web ? '<span class="tag w">' + esc(p.origin_label) + "</span>" : canalIc(p.channel) + (p.seller ? '<br><span class="sub">' + esc(p.seller) + "</span>" : "");
 		return '<tr class="' + (p.status === "anulado" || p.status === "reembolsado" ? "off" : "") + '"><td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
-			'<td><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + "</span></td>" +
+			'<td><div class="whoav">' + avatar(p.customer) + '<div><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + esc(p.city) + "</span></div></div></td>" +
 			'<td class="items">' + esc(p.items) + "</td><td>" + canal + "</td>" +
 			"<td>" + esc(p.payment) + (p.cod && p.status !== "entregado" && p.status !== "anulado" ? '<br><span class="sub">' + esc(__("pays on delivery", "dox-pos")) + "</span>" : "") + "</td>" +
 			'<td class="num">' + dinero(p.total) + (p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") + "</td>" +
