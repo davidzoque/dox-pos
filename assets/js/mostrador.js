@@ -284,6 +284,15 @@
 		const n = libres(v);
 		if (n === Infinity) return __("available", "dox-pos");
 		if (n <= 0) return __("none left", "dox-pos");
+		// El grupo lleva prendas por talla real (0.52.0): el número es del grupo, y se dice de qué etiqueta hay.
+		const s = v.split;
+		if (s) {
+			let t = sprintf(__("%s in the group", "dox-pos"), "<b>" + n + "</b>");
+			if (s.state === "unsplit") return t + " · " + esc(__("not split by actual size yet", "dox-pos"));
+			const mia = s.reals.find((r) => r.id === v.id) || s.reals.find((r) => r.id === s.picks[0]);
+			if (mia && mia.qty > 0) t += " · " + esc(sprintf(_n("%1$d with tag %2$s", "%1$d with tag %2$s", mia.qty, "dox-pos"), mia.qty, mia.label));
+			return t;
+		}
 		return sprintf(__("%s left", "dox-pos"), "<b>" + n + "</b>");
 	}
 	function pintarResultados() {

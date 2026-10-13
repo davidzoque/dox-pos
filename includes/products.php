@@ -43,6 +43,7 @@ function dox_pos_products_settings() {
 		'size_attr'  => dox_pos_attribute_taxonomy( (string) ( $s['size_attr'] ?? '' ), array( 'talla', 'tallas', 'talle', 'size', 'sizes' ) ),
 		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), array( 'color', 'colores', 'colour', 'colors' ) ),
 		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
+		'real_near'  => max( 0, min( 9, (int) ( $s['real_near'] ?? 0 ) ) ), // 0: apagado. Si no, a cuántas tallas puede estar la prenda real (includes/real-sizes.php).
 	);
 	return $cache;
 }
@@ -1592,6 +1593,7 @@ function dox_pos_product_edit_data( $id ) {
 		'shared_groups' => (object) $shared_groups,        // En qué grupo está cada una (1, 2...).
 		'pool_stock'  => (object) $pool_stock,             // Las unidades compartidas por bolsa (columna de color, y "#2" del segundo grupo en adelante).
 		'real_cells'  => $real_cells,                      // Qué talla es la real en cada grupo (clave color|talla).
+		'real_qty'    => (object) dox_pos_real_qty_cells( $p ), // Cuántas prendas hay de cada talla real (null: sin repartir).
 		'legacy_pool' => ! empty( $model['legacy_pool'] ), // Varios colores con un solo total: al guardar, cada color lleva el suyo.
 		'images'      => $images,
 		'variations'  => count( $model['variations'] ),

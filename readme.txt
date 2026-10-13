@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.51.0
+Stable tag: 0.52.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,12 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.52.0 =
+* New: pieces by actual size. In a group of sizes that share units, the product form says how many pieces carry each size on their tag (Pieces by actual size), checks that they add up to the units of the group, and warns when a group is not split yet or does not add up. Sell, Inventory and the Counter say "4 in the group · 2 with tag 12-18 months" instead of looking like 4 of each size.
+* New: when a size of a group is sold or put on layaway, the order line proposes which piece leaves (the closest actual size with pieces; if two are equally close, the one with more) and it can be changed right there. That piece goes down, the order's "Actual size" says the one that left, and cancelling, releasing or returning puts it back. Website orders take the closest piece when they are paid. A stock entry asks which tag the pieces came with. The stock history says which piece each movement was.
+* New: Settings, Products, "Offer a size only if there is a piece with an actual size close to it", with how close (1 to 4 sizes). Off by default. On, a size with no piece close enough shows as out of stock on the website and in the register, even if the group has units.
+* Change: in Orders, a deposit to store credit says "Deposit" instead of "Delivered".
+
 = 0.51.0 =
 * New: layaways with their own deadline. When you put something on layaway you choose how long it is held (24 hours, 2, 7 or 30 days, any number of hours or days, or no deadline); it starts with the one in Settings, Layaways, which can now be set in hours or days or as "Layaways do not expire". The deadline can be extended, shortened or removed later from the order detail (Change deadline).
 * New: deposits on a layaway. Take part of the money when putting something on layaway, with its payment method, and add more deposits later from the order detail (Add deposit), each one on its own day. Each deposit counts as a sale on the day the money comes in, and the layaway's total (and its payment link) becomes what is left to pay. A deposit that covers everything marks the layaway as paid.
@@ -133,8 +139,3 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: taking a size out of a group of shared units and putting another one in, in the same save, could copy the group's units to the size that left. The group now only syncs the sizes that are still in it.
 * Fix: changing the number of shared units in the same save where a size joins the group now writes its row in the stock movements (it was left out).
 * Fix: after saving a product opened from Inventory or Sell, the list showed it as it was before saving until you searched again.
-
-= 0.48.1 =
-* Fix: on the phone, tapping a product further down the Inventory or Sell list opened it but sent the list back to the top (Safari on iPhone), so you had to scroll down again to find it. Now it opens in place and the list stays where it was, also when you add a size.
-
-Full changelog: https://help.doxstudio.com/dox-pos-changelog/

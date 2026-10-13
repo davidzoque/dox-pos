@@ -77,7 +77,8 @@ function dox_pos_create_entry( $data ) {
 		if ( null !== $cost ) {
 			$costs[ $p->get_id() ] = $cost;
 		}
-		$lines[] = array( 'product' => $p, 'qty' => $qty, 'cost' => $cost );
+		// Con qué etiqueta llegó, si la talla está en un grupo que lleva prendas por talla real (includes/real-sizes.php).
+		$lines[] = array( 'product' => $p, 'qty' => $qty, 'cost' => $cost, 'real' => dox_pos_real_entry_target( $p, (int) ( $l['real'] ?? 0 ) ) );
 	}
 	if ( ! $lines ) {
 		return new WP_Error( 'dox_pos_sin_lineas', __( 'There is nothing to record.', 'dox-pos' ) );
@@ -100,6 +101,12 @@ function dox_pos_create_entry( $data ) {
 		$before = $p->managing_stock() ? (int) $p->get_stock_quantity() : null;
 		$was    = dox_pos_product_cost( $p ); // El costo que tenía antes de promediar, para el registro.
 		$after  = wc_update_product_stock( $p, $l['qty'], 'increase' );
+		if ( $l['real'] && dox_pos_real_adjust( $l['real'], $l['qty'] ) ) {
+			/* translators: %s: actual size of the pieces that arrived */
+			dox_pos_stock_log_note_last( (int) $p->get_id(), sprintf( __( 'Piece: %s', 'dox-pos' ), dox_pos_real_size_label( wc_get_product( $l['real'] ) ) ) );
+		} else {
+			$l['real'] = 0; // Grupo sin repartir: no se apunta etiqueta (al anular no hay qué restar).
+		}
 		$saved[] = array(
 			'id'          => $p->get_id(),
 			'sku'         => $p->get_sku( 'edit' ),
@@ -109,6 +116,7 @@ function dox_pos_create_entry( $data ) {
 			'after'       => null === $after ? null : (int) $after,
 			'cost'        => $l['cost'],
 			'cost_before' => $was,
+			'real'        => $l['real'], // La talla real a la que sumó (0: ninguna).
 		);
 		$units += $l['qty'];
 		if ( null !== $l['cost'] ) {
@@ -178,6 +186,9 @@ function dox_pos_cancel_entry( $id ) {
 			$p = wc_get_product( (int) $l['id'] );
 			if ( $p ) {
 				wc_update_product_stock( $p, (int) $l['qty'], 'decrease' );
+				if ( ! empty( $l['real'] ) ) {
+					dox_pos_real_adjust( (int) $l['real'], -(int) $l['qty'] ); // Las prendas de esa etiqueta que había sumado.
+				}
 			}
 		}
 		dox_pos_stock_context_end( $ctx );

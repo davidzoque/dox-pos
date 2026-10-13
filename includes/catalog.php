@@ -256,6 +256,8 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'parent'    => $simple ? 0 : (int) $v->get_parent_id(),
 		'real'      => $real['real'], // Es la talla de la pieza física.
 		'real_of'   => $real['of'],   // O sirve también, y la pieza es de esta otra talla ("18-24 meses").
+		// Cuántas prendas hay de cada talla real del grupo y cuál saldría (includes/real-sizes.php); null si no aplica.
+		'split'     => $simple ? null : dox_pos_real_info( $v ),
 	);
 }
 

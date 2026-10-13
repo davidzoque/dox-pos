@@ -1158,6 +1158,7 @@ function dox_pos_sanitize_products( $in ) {
 		'size_attr'  => isset( $all[ $size ] ) ? $size : '',
 		'color_attr' => isset( $all[ $col ] ) ? $col : '',
 		'costs'      => ! empty( $in['costs'] ),
+		'real_near'  => ! empty( $in['real_near_on'] ) ? max( 1, min( 9, (int) ( $in['real_near'] ?? 1 ) ) ) : 0,
 	);
 }
 
@@ -2272,6 +2273,24 @@ function dox_pos_settings_page() {
 								<span class="dp-pay-main"><b><?php echo esc_html( $t[0] ); ?></b><span class="dp-hint"><?php echo esc_html( $t[1] ); ?></span></span>
 							</label>
 							<?php endforeach; ?>
+						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Sizes that share units', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'When several sizes share the same units, each piece still carries one size label: its actual size. When a piece is sold, the register takes the closest actual size. Off, a size is offered while the group has any unit left; on, only while there is a piece with an actual size close enough.', 'dox-pos' ); ?></p>
+						</div>
+						<?php $near = (int) $products['real_near']; ?>
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_products[real_near_on]" value="1" <?php checked( $near > 0 ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Offer a size only if there is a piece with an actual size close to it', 'dox-pos' ); ?></b><span><?php esc_html_e( 'A size with no piece close enough shows as out of stock on the website and in the register, even if the group still has units.', 'dox-pos' ); ?></span></span></label>
+						<div class="dp-field" style="margin-top:12px">
+							<label class="dp-label" for="dp-real-near"><?php esc_html_e( 'How close', 'dox-pos' ); ?></label>
+							<select id="dp-real-near" name="dox_pos_products[real_near]" class="dp-input" style="max-width:260px">
+								<?php for ( $i = 1; $i <= 4; $i++ ) : ?>
+								<option value="<?php echo esc_attr( $i ); ?>" <?php selected( max( 1, $near ), $i ); ?>><?php echo esc_html( sprintf( /* translators: %d: number of sizes */ _n( 'Up to %d size away', 'Up to %d sizes away', $i, 'dox-pos' ), $i ) ); ?></option>
+								<?php endfor; ?>
+							</select>
+							<p class="dp-hint"><?php esc_html_e( 'With 1, a 6-12 months size is offered only if there is a piece of 0-6, 6-12 or 12-18 months.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
 
