@@ -46,9 +46,14 @@
 	function medir() {
 		try {
 			const d = frame.contentDocument;
-			frame.style.height = Math.ceil(d.body.getBoundingClientRect().height) + 2 + "px"; // Lo que mide el papel, no el marco: así también encoge.
+			const h = Math.ceil(d.body.getBoundingClientRect().height);
+			if (h > 0) frame.style.height = h + 2 + "px"; // Lo que mide el papel, no el marco: así también encoge.
 		} catch (e) { /* nada */ }
 	}
+	// Con la página abierta en otra pestaña de Ajustes, el ticket se dibuja escondido y mide 0: el
+	// marco quedaba sin alto y el ticket no se veía hasta guardar (que recarga en Ventas). Se vuelve
+	// a medir cuando el marco aparece en pantalla.
+	if ("IntersectionObserver" in window) new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) medir(); }).observe(frame);
 	frame.addEventListener("load", () => { medir(); setTimeout(medir, 80); const img = frame.contentDocument && frame.contentDocument.querySelector("img"); if (img) img.addEventListener("load", medir); });
 	form.addEventListener("input", (e) => { if (/receipt/.test(e.target.name || "")) pintar(); });
 	form.addEventListener("change", (e) => { if (/receipt/.test(e.target.name || "")) pintar(); });
