@@ -79,6 +79,9 @@ function dox_pos_register_routes() {
 		)
 	);
 	register_rest_route( $ns, '/orders/(?P<id>\d+)', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_order_detail', 'permission_callback' => $perm ) );
+	// La foto de una línea sin producto (un diseño por encargo): la sube quien vende, aunque no pueda crear productos.
+	register_rest_route( $ns, '/sale/image', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_upload_line_image', 'permission_callback' => $perm ) );
+	register_rest_route( $ns, '/sale/image/(?P<id>\d+)', array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => 'dox_pos_rest_delete_line_image', 'permission_callback' => $perm ) );
 	register_rest_route( $ns, '/orders/(?P<id>\d+)/(?P<action>paid|release|shipped|delivered|cancel|loss|deposit|deadline)', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_order_action', 'permission_callback' => $perm ) );
 	register_rest_route(
 		$ns,
@@ -356,6 +359,18 @@ function dox_pos_rest_upload_image( WP_REST_Request $request ) {
 		return new WP_Error( 'dox_pos_foto', __( 'No photo was received.', 'dox-pos' ), array( 'status' => 400 ) );
 	}
 	return dox_pos_rest_out( dox_pos_upload_image( $files['file'], sanitize_text_field( (string) $request->get_param( 'name' ) ) ) );
+}
+
+function dox_pos_rest_upload_line_image( WP_REST_Request $request ) {
+	return dox_pos_rest_upload_image( $request ); // La misma subida que la de un producto: WebP y pendiente hasta que se use.
+}
+
+function dox_pos_rest_delete_line_image( WP_REST_Request $request ) {
+	$id = (int) $request['id'];
+	if ( ! dox_pos_line_image_ok( $id ) ) {
+		return new WP_Error( 'dox_pos_foto', __( 'That photo is not pending.', 'dox-pos' ), array( 'status' => 400 ) );
+	}
+	return dox_pos_rest_out( dox_pos_delete_pending_image( $id ) );
 }
 
 function dox_pos_rest_delete_image( WP_REST_Request $request ) {

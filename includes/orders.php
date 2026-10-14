@@ -109,6 +109,49 @@ function dox_pos_free_lines_need_processing( $status, $order_id, $order = null )
 	return $status;
 }
 
+/**
+ * Si una foto subida para una línea sin producto se puede usar o borrar: tiene que estar todavía
+ * pendiente (no usada) y ser de quien la subió, o de alguien que puede crear productos.
+ *
+ * @param int $id Adjunto.
+ * @return bool
+ */
+function dox_pos_line_image_ok( $id ) {
+	if ( $id <= 0 || 'attachment' !== get_post_type( $id ) || ! get_post_meta( $id, '_dox_pos_pending', true ) ) {
+		return false;
+	}
+	return (int) get_post_field( 'post_author', $id ) === get_current_user_id() || current_user_can( dox_pos_products_cap() );
+}
+
+// Los datos internos de la caja en cada línea (_dox_pos_free, _dox_pos_image, el costo...) no se enseñan
+// en el pedido de WooCommerce: el panel lista todos los metas de la línea, también los que empiezan por "_".
+add_filter( 'woocommerce_order_item_get_formatted_meta_data', 'dox_pos_hide_item_meta', 10, 1 );
+function dox_pos_hide_item_meta( $meta ) {
+	foreach ( (array) $meta as $id => $m ) {
+		if ( isset( $m->key ) && 0 === strpos( (string) $m->key, '_dox_pos_' ) ) {
+			unset( $meta[ $id ] );
+		}
+	}
+	return $meta;
+}
+
+// En el pedido de WooCommerce, la foto de lo que se vendió sin producto, debajo de su nombre
+// (WooCommerce solo pone miniatura a las líneas que tienen producto).
+add_action( 'woocommerce_before_order_itemmeta', 'dox_pos_admin_free_line_image', 10, 2 );
+function dox_pos_admin_free_line_image( $item_id, $item ) {
+	if ( ! $item instanceof WC_Order_Item_Product || ! $item->get_meta( '_dox_pos_free' ) ) {
+		return;
+	}
+	$img = (int) $item->get_meta( '_dox_pos_image' );
+	if ( ! $img || ! wp_attachment_is_image( $img ) ) {
+		return;
+	}
+	$full = wp_get_attachment_url( $img );
+	echo '<a href="' . esc_url( $full ) . '" target="_blank" rel="noopener" style="display:inline-block;margin:6px 0 4px">'
+		. wp_get_attachment_image( $img, 'thumbnail', false, array( 'style' => 'width:64px;height:64px;object-fit:cover;border-radius:6px;display:block' ) )
+		. '</a>';
+}
+
 // Los correos al administrador sobran: el pedido lo acaba de crear él mismo desde la caja.
 foreach ( array( 'new_order', 'cancelled_order', 'failed_order' ) as $dox_pos_mail ) {
 	add_filter( 'woocommerce_email_enabled_' . $dox_pos_mail, 'dox_pos_disable_admin_mail', 10, 2 );
@@ -218,7 +261,13 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		if ( '' === $fname || null === $fprice || $fprice <= 0 ) {
 			continue;
 		}
-		$free[] = array( 'name' => $fname, 'price' => round( $fprice, $dec ), 'qty' => max( 1, min( 999, (int) ( $f['qty'] ?? 1 ) ) ) );
+		$fimg   = (int) ( $f['image'] ?? 0 );
+		$free[] = array(
+			'name'  => $fname,
+			'price' => round( $fprice, $dec ),
+			'qty'   => max( 1, min( 999, (int) ( $f['qty'] ?? 1 ) ) ),
+			'image' => $fimg && dox_pos_line_image_ok( $fimg ) ? $fimg : 0, // Su foto, si se la pusieron.
+		);
 	}
 	// Un abono al saldo a favor de la clienta (credit.php): plata que entra hoy y se usa después.
 	$deposit = null;
@@ -333,6 +382,10 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		$item->set_subtotal( $net );
 		$item->set_total( $net );
 		$item->add_meta_data( '_dox_pos_free', 1, true );
+		if ( $f['image'] ) {
+			$item->add_meta_data( '_dox_pos_image', $f['image'], true );
+			delete_post_meta( $f['image'], '_dox_pos_pending' ); // Ya es de la venta: la limpieza diaria no la borra.
+		}
 		$order->add_item( $item );
 	}
 	if ( $discount > 0 ) {
@@ -1296,6 +1349,9 @@ function dox_pos_order_detail( $id ) {
 		$img    = $p ? (int) $p->get_image_id() : 0;
 		if ( ! $img && $parent ) {
 			$img = (int) $parent->get_image_id();
+		}
+		if ( ! $img && $it->get_meta( '_dox_pos_free' ) ) {
+			$img = (int) $it->get_meta( '_dox_pos_image' ); // La foto de lo que se vendió sin producto.
 		}
 		$sku = $p ? (string) $p->get_sku( 'edit' ) : '';
 		if ( '' === $sku && $parent ) {

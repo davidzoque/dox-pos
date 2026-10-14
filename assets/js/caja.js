@@ -75,7 +75,7 @@
 		canal: CANALES[0].name,
 		pago: pagoInicial,
 		lineas: [],                               // el pedido: [{vid, n}]
-		libres: [],                               // lo que se vende sin producto: [{name, price, n}]
+		libres: [],                               // lo que se vende sin producto: [{name, price, n, image, url}] (image: la foto subida, si tiene)
 		abono: null,                              // un abono al saldo a favor: {name, amount}
 		saldo: null,                              // el saldo de la clienta del teléfono escrito: {key, name, balance}
 		usar: 0,                                  // cuánto de ese saldo paga esta venta
@@ -521,11 +521,15 @@
 		st.libres.forEach((l, i) => {
 			const li = document.createElement("li");
 			li.className = "lin libre";
-			li.innerHTML = '<span class="thumb sm">+</span><span class="n">' + esc(l.name) + "<i>" + esc(__("Without a product", "dox-pos")) + "</i></span>" +
+			li.innerHTML = '<span class="thumb sm">' + (l.url ? '<img src="' + esc(l.url) + '" alt="" loading="lazy">' : "+") + '</span><span class="n">' + esc(l.name) + "<i>" + esc(__("Without a product", "dox-pos")) + "</i></span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				'<span class="v">' + dinero(l.n * l.price) + "</span>";
 			li.querySelectorAll(".qty button").forEach((b) => {
-				b.onclick = () => { l.n += +b.dataset.d; if (l.n < 1) st.libres.splice(i, 1); pintarTodo(); };
+				b.onclick = () => {
+					l.n += +b.dataset.d;
+					if (l.n < 1) { st.libres.splice(i, 1); soltarFotoLibre(l.image); }
+					pintarTodo();
+				};
 			});
 			ul.appendChild(li);
 		});
@@ -537,12 +541,20 @@
 			ul.appendChild(li);
 		}
 	}
+	// Una foto subida para una línea sin producto que al final no se usó: se borra del servidor
+	// (si se cierra la ventana sin más, la limpieza diaria se lleva las que quedan pendientes).
+	function soltarFotoLibre(id) {
+		if (id) api("sale/image/" + id, { method: "DELETE" }).catch(() => {});
+	}
 	// "Sin producto": algo que se vende sin estar en el catálogo, o un abono que queda como saldo a favor.
+	// Lo que se vende puede llevar una foto (el diseño por encargo): se sube al elegirla, ya en WebP.
 	function modalLibre() {
 		let tipo = "libre";
+		let foto = null; // { file, local, url, id, estado: subiendo|ok|error, error, prom }
 		modal("<h3>" + esc(__("Without a product", "dox-pos")) + '</h3><div class="chips" id="ml-tipo" style="margin-bottom:12px"></div><p class="mp" id="ml-hint"></p>' +
 			'<div class="field"><label for="ml-nom">' + esc(__("Description", "dox-pos")) + '</label><input id="ml-nom" autocomplete="off"></div>' +
 			'<div class="field mt"><label for="ml-val" id="ml-val-l"></label><input id="ml-val" inputmode="' + IM + '" placeholder="0" autocomplete="off"></div>' +
+			'<div class="field mt" id="ml-foto-f"><label>' + esc(__("Photo (optional)", "dox-pos")) + '</label><div class="fotos ml-foto" id="ml-foto"></div><input type="file" id="ml-file" accept="image/*" hidden></div>' +
 			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Add", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
 		const pintarTipo = () => {
 			chips($("#ml-tipo"), [["libre", __("Sold without a product", "dox-pos")], ["abono", __("Deposit to store credit", "dox-pos")]], tipo, (x) => { tipo = x; pintarTipo(); });
@@ -551,17 +563,101 @@
 				: __("A made-to-order piece, a repair or anything that is not in the catalog. It does not touch the stock.", "dox-pos");
 			$("#ml-nom").placeholder = tipo === "abono" ? __("Deposit for the custom design", "dox-pos") : __("Custom design", "dox-pos");
 			$("#ml-val-l").textContent = tipo === "abono" ? __("Amount of the deposit", "dox-pos") : __("Price", "dox-pos");
+			$("#ml-foto-f").hidden = tipo === "abono"; // Un abono es plata, no una pieza: no lleva foto.
+		};
+		const pintarFoto = () => {
+			const box = $("#ml-foto");
+			if (!box) return;
+			box.innerHTML = "";
+			if (!foto) {
+				const add = document.createElement("button");
+				add.type = "button";
+				add.className = "foto foto-add";
+				add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg><span>' + esc(__("Add a photo", "dox-pos")) + "</span>";
+				add.onclick = () => $("#ml-file").click();
+				box.appendChild(add);
+				return;
+			}
+			const d = document.createElement("div");
+			d.className = "foto" + (foto.estado === "subiendo" ? " subiendo" : "");
+			const src = foto.url || foto.local;
+			if (src) {
+				const im = document.createElement("img");
+				im.alt = "";
+				im.src = src;
+				im.onerror = () => { im.remove(); }; // HEIC en Chrome no se ve hasta que vuelve convertida
+				d.appendChild(im);
+			}
+			const x = document.createElement("button");
+			x.type = "button";
+			x.className = "x";
+			x.setAttribute("aria-label", __("Remove the photo", "dox-pos"));
+			x.textContent = "×";
+			x.onclick = (e) => { e.stopPropagation(); quitar(); };
+			d.appendChild(x);
+			if (foto.estado !== "ok") {
+				const s = document.createElement("span");
+				s.className = "st" + (foto.estado === "error" ? " err" : "");
+				s.textContent = foto.estado === "error" ? (foto.error || __("Could not upload", "dox-pos")) + " · " + __("tap to try again", "dox-pos") : __("Converting\u2026", "dox-pos");
+				d.appendChild(s);
+				if (foto.estado === "error") d.onclick = () => subir(foto);
+			}
+			box.appendChild(d);
+		};
+		const soltarLocal = (f) => { if (f && f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } f.local = ""; } };
+		const quitar = () => {
+			if (foto) { soltarLocal(foto); soltarFotoLibre(foto.id); }
+			foto = null;
+			pintarFoto();
+		};
+		const subir = (f) => {
+			f.estado = "subiendo";
+			pintarFoto();
+			f.prom = (async () => {
+				try {
+					const lista = (await reducirFoto(f.file, cfg.max_px)) || f.file;
+					if (cfg.max_upload && lista.size > cfg.max_upload) throw new Error(sprintf(__("%s is larger than the server allows.", "dox-pos"), f.file.name || ""));
+					const fd = new FormData();
+					fd.append("file", lista, lista.name || "foto");
+					fd.append("name", $("#ml-nom") ? $("#ml-nom").value.trim() : "");
+					const d = await api("sale/image", { method: "POST", body: fd });
+					if (foto !== f) { soltarFotoLibre(d.id); return; } // La quitaron mientras subía.
+					f.id = d.id; f.url = d.url; f.estado = "ok";
+					soltarLocal(f);
+				} catch (e) {
+					f.estado = "error";
+					f.error = e.red ? __("No signal", "dox-pos") : (e.message === "sesion" ? __("Session expired", "dox-pos") : e.message);
+				}
+				if (foto === f) pintarFoto();
+			})();
+		};
+		$("#ml-file").onchange = (e) => {
+			const file = e.target.files && e.target.files[0];
+			e.target.value = "";
+			if (!file) return;
+			if (file.size > 200 * 1024 * 1024) { toast(sprintf(__("%s is larger than the server allows.", "dox-pos"), file.name)); return; }
+			quitar(); // Una sola foto por línea: la nueva reemplaza a la anterior.
+			foto = { file: file, local: URL.createObjectURL(file), url: "", id: 0, estado: "subiendo" };
+			subir(foto);
 		};
 		pintarTipo();
+		pintarFoto();
 		const val = $("#ml-val");
 		val.addEventListener("input", () => formatearMiles(val));
-		$("#m-no").onclick = () => cerrarModal(false);
-		$("#m-ok").onclick = () => {
+		$("#m-no").onclick = () => { quitar(); cerrarModal(false); };
+		$("#m-ok").onclick = async () => {
 			const nombre = $("#ml-nom").value.trim(), v = num(val.value);
 			if (tipo === "libre" && !nombre) { toast(__("Write what you are selling.", "dox-pos")); $("#ml-nom").focus(); return; }
 			if (v <= 0) { toast(__("Write the amount.", "dox-pos")); val.focus(); return; }
-			if (tipo === "abono") st.abono = { name: nombre, amount: v };
-			else st.libres.push({ name: nombre, price: v, n: 1 });
+			if (tipo === "libre" && foto && foto.estado === "subiendo") {
+				const ok = $("#m-ok");
+				ok.disabled = true;
+				await foto.prom; // Se espera a que termine de subir, y luego se añade.
+				ok.disabled = false;
+			}
+			if (tipo === "libre" && foto && foto.estado === "error") { toast(__("A photo could not be uploaded: tap it to try again, or remove it.", "dox-pos")); return; }
+			if (tipo === "abono") { quitar(); st.abono = { name: nombre, amount: v }; }
+			else st.libres.push({ name: nombre, price: v, n: 1, image: foto ? foto.id : 0, url: foto ? foto.url : "" });
 			cerrarModal(true);
 			pintarTodo();
 			if (tipo === "abono" && !$("#f-tel").value.trim()) toast(__("Write the customer’s phone: the store credit is kept under it.", "dox-pos"));
@@ -1366,7 +1462,7 @@
 			hold_hours: hold && op ? op.hours : null,                              // El plazo de este apartado (0: sin vencer).
 			hold_deposit: hold && op && op.deposit ? op.deposit : null,            // Lo que abona al apartar: {amount, payment}.
 			lines: st.lineas.map((l) => ({ id: l.vid, qty: l.n, real: l.real || 0 })), // real: la prenda elegida (0: la más cercana).
-			free: st.libres.map((l) => ({ name: l.name, price: l.price, qty: l.n })),
+			free: st.libres.map((l) => ({ name: l.name, price: l.price, qty: l.n, image: l.image || 0 })),
 			deposit: st.abono ? { name: st.abono.name, amount: st.abono.amount } : null,
 			credit: tt.cred,
 			channel: st.canal,

@@ -399,6 +399,7 @@ tr.off,li.off{opacity:.5}
   font:500 12.5px var(--ui);padding:10px;text-align:center;justify-items:center;transition:var(--press)}
 .foto-add:active{transform:scale(.97)}
 .foto-add svg{width:26px;height:26px}
+.ml-foto{grid-template-columns:96px} /* la foto de una línea sin producto: una sola, pequeña */
 .catgroups{display:grid;gap:6px}
 .catg{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .catg b{flex-basis:100%;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}

@@ -2,6 +2,9 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.55.0 =
+* New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.
+
 = 0.54.1 =
 * Fix: in the product form, under Pieces by actual size, a group with a single actual size showed a "?" in that size, as if something were missing. It now shows the units of the group, which are all of that size.
 
