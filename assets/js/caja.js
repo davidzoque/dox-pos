@@ -2784,22 +2784,33 @@
 	}
 	// ---------- etiquetas para pegar en los productos (Productos > Etiquetas) ----------
 	// Una por producto: nombre, referencia, precio, las tallas que hay al imprimir y el código de barras de
-	// la referencia (se escanea en el Mostrador y salen sus tallas). En hojas adhesivas de 14 por hoja:
-	// Avery 5162 en carta (4 × 1⅓ in) o L7163 en A4 (99,1 × 38,1 mm). Con línea de corte, en una hoja entera.
+	// la referencia (se escanea en el Mostrador y salen sus tallas). En las hojas de rótulos que se venden en
+	// papelerías: las de carta (Estados Unidos y casi toda Latinoamérica; en Colombia la de 30 es la que más
+	// hay) y las de A4. Medidas en mm de las plantillas de Avery; cualquier marca compatible las usa iguales.
+	// O en una hoja adhesiva entera, con líneas para recortar.
 	const HOJAS = {
-		letter: { page: "letter", w: "4in", h: "1.3333in", top: ".8333in", side: ".15625in", gap: ".1875in" },
-		a4: { page: "A4", w: "99.1mm", h: "38.1mm", top: "15.15mm", side: "4.65mm", gap: "2.5mm" },
+		l30: { page: "letter", cols: 3, rows: 10, w: 66.675, h: 25.4, top: 12.7, side: 4.7625, gap: 3.175, txt: () => __("30 per sheet, 2⅝ × 1 in (Avery 5160)", "dox-pos") },
+		l20: { page: "letter", cols: 2, rows: 10, w: 101.6, h: 25.4, top: 12.7, side: 3.96875, gap: 4.7625, txt: () => __("20 per sheet, 4 × 1 in (Avery 5161)", "dox-pos") },
+		l14: { page: "letter", cols: 2, rows: 7, w: 101.6, h: 33.867, top: 21.167, side: 3.96875, gap: 4.7625, txt: () => __("14 per sheet, 4 × 1⅓ in (Avery 5162)", "dox-pos") },
+		l10: { page: "letter", cols: 2, rows: 5, w: 101.6, h: 50.8, top: 12.7, side: 3.96875, gap: 4.7625, txt: () => __("10 per sheet, 4 × 2 in (Avery 5163)", "dox-pos") },
+		a24: { page: "A4", cols: 3, rows: 8, w: 63.5, h: 33.9, top: 12.9, side: 7.2, gap: 2.5, txt: () => __("24 per sheet, 63.5 × 33.9 mm (Avery L7159)", "dox-pos") },
+		a21: { page: "A4", cols: 3, rows: 7, w: 63.5, h: 38.1, top: 15.15, side: 7.2, gap: 2.5, txt: () => __("21 per sheet, 63.5 × 38.1 mm (Avery L7160)", "dox-pos") },
+		a14: { page: "A4", cols: 2, rows: 7, w: 99.1, h: 38.1, top: 15.15, side: 4.65, gap: 2.5, txt: () => __("14 per sheet, 99.1 × 38.1 mm (Avery L7163)", "dox-pos") },
 	};
-	const POR_HOJA = 14;
+	const MEM_HOJA = "dox_pos_label_sheet"; // La hoja que usa este equipo: la próxima vez sale la misma.
+	const hojaInicial = () => {
+		let h = "";
+		try { h = localStorage.getItem(MEM_HOJA) || ""; } catch (e) { /* sin memoria */ }
+		return HOJAS[h] ? h : cfg.paper === "a4" ? "a21" : "l30";
+	};
 	const hayDe = (v) => (v.stock === null || v.stock === undefined ? v.status !== "outofstock" : v.stock > 0);
 	// Las tallas que hay, agrupadas por color si tiene colores: "Negro: 36, 37 · Café: 38".
 	function tallasEtiqueta(p) {
-		const vs = (p.variations || []).filter((v) => p.type === "variable" && hayDe(v));
 		if (p.type !== "variable") return null;
+		const vs = (p.variations || []).filter(hayDe);
 		if (!vs.length) return __("Out of stock", "dox-pos");
-		const conColor = vs.some((v) => v.color);
 		const nombre = (v) => v.talla || v.label;
-		if (!conColor) return [...new Set(vs.map(nombre))].join(" · ");
+		if (!vs.some((v) => v.color)) return [...new Set(vs.map(nombre))].join(" · ");
 		const grupos = {};
 		vs.forEach((v) => { (grupos[v.color || ""] = grupos[v.color || ""] || []).push(v.talla || ""); });
 		return Object.keys(grupos).map((c) => { const t = [...new Set(grupos[c].filter(Boolean))].join(", "); return c ? c + (t ? ": " + t : "") : t; }).join(" · ");
@@ -2810,37 +2821,44 @@
 		const min = Math.min(...ps), max = Math.max(...ps);
 		return min === max ? dinero(min) : sprintf(__("from %s", "dox-pos"), dinero(min));
 	}
-	function etiquetaHtml(p, T) {
+	// Tres tamaños de letra según el alto de la etiqueta: en las de 1 pulgada la referencia y las tallas van en una línea.
+	const tallaDe = (H) => (H.h < 30 ? "s" : H.h >= 45 ? "l" : "m");
+	const PAD = { s: [1.3, 2.2], m: [2.4, 3.2], l: [3.5, 4.5] }; // mm: arriba y abajo, a los lados.
+	function etiquetaHtml(p, T, H) {
+		const t0 = tallaDe(H);
 		const sku = String(p.sku || (p.type !== "variable" && p.variations[0] ? p.variations[0].sku : "") || "");
-		const legible = sku && /^[\x20-\x7E]+$/.test(sku); // El código de barras (Code 128) solo lleva letras, números y signos básicos.
 		let bc = "";
-		if (legible) {
+		if (sku && /^[\x20-\x7E]+$/.test(sku)) { // El código de barras (Code 128) solo lleva letras, números y signos básicos.
 			const svg = T.codigo(sku), m = svg.match(/viewBox="0 0 (\d+)/);
-			const ancho = Math.min(92, (m ? +m[1] : 120) * 0.33); // 0,33 mm por barra fina: la cámara del celular lo lee bien.
+			const ancho = Math.min(H.w - 2 * PAD[t0][1], (m ? +m[1] : 120) * 0.33); // 0,33 mm por barra fina: la cámara del celular lo lee bien.
 			bc = '<div class="bc" style="width:' + ancho.toFixed(1) + 'mm">' + svg + "</div>";
 		}
 		const t = tallasEtiqueta(p);
-		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" +
-			(sku ? '<div class="ref">' + esc(sprintf(__("Ref. %s", "dox-pos"), sku)) + "</div>" : "") +
-			(t ? '<div class="tal">' + esc(sprintf(__("Sizes: %s", "dox-pos"), t)) + "</div>" : "") + bc + "</div>";
+		const ref = sku ? sprintf(__("Ref. %s", "dox-pos"), sku) : "";
+		const tal = t ? sprintf(__("Sizes: %s", "dox-pos"), t) : "";
+		const medio = t0 === "s" ? (ref || tal ? '<div class="ref">' + esc([ref, tal].filter(Boolean).join(" · ")) + "</div>" : "")
+			: (ref ? '<div class="ref">' + esc(ref) + "</div>" : "") + (tal ? '<div class="tal">' + esc(tal) + "</div>" : "");
+		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" + medio + bc + "</div>";
 	}
-	function hojasEtiquetas(lista, hoja, desde, corte) {
+	function hojasEtiquetas(lista, formato, desde, corte) {
 		const T = window.DoxPOSTicket({ dinero: dinero });
-		const H = HOJAS[hoja] || HOJAS.letter;
+		const H = HOJAS[formato] || HOJAS.l30, n = H.cols * H.rows, t0 = tallaDe(H);
 		const celdas = [];
 		for (let i = 1; i < desde; i++) celdas.push('<div class="c"></div>'); // Las que ya se usaron de una hoja empezada.
-		lista.forEach((x) => { const h = etiquetaHtml(x.p, T); for (let i = 0; i < x.n; i++) celdas.push('<div class="c">' + h + "</div>"); });
+		lista.forEach((x) => { const h = etiquetaHtml(x.p, T, H); for (let i = 0; i < x.n; i++) celdas.push('<div class="c">' + h + "</div>"); });
 		let paginas = "";
-		for (let i = 0; i < celdas.length; i += POR_HOJA) paginas += '<div class="hoja">' + celdas.slice(i, i + POR_HOJA).join("") + "</div>";
+		for (let i = 0; i < celdas.length; i += n) paginas += '<div class="hoja">' + celdas.slice(i, i + n).join("") + "</div>";
+		const F = { s: [7.5, 8.5, 6, 7.5], m: [10, 12, 7.5, 8], l: [12, 15, 9, 10] }[t0]; // pt: nombre, precio, referencia, tallas.
+		const mm = (x) => x + "mm";
 		const css = "@page{size:" + H.page + ";margin:0}html,body{margin:0;padding:0}*{box-sizing:border-box}" +
-			".hoja{display:grid;grid-template-columns:repeat(2," + H.w + ");grid-auto-rows:" + H.h + ";column-gap:" + H.gap + ";padding:" + H.top + " " + H.side + " 0;break-after:page;page-break-after:always}" +
+			".hoja{display:grid;grid-template-columns:repeat(" + H.cols + "," + mm(H.w) + ");grid-auto-rows:" + mm(H.h) + ";column-gap:" + mm(H.gap) + ";padding:" + mm(H.top) + " " + mm(H.side) + " 0;break-after:page;page-break-after:always}" +
 			".hoja:last-child{break-after:auto;page-break-after:auto}" +
 			".c{overflow:hidden" + (corte ? ";outline:.2mm dashed #999;outline-offset:-.1mm" : "") + "}.c:empty{outline:0}" +
-			".et{height:100%;padding:2.4mm 3.2mm 2mm;display:flex;flex-direction:column;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
-			".a{display:flex;justify-content:space-between;align-items:baseline;gap:3mm}.nom{font-weight:700;font-size:10pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-			".pre{font-weight:700;font-size:12pt;white-space:nowrap}.ref{font-size:7.5pt;margin-top:.3mm}" +
-			".tal{font-size:8pt;line-height:1.25;max-height:2.5em;overflow:hidden;margin-top:.6mm}" +
-			".bc{margin-top:auto;height:8mm;max-width:100%}.bc svg{display:block;width:100%;height:100%}";
+			".et{height:100%;padding:" + mm(PAD[t0][0]) + " " + mm(PAD[t0][1]) + ";display:flex;flex-direction:column;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+			".a{display:flex;justify-content:space-between;align-items:baseline;gap:2mm}.nom{font-weight:700;font-size:" + F[0] + "pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+			".pre{font-weight:700;font-size:" + F[1] + "pt;white-space:nowrap}.ref{font-size:" + F[2] + "pt;margin-top:.3mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+			".tal{font-size:" + F[3] + "pt;line-height:1.25;max-height:" + (t0 === "l" ? "3.75em" : "2.5em") + ";overflow:hidden;margin-top:.6mm}" +
+			".bc{margin-top:auto;height:" + (t0 === "s" ? "7.5mm" : t0 === "l" ? "12mm" : "8mm") + ";max-width:100%}.bc svg{display:block;width:100%;height:100%}";
 		return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(__("Labels", "dox-pos")) + "</title><style>" + css + "</style></head><body>" + paginas + "</body></html>";
 	}
 	// Imprime en un marco escondido: el navegador abre su ventana de imprimir.
@@ -2861,16 +2879,18 @@
 	function modalEtiquetas() {
 		if (typeof window.DoxPOSTicket !== "function") { toast(__("The labels could not be loaded. Reload the page.", "dox-pos")); return; }
 		const sel = []; // [{p, n}]
-		let hoja = cfg.paper === "a4" ? "a4" : "letter";
-		modal("<h3>" + esc(__("Labels for your products", "dox-pos")) + '</h3><p class="mp">' + esc(__("Each label carries the name, the SKU, the price, the sizes in stock right now and the barcode of the SKU: scan it at the Counter and its sizes show up. For adhesive sheets with 14 labels.", "dox-pos")) + "</p>" +
+		let formato = hojaInicial();
+		const opciones = (pag, grupo) => '<optgroup label="' + esc(grupo) + '">' + Object.keys(HOJAS).filter((k) => HOJAS[k].page === pag).map((k) => '<option value="' + k + '">' + esc(HOJAS[k].txt()) + "</option>").join("") + "</optgroup>";
+		modal("<h3>" + esc(__("Labels for your products", "dox-pos")) + '</h3><p class="mp">' + esc(__("Each label carries the name, the SKU, the price, the sizes in stock right now and the barcode of the SKU: scan it at the Counter and its sizes show up. They print on the label sheets sold in stationery shops (any brand with the same measurements), or on a whole adhesive sheet to cut.", "dox-pos")) + "</p>" +
 			'<input type="search" id="et-q" placeholder="' + esc(__("Search by name or SKU", "dox-pos")) + '" autocomplete="off"><ul class="res et-res" id="et-res"></ul>' +
 			'<ul class="et-lista" id="et-sel" hidden></ul>' +
-			'<div class="g2"><div class="field"><label for="et-hoja">' + esc(__("Sheet", "dox-pos")) + '</label><select id="et-hoja"><option value="letter">' + esc(__("Letter, 14 per sheet (Avery 5162)", "dox-pos")) + '</option><option value="a4">' + esc(__("A4, 14 per sheet (Avery L7163)", "dox-pos")) + '</option></select></div><div class="field"><label for="et-desde">' + esc(__("Start at label no.", "dox-pos")) + '</label><input id="et-desde" inputmode="numeric" value="1"></div></div>' +
+			'<div class="g2"><div class="field"><label for="et-hoja">' + esc(__("Sheet", "dox-pos")) + '</label><select id="et-hoja">' + opciones("letter", __("Letter", "dox-pos")) + opciones("A4", "A4") + '</select></div><div class="field"><label for="et-desde">' + esc(__("Start at label no.", "dox-pos")) + '</label><input id="et-desde" inputmode="numeric" value="1"></div></div>' +
 			'<label class="chk mt"><input type="checkbox" id="et-corte"> ' + esc(__("With cutting lines (a whole adhesive sheet, cut with scissors)", "dox-pos")) + "</label>" +
 			'<p class="et-total mt" id="et-total"></p><p class="mp">' + esc(__("In the print window, leave the scale at 100% (actual size) and the margins at none, so each label falls in its place.", "dox-pos")) + "</p>" +
 			'<div class="mbtn stick"><button type="button" class="go" id="m-ok" disabled>' + esc(__("Print labels", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "wide");
-		$("#et-hoja").value = hoja;
-		const desde = () => Math.max(1, Math.min(POR_HOJA, parseInt($("#et-desde").value, 10) || 1));
+		$("#et-hoja").value = formato;
+		const porHoja = () => HOJAS[formato].cols * HOJAS[formato].rows;
+		const desde = () => Math.max(1, Math.min(porHoja(), parseInt($("#et-desde").value, 10) || 1));
 		const pintarSel = () => {
 			const ul = $("#et-sel");
 			ul.hidden = !sel.length;
@@ -2880,7 +2900,7 @@
 					(unidades > 1 ? '<button type="button" class="undo" data-i="' + i + '" data-todas="' + unidades + '">' + esc(sprintf(__("One per unit (%d)", "dox-pos"), unidades)) + "</button>" : "") + "</li>";
 			}).join("");
 			const n = sel.reduce((a, x) => a + x.n, 0);
-			const hojas = n ? Math.ceil((n + desde() - 1) / POR_HOJA) : 0;
+			const hojas = n ? Math.ceil((n + desde() - 1) / porHoja()) : 0;
 			$("#et-total").textContent = n ? sprintf(_n("%d label", "%d labels", n, "dox-pos"), n) + " · " + sprintf(_n("%d sheet", "%d sheets", hojas, "dox-pos"), hojas) : __("Search for a product and add it.", "dox-pos");
 			$("#m-ok").disabled = !n;
 		};
@@ -2915,12 +2935,16 @@
 		$("#et-q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(buscarEt, 300); });
 		$("#et-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); } }); // Enter aquí no imprime: está buscando.
 		$("#et-desde").addEventListener("input", pintarSel);
-		$("#et-hoja").onchange = () => { hoja = $("#et-hoja").value; };
+		$("#et-hoja").onchange = () => {
+			formato = $("#et-hoja").value;
+			try { localStorage.setItem(MEM_HOJA, formato); } catch (e) { /* sin memoria */ }
+			pintarSel();
+		};
 		$("#m-no").onclick = cerrarModal;
 		$("#m-ok").onclick = () => {
 			const lista = sel.filter((x) => x.n > 0);
 			if (!lista.length) return;
-			imprimirDocumento(hojasEtiquetas(lista, hoja, desde(), $("#et-corte").checked));
+			imprimirDocumento(hojasEtiquetas(lista, formato, desde(), $("#et-corte").checked));
 		};
 		pintarSel();
 		$("#et-q").focus();

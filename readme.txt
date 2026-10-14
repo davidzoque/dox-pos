@@ -103,7 +103,7 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 == Changelog ==
 
 = 0.54.0 =
-* New: labels to stick on the products, from Products > Labels. Each one carries the name, the SKU, the price, the sizes in stock when it is printed and the barcode of the SKU: scan it at the Counter, with a scanner or the phone camera, and its sizes show up. They print from the browser on adhesive sheets of 14 labels (Avery 5162 on Letter, L7163 on A4), or on a whole adhesive sheet with lines to cut; one per product or one per unit in stock, and a sheet already started can be used from any label.
+* New: labels to stick on the products, from Products > Labels. Each one carries the name, the SKU, the price, the sizes in stock when it is printed and the barcode of the SKU: scan it at the Counter, with a scanner or the phone camera, and its sizes show up. They print from the browser on the label sheets sold in stationery shops (Letter with 30, 20, 14 or 10 labels, Avery 5160 to 5163; A4 with 24, 21 or 14, Avery L7159, L7160 and L7163), or on a whole adhesive sheet with lines to cut; one per product or one per unit in stock, and a sheet already started can be used from any label.
 * Fix: in Settings > Sales, the sample receipt did not show until saving when Settings was opened on another tab.
 
 = 0.53.0 =
