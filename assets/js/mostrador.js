@@ -787,6 +787,11 @@
 		if (m.credito) payload.credit = m.credito;
 		if (partes) payload.payments = partes;
 		if (extra) Object.assign(payload, extra);
+		// Cobrar otra vez la misma venta tras un corte manda la misma referencia: si la primera sí entró,
+		// la tienda devuelve ese pedido en vez de crear otro.
+		const huella = JSON.stringify(Object.assign({}, payload, { ref: "" }));
+		if (m.refVenta && m.refVenta[0] === huella) payload.ref = m.refVenta[1];
+		else m.refVenta = [huella, payload.ref];
 		try {
 			const d = await post("orders", payload);
 			limpiar();
@@ -859,13 +864,14 @@
 		modal("<h3>" + esc(sprintf(__("Return from order #%s", "dox-pos"), r.number)) + '</h3><p class="mp">' + esc(r.date + " · " + dinero(r.total)) + '</p><ul class="res devol">' + lineas.map((l) => '<li class="lin"><span class="n">' + esc(l.name) + "<i>" + esc(sprintf(__("%1$d of %2$d can be returned", "dox-pos"), l.refundable, l.qty)) + '</i></span><span class="qty"><button type="button" data-id="' + l.id + '" data-d="-1">−</button><span id="mv-n' + l.id + '">0</span><button type="button" data-id="' + l.id + '" data-d="1">+</button></span><span class="v" id="mv-v' + l.id + '">' + dinero(0) + "</span></li>").join("") + '</ul><div class="chips" id="mv-met" style="margin:12px 0">' + (soloSaldo ? "" : '<button type="button" class="chip" data-m="efectivo" aria-pressed="' + (metodo === "efectivo") + '">' + esc(__("Cash from the drawer", "dox-pos")) + '</button><button type="button" class="chip" data-m="original" aria-pressed="' + (metodo === "original") + '">' + esc(sprintf(__("Same method (%s)", "dox-pos"), original)) + "</button>") + '<button type="button" class="chip" data-m="saldo" aria-pressed="' + (metodo === "saldo") + '">' + esc(__("To store credit", "dox-pos")) + '</button></div><div class="g2" id="mv-saldo" hidden><div class="field"><label for="mv-fee">' + esc(__("Exchange fee (%)", "dox-pos")) + '</label><input id="mv-fee" inputmode="decimal" value="' + esc(String(fee0)) + '"></div><div class="field"><label for="mv-tel">' + esc(__("Customer phone", "dox-pos")) + '</label><input id="mv-tel" type="tel" autocomplete="off" value="' + esc(r.phone || "") + '"></div></div><div class="cambio falta" id="mv-tot"></div><div class="fila"><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + '</button><button type="button" class="go" id="mv-ok" disabled>' + esc(__("Make the return", "dox-pos")) + "</button></div>", "cobro");
 		const monto = () => redondear(lineas.reduce((a, l) => a + (sel[l.id] || 0) * l.gross, 0));
 		const pct = () => Math.max(0, Math.min(100, parseFloat(String($("#mv-fee").value).replace(",", ".")) || 0));
+		let guardando = false; // Mientras se guarda, tocar + o − o cambiar el medio no vuelve a encender el botón (sería otra devolución).
 		const repintar = () => {
 			lineas.forEach((l) => { $("#mv-n" + l.id).textContent = sel[l.id] || 0; $("#mv-v" + l.id).textContent = dinero((sel[l.id] || 0) * l.gross); });
 			const a = metodo === "saldo" ? redondear(monto() - redondear(monto() * pct() / 100)) : monto(), box = $("#mv-tot");
 			$("#mv-saldo").hidden = metodo !== "saldo";
 			box.className = "cambio" + (a ? "" : " falta");
 			box.innerHTML = "<span>" + esc(metodo === "saldo" ? __("Stays as store credit", "dox-pos") : metodo === "efectivo" ? __("Give back in cash", "dox-pos") : __("Give back by the same method", "dox-pos")) + "</span><b>" + dinero(a) + "</b>";
-			$("#mv-ok").disabled = !a;
+			$("#mv-ok").disabled = guardando || !a;
 		};
 		$("#mv-fee").addEventListener("input", repintar);
 		$("#modal-card").querySelectorAll(".devol .qty button").forEach((b) => {
@@ -879,9 +885,11 @@
 		$("#m-no").onclick = () => cerrarModal(false);
 		$("#mv-ok").onclick = async () => {
 			const lines = lineas.filter((l) => sel[l.id]).map((l) => ({ id: l.id, qty: sel[l.id] }));
+			if (guardando) return;
+			if (metodo === "saldo" && $("#mv-tel").value.replace(/\D/g, "").length < 7) { toast(__("Write the customer’s phone: the store credit is kept under it.", "dox-pos")); $("#mv-tel").focus(); return; }
+			guardando = true;
 			$("#mv-ok").disabled = true;
 			try {
-				if (metodo === "saldo" && $("#mv-tel").value.replace(/\D/g, "").length < 7) { $("#mv-ok").disabled = false; $("#mv-tel").focus(); return; }
 				const d = await post("counter/refund", { order: r.id, lines: lines, method: metodo, fee: pct(), phone: metodo === "saldo" ? $("#mv-tel").value.trim() : "" });
 				if (d.shift) { m.shift = d.shift; pintarTurno(); }
 				const dev = { amount: d.amount, method: d.method, credit: d.method === "saldo" ? 0 : d.credit || 0, lines: lines.map((l) => ({ name: lineas.find((x) => x.id === l.id).name, qty: l.qty })) };
@@ -895,13 +903,15 @@
 				D.refrescarStock();
 				D.cargarPedidos();
 			} catch (e) {
-				$("#mv-ok").disabled = false;
+				guardando = false;
+				if ($("#mv-tot")) repintar();
 				if (e.message !== "sesion") toast(e.message);
 			}
 		};
 		repintar();
 	}
 	function limpiar() {
+		m.refVenta = null;
 		m.lineas = [];
 		m.desc = { tipo: "$", valor: 0 };
 		m.quote = null;

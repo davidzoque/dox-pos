@@ -122,7 +122,9 @@
 			let j = null;
 			try { j = await r.clone().json(); } catch (e) { /* sin cuerpo */ }
 			// Un cajero de mostrador que pide algo de fuera del Mostrador: se le dice, sin cerrar la sesión.
-			if (j && j.code === "dox_pos_solo_mostrador") throw new Error(j.message);
+			// Con la sesión viva pero sin permiso para eso (el cajero que pide algo de quien administra, el de
+			// mostrador fuera del Mostrador): se dice, y la caja sigue como estaba, sin recargar ni perder la venta a medias.
+			if (r.status === 403 && j && j.message && (/^dox_pos_/.test(j.code || "") || j.code === "rest_forbidden")) throw new Error(j.message);
 			sesionCaducada();
 			throw new Error("sesion");
 		}
@@ -556,8 +558,8 @@
 		$("#m-no").onclick = () => cerrarModal(false);
 		$("#m-ok").onclick = () => {
 			const nombre = $("#ml-nom").value.trim(), v = num(val.value);
-			if (tipo === "libre" && !nombre) { $("#ml-nom").focus(); return; }
-			if (v <= 0) { val.focus(); return; }
+			if (tipo === "libre" && !nombre) { toast(__("Write what you are selling.", "dox-pos")); $("#ml-nom").focus(); return; }
+			if (v <= 0) { toast(__("Write the amount.", "dox-pos")); val.focus(); return; }
 			if (tipo === "abono") st.abono = { name: nombre, amount: v };
 			else st.libres.push({ name: nombre, price: v, n: 1 });
 			cerrarModal(true);
@@ -577,6 +579,7 @@
 		const digitos = tel.replace(/\D/g, "");
 		if (digitos.length < 7) { st.saldo = null; st.usar = 0; pintarSum(); return; }
 		if (tel === saldoPedido) return;
+		if (saldoPedido) st.usar = 0; // Otro teléfono, otra clienta: su saldo se usa solo si lo piden.
 		saldoPedido = tel;
 		try {
 			const d = await api("credit?phone=" + encodeURIComponent(tel));
@@ -1373,6 +1376,11 @@
 			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: fijarCiudad(), address: $("#f-dir").value.trim(), postcode: codigoPostal() },
 			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
 		};
+		// Reintentar la misma venta (la respuesta no llegó: un 504, un corte) manda la misma referencia, y la
+		// tienda devuelve el pedido que ya creó en vez de hacer otro. Si algo de la venta cambia, es otra.
+		const huella = JSON.stringify(Object.assign({}, payload, { ref: "" }));
+		if (st.refVenta && st.refVenta[0] === huella) payload.ref = st.refVenta[1];
+		else st.refVenta = [huella, payload.ref];
 		const tipo = hold ? "apartado" : "venta";
 		const resumen = [resumenLineas(st.lineas)].concat(st.libres.map((l) => l.name + (l.n > 1 ? " ×" + l.n : "")), st.abono ? [st.abono.name || __("Deposit", "dox-pos")] : []).filter(Boolean).join(" + ");
 		if (!navigator.onLine) {
@@ -1416,6 +1424,7 @@
 		}).filter(Boolean).join(" + ");
 	}
 	function limpiarPedido() {
+		st.refVenta = null;
 		st.lineas = [];
 		st.libres = [];
 		st.abono = null;
@@ -1502,10 +1511,11 @@
 			wa();
 		} else if (p.status === "por_enviar") {
 			btn(__("Mark as shipped", "dox-pos"), false, () => modalEnvio(p));
-			btn(__("Cancel", "dox-pos"), true, () => confirmar(sprintf(__("Cancel order #%s? The stock goes back.", "dox-pos"), p.number), () => accion(p, "cancel")));
+			// Ya pagado: anularlo no devuelve el dinero, y hay que decirlo antes (se confunde con cerrar la ventana).
+			btn(__("Cancel", "dox-pos"), true, () => confirmar(sprintf(p.paid && !p.cod ? __("Cancel order #%s? The stock goes back. What they paid is not refunded here: give it back yourself if needed.", "dox-pos") : __("Cancel order #%s? The stock goes back.", "dox-pos"), p.number), () => accion(p, "cancel")));
 			wa();
 		} else if (p.status === "enviado") {
-			btn(__("Mark as delivered", "dox-pos"), false, () => accion(p, "delivered"));
+			btn(__("Mark as delivered", "dox-pos"), false, () => confirmar(sprintf(__("Mark order #%s as delivered? The order is closed.", "dox-pos"), p.number), () => accion(p, "delivered")));
 			wa();
 		}
 	}
@@ -1594,7 +1604,7 @@
 				'</div><span class="num">' + dinero(it.total) + "</span></li>").join("") + "</ul>";
 			const filas = [[__("Subtotal", "dox-pos"), dinero(d.subtotal)]];
 			if (d.discount) filas.push([__("Discount", "dox-pos"), "−" + dinero(d.discount)]);
-			(d.deposits || []).forEach((x) => filas.push([sprintf(__("Deposit: %s", "dox-pos"), x.name), dinero(x.total)]));
+			(d.deposits || []).forEach((x) => filas.push([x.layaway ? x.name : sprintf(__("Deposit: %s", "dox-pos"), x.name), dinero(x.total)]));
 			if (d.credit_used) filas.push([lw ? __("Deposits", "dox-pos") : __("Paid with store credit", "dox-pos"), "−" + dinero(d.credit_used)]);
 			if (d.shipping_total || d.shipping_method) filas.push([__("Shipping", "dox-pos") + (d.shipping_method && d.shipping_method !== __("Shipping", "dox-pos") ? " · " + d.shipping_method : ""), dinero(d.shipping_total)]);
 			izq += '<div class="pd-tot">' + filas.map((f) => "<div><span>" + esc(f[0]) + "</span><span>" + f[1] + "</span></div>").join("") + '<div class="t"><span>' + esc(lw && lw.open ? __("Worth", "dox-pos") : __("Total", "dox-pos")) + "</span><span>" + dinero(lw && lw.open ? lw.value : d.total) + "</span></div></div></section>";
@@ -1619,7 +1629,7 @@
 		if (d.email) kv += fila(__("Email", "dox-pos"), '<a href="mailto:' + esc(d.email) + '">' + esc(d.email) + "</a>");
 		if (dir) kv += fila(__("Address", "dox-pos"), esc(dir));
 		if (d.note && !abono) kv += fila(__("Note", "dox-pos"), esc(d.note));
-		if (d.credit_key && cfg.credit) kv += fila(__("Store credit", "dox-pos"), '<button type="button" class="lnk" id="pd-saldo">' + esc(__("See their movements", "dox-pos")) + "</button>");
+		if (d.credit_key && cfg.credit && cfg.history_full) kv += fila(__("Store credit", "dox-pos"), '<button type="button" class="lnk" id="pd-saldo">' + esc(__("See their movements", "dox-pos")) + "</button>");
 		der += (kv ? '<div class="pd-kv">' + kv + "</div>" : "") + "</section>";
 		const venta = ["por_enviar", "enviado", "entregado"].includes(d.status);
 		if (!abono && (venta || d.loss) && (d.cost !== undefined || d.loss !== undefined)) { // En una venta hecha (o con una pérdida ya anotada): en un apartado o un pedido sin pagar no hay ganancia todavía.
@@ -1638,7 +1648,8 @@
 		h += '<div class="pd-cuerpo"><div class="pd-col">' + izq + '</div><div class="pd-col">' + der + "</div>";
 		if (d.notes && d.notes.length) h += '<details class="pd-hist"><summary>' + esc(__("History", "dox-pos")) + "<em>" + esc(sprintf(_n("%d note", "%d notes", d.notes.length, "dox-pos"), d.notes.length)) + '</em></summary><ul class="pd-tl">' + d.notes.map((n) => "<li><span>" + esc(n.date) + "</span>" + esc(n.text) + "</li>").join("") + "</ul></details>";
 		h += "</div>";
-		h += '<div class="pd-pie"><div class="oda"></div>' + (d.edit_url ? '<a class="pd-woo" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + "</a>" : "") + "</div>";
+		// "Cerrar" abajo solo en el teléfono: ahí la ventana baja entera y la X de arriba se va con el scroll.
+		h += '<div class="pd-pie"><div class="oda"></div><button type="button" class="mini sec pd-cerrar">' + esc(__("Close", "dox-pos")) + "</button>" + (d.edit_url ? '<a class="pd-woo" href="' + esc(d.edit_url) + '" target="_blank" rel="noopener">' + esc(__("Open in WooCommerce", "dox-pos")) + "</a>" : "") + "</div>";
 		modal(h, "wide pd");
 		botonesPedido(d, $("#modal-card .oda"), true);
 		if (d.can_credit) {
@@ -1650,6 +1661,7 @@
 			$("#modal-card .oda").appendChild(b);
 		}
 		$("#m-no").onclick = cerrarModal;
+		$("#modal-card .pd-cerrar").onclick = () => cerrarModal();
 		if ($("#m-loss")) $("#m-loss").onclick = () => modalPerdida(d);
 		if ($("#pd-saldo")) $("#pd-saldo").onclick = () => verClienta(d.credit_key);
 		$("#modal-card").querySelectorAll("[data-edit]").forEach((b) => { b.onclick = () => { cerrarModal(); editarDesdeLista(+b.dataset.edit); }; });
@@ -2290,11 +2302,12 @@
 			'<div class="mbtn"><button type="button" class="go" id="m-ok" disabled>' + esc(__("Leave it as store credit", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Back", "dox-pos")) + "</button></div>", "wide");
 		const pct = () => Math.max(0, Math.min(100, parseFloat(String($("#ms-fee").value).replace(",", ".")) || 0));
 		const valor = () => redondear(lineas.reduce((a, l) => a + (sel[l.line] || 0) * l.unit_value, 0));
+		let guardando = false; // Mientras se guarda, tocar + o − no vuelve a encender el botón (sería otra devolución).
 		const repintar = () => {
 			lineas.forEach((l) => { $("#ms-n" + l.line).textContent = sel[l.line] || 0; $("#ms-v" + l.line).textContent = dinero((sel[l.line] || 0) * l.unit_value); });
 			const v = valor(), f = redondear(v * pct() / 100);
 			$("#ms-sum").innerHTML = "<div><span>" + esc(__("What they are worth", "dox-pos")) + "</span><span>" + dinero(v) + "</span></div>" + (f ? "<div><span>" + esc(sprintf(__("Exchange fee (%s%%)", "dox-pos"), pct())) + "</span><span>−" + dinero(f) + "</span></div>" : "") + '<div class="tot"><span>' + esc(__("Store credit", "dox-pos")) + "</span><span>" + dinero(v - f) + "</span></div>";
-			$("#m-ok").disabled = !v;
+			$("#m-ok").disabled = guardando || !v;
 		};
 		$("#modal-card").querySelectorAll(".devol .qty button").forEach((b) => {
 			b.onclick = () => {
@@ -2307,7 +2320,9 @@
 		$("#m-no").onclick = () => { cerrarModal(); verPedido(d.id); };
 		$("#m-ok").onclick = async () => {
 			const tel = sinTel ? $("#ms-tel").value.trim() : "";
-			if (sinTel && tel.replace(/\D/g, "").length < 7) { $("#ms-tel").focus(); return; }
+			if (sinTel && tel.replace(/\D/g, "").length < 7) { toast(__("Write the customer’s phone: the store credit is kept under it.", "dox-pos")); $("#ms-tel").focus(); return; }
+			if (guardando) return;
+			guardando = true;
 			$("#m-ok").disabled = true;
 			try {
 				const r = await post("orders/" + d.id + "/credit", { lines: lineas.filter((l) => sel[l.line]).map((l) => ({ id: l.line, qty: sel[l.line] })), restock: $("#ms-stock").checked, fee: pct(), note: $("#ms-nota").value.trim(), phone: tel });
@@ -2316,7 +2331,8 @@
 				await Promise.all([cargarPedidos(), refrescarStock()]);
 				emit("pedido", { id: d.id, act: "credit" });
 			} catch (e) {
-				$("#m-ok").disabled = false;
+				guardando = false;
+				if ($("#ms-sum")) repintar(); // Si la ventana sigue abierta, el botón vuelve según lo elegido.
 				if (e.message !== "sesion") toast(e.message);
 			}
 		};
@@ -2334,7 +2350,7 @@
 		};
 		$("#m-ok").onclick = () => {
 			const n = num(amt.value);
-			if (n <= 0) { amt.focus(); return; }
+			if (n <= 0) { toast(__("Write the amount.", "dox-pos")); amt.focus(); return; }
 			guardar(n, $("#m-lnote").value.trim());
 		};
 		if ($("#m-del")) $("#m-del").onclick = () => guardar(0, "");
@@ -3880,10 +3896,10 @@
 			const raw = $("#ma-v").value.trim();
 			const neg = /^[-−]/.test(raw);
 			const v = num(raw.replace(/^[-−]/, ""));
-			if (!v) { $("#ma-v").focus(); return; }
-			if (!$("#ma-n").value.trim()) { $("#ma-n").focus(); return; }
+			if (!v) { toast(__("Write the amount.", "dox-pos")); $("#ma-v").focus(); return; }
+			if (!$("#ma-n").value.trim()) { toast(__("Write why: it stays in the history.", "dox-pos")); $("#ma-n").focus(); return; }
 			const tel = c ? c.phone : $("#ma-tel").value.trim();
-			if (!c && tel.replace(/\D/g, "").length < 7) { $("#ma-tel").focus(); return; }
+			if (!c && tel.replace(/\D/g, "").length < 7) { toast(__("Write the customer’s phone number.", "dox-pos")); $("#ma-tel").focus(); return; }
 			$("#m-ok").disabled = true;
 			try {
 				const r = await post("credit/adjust", { phone: tel, name: c ? c.name : $("#ma-nom").value.trim(), amount: (neg ? "-" : "") + v, note: $("#ma-n").value.trim() });
@@ -4250,7 +4266,16 @@
 			$("#e-costos").onclick = () => $("#e-costos-file").click();
 			$("#e-costos-file").addEventListener("change", subirCostos);
 		}
+		// Mientras la ventana se cierra, un segundo toque (doble clic, dedo nervioso) no llega a sus botones:
+		// el primero ya hizo lo suyo y el segundo apuntaría el abono o la línea otra vez.
+		$("#modal").addEventListener("click", (e) => { if ($("#modal").classList.contains("out")) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 		$("#modal").addEventListener("click", (e) => { if (e.target === $("#modal")) cerrarModal(); });
+		// Enter en un campo de la ventana hace lo del botón principal, como en el Mostrador.
+		$("#modal").addEventListener("keydown", (e) => {
+			if (e.key !== "Enter" || e.isComposing || e.target.tagName !== "INPUT" || /^(checkbox|radio|file)$/.test(e.target.type)) return;
+			const ok = $("#m-ok");
+			if (ok && !ok.disabled) { e.preventDefault(); ok.click(); }
+		});
 		// Tocar el número o los productos de un pedido (en Pedidos, Historial u Hoy) abre su detalle.
 		// Solo cuando el atributo trae el número del pedido: un data-ver vacío es otro botón
 		// (los añadidos usan sus propios atributos) y no tiene que abrir ninguna ficha.

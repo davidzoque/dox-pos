@@ -65,7 +65,7 @@
 				r.lines.forEach((l) => { h += fila(esc(l.name), dinero(l.total)) + '<div class="s">' + esc(l.qty + " x " + dinero(l.unit) + (l.sku && ver(s, "sku") ? " · " + l.sku : "")) + "</div>"; });
 				h += "<hr>" + fila(esc(__("Subtotal", "dox-pos")), dinero(r.subtotal));
 				if (r.discount) h += fila(esc(__("Discount", "dox-pos")), "−" + dinero(r.discount));
-				(r.deposits || []).forEach((x) => { h += fila(esc(sprintf(__("Deposit: %s", "dox-pos"), x.name)), dinero(x.total)); });
+				(r.deposits || []).forEach((x) => { h += fila(esc(x.layaway ? x.name : sprintf(__("Deposit: %s", "dox-pos"), x.name)), dinero(x.total)); });
 				const tax = (r.taxes || []).reduce((a, t) => a + t.amount, 0);
 				if (!r.included && tax) {
 					if (ver(s, "taxes")) (r.taxes || []).forEach((t) => { h += fila(esc(t.label), dinero(t.amount)); });

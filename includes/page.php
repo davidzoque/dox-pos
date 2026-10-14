@@ -65,6 +65,10 @@ function dox_pos_render() {
 
 	// Los Excel: /caja/?descargar=inventario, o ventas|caja|movimientos&desde=&hasta= (solo leen; con la sesión y el permiso ya comprobados).
 	if ( isset( $_GET['descargar'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// Quien solo cobra en el Mostrador no ve el inventario ni el historial: tampoco en Excel.
+		if ( dox_pos_is_counter_only() ) {
+			wp_die( esc_html__( 'Your user only has access to the Counter.', 'dox-pos' ), '', array( 'response' => 403 ) );
+		}
 		$what = sanitize_key( wp_unslash( $_GET['descargar'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( 'inventario' === $what ) {
 			dox_pos_send_inventory();

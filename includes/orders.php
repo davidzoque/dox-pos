@@ -938,9 +938,10 @@ function dox_pos_format_order( $order ) {
 		$items[] = $item->get_name() . ( '' !== $real ? ' (' . sprintf( __( 'actual size %s', 'dox-pos' ), $real ) . ')' : '' ) . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
 	}
 	$deposit = dox_pos_order_deposit( $order );
+	$de_apartado = (int) $order->get_meta( '_dox_pos_layaway_of' ) > 0; // "Abono al apartado #72" ya dice que es un abono.
 	foreach ( dox_pos_order_deposit_lines( $order ) as $d ) {
 		/* translators: %s: what the deposit is for */
-		$items[] = sprintf( __( 'Deposit: %s', 'dox-pos' ), $d['name'] );
+		$items[] = $de_apartado ? $d['name'] : sprintf( __( 'Deposit: %s', 'dox-pos' ), $d['name'] );
 	}
 	// Un abono al saldo (sin nada que entregar) no se "entrega": dice que es un abono. El estado sigue siendo el
 	// mismo para todo lo demás (botones, informes).

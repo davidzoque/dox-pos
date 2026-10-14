@@ -443,10 +443,11 @@ function dox_pos_order_deposit( $order ) {
  * Los abonos del pedido, para la lista y el ticket: [{name, total}].
  */
 function dox_pos_order_deposit_lines( $order ) {
-	$out = array();
+	$out     = array();
+	$layaway = (int) $order->get_meta( '_dox_pos_layaway_of' ) > 0; // "Abono al apartado #72": su nombre ya dice que es un abono.
 	foreach ( $order->get_fees() as $fee ) {
 		if ( 'deposit' === dox_pos_fee_type( $fee ) ) {
-			$out[] = array( 'name' => $fee->get_name(), 'total' => (float) $fee->get_total() );
+			$out[] = array( 'name' => $fee->get_name(), 'total' => (float) $fee->get_total(), 'layaway' => $layaway );
 		}
 	}
 	return $out;

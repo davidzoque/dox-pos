@@ -245,6 +245,7 @@ table.ped td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top
 table.ped tbody tr:last-child td{border-bottom:0}
 table.ped tbody tr{transition:background-color .2s var(--curve)}
 table.ped td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.ped td.num .sub{white-space:normal;display:inline-block;min-width:9em} /* "abonado ... · falta ...": baja de línea en vez de ensanchar la tabla */
 table.ped th.num{text-align:right}
 table.ped .who{font-weight:600}
 table.ped .sub{color:var(--muted);font-size:12px}
@@ -306,6 +307,7 @@ tr.off,li.off{opacity:.5}
   #t-pedidos table.ped td:nth-child(4){grid-area:can}
   #t-pedidos table.ped td:nth-child(5){grid-area:pag;text-align:right}
   #t-pedidos table.ped td:nth-child(6){grid-area:tot;font-weight:700;font-size:15px}
+  #t-pedidos table.ped td:nth-child(6) .sub{display:block;max-width:10.5em;margin-left:auto;font-weight:500} /* abonado y falta en dos líneas: el nombre de la clienta no se aprieta */
   #t-pedidos table.ped td:nth-child(7){grid-area:est;text-align:right}
   #t-pedidos table.ped td.acts{grid-area:act;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}
   #t-pedidos table.ped td.acts:empty{display:none}
@@ -339,7 +341,7 @@ tr.off,li.off{opacity:.5}
   .modal{opacity:0}
   .modal .card{transform:scale(.96);opacity:0}
 }
-.modal.out{opacity:0;transition-duration:140ms}
+.modal.out{opacity:0;transition-duration:140ms;pointer-events:none} /* lo que se cierra ya no recibe un segundo toque */
 .modal.out .card{transform:scale(.97);opacity:0;transition-duration:140ms}
 .modal h3{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.02em;margin:0 0 8px}
 .modal .mp{color:var(--muted);font-size:13px;margin:0 0 14px}
@@ -861,6 +863,7 @@ table.ped .lnk.items{white-space:normal}
 .pd-pie .oda .mini{min-height:40px;padding:8px 14px}
 .pd-pie .oda a.mini{text-decoration:none;display:inline-flex;align-items:center}
 .pd-woo{font-size:13px;color:var(--muted);text-decoration:none}
+.pd-pie .pd-cerrar{display:none}
 .pd-woo:hover{color:var(--ink)}
 @container (max-width:760px){
   /* En el teléfono baja la ventana entera (la cabecera y las cifras se van con el resto) y las acciones quedan abajo. */
@@ -868,6 +871,7 @@ table.ped .lnk.items{white-space:normal}
   .pd-cuerpo{overflow:visible;flex:none}
   .pd-pie{position:sticky;bottom:0}
   .pd-pie .oda{display:contents}
+  .pd-pie .pd-cerrar{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px}
   .pd-woo{margin-left:auto}
   .pd-cab{padding:16px 16px 12px}
   .pd-res{grid-template-columns:1fr 1fr;padding:12px 16px}

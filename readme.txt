@@ -108,6 +108,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: on the iPhone, Safari no longer zooms the register in when a field is tapped (the register stayed bigger, cut off on the left and with the bottom bar under Safari's own bar), and the search no longer takes the focus on its own on a phone (it hid the bottom bar).
 * Fix: right after adding a size of a group that shares units, its tiles counted one piece too many until the next search; and the line proposes the closest piece that is still free.
 * Change: the button to take one size off the order sits in the corner of its tile, so the size name no longer wraps.
+* Fix: a double tap (or Enter twice) on a window's main button no longer does it twice: one deposit on a layaway was recorded as two, and a line without a product could go in twice. Returning to store credit, in Orders and at the Counter, can no longer be saved twice while it is saving.
+* Fix: if a sale's answer never arrives (a timeout, a dropped connection) and it is recorded again, the store returns the order it already made instead of making a second one.
+* Fix: a cashier who opens an order paid with store credit no longer sees the link to the customer's movements (it is for managers), and something the user is not allowed to do now says so instead of closing the session and losing the sale in progress.
+* Fix: the counter-only user can no longer download the inventory or the history in Excel.
+* Change: cancelling an order that was already paid says that the money is not refunded from there; marking an order as delivered asks first; Enter in a window does its main button; missing fields say what is missing; on a phone the order detail has a Close button at the bottom; a layaway deposit reads "Deposit on layaway #72" instead of "Deposit: Deposit on layaway #72"; and in Orders, what was deposited and what is left go to a second line instead of widening the list.
 
 = 0.52.0 =
 * New: pieces by actual size. In a group of sizes that share units, the product form says how many pieces carry each size on their tag (Pieces by actual size), checks that they add up to the units of the group, and warns when a group is not split yet or does not add up. Sell, Inventory and the Counter say "4 in the group · 2 with tag 12-18 months" instead of looking like 4 of each size.
