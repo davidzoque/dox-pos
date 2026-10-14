@@ -309,8 +309,13 @@ select.dp-unit{border:0;border-left:1px solid var(--dp-line);border-radius:0;fon
 .dp-card-prev{background:#fff;border:1px solid var(--line);border-radius:15px;padding:14px}
 .dp-lbl{margin:0 0 8px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:700}
 .dp-chips-prev{margin:0 0 12px;display:flex;flex-wrap:wrap;gap:6px;min-height:26px}
-.dp-chips-prev span{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:500;color:var(--ink);transition:background-color 150ms ease,color 150ms ease}
-.dp-chips-prev span.on{background:var(--primary);color:var(--on-primary-sm);border-color:var(--primary)}
+/* Como en la caja: icono en su color dentro de un cuadrito teñido, y el elegido en su tinte con borde de su color. */
+.dp-chips-prev span{--c:var(--muted);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px 9px 3px 3px;font-size:11.5px;font-weight:600;color:var(--ink);transition:background-color 150ms ease,color 150ms ease}
+.dp-chips-prev span i{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.dp-chips-prev span i svg{width:12px;height:12px}
+.dp-chips-prev span.on{background:color-mix(in srgb,var(--c) 9%,#fff);border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.dp-chips-prev span[data-k="wa"]{--c:#15803D}.dp-chips-prev span[data-k="ig"]{--c:#BE185D}.dp-chips-prev span[data-k="fb"],.dp-chips-prev span[data-k="web"]{--c:#1D4ED8}.dp-chips-prev span[data-k="per"],.dp-chips-prev span[data-k="cod"]{--c:#B45309}
+.dp-chips-prev span[data-k="cash"]{--c:#047857}.dp-chips-prev span[data-k="card"],.dp-chips-prev span[data-k="credit"]{--c:#6D28D9}.dp-chips-prev span[data-k="transfer"]{--c:#1D4ED8}
 .dp-chips-prev span.faint{color:var(--muted);border-style:dashed}
 .dp-line{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .dp-line>span:nth-child(2){flex:1;font-weight:500}

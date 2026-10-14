@@ -313,6 +313,34 @@
 	slug.addEventListener("blur", () => { slug.value = limpiarSlug(slug.value).replace(/^-|-$/g, ""); pintarTextos(); comprobarSlug(); });
 
 	// ---------- canales: añadir, quitar y ordenar ----------
+	// La caja en miniatura pinta canales y formas de pago como la caja (0.53.0): icono de su color y,
+	// el elegido, en su tinte. Las mismas reglas que claseCanal/clasePago de caja.js.
+	const claseCanalPrev = (n) => { const t = String(n).toLowerCase(); return /whats/.test(t) ? "wa" : /insta/.test(t) ? "ig" : /face|messenger/.test(t) ? "fb" : /tik/.test(t) ? "tt" : /web|p[aá]gina|site|online|tienda en l/.test(t) ? "web" : /person|tienda|local|store|mostrador|counter/.test(t) ? "per" : "otro"; };
+	const clasePagoPrev = (k) => { const t = String(k).toLowerCase(); return /efectivo|cash/.test(t) ? "cash" : /tarjeta|card|dat[aá]fono|cr[eé]dito|d[eé]bito/.test(t) ? "card" : /contra|cod|delivery/.test(t) ? "cod" : /saldo|credit/.test(t) ? "credit" : /transf|bank|nequi|davi|zelle|venmo|pse|yape|plin|pix|mercado|paypal|bizum|sinpe/.test(t) ? "transfer" : "otro"; };
+	const ICONOS_PREV = {
+		wa: '<path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z"/>',
+		ig: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/>',
+		fb: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
+		tt: '<path d="M9 12a4 4 0 1 0 4 4V2a5 5 0 0 0 5 5"/>',
+		web: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+		per: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20v3H2z"/>',
+		cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+		card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+		transfer: '<path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/>',
+		cod: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+		credit: '<path d="M20 12v8H4v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/>',
+		otro: '<circle cx="12" cy="12" r="3"/>',
+	};
+	function chipPrev(name, k, on) {
+		const s = document.createElement("span");
+		s.dataset.k = k;
+		if (on) s.className = "on";
+		const ic = document.createElement("i");
+		ic.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONOS_PREV[k] || ICONOS_PREV.otro) + "</svg>";
+		s.appendChild(ic);
+		s.appendChild(document.createTextNode(name)); // El nombre como texto: lo escribe la tienda.
+		return s;
+	}
 	const lista = $("#dp-canales");
 	const plantilla = $(".dp-row", lista).cloneNode(true);
 	let n = lista.children.length; // los índices nuevos siguen contando aunque se quiten filas
@@ -320,12 +348,7 @@
 		const box = $("#dp-preview-channels");
 		const names = $$(".dp-row .dp-input", lista).map((i) => i.value.trim()).filter(Boolean);
 		box.innerHTML = "";
-		names.slice(0, 4).forEach((name, i) => {
-			const s = document.createElement("span");
-			if (!i) s.className = "on";
-			s.textContent = name;
-			box.appendChild(s);
-		});
+		names.slice(0, 4).forEach((name, i) => box.appendChild(chipPrev(name, claseCanalPrev(name), !i)));
 	}
 	$("#dp-canal-add").addEventListener("click", () => {
 		const d = plantilla.cloneNode(true);
@@ -401,13 +424,11 @@
 		box.innerHTML = "";
 		$$(".dp-pay", pagos).forEach((row) => {
 			if (!$('input[type="checkbox"]', row).checked) return;
-			const s = document.createElement("span");
 			const input = $(".dp-input", row);
 			const name = input.value.trim() || (row.classList.contains("dp-pay-own") ? "" : input.placeholder); // Una propia sin nombre todavía no sale.
 			if (!name) return;
-			s.textContent = name;
-			if ($('input[type="radio"]', row).checked) s.className = "on";
-			box.appendChild(s);
+			const k = clasePagoPrev(name) !== "otro" ? clasePagoPrev(name) : clasePagoPrev(row.dataset.key || ""); // Por el nombre que ve la tienda; si no dice nada, por su clave.
+			box.appendChild(chipPrev(name, k, $('input[type="radio"]', row).checked));
 		});
 	}
 	pagos.addEventListener("change", (e) => {
