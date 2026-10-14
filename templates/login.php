@@ -19,7 +19,7 @@ $brand = dox_pos_brand_name();
 dox_pos_enqueue_caja();
 ?>
 <!doctype html>
-<html <?php language_attributes(); ?>>
+<html <?php language_attributes(); ?> data-theme="<?php echo esc_attr( dox_pos_appearance() ); ?>">
 <head>
 <?php dox_pos_head(); ?>
 </head>

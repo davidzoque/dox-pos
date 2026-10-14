@@ -993,6 +993,72 @@ function dox_pos_theme_vars( $c ) {
 }
 
 /**
+ * La apariencia de la caja (Ajustes > Marca): clara (de fábrica), oscura, o la del equipo
+ * (sigue el modo oscuro del teléfono o del computador).
+ *
+ * @return string light, dark o auto.
+ */
+function dox_pos_appearance() {
+	$a = (string) ( dox_pos_brand()['appearance'] ?? 'light' );
+	return in_array( $a, array( 'light', 'dark', 'auto' ), true ) ? $a : 'light';
+}
+
+/**
+ * Los colores del modo oscuro, sacados de los de la tienda: el fondo casi negro con un poco de su
+ * principal, el principal aclarado hasta que se lea, la barra oscura, y los estados y canales en tonos
+ * que se leen sobre oscuro. Los tonos derivados salen de las mismas reglas que el modo claro.
+ *
+ * @param array $c Los cinco colores (bg, bar, primary, soft, ink).
+ * @return array<string,string> variable => valor.
+ */
+function dox_pos_theme_dark_vars( $c ) {
+	$white = '#FFFFFF';
+	$bg    = dox_pos_mix( '#141210', $c['primary'], 0.03 );
+	$ink   = '#F2EEEA';
+	$bar   = dox_pos_is_dark( $c['bar'] ) ? dox_pos_mix( $c['bar'], '#000000', 0.35 ) : dox_pos_mix( $bg, '#000000', 0.3 );
+	$prim  = dox_pos_contrast( $c['primary'], $bg ) >= 3 ? $c['primary'] : dox_pos_toward( $c['primary'], $bg, 3 );
+	$surf  = dox_pos_mix( $bg, $white, 0.055 );
+	$v     = dox_pos_theme_vars( array( 'bg' => $bg, 'bar' => $bar, 'primary' => $prim, 'soft' => dox_pos_mix( $bg, $prim, 0.25 ), 'ink' => $ink ) );
+	$st    = array( 'ok' => '#34D399', 'warn' => '#FBBF24', 'bad' => '#F87171', 'info' => '#60A5FA', 'vio' => '#A78BFA' );
+	foreach ( $st as $k => $hex ) {
+		$v[ '--st-' . $k ]           = $hex;
+		$v[ '--st-' . $k . '-soft' ] = dox_pos_mix( $surf, $hex, 0.16 );
+	}
+	return array_merge(
+		$v,
+		array(
+			'--surface'        => $surf,
+			'--tab-on'         => dox_pos_mix( $surf, $white, 0.14 ), // La pestaña elegida: un gris claro, no el blanco que deslumbra.
+			'--tab-on-ink'     => $ink,
+			'--sunk'           => dox_pos_mix( $bg, $white, 0.03 ),
+			'--line'           => dox_pos_mix( $bg, $white, 0.13 ),
+			'--faint'          => dox_pos_mix( $bg, $ink, 0.45 ),
+			'--muted'          => dox_pos_mix( $ink, $bg, 0.28 ),
+			'--primary-tint'   => dox_pos_mix( $surf, $prim, 0.16 ),
+			'--primary-strong' => dox_pos_toward( $prim, $surf, 4.5 ),
+			'--primary-text'   => dox_pos_toward( $prim, $surf, 4.5 ),
+			'--warn'           => $ink,
+			'--warn-soft'      => dox_pos_mix( $surf, $ink, 0.08 ),
+			'--ok'             => '#4ADE80',
+			'--ok-soft'        => dox_pos_mix( $surf, '#4ADE80', 0.15 ),
+			'--real'           => '#F0A3B0',
+			'--real-soft'      => dox_pos_mix( $surf, '#F0A3B0', 0.15 ),
+			'--danger'         => '#EF4444',
+			'--danger-ink'     => '#FCA5A5',
+			'--danger-soft'    => dox_pos_mix( $surf, '#EF4444', 0.16 ),
+			'--danger-ring'    => 'rgba(239,68,68,.25)',
+			'--ch-wa'          => '#4ADE80',
+			'--ch-ig'          => '#F472B6',
+			'--ch-web'         => '#60A5FA',
+			'--ch-per'         => '#FBBF24',
+			'--scrim'          => 'rgba(0,0,0,.6)',
+			'--whisper'        => '0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25)',
+			'color-scheme'     => 'dark',
+		)
+	);
+}
+
+/**
  * El <style> que viste la caja con los colores y fuentes del ajuste.
  */
 function dox_pos_theme_css() {
@@ -1009,7 +1075,17 @@ function dox_pos_theme_css() {
 	foreach ( $vars as $k => $v ) {
 		$css .= $k . ':' . $v . ';';
 	}
-	return ':root{' . $css . '}';
+	$out = ':root{' . $css . '}';
+	// El modo oscuro: siempre, o cuando el equipo lo pide. data-theme lo pone la plantilla en <html>.
+	$app = dox_pos_appearance();
+	if ( 'light' !== $app ) {
+		$dark = '';
+		foreach ( dox_pos_theme_dark_vars( dox_pos_colors() ) as $k => $v ) {
+			$dark .= $k . ':' . $v . ';';
+		}
+		$out .= 'dark' === $app ? ':root[data-theme="dark"]{' . $dark . '}' : '@media (prefers-color-scheme:dark){:root[data-theme="auto"]{' . $dark . '}}';
+	}
+	return $out;
 }
 
 /**
@@ -1181,6 +1257,7 @@ function dox_pos_sanitize_brand( $in ) {
 		'colors'       => array(),
 		'fonts_google' => empty( $in['fonts_google'] ) ? 0 : 1,
 		'font_local'   => isset( dox_pos_local_fonts()[ $local ] ) ? $local : 'system',
+		'appearance'   => in_array( $in['appearance'] ?? '', array( 'light', 'dark', 'auto' ), true ) ? $in['appearance'] : 'light',
 	);
 	foreach ( dox_pos_default_colors() as $k => $default ) {
 		$out['colors'][ $k ] = dox_pos_hex( $in['colors'][ $k ] ?? '' ) ?: $default;
@@ -1784,6 +1861,18 @@ function dox_pos_settings_page() {
 									<span class="dp-swatch-hint"><?php echo esc_html( $hints[ $k ] ); ?></span>
 								</div>
 							</div>
+							<?php endforeach; ?>
+						</div>
+					</div>
+
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Appearance', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'Light or dark. Dark is easier on the eyes at night and in dim stores; it is made from your colors. "Like the device" follows the dark mode of each phone or computer.', 'dox-pos' ); ?></p>
+						</div>
+						<div class="dp-seg" role="radiogroup" aria-label="<?php esc_attr_e( 'Appearance', 'dox-pos' ); ?>">
+							<?php foreach ( array( 'light' => __( 'Light', 'dox-pos' ), 'dark' => __( 'Dark', 'dox-pos' ), 'auto' => __( 'Like the device', 'dox-pos' ) ) as $dox_pos_k => $dox_pos_l ) : ?>
+								<label><input type="radio" name="dox_pos_brand[appearance]" value="<?php echo esc_attr( $dox_pos_k ); ?>" <?php checked( dox_pos_appearance(), $dox_pos_k ); ?>><span><?php echo esc_html( $dox_pos_l ); ?></span></label>
 							<?php endforeach; ?>
 						</div>
 					</div>

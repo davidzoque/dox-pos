@@ -16,7 +16,7 @@ $solo  = ! empty( $cfg['counter_only'] ); // El cajero de mostrador: solo ve el 
 dox_pos_enqueue_caja( $cfg );
 ?>
 <!doctype html>
-<html <?php language_attributes(); ?>>
+<html <?php language_attributes(); ?> data-theme="<?php echo esc_attr( dox_pos_appearance() ); ?>">
 <head>
 <?php dox_pos_head(); ?>
 </head>
