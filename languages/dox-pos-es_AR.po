@@ -5564,3 +5564,51 @@ msgstr "Colores: %s"
 #: assets/js/caja.js:2921
 msgid "%d labels are too many at once: print them in parts of up to %d."
 msgstr "%d etiquetas son demasiadas de una vez: imprimilas por partes, de hasta %d."
+
+#: templates/login.php:1
+msgid "Everything in the store, %s"
+msgstr "Todo lo de la tienda, %s"
+
+#: templates/login.php:1
+msgid "in one place"
+msgstr "en un solo lugar"
+
+#: templates/login.php:1
+msgid "Sell in the store, on social media or by message"
+msgstr "Vendé en la tienda, por redes o por mensaje"
+
+#: templates/login.php:1
+msgid "Orders, layaways and shipping"
+msgstr "Los pedidos, los apartados y los envíos"
+
+#: templates/login.php:1
+msgid "Stock up to date in the store and on the website"
+msgstr "El stock al día en la tienda y en la web"
+
+#: templates/login.php:1
+msgid "How to sign in"
+msgstr "Cómo entrar"
+
+#: templates/login.php:1
+msgid "Code by email"
+msgstr "Código por correo"
+
+#: templates/login.php:1
+msgid "We send a 6-digit code to the email of your account. It also works if you forgot your password."
+msgstr "Te mandamos un código de 6 números al correo de tu cuenta. Sirve también si te olvidaste la contraseña."
+
+#: templates/login.php:1
+msgid "Show the password"
+msgstr "Mostrar la contraseña"
+
+#: templates/login.php:1
+msgid "Hide the password"
+msgstr "Ocultar la contraseña"
+
+#: templates/login.php:1
+msgid "No user yet?"
+msgstr "¿No tenés usuario?"
+
+#: templates/login.php:1
+msgid "Ask whoever runs the store."
+msgstr "Pedíselo a quien administra la tienda."

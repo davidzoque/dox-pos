@@ -732,17 +732,70 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
   .msg{max-width:96%}
 }
 
-/* ---------- login ---------- */
-.login-body{display:flex;flex-direction:column;min-height:100dvh}
-.login{flex:1;display:grid;place-items:center;padding:24px}
-.login-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 26px;
-  width:100%;max-width:380px;display:grid;gap:14px;box-shadow:0 24px 60px -30px rgba(0,0,0,.25)}
-.login-card h1{font-family:var(--serif);font-weight:700;font-size:24px;letter-spacing:-.03em;margin:0}
-.login-sub{margin:-10px 0 0;color:var(--muted);font-size:13px}
-.login-err{background:var(--st-bad-soft);color:var(--st-bad);border-radius:12px;padding:10px 12px;margin:0;font-size:13px;font-weight:600} /* un error se lee como error en todas las tiendas */
-.login-alt{font-size:13px;font-weight:600;color:var(--primary-text);text-align:center;padding:6px}
-.login-ok{background:var(--st-ok-soft);color:var(--st-ok);border-radius:12px;padding:10px 12px;margin:0;font-size:13px;font-weight:600}
-.login-code{font-size:24px;letter-spacing:6px;text-align:center}
+/* ---------- login (dox-design, 0.54.0): la marca de la tienda a un lado y el formulario al otro ---------- */
+.lg{min-height:100dvh;display:grid;place-items:center;padding:32px 20px;
+  background:radial-gradient(70% 55% at 50% -10%,var(--primary-tint),transparent 70%),var(--paper)}
+.lg-card{width:100%;max-width:940px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);background:var(--surface);
+  border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 2px 6px rgba(20,19,19,.04),0 24px 48px -18px rgba(20,19,19,.18)}
+/* La marca de la tienda: su barra, su logo y lo que va a encontrar dentro */
+.lg-marca{background:var(--bar);color:var(--bar-ink);padding:34px 34px 28px;display:flex;flex-direction:column;gap:26px;position:relative;overflow:hidden}
+.lg-marca::after{content:"";position:absolute;right:-90px;bottom:-90px;width:280px;height:280px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--primary) 45%,transparent),transparent 70%);opacity:.55;pointer-events:none}
+.lg-logo{display:flex;align-items:center;gap:10px;font:700 17px var(--ui);letter-spacing:.02em}
+.lg-logo img{max-height:34px;max-width:170px;display:block}
+.lg-logo .cajita{font:600 10px var(--ui);letter-spacing:.2em;text-transform:uppercase;opacity:.75;padding-left:10px;border-left:1px solid color-mix(in srgb,var(--bar-ink) 30%,transparent)}
+.lg-tit{margin:auto 0 0;font:700 34px/1.12 var(--serif);letter-spacing:-.03em;max-width:15ch}
+.lg-tit span{display:block;color:var(--bar-badge)}
+.lg-lista{list-style:none;margin:0;padding:0;display:grid;gap:10px;position:relative;z-index:1}
+.lg-lista li{display:flex;align-items:center;gap:12px;font-size:13.5px;color:color-mix(in srgb,var(--bar-ink) 88%,transparent)}
+.lg-lista .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--bar-ink) 10%,transparent);color:var(--bar-ink)}
+.lg-lista .ic svg{width:17px;height:17px}
+.lg-pie{font-size:11.5px;opacity:.6;position:relative;z-index:1}
+/* El formulario */
+.lg-form{padding:38px 38px 30px;display:flex;flex-direction:column;gap:16px}
+.lg-form h1{margin:0;font:700 26px var(--serif);letter-spacing:-.03em}
+.lg-sub{margin:-8px 0 2px;color:var(--muted);font-size:13.5px}
+/* Contraseña o código: un control de dos, no un enlace suelto */
+.lg-modo{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border:1px solid var(--line);border-radius:14px}
+.lg-modo a{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 8px;border-radius:10px;font:600 13px var(--ui);
+  color:var(--muted);text-decoration:none;transition:background-color .3s var(--curve),color .3s var(--curve),box-shadow .3s var(--curve)}
+.lg-modo a svg{width:16px;height:16px;flex:none}
+.lg-modo a[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:var(--whisper)}
+.lg-modo a[aria-current="page"] svg{color:var(--primary-strong)}
+.lg-modo a:not([aria-current]):hover{color:var(--ink)}
+.lg-campo{position:relative}
+.lg-campo > svg{position:absolute;left:14px;top:50%;width:17px;height:17px;transform:translateY(-50%);color:var(--faint);pointer-events:none}
+.lg-campo input{padding:13px 14px 13px 42px;border-radius:12px;font-size:15px}
+.lg-campo .ojo{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:0;background:none;border-radius:10px;
+  display:grid;place-items:center;color:var(--muted);cursor:pointer}
+.lg-campo .ojo:hover{background:var(--sunk);color:var(--ink)}
+.lg-campo .ojo svg{width:18px;height:18px}
+.lg-campo.con-ojo input{padding-right:48px}
+.lg .go{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;font-size:15px;margin-top:4px}
+.lg .go svg{width:17px;height:17px;transition:transform .4s var(--curve)}
+.lg .go:hover svg{transform:translateX(4px)}
+.lg-aviso{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:11px 13px;font-size:13px;line-height:1.45;margin:0}
+.lg-aviso svg{width:18px;height:18px;flex:none;margin-top:1px}
+.lg-aviso.mal{background:var(--st-bad-soft);color:var(--st-bad)}
+.lg-aviso.bien{background:var(--st-ok-soft);color:var(--st-ok)}
+.lg-aviso.info{background:var(--primary-tint);color:var(--ink)}
+.lg-aviso.info svg{color:var(--primary-strong)}
+.lg-codigo input{font:600 26px var(--mono);letter-spacing:.5em;text-align:center;padding:14px 10px 14px 24px}
+.lg-sec{appearance:none;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:12px;
+  font:600 14px var(--ui);cursor:pointer;text-align:center;text-decoration:none;display:block;transition:var(--press)}
+.lg-sec:hover{background:var(--sunk)}
+.lg-ayuda{margin:6px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center}
+.lg-ayuda b{display:block;color:var(--ink);font-weight:600;margin-top:2px}
+@media (max-width:860px){
+  .lg{padding:0;place-items:stretch;background:var(--surface)}
+  .lg-card{grid-template-columns:1fr;border:0;border-radius:0;box-shadow:none;max-width:none;min-height:100dvh;align-content:start}
+  .lg-marca{padding:18px 20px;gap:0;flex-direction:row;align-items:center}
+  .lg-tit,.lg-lista,.lg-pie{display:none}
+  .lg-marca::after{width:180px;height:180px;right:-70px;bottom:-110px}
+  .lg-form{padding:28px 20px 24px;max-width:460px;width:100%;margin:0 auto}
+}
+@media (prefers-reduced-motion:reduce){.lg *{transition:none!important}}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
