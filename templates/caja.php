@@ -219,7 +219,7 @@ dox_pos_enqueue_caja( $cfg );
 		<section class="tab" id="t-producto" hidden>
 			<div class="col prodcol">
 				<?php // Productos abre con la lista; cada producto se abre en su ficha, con la flecha para volver. ?>
-				<div class="pcab" id="p-cab"><h2><?php esc_html_e( 'Products', 'dox-pos' ); ?></h2><button type="button" class="nuevo" id="p-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><?php esc_html_e( 'New product', 'dox-pos' ); ?></button></div>
+				<div class="pcab" id="p-cab"><h2><?php esc_html_e( 'Products', 'dox-pos' ); ?></h2><button type="button" class="nuevo sec" id="p-etiquetas" aria-label="<?php esc_attr_e( 'Labels', 'dox-pos' ); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14"/></svg><span><?php esc_html_e( 'Labels', 'dox-pos' ); ?></span></button><button type="button" class="nuevo" id="p-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><?php esc_html_e( 'New product', 'dox-pos' ); ?></button></div>
 				<div class="fcab" id="p-fcab" hidden><button type="button" id="p-atras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span id="p-atras-txt"><?php esc_html_e( 'Products', 'dox-pos' ); ?></span></button><span class="ft" id="p-ftit"></span></div>
 				<div class="scroll">
 					<div class="prodwrap" id="p-buscar" hidden>

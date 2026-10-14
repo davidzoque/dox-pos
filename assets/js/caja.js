@@ -2782,6 +2782,149 @@
 		clearTimeout(nomTimer);
 		nomTimer = setTimeout(comprobarNombre, 500);
 	}
+	// ---------- etiquetas para pegar en los productos (Productos > Etiquetas) ----------
+	// Una por producto: nombre, referencia, precio, las tallas que hay al imprimir y el código de barras de
+	// la referencia (se escanea en el Mostrador y salen sus tallas). En hojas adhesivas de 14 por hoja:
+	// Avery 5162 en carta (4 × 1⅓ in) o L7163 en A4 (99,1 × 38,1 mm). Con línea de corte, en una hoja entera.
+	const HOJAS = {
+		letter: { page: "letter", w: "4in", h: "1.3333in", top: ".8333in", side: ".15625in", gap: ".1875in" },
+		a4: { page: "A4", w: "99.1mm", h: "38.1mm", top: "15.15mm", side: "4.65mm", gap: "2.5mm" },
+	};
+	const POR_HOJA = 14;
+	const hayDe = (v) => (v.stock === null || v.stock === undefined ? v.status !== "outofstock" : v.stock > 0);
+	// Las tallas que hay, agrupadas por color si tiene colores: "Negro: 36, 37 · Café: 38".
+	function tallasEtiqueta(p) {
+		const vs = (p.variations || []).filter((v) => p.type === "variable" && hayDe(v));
+		if (p.type !== "variable") return null;
+		if (!vs.length) return __("Out of stock", "dox-pos");
+		const conColor = vs.some((v) => v.color);
+		const nombre = (v) => v.talla || v.label;
+		if (!conColor) return [...new Set(vs.map(nombre))].join(" · ");
+		const grupos = {};
+		vs.forEach((v) => { (grupos[v.color || ""] = grupos[v.color || ""] || []).push(v.talla || ""); });
+		return Object.keys(grupos).map((c) => { const t = [...new Set(grupos[c].filter(Boolean))].join(", "); return c ? c + (t ? ": " + t : "") : t; }).join(" · ");
+	}
+	function precioEtiqueta(p) {
+		const ps = (p.variations || []).map((v) => v.price).filter((x) => x > 0);
+		if (!ps.length) return p.price ? dinero(p.price) : "";
+		const min = Math.min(...ps), max = Math.max(...ps);
+		return min === max ? dinero(min) : sprintf(__("from %s", "dox-pos"), dinero(min));
+	}
+	function etiquetaHtml(p, T) {
+		const sku = String(p.sku || (p.type !== "variable" && p.variations[0] ? p.variations[0].sku : "") || "");
+		const legible = sku && /^[\x20-\x7E]+$/.test(sku); // El código de barras (Code 128) solo lleva letras, números y signos básicos.
+		let bc = "";
+		if (legible) {
+			const svg = T.codigo(sku), m = svg.match(/viewBox="0 0 (\d+)/);
+			const ancho = Math.min(92, (m ? +m[1] : 120) * 0.33); // 0,33 mm por barra fina: la cámara del celular lo lee bien.
+			bc = '<div class="bc" style="width:' + ancho.toFixed(1) + 'mm">' + svg + "</div>";
+		}
+		const t = tallasEtiqueta(p);
+		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" +
+			(sku ? '<div class="ref">' + esc(sprintf(__("Ref. %s", "dox-pos"), sku)) + "</div>" : "") +
+			(t ? '<div class="tal">' + esc(sprintf(__("Sizes: %s", "dox-pos"), t)) + "</div>" : "") + bc + "</div>";
+	}
+	function hojasEtiquetas(lista, hoja, desde, corte) {
+		const T = window.DoxPOSTicket({ dinero: dinero });
+		const H = HOJAS[hoja] || HOJAS.letter;
+		const celdas = [];
+		for (let i = 1; i < desde; i++) celdas.push('<div class="c"></div>'); // Las que ya se usaron de una hoja empezada.
+		lista.forEach((x) => { const h = etiquetaHtml(x.p, T); for (let i = 0; i < x.n; i++) celdas.push('<div class="c">' + h + "</div>"); });
+		let paginas = "";
+		for (let i = 0; i < celdas.length; i += POR_HOJA) paginas += '<div class="hoja">' + celdas.slice(i, i + POR_HOJA).join("") + "</div>";
+		const css = "@page{size:" + H.page + ";margin:0}html,body{margin:0;padding:0}*{box-sizing:border-box}" +
+			".hoja{display:grid;grid-template-columns:repeat(2," + H.w + ");grid-auto-rows:" + H.h + ";column-gap:" + H.gap + ";padding:" + H.top + " " + H.side + " 0;break-after:page;page-break-after:always}" +
+			".hoja:last-child{break-after:auto;page-break-after:auto}" +
+			".c{overflow:hidden" + (corte ? ";outline:.2mm dashed #999;outline-offset:-.1mm" : "") + "}.c:empty{outline:0}" +
+			".et{height:100%;padding:2.4mm 3.2mm 2mm;display:flex;flex-direction:column;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+			".a{display:flex;justify-content:space-between;align-items:baseline;gap:3mm}.nom{font-weight:700;font-size:10pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+			".pre{font-weight:700;font-size:12pt;white-space:nowrap}.ref{font-size:7.5pt;margin-top:.3mm}" +
+			".tal{font-size:8pt;line-height:1.25;max-height:2.5em;overflow:hidden;margin-top:.6mm}" +
+			".bc{margin-top:auto;height:8mm;max-width:100%}.bc svg{display:block;width:100%;height:100%}";
+		return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(__("Labels", "dox-pos")) + "</title><style>" + css + "</style></head><body>" + paginas + "</body></html>";
+	}
+	// Imprime en un marco escondido: el navegador abre su ventana de imprimir.
+	function imprimirDocumento(html) {
+		const f = document.createElement("iframe");
+		f.setAttribute("aria-hidden", "true");
+		f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+		document.body.appendChild(f);
+		f.contentDocument.open();
+		f.contentDocument.write(html);
+		f.contentDocument.close();
+		setTimeout(() => {
+			try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast(__("The browser did not let the labels print.", "dox-pos")); }
+			window.focus();
+			setTimeout(() => f.remove(), 60000);
+		}, 120);
+	}
+	function modalEtiquetas() {
+		if (typeof window.DoxPOSTicket !== "function") { toast(__("The labels could not be loaded. Reload the page.", "dox-pos")); return; }
+		const sel = []; // [{p, n}]
+		let hoja = cfg.paper === "a4" ? "a4" : "letter";
+		modal("<h3>" + esc(__("Labels for your products", "dox-pos")) + '</h3><p class="mp">' + esc(__("Each label carries the name, the SKU, the price, the sizes in stock right now and the barcode of the SKU: scan it at the Counter and its sizes show up. For adhesive sheets with 14 labels.", "dox-pos")) + "</p>" +
+			'<input type="search" id="et-q" placeholder="' + esc(__("Search by name or SKU", "dox-pos")) + '" autocomplete="off"><ul class="res et-res" id="et-res"></ul>' +
+			'<ul class="et-lista" id="et-sel" hidden></ul>' +
+			'<div class="g2"><div class="field"><label for="et-hoja">' + esc(__("Sheet", "dox-pos")) + '</label><select id="et-hoja"><option value="letter">' + esc(__("Letter, 14 per sheet (Avery 5162)", "dox-pos")) + '</option><option value="a4">' + esc(__("A4, 14 per sheet (Avery L7163)", "dox-pos")) + '</option></select></div><div class="field"><label for="et-desde">' + esc(__("Start at label no.", "dox-pos")) + '</label><input id="et-desde" inputmode="numeric" value="1"></div></div>' +
+			'<label class="chk mt"><input type="checkbox" id="et-corte"> ' + esc(__("With cutting lines (a whole adhesive sheet, cut with scissors)", "dox-pos")) + "</label>" +
+			'<p class="et-total mt" id="et-total"></p><p class="mp">' + esc(__("In the print window, leave the scale at 100% (actual size) and the margins at none, so each label falls in its place.", "dox-pos")) + "</p>" +
+			'<div class="mbtn stick"><button type="button" class="go" id="m-ok" disabled>' + esc(__("Print labels", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Close", "dox-pos")) + "</button></div>", "wide");
+		$("#et-hoja").value = hoja;
+		const desde = () => Math.max(1, Math.min(POR_HOJA, parseInt($("#et-desde").value, 10) || 1));
+		const pintarSel = () => {
+			const ul = $("#et-sel");
+			ul.hidden = !sel.length;
+			ul.innerHTML = sel.map((x, i) => {
+				const unidades = x.p.variations.reduce((a, v) => a + (v.stock > 0 ? v.stock : 0), 0);
+				return '<li><span class="n">' + esc(x.p.name) + "<i>" + esc([x.p.sku, tallasEtiqueta(x.p)].filter(Boolean).join(" · ")) + '</i></span><span class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + x.n + '</span><button type="button" data-i="' + i + '" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
+					(unidades > 1 ? '<button type="button" class="undo" data-i="' + i + '" data-todas="' + unidades + '">' + esc(sprintf(__("One per unit (%d)", "dox-pos"), unidades)) + "</button>" : "") + "</li>";
+			}).join("");
+			const n = sel.reduce((a, x) => a + x.n, 0);
+			const hojas = n ? Math.ceil((n + desde() - 1) / POR_HOJA) : 0;
+			$("#et-total").textContent = n ? sprintf(_n("%d label", "%d labels", n, "dox-pos"), n) + " · " + sprintf(_n("%d sheet", "%d sheets", hojas, "dox-pos"), hojas) : __("Search for a product and add it.", "dox-pos");
+			$("#m-ok").disabled = !n;
+		};
+		$("#et-sel").addEventListener("click", (e) => {
+			const b = e.target.closest("button[data-i]");
+			if (!b) return;
+			const x = sel[+b.dataset.i];
+			if (b.dataset.todas) x.n = +b.dataset.todas;
+			else x.n = Math.max(0, Math.min(500, x.n + +b.dataset.d));
+			if (!x.n) sel.splice(+b.dataset.i, 1);
+			pintarSel();
+		});
+		let timer = 0, pedido = 0;
+		const buscarEt = async () => {
+			const q = $("#et-q").value.trim(), ul = $("#et-res");
+			if (q.length < 2) { ul.innerHTML = ""; return; }
+			const n = ++pedido;
+			try {
+				const d = await api("search?q=" + encodeURIComponent(q));
+				if (n !== pedido || !$("#et-res")) return;
+				ul.innerHTML = (d.items || []).length ? d.items.map((p, i) => '<li><button type="button" class="prod" data-k="' + i + '"><span class="n">' + esc(p.name) + "<i>" + esc([p.sku, precioEtiqueta(p)].filter(Boolean).join(" · ")) + '</i></span><span class="v">' + esc(__("Add", "dox-pos")) + "</span></button></li>").join("") : '<li class="empty">' + esc(__("No product matches that search.", "dox-pos")) + "</li>";
+				ul.querySelectorAll("[data-k]").forEach((b) => {
+					b.onclick = () => {
+						const p = d.items[+b.dataset.k];
+						const ya = sel.find((x) => x.p.id === p.id);
+						if (ya) ya.n++; else sel.push({ p: p, n: 1 });
+						pintarSel();
+					};
+				});
+			} catch (e) { if (e.message !== "sesion") toast(e.message); }
+		};
+		$("#et-q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(buscarEt, 300); });
+		$("#et-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); } }); // Enter aquí no imprime: está buscando.
+		$("#et-desde").addEventListener("input", pintarSel);
+		$("#et-hoja").onchange = () => { hoja = $("#et-hoja").value; };
+		$("#m-no").onclick = cerrarModal;
+		$("#m-ok").onclick = () => {
+			const lista = sel.filter((x) => x.n > 0);
+			if (!lista.length) return;
+			imprimirDocumento(hojasEtiquetas(lista, hoja, desde(), $("#et-corte").checked));
+		};
+		pintarSel();
+		$("#et-q").focus();
+	}
 	async function comprobarNombre() {
 		const box = $("#p-nom-dup");
 		const v = $("#p-nom").value.trim();
@@ -4169,6 +4312,7 @@
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-crear").onclick = crearProducto;
 			$("#p-nuevo").onclick = nuevoProducto;
+			if ($("#p-etiquetas")) $("#p-etiquetas").onclick = modalEtiquetas;
 			$("#p-atras").onclick = salirDeFicha;
 			pintarModo();
 			$("#p-q").addEventListener("input", programarBusquedaProducto);

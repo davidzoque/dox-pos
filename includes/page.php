@@ -322,7 +322,8 @@ function dox_pos_enqueue_caja( $cfg = null ) {
 	if ( null === $cfg ) {
 		return;
 	}
-	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n' ), $ver, true );
+	dox_pos_counter_register_ticket(); // ticket.js trae el código de barras: el ticket del Mostrador y las etiquetas de Productos.
+	wp_enqueue_script( 'dox-pos-caja', DOX_POS_URL . 'assets/js/caja.js', array( 'wp-i18n', 'dox-pos-ticket' ), $ver, true );
 	wp_set_script_translations( 'dox-pos-caja', 'dox-pos', is_dir( DOX_POS_PATH . 'languages' ) ? DOX_POS_PATH . 'languages' : '' ); // Los textos del JS: del paquete de idioma de WordPress.org (o de Loco Translate); languages/ solo existe en el repo.
 	wp_add_inline_script( 'dox-pos-caja', 'window.DOX_POS = ' . wp_json_encode( $cfg ) . ';', 'before' );
 }
@@ -431,6 +432,7 @@ function dox_pos_js_config() {
 		),
 		'tax_extra'       => wc_tax_enabled() && ! wc_prices_include_tax(),     // Los precios van sin impuesto: el pedido lo suma al guardarse.
 		'low_stock'       => max( 0, (int) get_option( 'woocommerce_notify_low_stock_amount', 2 ) ), // Pocas unidades: el umbral de WooCommerce (Inventario).
+		'paper'           => in_array( $country, array( 'US', 'CA', 'MX', 'CO', 'CL', 'VE', 'CR', 'GT', 'SV', 'HN', 'NI', 'PA', 'DO', 'PR', 'PH' ), true ) ? 'letter' : 'a4', // Las hojas de etiquetas: carta en América (salvo Argentina, Perú...), A4 en el resto.
 		'hold_hours'      => dox_pos_hold_default_hours(),                 // El plazo con que empieza un apartado, en horas (0: sin vencer).
 		'products'        => current_user_can( dox_pos_products_cap() ), // ¿Ve la pestaña "Productos"?
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
