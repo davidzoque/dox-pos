@@ -2,6 +2,14 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.53.0 =
+* New: a new look for the register, built on the Dox design system. The top bar has icons and its counters in small bubbles; Sell shows products as cards and each size as a tile with its stock in a colored pill (green, amber when few are left, red when none); channels and payment methods carry their color and icon (also the payment methods a shop creates); Orders shows each status in a colored pill, the customer's initials and the channel with its icon; the Dashboard, the Assistant, the windows and the login are cleaner. The four colors in Settings (background, bar, primary, text) still dress the whole register.
+* New: the order detail, redone. Three figures first (total, how it was paid and where the delivery is), the products on the left and the customer and the profit on the right, each in its card, the history folded at the end and the actions at the bottom. A deposit to store credit opens as a Deposit, with how much, how it was paid and the credit the customer has left. A layaway shows what is left to pay with a bar, its deposits and its deadline.
+* Fix: on the iPhone, Safari no longer zooms the register in when a field is tapped (the register stayed bigger, cut off on the left and with the bottom bar under Safari's own bar), and the search no longer takes the focus on its own on a phone (it hid the bottom bar).
+* Fix: right after adding a size of a group that shares units, its tiles counted one piece too many until the next search; and the line proposes the closest piece that is still free.
+* Technical: the order detail is drawn by pintarDetalle() with the pd-* classes in caja.css; the detail endpoint adds credit_key and credit_balance. dox_pos_head() adds maximum-scale=1 to the viewport only on iPhone and iPad.
+* Change: the button to take one size off the order sits in the corner of its tile, so the size name no longer wraps.
+
 = 0.52.0 =
 * New: pieces by actual size. In a group of sizes that share units, the product form says how many pieces carry each size on their tag (Pieces by actual size), checks that they add up to the units of the group, and warns when a group is not split yet or does not add up. Sell, Inventory and the Counter say "4 in the group · 2 with tag 12-18 months" instead of looking like 4 of each size.
 * New: when a size of a group is sold or put on layaway, the order line proposes which piece leaves (the closest actual size with pieces; if two are equally close, the one with more) and it can be changed right there. That piece goes down, the order's "Actual size" says the one that left, and cancelling, releasing or returning puts it back. Website orders take the closest piece when they are paid. A stock entry asks which tag the pieces came with. The stock history says which piece each movement was.

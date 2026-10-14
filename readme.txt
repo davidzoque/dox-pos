@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.52.0
+Stable tag: 0.53.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,13 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.53.0 =
+* New: a new look for the register, built on the Dox design system. The top bar has icons and its counters in small bubbles; Sell shows products as cards and each size as a tile with its stock in a colored pill (green, amber when few are left, red when none); channels and payment methods carry their color and icon (also the payment methods a shop creates); Orders shows each status in a colored pill, the customer's initials and the channel with its icon; the Dashboard, the Assistant, the windows and the login are cleaner. The four colors in Settings (background, bar, primary, text) still dress the whole register.
+* New: the order detail, redone. Three figures first (total, how it was paid and where the delivery is), the products on the left and the customer and the profit on the right, each in its card, the history folded at the end and the actions at the bottom. A deposit to store credit opens as a Deposit, with how much, how it was paid and the credit the customer has left. A layaway shows what is left to pay with a bar, its deposits and its deadline.
+* Fix: on the iPhone, Safari no longer zooms the register in when a field is tapped (the register stayed bigger, cut off on the left and with the bottom bar under Safari's own bar), and the search no longer takes the focus on its own on a phone (it hid the bottom bar).
+* Fix: right after adding a size of a group that shares units, its tiles counted one piece too many until the next search; and the line proposes the closest piece that is still free.
+* Change: the button to take one size off the order sits in the corner of its tile, so the size name no longer wraps.
+
 = 0.52.0 =
 * New: pieces by actual size. In a group of sizes that share units, the product form says how many pieces carry each size on their tag (Pieces by actual size), checks that they add up to the units of the group, and warns when a group is not split yet or does not add up. Sell, Inventory and the Counter say "4 in the group · 2 with tag 12-18 months" instead of looking like 4 of each size.
 * New: when a size of a group is sold or put on layaway, the order line proposes which piece leaves (the closest actual size with pieces; if two are equally close, the one with more) and it can be changed right there. That piece goes down, the order's "Actual size" says the one that left, and cancelling, releasing or returning puts it back. Website orders take the closest piece when they are paid. A stock entry asks which tag the pieces came with. The stock history says which piece each movement was.
@@ -133,9 +140,4 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: Edit this product did not save a product whose sizes have different prices. With the Price field empty (which leaves the price of each size as it is), the register sent a price of 0 and the store answered "The price has to be greater than zero", so nothing was saved. An empty Price goes again as "do not touch the prices"; creating a product still asks for a price.
 * Fix: in that same case, the line under the cost said "The price is missing" (or "Enter a price and a cost"), as if a price had to be typed, and typing one replaces the price of every size. It now says that the sizes have different prices, from the lowest to the highest.
 
-= 0.49.0 =
-* Improved: in the product form (Edit this product, also when creating), the menu of each size says "Not offered" when the size does not share units and has none of its own, and "Own units" when it has some. Choosing "Not offered" on a size that shares takes it out of the group: it shows as sold out in the register and in the store, and the other sizes keep the units.
-* New: under each group of sizes that share units, "Actual size" chooses the size on the label of the piece (the `_dox_pos_real_size` meta of 0.46.0), for products with one color and for colors with their own shared units. A group that already had several actual sizes keeps them until you pick one, and a size that stops sharing keeps its mark (it only shows while it shares). Saving from the Pro chat does not touch it.
-* Fix: taking a size out of a group of shared units and putting another one in, in the same save, could copy the group's units to the size that left. The group now only syncs the sizes that are still in it.
-* Fix: changing the number of shared units in the same save where a size joins the group now writes its row in the stock movements (it was left out).
-* Fix: after saving a product opened from Inventory or Sell, the list showed it as it was before saving until you searched again.
+
