@@ -1412,6 +1412,8 @@ table.ped .lnk.items{white-space:normal}
 .mp-gente button{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;font:500 13px var(--ui);color:var(--ink);cursor:pointer;transition:var(--press)}
 .mp-gente button:active{transform:scale(.96)}
 .ini{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--primary-tint);color:var(--primary-strong);font:600 15px var(--ui)}
+.ini[class*=" c"]{background:color-mix(in srgb,var(--c) 16%,transparent);color:color-mix(in srgb,var(--c) 75%,#000)} /* el PIN del Pro: cada persona en su color, como en Pedidos */
+.ini.c1{--c:#0EA5E9}.ini.c2{--c:#8B5CF6}.ini.c3{--c:#EC4899}.ini.c4{--c:#10B981}.ini.c5{--c:#F59E0B}.ini.c6{--c:#6366F1}.ini.c7{--c:#EF4444}
 .mp-quien{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px}
 .mp-quien b{font:600 17px var(--serif)}
 #mp-pin{font:600 30px var(--mono);letter-spacing:.5em;text-align:center;padding:10px;margin-bottom:12px}
