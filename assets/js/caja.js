@@ -3404,9 +3404,11 @@
 		const p = qb.querySelector(".qrqmsg");
 		const ins = [...qb.querySelectorAll("input[data-rk]")];
 		const reales = ins.filter((x) => pr.real.has(x.dataset.rk));
+		const total = pr.totales[pk(qb.dataset.c, +qb.dataset.g)] || 0;
+		// Con una sola talla real, sus prendas son las del grupo: la casilla vacía enseña ese total en vez de "?".
+		ins.forEach((x) => { x.placeholder = !pr.real.has(x.dataset.rk) ? "0" : reales.length === 1 ? miles(total) || "0" : "?"; });
 		p.className = "qrqmsg";
 		if (reales.length < 2) { p.textContent = reales.length ? __("A single actual size: all the units are of that size.", "dox-pos") : __("Write how many pieces carry each size on their tag.", "dox-pos"); return; }
-		const total = pr.totales[pk(qb.dataset.c, +qb.dataset.g)] || 0;
 		if (reales.some((x) => pr.realQty[x.dataset.rk] === undefined)) { p.classList.add("bad"); p.textContent = __("Not split yet: write how many pieces carry each size on their tag.", "dox-pos"); return; }
 		const suma = reales.reduce((a, x) => a + (pr.realQty[x.dataset.rk] || 0), 0);
 		if (suma !== total) { p.classList.add("bad"); p.textContent = sprintf(__("They add up to %1$d and the group has %2$d. Check the numbers.", "dox-pos"), suma, total); return; }
