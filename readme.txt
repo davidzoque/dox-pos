@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.53.0
+Stable tag: 0.54.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -154,9 +154,3 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * New: Reports, Store credit: what the shop owes in store credit, each customer's balance and the history of every amount (where it came from and where it was used), adjustments with a reason and "Load a balance" for balances kept in a spreadsheet. The customer gets the balance by WhatsApp or text message, and the receipt shows the credit used and what is left.
 * New: sell something that is not in the catalog (Sell, Without a product): a made-to-order piece or a repair, with its own price. It does not touch the stock.
 * Fix: money given back at the Counter now comes off Sales, Daily cash and the Dashboard (it only came off the till closing). Returned units no longer count as sold, and their cost no longer counts in the profit.
-
-= 0.49.1 =
-* Fix: Edit this product did not save a product whose sizes have different prices. With the Price field empty (which leaves the price of each size as it is), the register sent a price of 0 and the store answered "The price has to be greater than zero", so nothing was saved. An empty Price goes again as "do not touch the prices"; creating a product still asks for a price.
-* Fix: in that same case, the line under the cost said "The price is missing" (or "Enter a price and a cost"), as if a price had to be typed, and typing one replaces the price of every size. It now says that the sizes have different prices, from the lowest to the highest.
-
-
