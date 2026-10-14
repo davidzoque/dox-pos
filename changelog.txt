@@ -2,6 +2,9 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.54.1 =
+* Fix: in the product form, under Pieces by actual size, a group with a single actual size showed a "?" in that size, as if something were missing. It now shows the units of the group, which are all of that size.
+
 = 0.54.0 =
 * New: labels to stick on the products, from Products > Labels. Each one carries the name, the SKU, the price, the sizes in stock when it is printed and the barcode of the SKU: scan it at the Counter, with a scanner or the phone camera, and its sizes show up. They print from the browser on the label sheets sold in stationery shops (Letter with 30, 20, 14 or 10 labels, Avery 5160 to 5163; A4 with 24, 21 or 14, Avery L7159, L7160 and L7163), or on a whole adhesive sheet with lines to cut; one per product or one per unit in stock, and a sheet already started can be used from any label.
 * New: dark mode. In Settings > Brand, Appearance: Light (as always), Dark, or Like the device (it follows the dark mode of each phone or computer). The dark colors are made from the store's own: its main color, lightened until it reads, on an almost black background.

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.54.0
+Stable tag: 0.54.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.54.1 =
+* Fix: in the product form, under Pieces by actual size, a group with a single actual size showed a "?" in that size, as if something were missing. It now shows the units of the group, which are all of that size.
+
 = 0.54.0 =
 * New: labels to stick on the products, from Products > Labels. Each one carries the name, the SKU, the price, the sizes in stock when it is printed and the barcode of the SKU: scan it at the Counter, with a scanner or the phone camera, and its sizes show up. They print from the browser on the label sheets sold in stationery shops (Letter with 30, 20, 14 or 10 labels, Avery 5160 to 5163; A4 with 24, 21 or 14, Avery L7159, L7160 and L7163), or on a whole adhesive sheet with lines to cut; one per product or one per unit in stock, and a sheet already started can be used from any label.
 * New: dark mode. In Settings > Brand, Appearance: Light (as always), Dark, or Like the device (it follows the dark mode of each phone or computer). The dark colors are made from the store's own: its main color, lightened until it reads, on an almost black background.
@@ -147,10 +150,4 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Change: the profit of a layaway counts everything it is worth on the day it is paid; its deposit orders count as sales but not as sales without a cost.
 * Change: in stores whose prices exclude tax, the Put on layaway window says that tax is added when it is saved.
 
-= 0.50.0 =
-* New: store credit. Money a customer leaves with the shop to use later, kept under their phone number. Take a deposit in Sell (Without a product, Deposit to store credit), for example 50% of a made-to-order piece: it counts as a sale on the day the money comes in, with its payment method.
-* New: pay with store credit in Sell and at the Counter, all of it or part, together with another payment method or a split payment. That part does not count as a sale again, because it already counted when the money came in. The tax is still charged in full.
-* New: return pieces to store credit instead of giving money back, from the order detail (Orders) or at the Counter (Return, To store credit). The pieces go back to stock and the shop can keep an exchange fee (Settings, Sales, Store credit; 0% by default, it can be changed on each return).
-* New: Reports, Store credit: what the shop owes in store credit, each customer's balance and the history of every amount (where it came from and where it was used), adjustments with a reason and "Load a balance" for balances kept in a spreadsheet. The customer gets the balance by WhatsApp or text message, and the receipt shows the credit used and what is left.
-* New: sell something that is not in the catalog (Sell, Without a product): a made-to-order piece or a repair, with its own price. It does not touch the stock.
-* Fix: money given back at the Counter now comes off Sales, Daily cash and the Dashboard (it only came off the till closing). Returned units no longer count as sold, and their cost no longer counts in the profit.
+Full changelog: https://help.doxstudio.com/dox-pos-changelog/
