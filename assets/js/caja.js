@@ -3937,12 +3937,14 @@
 	// diferencia entran tal cual (ya vienen con formato); el rótulo y la línea de abajo se escapan aquí.
 	// Con "go", tocarla abre esa pestaña (se escribe como en el #).
 	const abre = (go) => (go ? ' data-go="' + esc(go) + '" role="link" tabindex="0"' : "");
-	const kpi = (v, l, sub, go) => '<div class="kpi"' + abre(go) + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
+	// k: de qué es la cifra (ok dinero que entró, vio ganancia, warn por cobrar, bad pérdida, info cuentas): un punto de su color.
+	const kpi = (v, l, sub, go, k) => '<div class="kpi"' + (k ? ' data-k="' + k + '"' : "") + abre(go) + "><b>" + v + "</b><span>" + esc(l) + "</span>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
 	const ks = (v, l, dif, sub, go) => '<div class="ks"' + abre(go) + "><span>" + esc(l) + "</span><b>" + v + (dif || "") + "</b>" + (sub ? "<i>" + esc(sub) + "</i>" : "") + "</div>";
-	function listaHist(titulo, arr, conUnidades) {
+	// pago: las filas son formas de pago (true) o canales ("canal") y llevan su icono de color, como en Vender.
+	function listaHist(titulo, arr, conUnidades, pago) {
 		if (!arr || !arr.length) return "";
 		return '<div class="grp"><h4>' + esc(titulo) + '</h4><ul class="bl">' + arr.map((x) =>
-			"<li><span>" + esc(x.label || x.name) + "</span><span>" + esc(sprintf(_n("%d sale", "%d sales", x.n, "dox-pos"), x.n)) + (conUnidades && x.units !== undefined ? " · " + esc(sprintf(_n("%d unit", "%d units", x.units, "dox-pos"), x.units)) : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
+			"<li><span>" + (pago === "canal" ? canalIc(x.label || x.name) : pago ? '<span class="chan pago" data-k="' + clasePago(x.name) + '"><span class="ic">' + iconoChip(clasePago(x.name)) + "</span>" + esc(x.label || x.name) + "</span>" : esc(x.label || x.name)) + "</span><span>" + esc(sprintf(_n("%d sale", "%d sales", x.n, "dox-pos"), x.n)) + (conUnidades && x.units !== undefined ? " · " + esc(sprintf(_n("%d unit", "%d units", x.units, "dox-pos"), x.units)) : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
 		).join("") + "</ul></div>";
 	}
 	function filaPedidoHist(p, conCosto) {
@@ -3963,10 +3965,10 @@
 		const full = !!cfg.history_full;
 		let h = '<p class="hsub">' + esc(full ? __("Sales", "dox-pos") : __("Your sales", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs; // Solo quien administra, con los costos encendidos.
-		h += '<div class="kpis">' + kpi(dinero(t.sold), __("Sold", "dox-pos")) + kpi(t.orders, _n("Sale", "Sales", t.orders, "dox-pos")) + kpi(t.units, _n("Unit", "Units", t.units, "dox-pos")) + kpi(dinero(t.avg), __("Per sale", "dox-pos")) +
-			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : "")) : "") +
-			(d.losses && t.loss > 0 ? kpi("−" + dinero(t.loss), sprintf(_n("Loss on %d sale", "Losses on %d sales", t.loss_n, "dox-pos"), t.loss_n)) : "") +
-			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n)) : "") + "</div>";
+		h += '<div class="kpis">' + kpi(dinero(t.sold), __("Sold", "dox-pos"), "", "", "ok") + kpi(t.orders, _n("Sale", "Sales", t.orders, "dox-pos"), "", "", "info") + kpi(t.units, _n("Unit", "Units", t.units, "dox-pos"), "", "", "info") + kpi(dinero(t.avg), __("Per sale", "dox-pos"), "", "", "info") +
+			(conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos") + (t.margin !== null ? " · " + t.margin + " %" : ""), "", "", "vio") : "") +
+			(d.losses && t.loss > 0 ? kpi("−" + dinero(t.loss), sprintf(_n("Loss on %d sale", "Losses on %d sales", t.loss_n, "dox-pos"), t.loss_n), "", "", "bad") : "") +
+			(t.pending_n ? kpi(dinero(t.pending), sprintf(__("Not paid yet (%d)", "dox-pos"), t.pending_n), "", "", "warn") : "") + "</div>";
 		if (t.refunded > 0 || t.deposits > 0 || t.credit_used > 0) {
 			const partes = [];
 			if (t.refunded > 0) partes.push(sprintf(__("%s was given back in money and is already taken off.", "dox-pos"), dinero(t.refunded)));
@@ -3975,7 +3977,7 @@
 			h += '<p class="hint">' + esc(partes.join(" ")) + "</p>";
 		}
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale does not have the cost of all its products, so it does not count towards the profit.", "%d sales do not have the cost of all their products, so they do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + " " + esc(__("The cost is set in Products, or loaded all at once from the inventory Excel in Inventory.", "dox-pos")) + "</p>";
-		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel) + listaHist(__("By payment method", "dox-pos"), d.by_payment) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
+		if (full) h += '<div class="brk">' + listaHist(__("By channel", "dox-pos"), d.by_channel, false, "canal") + listaHist(__("By payment method", "dox-pos"), d.by_payment, false, true) + listaHist(__("By salesperson", "dox-pos"), d.by_seller) +
 			(d.by_day.length > 1 ? listaHist(__("By day", "dox-pos"), d.by_day.map((x) => Object.assign({}, x, { label: diaBonito(x.name) })), true) : "") + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("Orders", "dox-pos")) + ' <span class="cnt">' + d.count + (d.count > d.items.length ? " · " + esc(sprintf(__("the latest %d", "dox-pos"), d.items.length)) : "") + (d.count ? " " + excelLink("ventas") : "") + "</span></h4>";
 		if (!d.items.length) h += '<p class="empty">' + esc(__("Nothing in this period.", "dox-pos")) + "</p>";
@@ -3988,10 +3990,10 @@
 		let h = '<p class="hsub">' + esc(__("The cash", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs;
 		const conPerdida = !!d.losses && t.loss > 0; // Hubo pérdidas anotadas en el periodo: salen como cifra y como columna.
-		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos")) + kpi(dinero(t.sold), __("Sold", "dox-pos")) + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos")) : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos")) : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : "")) + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : "")) + "</div>";
+		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos"), "", "", "ok") + kpi(dinero(t.sold), __("Sold", "dox-pos"), "", "", "info") + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos"), "", "", "vio") : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos"), "", "", "bad") : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : ""), "", "", "warn") + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : ""), "", "", "warn") + "</div>";
 		if (t.refunded > 0) h += '<p class="hint">' + esc(sprintf(_n("%1$s went out in %2$d return, on the day it was given back and by the payment method it went out with.", "%1$s went out in %2$d returns, on the day they were given back and by the payment method they went out with.", t.refunds_n, "dox-pos"), dinero(t.refunded), t.refunds_n)) + "</p>";
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
-		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals) + "</div>";
+		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals, false, true) + "</div>";
 		h += '<div class="grp"><h4>' + esc(__("By day", "dox-pos")) + (d.days.length ? ' <span class="cnt">' + excelLink("caja") + "</span>" : "") + "</h4>";
 		if (!d.days.length) h += '<p class="empty">' + esc(__("Nothing in this period.", "dox-pos")) + "</p>";
 		else {
@@ -4006,7 +4008,7 @@
 		h += "</div>";
 		if (d.pending && d.pending.length) {
 			h += '<div class="grp"><h4>' + esc(__("To collect", "dox-pos")) + ' <span class="cnt">' + d.pending.length + '</span></h4><ul class="bl">' + d.pending.map((p) =>
-				"<li><span>#" + esc(p.number) + " · " + esc(p.customer || __("No name", "dox-pos")) + ' <span class="sub">' + (p.kind === "cod" ? esc(__("cash on delivery", "dox-pos")) + ", " : "") + esc(String(p.label).toLowerCase()) + "</span></span><span><b>" + dinero(p.total) + "</b></span></li>"
+				"<li><span>" + (p.id ? '<button type="button" class="lnk" data-ver="' + (+p.id) + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + " · " + esc(p.customer || __("No name", "dox-pos")) + " " + (p.kind === "cod" ? '<span class="tag s-warn">' + esc(__("cash on delivery", "dox-pos")) + "</span> " : "") + '<span class="tag ' + (p.status ? claseEstado(p.status) : "e") + '">' + esc(p.label) + "</span></span><span><b>" + dinero(p.total) + "</b></span></li>"
 			).join("") + "</ul></div>";
 		}
 		$("#h-caja").innerHTML = h;

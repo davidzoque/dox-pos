@@ -509,6 +509,13 @@ tr.off,li.off{opacity:.5}
 .kpis.big .kpi>span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c,var(--faint));margin-right:7px;vertical-align:1px}
 .kpis.big .kpi:nth-child(1){--c:var(--st-ok)}.kpis.big .kpi:nth-child(2){--c:var(--st-vio)}.kpis.big .kpi:nth-child(3){--c:var(--st-warn)}.kpis.big .kpi:nth-child(4){--c:var(--st-info)}
 .kpi em{font-style:normal;font-weight:600}
+/* Cada cifra con el punto de lo que es (como las grandes del Panel): el color ayuda a encontrar la que se busca. */
+.kpi[data-k]>span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:1px}
+.kpi[data-k="ok"]{--c:var(--st-ok)}.kpi[data-k="vio"]{--c:var(--st-vio)}.kpi[data-k="warn"]{--c:var(--st-warn)}.kpi[data-k="bad"]{--c:var(--st-bad)}.kpi[data-k="info"]{--c:var(--st-info)}
+.chan.pago[data-k="cash"]{--c:var(--st-ok)}.chan.pago[data-k="card"],.chan.pago[data-k="credit"]{--c:var(--st-vio)}.chan.pago[data-k="transfer"]{--c:var(--st-info)}.chan.pago[data-k="cod"]{--c:var(--ch-per)}
+.bl .chan{font-weight:500}
+.bl .tag{margin-left:4px;vertical-align:1px}
+.bl .lnk[data-ver]{color:var(--primary-text);font-weight:600;text-decoration:none}
 .kpi em.up,.ks em.up{color:var(--st-ok)}
 .kpi em.down,.ks em.down{color:var(--st-bad)}
 /* La comparación junto a la cifra, en una píldora verde o roja. */
@@ -557,7 +564,7 @@ tr.off,li.off{opacity:.5}
 .bl li:last-child{border-bottom:0}
 .bl.dos{columns:320px 2;column-gap:28px} /* las listas largas: en dos columnas se lee igual de arriba abajo y no queda medio renglón vacío */
 .bl.dos li{break-inside:avoid}
-.bl li span:last-child{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+.bl li>span:last-child{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums} /* la columna de la derecha, no una etiqueta de estado dentro de la izquierda */
 .bl li b{color:var(--ink)}
 .wrapx2{overflow:auto;margin:0 -16px;padding:0 16px}
 table.hped{min-width:760px}
