@@ -1631,6 +1631,8 @@
 			}
 			if (d.loss) der += '<p class="pd-perdida"><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(d.loss) + "</span>" + (d.loss_note ? ' <span class="sub">' + esc(d.loss_note) + "</span>" : "") + ' <button type="button" class="lnk" id="m-loss">' + esc(__("Edit", "dox-pos")) + "</button></p>";
 			der += "</section>";
+		} else if (!abono && d.loss !== undefined) { // Un pedido que aún no es venta (apartado, sin pagar): la pérdida se puede anotar igual.
+			der += '<section class="pd-bl"><h4>' + esc(__("Loss", "dox-pos")) + '<button type="button" class="lnk" id="m-loss">' + esc(__("Note a loss", "dox-pos")) + "</button></h4></section>";
 		}
 
 		h += '<div class="pd-cuerpo"><div class="pd-col">' + izq + '</div><div class="pd-col">' + der + "</div>";
