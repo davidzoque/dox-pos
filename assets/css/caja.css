@@ -1187,6 +1187,7 @@ table.ped .lnk.items{white-space:normal}
 .et-lista .qty button{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:30px;height:30px;border-radius:8px;cursor:pointer;font:600 15px var(--ui)}
 .et-lista .qty span{min-width:18px;text-align:center;font-variant-numeric:tabular-nums}
 .et-res{max-height:200px;overflow:auto;margin:8px 0 12px}
+.et-lista .n i.warn{color:var(--st-warn);white-space:normal}
 .et-total{font-size:13px;color:var(--muted);margin:0 0 12px}
 .fcab{flex:none;display:flex;align-items:center;gap:8px;padding:10px 16px 8px;border-bottom:1px solid var(--line)}
 .fcab button{appearance:none;border:0;background:none;display:flex;align-items:center;gap:3px;font:600 14px var(--ui);color:var(--primary-text);cursor:pointer;padding:6px 4px 6px 0}

@@ -2793,8 +2793,8 @@
 		l20: { page: "letter", cols: 2, rows: 10, w: 101.6, h: 25.4, top: 12.7, side: 3.96875, gap: 4.7625, txt: () => __("20 per sheet, 4 × 1 in (Avery 5161)", "dox-pos") },
 		l14: { page: "letter", cols: 2, rows: 7, w: 101.6, h: 33.867, top: 21.167, side: 3.96875, gap: 4.7625, txt: () => __("14 per sheet, 4 × 1⅓ in (Avery 5162)", "dox-pos") },
 		l10: { page: "letter", cols: 2, rows: 5, w: 101.6, h: 50.8, top: 12.7, side: 3.96875, gap: 4.7625, txt: () => __("10 per sheet, 4 × 2 in (Avery 5163)", "dox-pos") },
-		a24: { page: "A4", cols: 3, rows: 8, w: 63.5, h: 33.9, top: 12.9, side: 7.2, gap: 2.5, txt: () => __("24 per sheet, 63.5 × 33.9 mm (Avery L7159)", "dox-pos") },
-		a21: { page: "A4", cols: 3, rows: 7, w: 63.5, h: 38.1, top: 15.15, side: 7.2, gap: 2.5, txt: () => __("21 per sheet, 63.5 × 38.1 mm (Avery L7160)", "dox-pos") },
+		a24: { page: "A4", cols: 3, rows: 8, w: 63.5, h: 33.9, top: 12.9, side: 7.21, gap: 2.54, txt: () => __("24 per sheet, 63.5 × 33.9 mm (Avery L7159)", "dox-pos") },
+		a21: { page: "A4", cols: 3, rows: 7, w: 63.5, h: 38.1, top: 15.15, side: 7.21, gap: 2.54, txt: () => __("21 per sheet, 63.5 × 38.1 mm (Avery L7160)", "dox-pos") },
 		a14: { page: "A4", cols: 2, rows: 7, w: 99.1, h: 38.1, top: 15.15, side: 4.65, gap: 2.5, txt: () => __("14 per sheet, 99.1 × 38.1 mm (Avery L7163)", "dox-pos") },
 	};
 	const MEM_HOJA = "dox_pos_label_sheet"; // La hoja que usa este equipo: la próxima vez sale la misma.
@@ -2816,17 +2816,20 @@
 		return Object.keys(grupos).map((c) => { const t = [...new Set(grupos[c].filter(Boolean))].join(", "); return c ? c + (t ? ": " + t : "") : t; }).join(" · ");
 	}
 	function precioEtiqueta(p) {
-		const ps = (p.variations || []).map((v) => v.price).filter((x) => x > 0);
+		const vs = (p.variations || []).some(hayDe) ? p.variations.filter(hayDe) : p.variations || []; // "Desde" lo que se puede comprar.
+		const ps = vs.map((v) => v.price).filter((x) => x > 0);
 		if (!ps.length) return p.price ? dinero(p.price) : "";
 		const min = Math.min(...ps), max = Math.max(...ps);
 		return min === max ? dinero(min) : sprintf(__("from %s", "dox-pos"), dinero(min));
 	}
+	// La referencia que va en el código de barras: la del producto, o la de su única talla si es simple.
+	const skuEtiqueta = (p) => String(p.sku || (p.type !== "variable" && p.variations && p.variations[0] ? p.variations[0].sku : "") || "");
 	// Tres tamaños de letra según el alto de la etiqueta: en las de 1 pulgada la referencia y las tallas van en una línea.
 	const tallaDe = (H) => (H.h < 30 ? "s" : H.h >= 45 ? "l" : "m");
 	const PAD = { s: [1.3, 2.2], m: [2.4, 3.2], l: [3.5, 4.5] }; // mm: arriba y abajo, a los lados.
 	function etiquetaHtml(p, T, H) {
 		const t0 = tallaDe(H);
-		const sku = String(p.sku || (p.type !== "variable" && p.variations[0] ? p.variations[0].sku : "") || "");
+		const sku = skuEtiqueta(p);
 		let bc = "";
 		if (sku && /^[\x20-\x7E]+$/.test(sku)) { // El código de barras (Code 128) solo lleva letras, números y signos básicos.
 			const svg = T.codigo(sku), m = svg.match(/viewBox="0 0 (\d+)/);
@@ -2835,7 +2838,8 @@
 		}
 		const t = tallasEtiqueta(p);
 		const ref = sku ? sprintf(__("Ref. %s", "dox-pos"), sku) : "";
-		const tal = t ? sprintf(__("Sizes: %s", "dox-pos"), t) : "";
+		const soloColor = p.type === "variable" && !(p.variations || []).some((v) => v.talla); // Varía solo por color: no son tallas.
+		const tal = !t ? "" : !(p.variations || []).some(hayDe) ? t : sprintf(soloColor ? __("Colors: %s", "dox-pos") : __("Sizes: %s", "dox-pos"), t);
 		const medio = t0 === "s" ? (ref || tal ? '<div class="ref">' + esc([ref, tal].filter(Boolean).join(" · ")) + "</div>" : "")
 			: (ref ? '<div class="ref">' + esc(ref) + "</div>" : "") + (tal ? '<div class="tal">' + esc(tal) + "</div>" : "");
 		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" + medio + bc + "</div>";
@@ -2876,6 +2880,17 @@
 			setTimeout(() => f.remove(), 60000);
 		}, 120);
 	}
+	// Las unidades que hay de un producto. Las tallas que comparten unidades (todas, o las de un color) traen
+	// cada una el total del grupo: se cuenta una vez por grupo.
+	function unidadesDe(p) {
+		const vistos = {};
+		return (p.variations || []).reduce((a, v) => {
+			if (!(v.stock > 0)) return a;
+			if (v.pool) { if (vistos[v.pool]) return a; vistos[v.pool] = 1; }
+			return a + v.stock;
+		}, 0);
+	}
+	const MAX_ET = 500; // De un producto, y en total como mucho el doble: más es un error de dedo, y el navegador se atasca al imprimirlo.
 	function modalEtiquetas() {
 		if (typeof window.DoxPOSTicket !== "function") { toast(__("The labels could not be loaded. Reload the page.", "dox-pos")); return; }
 		const sel = []; // [{p, n}]
@@ -2895,38 +2910,43 @@
 			const ul = $("#et-sel");
 			ul.hidden = !sel.length;
 			ul.innerHTML = sel.map((x, i) => {
-				const unidades = x.p.variations.reduce((a, v) => a + (v.stock > 0 ? v.stock : 0), 0);
-				return '<li><span class="n">' + esc(x.p.name) + "<i>" + esc([x.p.sku, tallasEtiqueta(x.p)].filter(Boolean).join(" · ")) + '</i></span><span class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + x.n + '</span><button type="button" data-i="' + i + '" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
+				const unidades = Math.min(MAX_ET, unidadesDe(x.p));
+				const sinCodigo = !/^[\x20-\x7E]+$/.test(skuEtiqueta(x.p));
+				return '<li><span class="n">' + esc(x.p.name) + "<i>" + esc([x.p.sku, tallasEtiqueta(x.p)].filter(Boolean).join(" · ")) + "</i>" + (sinCodigo ? '<i class="warn">' + esc(__("No barcode: it has no SKU, or its SKU has letters a barcode cannot carry (ñ, accents).", "dox-pos")) + "</i>" : "") + '</span><span class="qty"><button type="button" data-i="' + i + '" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + x.n + '</span><button type="button" data-i="' + i + '" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 					(unidades > 1 ? '<button type="button" class="undo" data-i="' + i + '" data-todas="' + unidades + '">' + esc(sprintf(__("One per unit (%d)", "dox-pos"), unidades)) + "</button>" : "") + "</li>";
 			}).join("");
 			const n = sel.reduce((a, x) => a + x.n, 0);
 			const hojas = n ? Math.ceil((n + desde() - 1) / porHoja()) : 0;
-			$("#et-total").textContent = n ? sprintf(_n("%d label", "%d labels", n, "dox-pos"), n) + " · " + sprintf(_n("%d sheet", "%d sheets", hojas, "dox-pos"), hojas) : __("Search for a product and add it.", "dox-pos");
-			$("#m-ok").disabled = !n;
+			const demas = n > 2 * MAX_ET;
+			$("#et-total").textContent = demas ? sprintf(__("%d labels are too many at once: print them in parts of up to %d.", "dox-pos"), n, 2 * MAX_ET)
+				: n ? sprintf(_n("%d label", "%d labels", n, "dox-pos"), n) + " · " + sprintf(_n("%d sheet", "%d sheets", hojas, "dox-pos"), hojas) : __("Search for a product and add it.", "dox-pos");
+			$("#m-ok").disabled = !n || demas;
 		};
 		$("#et-sel").addEventListener("click", (e) => {
 			const b = e.target.closest("button[data-i]");
 			if (!b) return;
 			const x = sel[+b.dataset.i];
 			if (b.dataset.todas) x.n = +b.dataset.todas;
-			else x.n = Math.max(0, Math.min(500, x.n + +b.dataset.d));
+			else x.n = Math.max(0, Math.min(MAX_ET, x.n + +b.dataset.d));
 			if (!x.n) sel.splice(+b.dataset.i, 1);
 			pintarSel();
 		});
 		let timer = 0, pedido = 0;
+		const ul = $("#et-res"), campo = $("#et-q"); // Los de esta ventana: si se cierra y se abre otra, una respuesta tardía no toca la nueva.
 		const buscarEt = async () => {
-			const q = $("#et-q").value.trim(), ul = $("#et-res");
-			if (q.length < 2) { ul.innerHTML = ""; return; }
+			if (!ul.isConnected) return;
+			const q = campo.value.trim();
 			const n = ++pedido;
+			if (q.length < 2) { ul.innerHTML = ""; return; }
 			try {
 				const d = await api("search?q=" + encodeURIComponent(q));
-				if (n !== pedido || !$("#et-res")) return;
+				if (n !== pedido || !ul.isConnected) return;
 				ul.innerHTML = (d.items || []).length ? d.items.map((p, i) => '<li><button type="button" class="prod" data-k="' + i + '"><span class="n">' + esc(p.name) + "<i>" + esc([p.sku, precioEtiqueta(p)].filter(Boolean).join(" · ")) + '</i></span><span class="v">' + esc(__("Add", "dox-pos")) + "</span></button></li>").join("") : '<li class="empty">' + esc(__("No product matches that search.", "dox-pos")) + "</li>";
 				ul.querySelectorAll("[data-k]").forEach((b) => {
 					b.onclick = () => {
 						const p = d.items[+b.dataset.k];
 						const ya = sel.find((x) => x.p.id === p.id);
-						if (ya) ya.n++; else sel.push({ p: p, n: 1 });
+						if (ya) ya.n = Math.min(MAX_ET, ya.n + 1); else sel.push({ p: p, n: 1 });
 						pintarSel();
 					};
 				});
@@ -2935,15 +2955,17 @@
 		$("#et-q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(buscarEt, 300); });
 		$("#et-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); } }); // Enter aquí no imprime: está buscando.
 		$("#et-desde").addEventListener("input", pintarSel);
+		$("#et-desde").addEventListener("change", () => { $("#et-desde").value = desde(); }); // Lo que se va a usar, a la vista (45 en una hoja de 30 queda en 30).
 		$("#et-hoja").onchange = () => {
 			formato = $("#et-hoja").value;
 			try { localStorage.setItem(MEM_HOJA, formato); } catch (e) { /* sin memoria */ }
+			$("#et-desde").value = desde();
 			pintarSel();
 		};
 		$("#m-no").onclick = cerrarModal;
 		$("#m-ok").onclick = () => {
 			const lista = sel.filter((x) => x.n > 0);
-			if (!lista.length) return;
+			if (!lista.length || lista.reduce((a, x) => a + x.n, 0) > 2 * MAX_ET) return;
 			imprimirDocumento(hojasEtiquetas(lista, formato, desde(), $("#et-corte").checked));
 		};
 		pintarSel();
