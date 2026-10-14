@@ -2190,7 +2190,12 @@
 				'<div class="tot"><span>' + esc(__("Left to pay", "dox-pos")) + "</span><span>" + dinero(Math.max(0, falta0 - dep)) + "</span></div>" +
 				(cfg.tax_extra ? '<p class="sub">' + esc(__("Plus tax: the exact amount is calculated when the layaway is saved.", "dox-pos")) + "</p>" : "");
 		};
-		$("#modal-card").addEventListener("input", sum);
+		// La tarjeta de la ventana es la misma para todas: al cerrarse esta, el oyente se quita solo
+		// (seguía vivo: fallaba en cada tecla de las ventanas siguientes, como la de etiquetas, y en un
+		// apartado nuevo pintaba encima el resumen del anterior).
+		const suya = $("#ap-sum");
+		const alEscribir = () => { if (!suya.isConnected) { $("#modal-card").removeEventListener("input", alEscribir); return; } sum(); };
+		$("#modal-card").addEventListener("input", alEscribir);
 		sum();
 		$("#m-ok").onclick = () => {
 			const h = plazo();
@@ -2807,8 +2812,10 @@
 	// Las tallas que hay, agrupadas por color si tiene colores: "Negro: 36, 37 · Café: 38".
 	function tallasEtiqueta(p) {
 		if (p.type !== "variable") return null;
-		const vs = (p.variations || []).filter(hayDe);
-		if (!vs.length) return __("Out of stock", "dox-pos");
+		// Sin nada en existencia salen todas: la etiqueta se queda pegada y "Agotado" dejaría de ser verdad al llegar más.
+		const todas = p.variations || [];
+		const vs = todas.some(hayDe) ? todas.filter(hayDe) : todas;
+		if (!vs.length) return null;
 		const nombre = (v) => v.talla || v.label;
 		if (!vs.some((v) => v.color)) return [...new Set(vs.map(nombre))].join(" · ");
 		const grupos = {};
@@ -2839,7 +2846,7 @@
 		const t = tallasEtiqueta(p);
 		const ref = sku ? sprintf(__("Ref. %s", "dox-pos"), sku) : "";
 		const soloColor = p.type === "variable" && !(p.variations || []).some((v) => v.talla); // Varía solo por color: no son tallas.
-		const tal = !t ? "" : !(p.variations || []).some(hayDe) ? t : sprintf(soloColor ? __("Colors: %s", "dox-pos") : __("Sizes: %s", "dox-pos"), t);
+		const tal = !t ? "" : sprintf(soloColor ? __("Colors: %s", "dox-pos") : __("Sizes: %s", "dox-pos"), t);
 		const medio = t0 === "s" ? (ref || tal ? '<div class="ref">' + esc([ref, tal].filter(Boolean).join(" · ")) + "</div>" : "")
 			: (ref ? '<div class="ref">' + esc(ref) + "</div>" : "") + (tal ? '<div class="tal">' + esc(tal) + "</div>" : "");
 		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" + medio + bc + "</div>";
@@ -2867,7 +2874,11 @@
 	}
 	// Imprime en un marco escondido: el navegador abre su ventana de imprimir.
 	function imprimirDocumento(html) {
+		// El marco de la impresión anterior se quita al empezar otra, no con un reloj: en Firefox print() no
+		// espera y, con la vista previa abierta más de un minuto, quitarlo dejaba la hoja en blanco.
+		document.querySelectorAll("iframe.dp-imprimir").forEach((x) => x.remove());
 		const f = document.createElement("iframe");
+		f.className = "dp-imprimir";
 		f.setAttribute("aria-hidden", "true");
 		f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
 		document.body.appendChild(f);
@@ -2875,9 +2886,9 @@
 		f.contentDocument.write(html);
 		f.contentDocument.close();
 		setTimeout(() => {
+			f.contentWindow.addEventListener("afterprint", () => setTimeout(() => f.remove(), 1000)); // Antes de print(): en Chrome print() espera y el aviso llega dentro.
 			try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast(__("The browser did not let the labels print.", "dox-pos")); }
 			window.focus();
-			setTimeout(() => f.remove(), 60000);
 		}, 120);
 	}
 	// Las unidades que hay de un producto. Las tallas que comparten unidades (todas, o las de un color) traen
@@ -3220,7 +3231,7 @@
 		const n = pr.tallas.length;
 		$("#p-ntal").textContent = n ? sprintf(_n("%d size", "%d sizes", n, "dox-pos"), n) : __("one size", "dox-pos");
 		if (pr.edit) hint.textContent = "";
-		else if (!pr.cats.length && !n) hint.textContent = __("Choose the category and its sizes appear.", "dox-pos");
+		else if (!pr.cats.length && !n && !pr.masTallas) hint.textContent = __("Choose the category and its sizes appear.", "dox-pos");
 		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas ? __("This category does not use sizes: it stays one size.", "dox-pos") : __("No sizes: one size.", "dox-pos");
 		else if (!pr.tallasTocadas) hint.textContent = __("Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.", "dox-pos");
 		else hint.textContent = "";

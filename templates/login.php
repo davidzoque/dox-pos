@@ -110,16 +110,20 @@ $dox_pos_code_on = empty( $sin_permiso ) && dox_pos_login_code_enabled();
 					<button class="go" type="submit"><?php esc_html_e( 'Send me a code', 'dox-pos' ); ?><?php $dox_pos_i( 'flecha' ); ?></button>
 				<?php endif; ?>
 			<?php else : ?>
-				<?php wp_nonce_field( 'dox_pos_login' ); ?>
+				<?php
+				wp_nonce_field( 'dox_pos_login' );
+				// Tras una clave equivocada, el usuario sigue escrito y el cursor va a la clave: solo hay que repetir esa.
+				$dox_pos_prev = isset( $_POST['dox_pos_login'] ) ? sanitize_text_field( wp_unslash( $_POST['log'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- solo se vuelve a mostrar, escapado.
+				?>
 				<input type="hidden" name="dox_pos_login" value="1">
 				<input type="hidden" name="rememberme" value="forever">
 				<div class="field">
 					<label for="log"><?php esc_html_e( 'Username or email', 'dox-pos' ); ?></label>
-					<div class="lg-campo"><?php $dox_pos_i( 'user' ); ?><input id="log" name="log" type="text" autocomplete="username" required autofocus></div>
+					<div class="lg-campo"><?php $dox_pos_i( 'user' ); ?><input id="log" name="log" type="text" autocomplete="username" value="<?php echo esc_attr( $dox_pos_prev ); ?>" required<?php echo '' === $dox_pos_prev ? ' autofocus' : ''; ?>></div>
 				</div>
 				<div class="field">
 					<label for="pwd"><?php esc_html_e( 'Password', 'dox-pos' ); ?></label>
-					<div class="lg-campo con-ojo"><?php $dox_pos_i( 'candado' ); ?><input id="pwd" name="pwd" type="password" autocomplete="current-password" required>
+					<div class="lg-campo con-ojo"><?php $dox_pos_i( 'candado' ); ?><input id="pwd" name="pwd" type="password" autocomplete="current-password" required<?php echo '' === $dox_pos_prev ? '' : ' autofocus'; ?>>
 						<button type="button" class="ojo" id="lg-ojo" aria-pressed="false" aria-label="<?php esc_attr_e( 'Show the password', 'dox-pos' ); ?>" data-ocultar="<?php esc_attr_e( 'Hide the password', 'dox-pos' ); ?>"><?php $dox_pos_i( 'ojo' ); ?></button></div>
 				</div>
 				<button class="go" type="submit"><?php esc_html_e( 'Sign in', 'dox-pos' ); ?><?php $dox_pos_i( 'flecha' ); ?></button>

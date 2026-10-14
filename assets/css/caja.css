@@ -155,7 +155,7 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .var .s b{color:inherit;font-variant-numeric:tabular-nums}
 /* La talla real: la de la etiqueta de la pieza, cuando varias tallas comparten unidades. Las que
    también le sirven van en segundo plano y dicen de qué talla es la pieza. */
-.rt{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--real);color:#FFFFFF;
+.rt{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--real);color:var(--on-solid,#FFFFFF);
   font:600 10.5px var(--ui);letter-spacing:.02em;vertical-align:1px}
 .var.real{border:2px solid var(--real);background:var(--real-soft);padding:9px 11px}
 .var.real .s,.var.alt .s{background:none;padding:0;border-radius:0}
@@ -166,7 +166,7 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .var.alt .s{color:var(--real);line-height:1.35;font-weight:600}
 .pc-var tr.real td{color:var(--real);font-weight:600;background:var(--real-soft)}
 .pc-var tr.alt td .sub{display:block;color:var(--real);font-size:11.5px}
-.odl .odi .rs{align-self:flex-start;padding:2px 8px;border-radius:6px;background:var(--real);color:#FFFFFF;font-size:12px;font-weight:600}
+.odl .odi .rs{align-self:flex-start;padding:2px 8px;border-radius:6px;background:var(--real);color:var(--on-solid,#FFFFFF);font-size:12px;font-weight:600}
 .empty{color:var(--muted);font-size:13px;padding:20px 2px}
 .rtit{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 2px 6px}
 .big-empty{padding:40px 24px;text-align:center}
@@ -260,7 +260,7 @@ table.ped .sub{color:var(--muted);font-size:12px}
 .tag.s-vio{background:var(--st-vio-soft);color:var(--st-vio)}
 /* La persona con su círculo de iniciales y el canal con su icono. */
 .whoav{display:flex;align-items:flex-start;gap:10px;min-width:0}
-.av{--c:#0EA5E9;width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px var(--ui);color:color-mix(in srgb,var(--c) 75%,#000);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.av{--c:#0EA5E9;width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px var(--ui);color:color-mix(in srgb,var(--c) 75%,var(--ini-mix,#000));background:color-mix(in srgb,var(--c) 16%,transparent)}
 .av.c1{--c:#0EA5E9}.av.c2{--c:#8B5CF6}.av.c3{--c:#EC4899}.av.c4{--c:#10B981}.av.c5{--c:#F59E0B}.av.c6{--c:#6366F1}.av.c7{--c:#EF4444}
 .chan{--c:var(--muted);display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
 .chan .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);flex:none}
@@ -591,8 +591,8 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
 .aicard p{margin:6px 0 0}
 .aicard ul{margin:6px 0 0;padding-left:18px}
 /* Lo que el asistente nombra se toca: el número de un pedido abre su detalle y el nombre de un producto, su ficha. */
-.aicard a,.pend .pt a,.bl a,.adv p a{color:var(--primary-text);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.aicard a:hover,.pend .pt a:hover,.bl a:hover,.adv p a:hover{text-decoration-thickness:2px}
+.aicard a,.pend .pt a,.bl a,.adv p a,.msg.ai a{color:var(--primary-text);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.aicard a:hover,.pend .pt a:hover,.bl a:hover,.adv p a:hover,.msg.ai a:hover{text-decoration-thickness:2px}
 .pend{list-style:none;margin:0;padding:0;columns:430px 2;column-gap:10px} /* dos columnas: se leen de arriba abajo y no queda medio renglón vacío en cada aviso */
 .pend li{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:14px 16px;display:flex;flex-direction:column;align-items:stretch;gap:8px;break-inside:avoid;margin:0 0 10px}
 /* Lo urgente, con la tarjeta entera teñida y su filo de color alrededor (nunca una franja a un lado). */
@@ -1255,7 +1255,7 @@ table.ped .lnk.items{white-space:normal}
 .var.puesto{border-color:var(--primary-strong);background:var(--primary-tint)}
 /* En Inventario lo que entra sube las existencias: en verde. */
 .var.puesto.add{border-color:var(--st-ok);background:var(--st-ok-soft)}
-.var.puesto.add .lleg{background:var(--st-ok);color:#fff}
+.var.puesto.add .lleg{background:var(--st-ok);color:var(--on-solid,#fff)}
 .var.puesto.add .s{background:var(--surface)} /* la píldora de existencias no se pierde sobre el verde */
 /* La última que quedaba ya está en el pedido: no se puede añadir otra, pero se sigue leyendo bien. */
 .var.puesto:disabled{opacity:1;cursor:default}
@@ -1412,7 +1412,7 @@ table.ped .lnk.items{white-space:normal}
 .mp-gente button{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;font:500 13px var(--ui);color:var(--ink);cursor:pointer;transition:var(--press)}
 .mp-gente button:active{transform:scale(.96)}
 .ini{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--primary-tint);color:var(--primary-strong);font:600 15px var(--ui)}
-.ini[class*=" c"]{background:color-mix(in srgb,var(--c) 16%,transparent);color:color-mix(in srgb,var(--c) 75%,#000)} /* el PIN del Pro: cada persona en su color, como en Pedidos */
+.ini[class*=" c"]{background:color-mix(in srgb,var(--c) 16%,transparent);color:color-mix(in srgb,var(--c) 75%,var(--ini-mix,#000))} /* el PIN del Pro: cada persona en su color, como en Pedidos */
 .ini.c1{--c:#0EA5E9}.ini.c2{--c:#8B5CF6}.ini.c3{--c:#EC4899}.ini.c4{--c:#10B981}.ini.c5{--c:#F59E0B}.ini.c6{--c:#6366F1}.ini.c7{--c:#EF4444}
 .mp-quien{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px}
 .mp-quien b{font:600 17px var(--serif)}

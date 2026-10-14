@@ -110,6 +110,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Change: the product form, redone on the Dox design system: each part in its own card, what is chosen (category, colors, sizes, package) in the store's tint instead of solid color, a green profit, and the save bar floating at the bottom with the total and the button side by side on a computer.
 * Fix: letter sizes now come in their order (XS, S, M, L, XL) and not alphabetically; and the note "No colors" no longer shows when the product has colors.
 * Fix: in Settings > Sales, the sample receipt did not show until saving when Settings was opened on another tab.
+* Fix: sizes in the Mexican and Central American style (CH, M, G, EG or XG) and the Brazilian one (PP, P, M, G, GG, XG) also come in their order.
+* Fix: after a wrong password, the sign-in keeps the username and puts the cursor on the password.
+* Fix: in dark mode, the real-size pill, the "arrived" badge and the colored initials (Orders, the Pro PIN) were hard to read; and the phone's top bar follows the dark mode.
+* Fix: after opening and closing the layaway window, every key typed in the next windows (Labels among them) threw an error in the background, and a new layaway could show the previous one's summary.
+* Change: barcodes with numbers (a SKU like 7701234567890) take about a third less width, so they read better on small labels; a label of a product with nothing in stock lists its sizes instead of saying it is out of stock.
 
 = 0.53.0 =
 * New: a new look for the register, built on the Dox design system. The top bar has icons and its counters in small bubbles; Sell shows products as cards and each size as a tile with its stock in a colored pill (green, amber when few are left, red when none); channels and payment methods carry their color and icon (also the payment methods a shop creates); Orders shows each status in a colored pill, the customer's initials and the channel with its icon; the Dashboard, the Assistant, the windows and the login are cleaner. The four colors in Settings (background, bar, primary, text) still dress the whole register.

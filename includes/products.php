@@ -326,7 +326,12 @@ function dox_pos_size_sort_key( $name ) {
 		return 9999999;
 	}
 	// Las de letras, en su orden y no por el alfabeto (antes salían L, M, S, XL, XS).
-	$letras = array( 'xxxs' => 0, 'xxs' => 1, 'xs' => 2, 's' => 3, 'm' => 4, 'l' => 5, 'xl' => 6, 'xxl' => 7, '2xl' => 7, 'xxxl' => 8, '3xl' => 8, 'xxxxl' => 9, '4xl' => 9, '5xl' => 10 );
+	// También las de México y Centroamérica (CH, M, G, EG o XG) y las de Brasil (PP, P, M, G, GG, XG).
+	$letras = array(
+		'xxxs' => 0, 'xxs' => 1, 'xs' => 2, 's' => 3, 'm' => 4, 'l' => 5, 'xl' => 6, 'xxl' => 7, '2xl' => 7, 'xxxl' => 8, '3xl' => 8, 'xxxxl' => 9, '4xl' => 9, 'xxxxxl' => 10, '5xl' => 10, '6xl' => 11,
+		'xch' => 2, 'ch' => 3, 'pp' => 2, 'p' => 3, 'g' => 5, 'gg' => 6, 'eg' => 6, 'xg' => 6, 'xxg' => 7, 'exg' => 7, 'xgg' => 7,
+		'chica' => 3, 'chico' => 3, 'pequena' => 3, 'pequeno' => 3, 'mediana' => 4, 'mediano' => 4, 'grande' => 5, 'extragrande' => 6,
+	);
 	$sola   = preg_replace( '/^talla\s*|[\s.\-]/', '', $n );
 	if ( isset( $letras[ $sola ] ) ) {
 		return 8000000 + $letras[ $sola ];

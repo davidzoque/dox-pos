@@ -1051,6 +1051,8 @@ function dox_pos_theme_dark_vars( $c ) {
 			'--ch-ig'          => '#F472B6',
 			'--ch-web'         => '#60A5FA',
 			'--ch-per'         => '#FBBF24',
+			'--on-solid'       => '#141313', // El texto sobre los colores sólidos, que en oscuro son claros.
+			'--ini-mix'        => '#FFFFFF', // Las iniciales de color se aclaran en vez de oscurecerse.
 			'--scrim'          => 'rgba(0,0,0,.6)',
 			'--whisper'        => '0 1px 2px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.25)',
 			'color-scheme'     => 'dark',

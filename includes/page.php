@@ -379,7 +379,17 @@ function dox_pos_head() {
 	wp_print_inline_script_tag( 'if(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){var m=document.querySelector(\'meta[name="viewport"]\');if(m)m.content+=",maximum-scale=1";}' );
 	?>
 	<meta name="robots" content="noindex,nofollow,noarchive">
-	<meta name="theme-color" content="<?php echo esc_attr( $colors['bar'] ); ?>">
+	<?php
+	// La barra del teléfono, del color de la de la caja; en modo oscuro, el de la barra oscura.
+	$look     = dox_pos_appearance();
+	$dark_bar = 'light' === $look ? '' : ( dox_pos_theme_dark_vars( $colors )['--bar'] ?? '' );
+	if ( 'auto' === $look && $dark_bar ) {
+		printf( '<meta name="theme-color" media="(prefers-color-scheme: light)" content="%s">' . "\n", esc_attr( $colors['bar'] ) );
+		printf( '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="%s">' . "\n", esc_attr( $dark_bar ) );
+	} else {
+		printf( '<meta name="theme-color" content="%s">' . "\n", esc_attr( 'dark' === $look && $dark_bar ? $dark_bar : $colors['bar'] ) );
+	}
+	?>
 	<title><?php echo esc_html( dox_pos_screen_name() . ' · ' . dox_pos_brand_name() ); ?></title>
 	<?php
 	$icon = dox_pos_site_icon_url( 512 );

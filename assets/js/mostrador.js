@@ -612,7 +612,11 @@
 	const ticketHtml = T.venta, cierreHtml = T.cierre;
 	// Imprime en un marco escondido, con el ancho del rollo. El navegador abre su diálogo de impresión.
 	function imprimir(cuerpo, tienda) {
+		// El marco de la impresión anterior se quita al empezar otra, no con un reloj: en Firefox print() no
+		// espera y, con la vista previa abierta más de un minuto, quitarlo dejaba la hoja en blanco.
+		document.querySelectorAll("iframe.dp-imprimir").forEach((x) => x.remove());
 		const f = document.createElement("iframe");
+		f.className = "dp-imprimir";
 		f.setAttribute("aria-hidden", "true");
 		f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
 		document.body.appendChild(f);
@@ -623,12 +627,12 @@
 		const imgs = Array.prototype.slice.call(doc.images);
 		Promise.all(imgs.map((i) => (i.complete ? 0 : new Promise((ok) => { i.onload = i.onerror = ok; })))).then(() => {
 			setTimeout(() => {
+				f.contentWindow.addEventListener("afterprint", () => setTimeout(() => f.remove(), 1000)); // Antes de print(): en Chrome print() espera y el aviso llega dentro.
 				try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast(__("The browser did not let the receipt print.", "dox-pos")); }
 				// El foco vuelve a la caja: si se queda en el marco, el lector y las teclas no llegan.
 				window.focus();
 				const b = !$("#modal").hidden && $("#modal-card").querySelector("#m-no");
 				if (b) b.focus(); else enfocar();
-				setTimeout(() => f.remove(), 60000);
 			}, 60);
 		});
 	}

@@ -14,10 +14,35 @@
 
 	// Code 128, juego B: los anchos de barra y espacio de cada símbolo (el último es el de parada).
 	const C128 = "212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112".split(" ");
+	// Los tramos de cuatro o más cifras van en el juego C (dos cifras por símbolo): un código de solo números
+	// ocupa la mitad y en una etiqueta pequeña las barras no quedan tan finas que la cámara no las lea.
 	function codigo(txt) {
-		const vals = [104];
-		for (const ch of String(txt)) { const c = ch.charCodeAt(0) - 32; if (c >= 0 && c <= 94) vals.push(c); }
-		let suma = 104;
+		const s = [...String(txt)].filter((ch) => { const c = ch.charCodeAt(0) - 32; return c >= 0 && c <= 94; }).join("");
+		const cifras = (k) => { let n = 0; while (k + n < s.length && s[k + n] >= "0" && s[k + n] <= "9") n++; return n; };
+		const vals = [];
+		let i = 0, juego = "";
+		while (i < s.length) {
+			const n = cifras(i);
+			// Al principio o al final compensa desde 4 cifras; en medio, desde 6 (cambiar de juego cuesta un símbolo).
+			if ((n >= 4 && (i === 0 || i + n === s.length || n >= 6)) || (n === 2 && s.length === 2)) {
+				if (n % 2 && i > 0) { // Impar a mitad del código: la primera cifra va en el juego B y el resto, de dos en dos.
+					if (juego !== "B") { vals.push(100); juego = "B"; }
+					vals.push(s.charCodeAt(i) - 32);
+					i++;
+					continue;
+				}
+				if (juego !== "C") { vals.push(juego ? 99 : 105); juego = "C"; }
+				const pares = n - (n % 2); // Al principio y con un número impar de cifras, la última va en el juego B.
+				for (let k = 0; k < pares; k += 2) vals.push(+s.substr(i + k, 2));
+				i += pares;
+			} else {
+				if (juego !== "B") { vals.push(juego ? 100 : 104); juego = "B"; }
+				vals.push(s.charCodeAt(i) - 32);
+				i++;
+			}
+		}
+		if (!vals.length) vals.push(104);
+		let suma = vals[0];
 		for (let i = 1; i < vals.length; i++) suma += vals[i] * i;
 		vals.push(suma % 103, 106);
 		let x = 10, barras = "";
