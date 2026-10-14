@@ -3119,6 +3119,7 @@
 			$("#p-ncol").textContent = "";
 			return;
 		}
+		if ($("#p-colores-hint")) $("#p-colores-hint").hidden = pr.colores.length > 0; // "Sin colores..." solo cuando no hay ninguno.
 		const dot = (hex) => { const i = document.createElement("i"); i.className = "dot"; i.style.background = hex; return i; };
 		const all = pr.form.colors || [];
 		const TOP = 12;

@@ -325,6 +325,12 @@ function dox_pos_size_sort_key( $name ) {
 	if ( preg_match( '/siempre|unica|unico|one size|talla u/', $n ) ) {
 		return 9999999;
 	}
+	// Las de letras, en su orden y no por el alfabeto (antes salían L, M, S, XL, XS).
+	$letras = array( 'xxxs' => 0, 'xxs' => 1, 'xs' => 2, 's' => 3, 'm' => 4, 'l' => 5, 'xl' => 6, 'xxl' => 7, '2xl' => 7, 'xxxl' => 8, '3xl' => 8, 'xxxxl' => 9, '4xl' => 9, '5xl' => 10 );
+	$sola   = preg_replace( '/^talla\s*|[\s.\-]/', '', $n );
+	if ( isset( $letras[ $sola ] ) ) {
+		return 8000000 + $letras[ $sola ];
+	}
 	if ( ! preg_match_all( '/(\d+(?:[.,]\d+)?)\s*(meses|mes|m|anos|ano|a|years|year|y)?(?![\w.])/', $n, $m, PREG_SET_ORDER ) ) {
 		return 9000000;
 	}

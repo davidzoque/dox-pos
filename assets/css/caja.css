@@ -732,6 +732,44 @@ table.ped tr.tot td{font-weight:600;border-top:2px solid var(--line)}
   .msg{max-width:96%}
 }
 
+/* ---------- Productos: el formulario (dox-design, 0.54.0) ----------
+   Cada parte en su tarjeta sobre el fondo, el título de la parte en frase y no en versalitas, lo elegido
+   en el tinte de la marca (el naranja sólido en cada talla y color pesaba demasiado) y la barra de guardar
+   flotando abajo. Solo CSS sobre las clases de siempre: el JavaScript no cambia. */
+#p-form{padding-top:6px;padding-bottom:18px}
+#p-form>.grp,#p-form>.editbar,#p-form>.newbar{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-top:12px}
+#p-form>.grp:last-of-type{border-bottom:1px solid var(--line)}
+#p-form>.editbar{align-items:center}
+#p-form>.editbar b{font:700 18px var(--serif);letter-spacing:-.02em}
+#p-form>.newbar{padding:12px 16px}
+#p-form .grp h4{font:600 15px var(--ui);letter-spacing:-.01em;text-transform:none;color:var(--ink);margin:0 0 14px}
+#p-form .grp h4 .cnt{font-size:12px;font-weight:600;color:var(--primary-strong);background:var(--primary-tint);border-radius:999px;padding:3px 10px}
+#p-form .grp h4 .cnt:empty{display:none}
+#p-form .chip{min-height:38px;border-radius:10px;font-weight:500}
+#p-form .chip[aria-pressed="true"]{background:var(--primary-tint);color:var(--primary-strong);border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary);font-weight:600}
+#p-form .chip[aria-pressed="true"] .dot{border-color:rgba(0,0,0,.18)}
+#p-form .chip.grp.has{border-color:var(--primary)}
+#p-form #p-tallas .chip{min-width:46px;justify-content:center;text-align:center}
+#p-form .qcard{background:var(--sunk);border-color:transparent}
+#p-form .qcard input{background:var(--surface)}
+#p-form .chips.tira{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent);padding-right:40px} /* sigue a la derecha: se desliza */
+#p-form .chips.tira::-webkit-scrollbar{display:none}
+#p-form .chips.tira .chip{flex:none}
+#p-form .margen{font-weight:600;color:var(--st-ok)}
+#t-producto #p-foot{background:transparent;border-top:0;padding:8px 16px max(12px,env(safe-area-inset-bottom))}
+#t-producto #p-foot>.prodwrap{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 18px;box-shadow:0 -6px 24px -14px rgba(20,19,19,.18),0 10px 30px -18px rgba(20,19,19,.25)}
+@media (max-width:760px){ /* en el teléfono la barra de guardar ocupa poco: el formulario se ve detrás */
+  #p-form>.grp,#p-form>.editbar{padding:16px;border-radius:14px}
+  #t-producto #p-foot{padding:6px 10px max(8px,env(safe-area-inset-bottom))}
+  #t-producto #p-foot>.prodwrap{padding:10px 14px;border-radius:16px}
+  #t-producto #p-foot .sum{margin-bottom:8px}
+  #t-producto #p-foot .sum div.tot{font-size:22px;padding-top:0}
+}
+@media (min-width:761px){
+  #t-producto #p-foot>.prodwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:8px 22px;align-items:end}
+  #t-producto #p-foot .sum{margin:0}
+  #t-producto #p-foot .go{margin:0}
+}
 /* ---------- login (dox-design, 0.54.0): la marca de la tienda a un lado y el formulario al otro ---------- */
 .lg{min-height:100dvh;display:grid;place-items:center;padding:32px 20px;
   background:radial-gradient(70% 55% at 50% -10%,var(--primary-tint),transparent 70%),var(--paper)}

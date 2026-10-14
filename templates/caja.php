@@ -269,7 +269,7 @@ dox_pos_enqueue_caja( $cfg );
 								<input id="p-color-nom" placeholder="<?php esc_attr_e( 'Color name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new color', 'dox-pos' ); ?>">
 								<button type="button" class="mini" id="p-color-add"><?php esc_html_e( 'Add', 'dox-pos' ); ?></button>
 							</div>
-							<p class="hint"><?php esc_html_e( 'No colors: the product only varies by size.', 'dox-pos' ); ?></p>
+							<p class="hint" id="p-colores-hint"><?php esc_html_e( 'No colors: the product only varies by size.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="grp" id="g-tallas">
 							<h4><?php esc_html_e( 'Sizes', 'dox-pos' ); ?> <span class="cnt" id="p-ntal"></span></h4>
