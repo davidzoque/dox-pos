@@ -51,5 +51,9 @@ if ( function_exists( 'wc_get_orders' ) && get_option( 'dox_pos_demo' ) ) {
 	}
 	$wpdb->delete( $wpdb->prefix . 'dox_pos_stock_log', array( 'note' => 'Demo' ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 }
+// Lo que la caja guarda un rato (el formulario de productos y lo que usa cada categoría): se borraría solo al caducar.
+delete_transient( 'dox_pos_product_form' );
+delete_transient( 'dox_pos_category_usage' );
+delete_transient( 'dox_pos_variation_taxes' );
 // Solo los ajustes de este plugin: los del Pro (dox_pos_pro_*, dox_pos_ai_*, dox_pos_recover_*) son suyos y se quedan.
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE ( option_name LIKE 'dox\\_pos\\_%' OR option_name LIKE '\\_transient\\_%dox\\_pos\\_font\\_%' ) AND option_name NOT LIKE 'dox\\_pos\\_pro%' AND option_name NOT LIKE 'dox\\_pos\\_ai%' AND option_name NOT LIKE 'dox\\_pos\\_recover%'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery

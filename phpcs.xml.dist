@@ -34,6 +34,7 @@
 		<properties>
 			<property name="custom_capabilities" type="array">
 				<element value="manage_woocommerce"/>
+				<element value="manage_product_terms"/>
 				<element value="dox_pos_use"/>
 			</property>
 		</properties>

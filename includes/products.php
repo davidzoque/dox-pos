@@ -218,7 +218,57 @@ function dox_pos_size_attributes_from( $s ) {
 	if ( ! $set && ! empty( $s['size_attr'] ) && isset( $all[ $s['size_attr'] ] ) ) {
 		$set[] = (string) $s['size_attr'];
 	}
-	return $set ? dox_pos_attributes_by_use( $set ) : dox_pos_attribute_candidates( dox_pos_attribute_names( 'size' ) );
+	return $set ? dox_pos_attributes_by_use( $set ) : dox_pos_size_candidates_in_use( dox_pos_attribute_candidates( dox_pos_attribute_names( 'size' ) ) );
+}
+
+/**
+ * En automático, un atributo que solo se parece a uno de talla ("Talla de la modelo", "Guía de tallas") cuenta si
+ * alguna variación lo usa: si no, una tienda de la 0.55 con Talla y uno así de información pasaría a tener dos y sus
+ * categorías sin tallas se quedarían sin filas. Los que se llaman exactamente Talla o Size cuentan siempre.
+ *
+ * @param string[] $found Los que parecen de talla, el más usado primero.
+ * @return string[]
+ */
+function dox_pos_size_candidates_in_use( $found ) {
+	if ( count( $found ) < 2 ) {
+		return $found;
+	}
+	$names  = dox_pos_attribute_names( 'size' );
+	$labels = dox_pos_attribute_taxonomies();
+	$used   = null;
+	$out    = array();
+	foreach ( $found as $tax ) {
+		$exact = in_array( substr( $tax, 3 ), $names, true ) || in_array( sanitize_title( remove_accents( $labels[ $tax ] ?? '' ) ), $names, true );
+		if ( ! $exact ) {
+			$used = null === $used ? dox_pos_variation_taxonomies() : $used;
+			if ( ! in_array( $tax, $used, true ) ) {
+				continue;
+			}
+		}
+		$out[] = $tax;
+	}
+	return $out ? $out : $found; // Ninguno en uso (una tienda que empieza): todos, como hasta ahora.
+}
+
+/**
+ * Los atributos que usa alguna variación de la tienda. Una consulta, guardada medio día; se borra al crear un
+ * producto o añadirle una opción desde la caja y al cambiar los atributos.
+ *
+ * @return string[]
+ */
+function dox_pos_variation_taxonomies() {
+	static $out = null;
+	if ( null !== $out ) {
+		return $out;
+	}
+	$out = get_transient( 'dox_pos_variation_taxes' );
+	if ( ! is_array( $out ) ) {
+		global $wpdb;
+		$keys = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT meta_key FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like( 'attribute_pa_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$out  = array_values( array_map( fn( $k ) => substr( (string) $k, 10 ), (array) $keys ) );
+		set_transient( 'dox_pos_variation_taxes', $out, 12 * HOUR_IN_SECONDS );
+	}
+	return $out;
 }
 
 /**
@@ -320,13 +370,10 @@ function dox_pos_category_parents() {
  */
 function dox_pos_category_usage( $forget = false ) {
 	static $usage = null;
-	static $clean = false; // Ya borrado en esta petición y sin contar de nuevo: no hace falta borrarlo otra vez.
 	if ( $forget ) {
-		if ( ! $clean ) {
-			delete_transient( 'dox_pos_category_usage' );
-		}
+		// Siempre: otra petición pudo volver a contarlo a medias mientras esta seguía guardando (una importación).
+		delete_transient( 'dox_pos_category_usage' );
 		$usage = null;
-		$clean = true;
 		return array();
 	}
 	$taxes = dox_pos_size_attributes();
@@ -469,6 +516,12 @@ add_action( 'deleted_post', 'dox_pos_forget_category_usage_post', 10, 2 );
 function dox_pos_variation_column( $v ) {
 	if ( ! $v instanceof WC_Product ) {
 		return array( '', '' );
+	}
+	$va  = (array) $v->get_attributes();
+	$ax  = get_post_meta( $v->get_parent_id(), '_dox_pos_axes', true ); // Sus filas y columnas, si las recuerda.
+	$col = is_array( $ax ) && is_scalar( $ax[1] ?? '' ) ? (string) ( $ax[1] ?? '' ) : '';
+	if ( '' !== $col && isset( $va[ $col ] ) && is_string( $va[ $col ] ) && '' !== $va[ $col ] ) {
+		return array( $col, $va[ $col ] );
 	}
 	list( $stax ) = dox_pos_variation_size( $v );
 	$other        = array( '', '' );
@@ -690,6 +743,27 @@ function dox_pos_product_axes( $p ) {
 	if ( ! $mine ) {
 		return dox_pos_vary_axes( $cat );
 	}
+	// Lo que se recordó al crearlo o al añadirle la opción desde la caja, mientras siga variando por lo mismo: así sus
+	// filas y columnas no cambian si luego cambia su categoría (las fotos y las unidades compartidas van por columna).
+	$saved = $p->get_meta( '_dox_pos_axes', true );
+	if ( is_array( $saved ) ) {
+		$row = is_scalar( $saved[0] ?? '' ) ? (string) ( $saved[0] ?? '' ) : '';
+		$col = is_scalar( $saved[1] ?? '' ) ? (string) ( $saved[1] ?? '' ) : '';
+		$sv  = array_values( array_filter( array( $row, $col ) ) );
+		if ( count( $sv ) === count( $mine ) && ! array_diff( $mine, $sv ) ) {
+			return array( 'row' => $row, 'col' => $col );
+		}
+	}
+	// Una de sus categorías varía justo por lo suyo: no solo la primera (get_category_ids() las da por nombre).
+	if ( 2 === count( $mine ) ) {
+		$map = dox_pos_category_vary_map();
+		foreach ( $p->get_category_ids() as $cid ) {
+			$v = $map[ (int) $cid ] ?? null;
+			if ( is_array( $v ) && 2 === count( $v ) && ! array_diff( $mine, $v ) ) {
+				return dox_pos_vary_axes( $v );
+			}
+		}
+	}
 	if ( 1 === count( $mine ) ) {
 		$ax = dox_pos_vary_axes( $cat );
 		if ( $mine[0] === $ax['row'] && '' !== $ax['col'] ) {
@@ -838,7 +912,7 @@ function dox_pos_vary_attribute( $tax ) {
 		'label'  => html_entity_decode( (string) ( $labels[ $tax ] ?? $tax ), ENT_QUOTES, 'UTF-8' ),
 		'size'   => dox_pos_is_size_attribute( $tax ),
 		'color'  => $color,
-		'values' => dox_pos_attribute_terms( $tax, $color ? 'color' : 'size' ),
+		'values' => dox_pos_attribute_terms( $tax, $color ? 'color' : 'size', 400 ),
 	);
 }
 
@@ -1012,11 +1086,15 @@ function dox_pos_common_packages() {
  * @param string $kind size o color.
  * @return array
  */
-function dox_pos_attribute_terms( $tax, $kind ) {
+function dox_pos_attribute_terms( $tax, $kind, $limit = 0 ) {
 	if ( ! $tax || ! taxonomy_exists( $tax ) ) {
 		return array();
 	}
-	$terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false ) );
+	$args = array( 'taxonomy' => $tax, 'hide_empty' => false );
+	if ( $limit > 0 ) { // Los más usados: un atributo de información con miles de valores (Marca) no se manda entero.
+		$args += array( 'number' => (int) $limit, 'orderby' => 'count', 'order' => 'DESC' );
+	}
+	$terms = get_terms( $args );
 	if ( is_wp_error( $terms ) ) {
 		return array();
 	}
@@ -1028,6 +1106,7 @@ function dox_pos_attribute_terms( $tax, $kind ) {
 			$row['key']   = dox_pos_size_sort_key( $t->name );
 		} else {
 			$row['hex'] = dox_pos_term_hex( $t->term_id, $tax );
+			$row['img'] = '' === $row['hex'] && dox_pos_term_has_image( $t->term_id, $tax ); // Muestra de foto: no se le pide tono.
 		}
 		$out[] = $row;
 	}
@@ -1117,9 +1196,10 @@ function dox_pos_swatch_systems() {
 }
 
 /**
- * El color de una muestra ("#e8d8c3"). Se busca en el meta de cada sistema de muestras (ver
- * dox_pos_swatch_systems()), aunque ya no esté activo: el color que se puso con un plugin sigue sirviendo si se
- * cambia de tema. Al final, el meta "color" que también lee GetWooPlugins (lo usan algunos temas).
+ * El color de una muestra ("#e8d8c3"). Se busca primero en el meta de los sistemas de muestras activos (un tono
+ * puesto hoy en el plugin gana a uno viejo que dejó la caja) y luego en los demás, aunque ya no estén activos: el
+ * color que se puso con un plugin sigue sirviendo si se cambia de tema. Al final, el meta "color" que también lee
+ * GetWooPlugins (lo usan algunos temas).
  *
  * @param int    $term_id Término.
  * @param string $tax     Su taxonomía (pa_color); si no se dice, se busca.
@@ -1131,21 +1211,28 @@ function dox_pos_term_hex( $term_id, $tax = '' ) {
 		$t   = get_term( $term_id );
 		$tax = $t && ! is_wp_error( $t ) ? $t->taxonomy : '';
 	}
-	$vi    = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
-	$found = array(
-		get_term_meta( $term_id, 'st-color-swatch', true ),
-		get_term_meta( $term_id, 'product_attribute_color', true ),
-		get_term_meta( $term_id, 'cfvsw_color', true ),
-		$tax ? get_term_meta( $term_id, 'product_' . $tax, true ) : '',
-		is_array( $vi ) && ! empty( $vi['color'] ) ? $vi['color'] : '',
-		get_term_meta( $term_id, 'color', true ),
+	$keys  = array(
+		'xstore' => 'st-color-swatch',
+		'wvs'    => 'product_attribute_color',
+		'cfvsw'  => 'cfvsw_color',
+		'thwvsf' => $tax ? 'product_' . $tax : '',
+		'vi'     => 'vi_wpvs_terms_params',
+		'color'  => 'color',
 	);
-	foreach ( $found as $i => $v ) {
+	$order = array_unique( array_merge( dox_pos_swatch_systems(), array_keys( $keys ) ) );
+	foreach ( $order as $system ) {
+		if ( '' === $keys[ $system ] ) {
+			continue;
+		}
+		$v = get_term_meta( $term_id, $keys[ $system ], true );
+		if ( 'vi' === $system ) {
+			$v = is_array( $v ) && ! empty( $v['color'] ) ? $v['color'] : ''; // VillaTheme: una lista de colores (degradado).
+		}
 		if ( is_array( $v ) ) {
 			$v = reset( $v );
 		}
-		// Fuera del de XStore, solo con su #: ThemeHigh guarda en el mismo meta el id de una imagen ("123").
-		$hex = is_string( $v ) && ( 0 === $i || 0 === strpos( trim( $v ), '#' ) ) ? dox_pos_hex( $v ) : '';
+		// Fuera del de XStore, solo con su # (o rgb): ThemeHigh guarda en el mismo meta el id de una imagen ("123").
+		$hex = is_string( $v ) ? dox_pos_css_hex( $v, 'xstore' === $system ) : '';
 		if ( '' !== $hex ) {
 			return $hex;
 		}
@@ -1154,8 +1241,42 @@ function dox_pos_term_hex( $term_id, $tax = '' ) {
 }
 
 /**
- * Guarda el color de un valor nuevo en el meta de cada sistema de muestras activo, para que la tienda enseñe su
- * círculo de color igual que la caja.
+ * Un color escrito como lo guardan los plugins de muestras: "#e8d8c3", o "rgba(232, 216, 195, 1)" (VillaTheme).
+ *
+ * @param string $v    Lo guardado.
+ * @param bool   $bare Si vale sin # ("e8d8c3", como algunos de XStore).
+ * @return string Hex, o vacío.
+ */
+function dox_pos_css_hex( $v, $bare = false ) {
+	$v = trim( (string) $v );
+	if ( preg_match( '/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i', $v, $m ) ) {
+		return sprintf( '#%02X%02X%02X', min( 255, (int) $m[1] ), min( 255, (int) $m[2] ), min( 255, (int) $m[3] ) );
+	}
+	return $bare || 0 === strpos( $v, '#' ) ? dox_pos_hex( $v ) : '';
+}
+
+/**
+ * Si un valor se enseña con una foto en vez de un color (muestra de imagen): a ese no se le pide tono.
+ *
+ * @param int    $term_id Término.
+ * @param string $tax     Taxonomía.
+ * @return bool
+ */
+function dox_pos_term_has_image( $term_id, $tax ) {
+	$vi = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
+	if ( is_array( $vi ) && ! empty( $vi['img_id'] ) && 'image' === ( $vi['type'] ?? '' ) ) {
+		return true;
+	}
+	if ( (int) get_term_meta( $term_id, 'product_attribute_image', true ) > 0 || '' !== (string) get_term_meta( $term_id, 'cfvsw_image', true ) ) {
+		return true;
+	}
+	return 'image' === dox_pos_attribute_type( $tax ) && ctype_digit( (string) get_term_meta( $term_id, 'product_' . $tax, true ) );
+}
+
+/**
+ * Guarda el color de un valor en el meta de cada sistema de muestras activo, para que la tienda enseñe su círculo de
+ * color igual que la caja. Si ninguno se lo queda (un atributo que el plugin no tiene como de color), va al de XStore,
+ * que la caja lee siempre: así no se vuelve a pedir.
  *
  * @param int    $term_id Término.
  * @param string $tax     Taxonomía (pa_color).
@@ -1177,12 +1298,17 @@ function dox_pos_set_term_hex( $term_id, $tax, $hex ) {
 			// ThemeHigh guarda en el mismo meta el color, la imagen o la etiqueta, según el tipo del atributo.
 			update_term_meta( $term_id, 'product_' . $tax, $hex );
 		} elseif ( 'vi' === $system ) {
-			$old = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
-			$old = is_array( $old ) ? $old : array();
-			if ( empty( $old['type'] ) || 'color' === $old['type'] ) { // Uno con imagen se queda con su imagen.
+			$old  = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
+			$old  = is_array( $old ) ? $old : array();
+			$tiene = array_filter( array_map( 'strval', (array) ( $old['color'] ?? array() ) ) );
+			// Uno con imagen se queda con su imagen, y uno con colores (un degradado de varios) con los suyos.
+			if ( ! $tiene && ( empty( $old['type'] ) || 'color' === $old['type'] ) ) {
 				update_term_meta( $term_id, 'vi_wpvs_terms_params', array_merge( $old, array( 'type' => 'color', 'color' => array( $hex ), 'color_separator' => '1' ) ) );
 			}
 		}
+	}
+	if ( '' === dox_pos_term_hex( $term_id, $tax ) ) {
+		update_term_meta( $term_id, 'st-color-swatch', array( $hex ) );
 	}
 }
 
@@ -1415,11 +1541,15 @@ function dox_pos_build_sku_codes( $prev ) {
 		$ord = dox_pos_vary_axes( dox_pos_sku_order( array_keys( $va ) ) );
 		$one = '' !== $ord['row'] ? (string) ( $va[ $ord['row'] ] ?? '' ) : '';
 		$two = '' !== $ord['col'] ? (string) ( $va[ $ord['col'] ] ?? '' ) : '';
+		// Cada valor se aprende en su atributo ("pa_talla-calzado:38") y, de reserva, por su nombre solo: el 38 de la
+		// ropa y el 38 de los zapatos pueden llevar números distintos.
 		if ( '' !== $one ) {
-			$sizes[ $one ][ $sc ] = ( $sizes[ $one ][ $sc ] ?? 0 ) + 1;
+			$sizes[ $ord['row'] . ':' . $one ][ $sc ] = ( $sizes[ $ord['row'] . ':' . $one ][ $sc ] ?? 0 ) + 1;
+			$sizes[ $one ][ $sc ]                    = ( $sizes[ $one ][ $sc ] ?? 0 ) + 1;
 		}
 		if ( '' !== $cc && '' !== $two ) {
-			$colors[ $two ][ $cc ] = ( $colors[ $two ][ $cc ] ?? 0 ) + 1;
+			$colors[ $ord['col'] . ':' . $two ][ $cc ] = ( $colors[ $ord['col'] . ':' . $two ][ $cc ] ?? 0 ) + 1;
+			$colors[ $two ][ $cc ]                    = ( $colors[ $two ][ $cc ] ?? 0 ) + 1;
 		}
 	}
 	$pick = function ( $counts, $keep ) {
@@ -1445,24 +1575,47 @@ function dox_pos_build_sku_codes( $prev ) {
 }
 
 /**
- * El código de dos dígitos de una talla o un color. Si no tiene (un color nuevo), se le da
- * el siguiente libre y se guarda.
+ * El código de dos dígitos de una talla o un color. Primero el de ese valor en su atributo; si no tiene, el del mismo
+ * nombre en otro atributo (si en este no lo lleva ya otro valor); si nada, el siguiente libre, y se guarda.
  *
  * @param string $kind size o color.
  * @param string $slug El valor.
+ * @param string $tax  Su atributo (pa_talla-calzado); vacío, solo por el nombre (como antes de la 0.57).
  * @return string
  */
-function dox_pos_sku_code( $kind, $slug ) {
+function dox_pos_sku_code( $kind, $slug, $tax = '' ) {
 	$codes = dox_pos_sku_codes();
-	if ( isset( $codes[ $kind ][ $slug ] ) ) {
-		return $codes[ $kind ][ $slug ];
+	$list  = (array) ( $codes[ $kind ] ?? array() );
+	$mine  = '' !== $tax ? $tax . ':' . $slug : $slug;
+	if ( isset( $list[ $mine ] ) ) {
+		return (string) $list[ $mine ];
+	}
+	if ( isset( $list[ $slug ] ) ) {
+		$code  = (string) $list[ $slug ];
+		$taken = false;
+		foreach ( $list as $k => $c ) {
+			if ( '' !== $tax && 0 === strpos( (string) $k, $tax . ':' ) && (string) $c === $code ) {
+				$taken = true; // En este atributo ese número ya es de otro valor.
+				break;
+			}
+		}
+		if ( ! $taken ) {
+			if ( '' !== $tax ) {
+				$codes[ $kind ][ $mine ] = $code;
+				update_option( 'dox_pos_sku_codes', $codes, false );
+			}
+			return $code;
+		}
 	}
 	$max = 0;
-	foreach ( (array) $codes[ $kind ] as $c ) {
+	foreach ( $list as $c ) {
 		$max = max( $max, (int) $c );
 	}
-	$new                    = str_pad( (string) ( $max + 1 ), 2, '0', STR_PAD_LEFT );
-	$codes[ $kind ][ $slug ] = $new;
+	$new                     = str_pad( (string) ( $max + 1 ), 2, '0', STR_PAD_LEFT );
+	$codes[ $kind ][ $mine ] = $new;
+	if ( ! isset( $list[ $slug ] ) ) {
+		$codes[ $kind ][ $slug ] = $new;
+	}
 	update_option( 'dox_pos_sku_codes', $codes, false );
 	return $new;
 }
@@ -1475,7 +1628,7 @@ function dox_pos_sku_code_no_size() {
 	foreach ( dox_pos_size_attributes() as $tax ) {
 		foreach ( dox_pos_attribute_terms( $tax, 'size' ) as $t ) {
 			if ( 9999999 === $t['key'] ) {
-				return dox_pos_sku_code( 'size', $t['slug'] );
+				return dox_pos_sku_code( 'size', $t['slug'], $tax );
 			}
 		}
 	}
@@ -1521,7 +1674,7 @@ function dox_pos_variation_sku( $format, $base, $size, $color ) {
 	if ( 'slugs' === $format ) {
 		return implode( '-', array_filter( array( $base, $size ? $size->slug : '', $color ? $color->slug : '' ) ) );
 	}
-	return $base . ( $size ? dox_pos_sku_code( 'size', $size->slug ) : dox_pos_sku_code_no_size() ) . ( $color ? dox_pos_sku_code( 'color', $color->slug ) : '0' );
+	return $base . ( $size ? dox_pos_sku_code( 'size', $size->slug, $size->taxonomy ) : dox_pos_sku_code_no_size() ) . ( $color ? dox_pos_sku_code( 'color', $color->slug, $color->taxonomy ) : '0' );
 }
 
 /**
@@ -1869,10 +2022,14 @@ function dox_pos_create_product( $data ) {
 	$axes = dox_pos_vary_axes( dox_pos_categories_vary( $cats ) );
 	$all  = dox_pos_attribute_taxonomies();
 	if ( array_key_exists( 'size_attr', $data ) || array_key_exists( 'color_attr', $data ) ) {
-		$want_row = (string) ( $data['size_attr'] ?? '' );
-		$want_col = array_key_exists( 'color_attr', $data ) ? (string) $data['color_attr'] : $axes['col'];
+		$want_row = is_scalar( $data['size_attr'] ?? '' ) ? (string) ( $data['size_attr'] ?? '' ) : '';
+		$want_col = array_key_exists( 'color_attr', $data ) ? ( is_scalar( $data['color_attr'] ) ? (string) $data['color_attr'] : '' ) : $axes['col'];
 		if ( ! array_key_exists( 'color_attr', $data ) && ! dox_pos_is_size_attribute( $want_row ) ) {
 			$want_row = $axes['row']; // Una caja vieja manda la talla de siempre: si no es de talla, lo de la categoría.
+		}
+		if ( ( '' !== $want_row && ! isset( $all[ $want_row ] ) ) || ( '' !== $want_col && ! isset( $all[ $want_col ] ) ) ) {
+			// Lo borraron en WooCommerce con la caja abierta: crearlo sin esa opción sería crearlo sin sus variaciones.
+			return new WP_Error( 'dox_pos_atributo', __( 'One of the options of this category is no longer in the store. Reload the register and try again.', 'dox-pos' ) );
 		}
 		$axes = array(
 			'row' => isset( $all[ $want_row ] ) ? $want_row : '',
@@ -2005,6 +2162,7 @@ function dox_pos_create_product( $data ) {
 			$attrs[] = dox_pos_make_attribute( $size_tax, array_keys( $sizes ), count( $attrs ) );
 		}
 		$product->set_attributes( $attrs );
+		$product->update_meta_data( '_dox_pos_axes', array( $sizes ? $size_tax : '', $colors ? $color_tax : '' ) ); // Sus filas y columnas (dox_pos_product_axes()).
 		if ( null !== $shared ) {
 			$product->set_manage_stock( true );
 			$product->set_stock_quantity( $shared );
@@ -2039,8 +2197,14 @@ function dox_pos_create_product( $data ) {
 		}
 		$color_list = $colors ? $colors : array( '' => null );
 		$size_list  = $sizes ? $sizes : array( 0 => null );
+		$made       = array(); // Un color que llega dos veces (por su id y como nuevo con el mismo nombre) da una sola columna.
 		foreach ( $color_list as $ckey => $cterm ) {
 			foreach ( $size_list as $sid => $sterm ) {
+				$combo = ( $cterm ? (string) $cterm->term_id : '' ) . '|' . $sid;
+				if ( isset( $made[ $combo ] ) ) {
+					continue;
+				}
+				$made[ $combo ] = true;
 				$v = new WC_Product_Variation();
 				$v->set_parent_id( $pid );
 				$v->set_status( 'publish' );
@@ -2114,6 +2278,7 @@ function dox_pos_create_product( $data ) {
 		wp_update_post( array( 'ID' => $im['id'], 'post_parent' => $pid ) );
 	}
 	delete_transient( 'dox_pos_product_form' );
+	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
 	return dox_pos_product_response( wc_get_product( $pid ), $units, $nvars );
 }
@@ -2253,7 +2418,7 @@ function dox_pos_set_value_hex( $data ) {
  */
 function dox_pos_set_category_size( $data ) {
 	$cid = (int) ( $data['category'] ?? 0 );
-	$tax = (string) ( $data['attr'] ?? '' );
+	$tax = is_scalar( $data['attr'] ?? '' ) ? (string) ( $data['attr'] ?? '' ) : '';
 	if ( ! $cid || ! term_exists( $cid, 'product_cat' ) ) {
 		return new WP_Error( 'dox_pos_categoria', __( 'That category is not in the store.', 'dox-pos' ) );
 	}
@@ -2284,7 +2449,7 @@ function dox_pos_set_category_vary( $data ) {
 	if ( ! $cid || ! term_exists( $cid, 'product_cat' ) ) {
 		return new WP_Error( 'dox_pos_categoria', __( 'That category is not in the store.', 'dox-pos' ) );
 	}
-	$want = array_values( array_filter( array_map( 'strval', (array) ( $data['attrs'] ?? array() ) ) ) );
+	$want = array_values( array_filter( array_map( 'strval', array_filter( (array) ( $data['attrs'] ?? array() ), 'is_scalar' ) ) ) );
 	$set  = $want ? dox_pos_clean_vary( $want ) : array();
 	if ( null === $set || count( $set ) !== count( array_unique( $want ) ) ) {
 		return new WP_Error( 'dox_pos_varia', __( 'Choose up to two different attributes of the store.', 'dox-pos' ) );
@@ -2337,13 +2502,16 @@ function dox_pos_create_attribute( $data ) {
 	$all  = dox_pos_attribute_taxonomies();
 	$tax  = '';
 	$new  = false;
+	$likes = array();
 	foreach ( $all as $t => $label ) {
-		$same = dox_pos_attribute_likeness( $name, $label, substr( $t, 3 ) );
-		if ( 2 === $same ) {
-			$tax = $t; // Se llama igual: se usa ese y se le añaden los valores.
+		$likes[ $t ] = dox_pos_attribute_likeness( $name, $label, substr( $t, 3 ) );
+		if ( 2 === $likes[ $t ] ) {
+			$tax = $t; // Se llama igual: se usa ese y se le añaden los valores (antes que avisar de uno parecido).
 			break;
 		}
-		if ( 1 === $same && empty( $data['force'] ) ) {
+	}
+	foreach ( '' === $tax ? $all : array() as $t => $label ) {
+		if ( 1 === $likes[ $t ] && empty( $data['force'] ) ) {
 			return new WP_Error(
 				'dox_pos_parecido',
 				/* translators: %s: attribute name */
@@ -2357,16 +2525,17 @@ function dox_pos_create_attribute( $data ) {
 			return new WP_Error( 'dox_pos_atributo', __( 'WooCommerce would not create the attribute.', 'dox-pos' ) );
 		}
 		// WooCommerce admite 28 bytes: se corta sin partir una letra (un nombre en ruso o en griego no se translitera).
-		$slug = mb_strcut( wc_sanitize_taxonomy_name( remove_accents( $name ) ), 0, 27, 'UTF-8' );
+		// Sin "pa_" delante: WooCommerce se lo quita y la taxonomía sería otra.
+		$slug = dox_pos_cut_bytes( (string) preg_replace( '/^pa_/', '', wc_sanitize_taxonomy_name( remove_accents( $name ) ) ), 27 );
 		$slug = '' !== $slug ? $slug : 'atributo';
 		$base = $slug;
 		$i    = 2;
 		// Los nombres que WordPress se reserva (Type, Name, Order, Page) también llevan número.
 		while ( taxonomy_exists( 'pa_' . $slug ) || isset( $all[ 'pa_' . $slug ] ) || wc_check_if_attribute_name_is_reserved( $slug ) ) {
-			$slug = mb_strcut( $base, 0, 24, 'UTF-8' ) . '-' . $i;
+			$slug = dox_pos_cut_bytes( $base, 24 ) . '-' . $i;
 			++$i;
 		}
-		$id = wc_create_attribute( array( 'name' => $name, 'slug' => $slug, 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false ) );
+		$id = wc_create_attribute( array( 'name' => $name, 'slug' => $slug, 'type' => dox_pos_new_attribute_type( $name ), 'order_by' => 'menu_order', 'has_archives' => false ) );
 		if ( ! is_wp_error( $id ) && ( ! $id || ! wc_get_attribute( $id ) ) ) { // Un fallo de la base de datos no llega como error.
 			$id = new WP_Error( 'dox_pos_atributo', __( 'WooCommerce would not create the attribute.', 'dox-pos' ) );
 		}
@@ -2374,7 +2543,7 @@ function dox_pos_create_attribute( $data ) {
 			/* translators: 1: attribute, 2: reason */
 			return new WP_Error( 'dox_pos_atributo', sprintf( __( 'The attribute %1$s could not be created: %2$s', 'dox-pos' ), $name, $id->get_error_message() ) );
 		}
-		$tax = wc_attribute_taxonomy_name( $slug );
+		$tax = (string) wc_get_attribute( $id )->slug; // pa_capacidad: el nombre con el que WooCommerce lo creó.
 		$new = true;
 		// WooCommerce registra sus taxonomías al cargar la página: la nueva se registra ya para poder meterle valores.
 		if ( ! taxonomy_exists( $tax ) ) {
@@ -2392,6 +2561,48 @@ function dox_pos_create_attribute( $data ) {
 	delete_transient( 'dox_pos_product_form' );
 	// created: false si ya existía y solo se le añadieron valores; added: los que se le añadieron (XS y XXL a Talla).
 	return array( 'attr' => dox_pos_vary_attribute( $tax ), 'created' => $new, 'added' => $added );
+}
+
+/**
+ * Corta un texto a unos bytes sin partir una letra (mb_strcut, o a mano si el servidor no tiene mbstring).
+ *
+ * @param string $s Texto.
+ * @param int    $n Bytes.
+ * @return string
+ */
+function dox_pos_cut_bytes( $s, $n ) {
+	if ( function_exists( 'mb_strcut' ) ) {
+		return mb_strcut( (string) $s, 0, $n, 'UTF-8' );
+	}
+	$s = substr( (string) $s, 0, $n );
+	while ( '' !== $s && ! preg_match( '//u', $s ) ) {
+		$s = substr( $s, 0, -1 );
+	}
+	return $s;
+}
+
+/**
+ * El tipo de un atributo nuevo: uno que se llama como un color ("Color", "Color tapa") nace de tipo color si un plugin
+ * de muestras lo ofrece, para que la tienda enseñe los tonos que se le ponen desde la caja; los demás, de lista.
+ *
+ * @param string $name Nombre.
+ * @return string
+ */
+function dox_pos_new_attribute_type( $name ) {
+	$slug  = sanitize_title( remove_accents( (string) $name ) );
+	$color = false;
+	foreach ( dox_pos_attribute_names( 'color' ) as $n ) {
+		$color = $color || $slug === $n || 0 === strpos( $slug, $n . '-' ) || substr( $slug, -strlen( $n ) - 1 ) === '-' . $n;
+	}
+	$types = function_exists( 'wc_get_attribute_types' ) ? wc_get_attribute_types() : array();
+	if ( $color ) {
+		foreach ( array( 'color', 'st-color-swatch' ) as $type ) {
+			if ( isset( $types[ $type ] ) ) {
+				return $type;
+			}
+		}
+	}
+	return 'select';
 }
 
 /**
@@ -2618,7 +2829,8 @@ function dox_pos_product_model( $p, $size_tax = '', $color_tax = '' ) {
 			foreach ( $a->get_options() as $tid ) {
 				$t = get_term( (int) $tid, $color_tax );
 				if ( $t && ! is_wp_error( $t ) ) {
-					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => $swatch ? dox_pos_term_hex( $t->term_id, $color_tax ) : '' );
+					$hex             = $swatch ? dox_pos_term_hex( $t->term_id, $color_tax ) : '';
+					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => $hex, 'img' => $swatch && '' === $hex && dox_pos_term_has_image( $t->term_id, $color_tax ) );
 				}
 			}
 		}
@@ -3288,9 +3500,13 @@ function dox_pos_update_product( $id, $data ) {
 		$size_list  = $sizes ? $sizes : array( 0 => null );
 		foreach ( $color_list as $ckey => $cterm ) {
 			foreach ( $size_list as $sid => $sterm ) {
-				if ( isset( $existing[ $ckey . '|' . $sid ] ) ) {
+				// Por el id del color y no por la clave de la caja: un "Negro" nuevo que ya existía (un reintento después
+				// de un guardado a medias, o escrito a mano) llega como "n:negro" y no debe repetir sus variaciones.
+				$combo = ( $cterm ? (string) $cterm->term_id : (string) $ckey ) . '|' . $sid;
+				if ( isset( $existing[ $combo ] ) ) {
 					continue;
 				}
+				$existing[ $combo ] = true;
 				$v = new WC_Product_Variation();
 				$v->set_parent_id( $pid );
 				$v->set_status( 'publish' );
@@ -3371,7 +3587,12 @@ function dox_pos_update_product( $id, $data ) {
 			wp_update_post( array( 'ID' => $im['id'], 'post_parent' => $pid ) );
 		}
 	}
+	if ( $p->is_type( 'variable' ) && ! $p->get_meta( '_dox_pos_axes', true ) ) {
+		// Lo editado desde la caja se queda con las filas y columnas con las que se editó (dox_pos_product_axes()).
+		update_post_meta( $pid, '_dox_pos_axes', array( (string) $model['size_attr'], (string) $model['color_attr'] ) );
+	}
 	delete_transient( 'dox_pos_product_form' );
+	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
 	return dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
 }
@@ -3396,8 +3617,8 @@ function dox_pos_adopt_axis( $p, $model, &$data ) {
 	$done = false;
 	foreach ( array( 'size', 'color' ) as $axis ) {
 		$have = $model[ $axis . '_attr' ];
-		$tax  = (string) ( $data[ $axis . '_attr' ] ?? '' );
-		$pick = $data[ 'adopt_' . $axis ] ?? '';
+		$tax  = is_scalar( $data[ $axis . '_attr' ] ?? '' ) ? (string) ( $data[ $axis . '_attr' ] ?? '' ) : '';
+		$pick = is_scalar( $data[ 'adopt_' . $axis ] ?? '' ) ? $data[ 'adopt_' . $axis ] ?? '' : '';
 		if ( '' !== $have || '' === $tax || '' === (string) $pick || ! isset( $all[ $tax ] ) ) {
 			continue;
 		}
@@ -3451,6 +3672,7 @@ function dox_pos_adopt_axis( $p, $model, &$data ) {
 		$done                     = true;
 	}
 	if ( $done ) {
+		update_post_meta( $p->get_id(), '_dox_pos_axes', array( (string) $model['size_attr'], (string) $model['color_attr'] ) );
 		wc_delete_product_transients( $p->get_id() );
 	}
 	return $done;

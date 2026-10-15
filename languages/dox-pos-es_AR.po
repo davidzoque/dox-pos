@@ -21,7 +21,7 @@ msgstr "Tu usuario no tiene acceso a la caja."
 msgid "No photo was received."
 msgstr "No llegó ninguna foto."
 
-#: assets/js/caja.js:3732
+#: assets/js/caja.js:3747
 msgid "One size"
 msgstr "Talle único"
 
@@ -96,7 +96,7 @@ msgstr "Pedido"
 msgid "Date"
 msgstr "Fecha"
 
-#: assets/js/caja.js:4508
+#: assets/js/caja.js:4524
 msgid "Customer"
 msgstr "Cliente"
 
@@ -111,7 +111,7 @@ msgstr "Productos"
 msgid "Units"
 msgstr "Unidades"
 
-#: assets/js/caja.js:4508
+#: assets/js/caja.js:4524
 msgid "Channel"
 msgstr "Canal"
 
@@ -133,19 +133,19 @@ msgstr "Ganancia"
 msgid "Margin %"
 msgstr "Margen %"
 
-#: assets/js/caja.js:4508
+#: assets/js/caja.js:4524
 msgid "Status"
 msgstr "Estado"
 
-#: assets/js/caja.js:4535
+#: assets/js/caja.js:4551
 msgid "cash on delivery"
 msgstr "contrarreembolso"
 
-#: assets/js/caja.js:4525
+#: assets/js/caja.js:4541
 msgid "Day"
 msgstr "Día"
 
-#: assets/js/caja.js:4490
+#: assets/js/caja.js:4506
 msgid "Sales"
 msgstr "Ventas"
 
@@ -170,18 +170,18 @@ msgstr "Aparte"
 msgid "Summary"
 msgstr "Resumen"
 
-#: assets/js/caja.js:4492
+#: assets/js/caja.js:4508
 msgid "Sold"
 msgstr "Vendido"
 
-#: assets/js/caja.js:4517
+#: assets/js/caja.js:4533
 msgid "Collected"
 msgstr "Cobrado"
 
 msgid "To collect (cash on delivery)"
 msgstr "Por cobrar (contrarreembolso)"
 
-#: assets/js/caja.js:4517
+#: assets/js/caja.js:4533
 msgid "Unpaid layaway"
 msgstr "Apartado sin pagar"
 
@@ -198,15 +198,15 @@ msgstr "Sin pagar"
 msgid "Cash"
 msgstr "Caja"
 
-#: assets/js/caja.js:4525
+#: assets/js/caja.js:4541
 msgid "To collect"
 msgstr "Por cobrar"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "When"
 msgstr "Cuándo"
 
-#: assets/js/caja.js:4033
+#: assets/js/caja.js:4048
 msgid "SKU"
 msgstr "SKU"
 
@@ -214,30 +214,30 @@ msgstr "SKU"
 msgid "Product"
 msgstr "Producto"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "Before"
 msgstr "Había"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "Change"
 msgstr "Cambio"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "After"
 msgstr "Quedan"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "Unit cost"
 msgstr "Costo unit."
 
 msgid "Value"
 msgstr "Valor"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "Reason"
 msgstr "Motivo"
 
-#: assets/js/caja.js:4551
+#: assets/js/caja.js:4567
 msgid "Who"
 msgstr "Quién"
 
@@ -245,7 +245,7 @@ msgstr "Quién"
 msgid "Note"
 msgstr "Nota"
 
-#: assets/js/caja.js:4545
+#: assets/js/caja.js:4561
 msgid "Movements"
 msgstr "Movimientos"
 
@@ -262,11 +262,11 @@ msgstr "El historial completo es cosa de administradores y gerentes."
 msgid "Published"
 msgstr "Publicado"
 
-#: assets/js/caja.js:4317
+#: assets/js/caja.js:4332
 msgid "Hidden"
 msgstr "Oculto"
 
-#: assets/js/caja.js:4317
+#: assets/js/caja.js:4332
 msgid "Draft"
 msgstr "Borrador"
 
@@ -300,7 +300,7 @@ msgstr "Categoría"
 msgid "Price"
 msgstr "Precio"
 
-#: assets/js/caja.js:4719
+#: assets/js/caja.js:4735
 msgid "Stock"
 msgstr "Stock"
 
@@ -415,7 +415,7 @@ msgstr "Anulado desde la caja por %s. El stock vuelve."
 msgid "Unknown action."
 msgstr "Acción desconocida."
 
-#: assets/js/caja.js:4716
+#: assets/js/caja.js:4732
 msgid "To ship"
 msgstr "Por enviar"
 
@@ -428,7 +428,7 @@ msgstr "Anulado"
 msgid "Refunded"
 msgstr "Reembolsado"
 
-#: assets/js/caja.js:4525
+#: assets/js/caja.js:4541
 msgid "Layaway"
 msgstr "Apartado"
 
@@ -537,11 +537,11 @@ msgstr "No se pudo guardar la foto como WebP."
 msgid "That photo is not pending."
 msgstr "Esa foto no está pendiente."
 
-#: assets/js/caja.js:3931
+#: assets/js/caja.js:3946
 msgid "Give the product a name."
 msgstr "Ponele nombre al producto."
 
-#: assets/js/caja.js:3933
+#: assets/js/caja.js:3948
 msgid "Set a price."
 msgstr "Ponele precio."
 
@@ -713,7 +713,7 @@ msgstr "Marca"
 msgid "Screen"
 msgstr "Pantalla"
 
-#: assets/js/caja.js:4716
+#: assets/js/caja.js:4732
 msgid "Layaways"
 msgstr "Apartados"
 
@@ -771,7 +771,7 @@ msgstr "Las letras"
 msgid "Discard"
 msgstr "Descartar"
 
-#: assets/js/caja.js:3991
+#: assets/js/caja.js:4006
 msgid "Save changes"
 msgstr "Guardar cambios"
 
@@ -988,7 +988,7 @@ msgstr "Con lista para elegir (Colciudades)"
 msgid "Typed by hand"
 msgstr "Se escriben a mano"
 
-#: assets/js/caja.js:4040
+#: assets/js/caja.js:4055
 msgid "Photos"
 msgstr "Fotos"
 
@@ -1104,7 +1104,7 @@ msgstr "En vivo"
 msgid "Sell"
 msgstr "Vender"
 
-#: assets/js/caja.js:4506
+#: assets/js/caja.js:4522
 msgid "Orders"
 msgstr "Pedidos"
 
@@ -1143,7 +1143,7 @@ msgstr "Guardar"
 msgid "Sizes"
 msgstr "Talles"
 
-#: assets/js/caja.js:4045
+#: assets/js/caja.js:4060
 msgid "Create product"
 msgstr "Crear producto"
 
@@ -1156,7 +1156,7 @@ msgstr "Producto nuevo"
 msgid "Scheduled task"
 msgstr "Tarea programada"
 
-#: assets/js/caja.js:4492
+#: assets/js/caja.js:4508
 msgid "Sale"
 msgid_plural "Sales"
 msgstr[0] "Venta"
@@ -1164,7 +1164,7 @@ msgstr[1] "Ventas"
 
 #. El motivo de un movimiento del kardex. Va con contexto porque "Sale" también es
 #. la etiqueta plural de la tarjeta de ventas del historial.
-#: includes/stock-log.php:298 assets/js/caja.js:4492
+#: includes/stock-log.php:298 assets/js/caja.js:4508
 msgctxt "stock movement reason"
 msgid "Sale"
 msgstr "Venta"
@@ -1259,7 +1259,7 @@ msgstr "Últimas entradas"
 msgid "Full inventory"
 msgstr "Stock completo"
 
-#: assets/js/caja.js:4432
+#: assets/js/caja.js:4448
 msgid "Download as Excel"
 msgstr "Descargar en Excel"
 
@@ -1287,7 +1287,7 @@ msgstr "Los pedidos de la caja y de la página web aparecerán aquí."
 msgid "The orders you record from the register will show up here."
 msgstr "Los pedidos que registres desde la caja aparecerán aquí."
 
-#: assets/js/caja.js:4234
+#: assets/js/caja.js:4249
 msgid "New product"
 msgstr "Nuevo producto"
 
@@ -1303,11 +1303,11 @@ msgstr "Nombre o SKU"
 msgid "Search for the product"
 msgstr "Buscar el producto"
 
-#: assets/js/caja.js:4556
+#: assets/js/caja.js:4572
 msgid "Previous"
 msgstr "Anteriores"
 
-#: assets/js/caja.js:4556
+#: assets/js/caja.js:4572
 msgid "Next"
 msgstr "Siguientes"
 
@@ -1325,7 +1325,7 @@ msgstr "Cancelar"
 msgid "Fill in what you know; before creating you will see a summary to review. What you type is kept on this phone until you create it."
 msgstr "Completá lo que sepas; antes de crear vas a ver un resumen para revisarlo. Lo escrito se guarda en este teléfono hasta que lo crees."
 
-#: assets/js/caja.js:4182
+#: assets/js/caja.js:4197
 msgid "Start over"
 msgstr "Empezar de cero"
 
@@ -1355,7 +1355,7 @@ msgstr "Elegir el tono"
 msgid "Shade of the new color"
 msgstr "Tono del color nuevo"
 
-#: assets/js/caja.js:3446
+#: assets/js/caja.js:3453
 msgid "Color name"
 msgstr "Nombre del color"
 
@@ -1366,11 +1366,11 @@ msgstr "Nombre del color nuevo"
 msgid "Add"
 msgstr "Agregar"
 
-#: assets/js/caja.js:3442
+#: assets/js/caja.js:3449
 msgid "No colors: the product only varies by size."
 msgstr "Sin colores: el producto solo varía por talle."
 
-#: assets/js/caja.js:3684
+#: assets/js/caja.js:3699
 msgid "Choose the category and its sizes appear."
 msgstr "Elegí la categoría y aparecen sus talles."
 
@@ -1385,22 +1385,22 @@ msgstr "opcional"
 msgid "Fabric, details, how to wash it…"
 msgstr "Tela, detalles, cómo se lava…"
 
-#: assets/js/caja.js:4141
+#: assets/js/caja.js:4156
 msgid "Publish in the store now"
 msgstr "Publicar en la tienda ahora"
 
-#: assets/js/caja.js:4142
+#: assets/js/caja.js:4157
 msgid "Off: it is saved but hidden; you publish it later from Products."
 msgstr "Apagado: queda guardado pero oculto; lo publicás después desde Productos."
 
 msgid "Today"
 msgstr "Hoy"
 
-#: assets/js/caja.js:4697
+#: assets/js/caja.js:4713
 msgid "This week"
 msgstr "Esta semana"
 
-#: assets/js/caja.js:4698
+#: assets/js/caja.js:4714
 msgid "This month"
 msgstr "Este mes"
 
@@ -1448,13 +1448,13 @@ msgid_plural "with %d units"
 msgstr[0] "con %d unidad"
 msgstr[1] "con %d unidades"
 
-#: assets/js/caja.js:3681
+#: assets/js/caja.js:3696
 msgid "%d size"
 msgid_plural "%d sizes"
 msgstr[0] "%d talle"
 msgstr[1] "%d talles"
 
-#: assets/js/caja.js:3977
+#: assets/js/caja.js:3992
 msgid "%d color"
 msgid_plural "%d colors"
 msgstr[0] "%d color"
@@ -1496,7 +1496,7 @@ msgstr "No se pudo conectar con la tienda (%s)."
 msgid "The search failed. Check the connection and try again."
 msgstr "No se pudo buscar. Revisá la conexión y volvé a intentarlo."
 
-#: assets/js/caja.js:5013
+#: assets/js/caja.js:5029
 msgid "Search what arrived by name or SKU."
 msgstr "Buscá lo que llegó por nombre o por SKU."
 
@@ -1964,54 +1964,54 @@ msgstr "%1$s por unidad (%2$d %%)"
 msgid ": sold at a loss"
 msgstr ": se vende a pérdida"
 
-#: assets/js/caja.js:3431
+#: assets/js/caja.js:3438
 msgid "This product has no colors. If it needs them, they have to be created in WooCommerce."
 msgstr "Este producto no tiene colores. Si los necesita, hay que crearlos en WooCommerce."
 
-#: assets/js/caja.js:3466
+#: assets/js/caja.js:3473
 msgid "More colors (%d)…"
 msgstr "Más colores (%d)…"
 
-#: assets/js/caja.js:3470
+#: assets/js/caja.js:3477
 msgid "Another color…"
 msgstr "Otro color…"
 
-#: assets/js/caja.js:3643
+#: assets/js/caja.js:3658
 msgid "This product has no sizes. If it needs them, they have to be created in WooCommerce."
 msgstr "Este producto no tiene talles. Si los necesita, hay que crearlos en WooCommerce."
 
-#: assets/js/caja.js:3667
+#: assets/js/caja.js:3682
 msgid "Other sizes…"
 msgstr "Otros talles…"
 
-#: assets/js/caja.js:3667
+#: assets/js/caja.js:3682
 msgid "Choose sizes…"
 msgstr "Elegir talles…"
 
-#: assets/js/caja.js:3681
+#: assets/js/caja.js:3696
 msgid "one size"
 msgstr "talle único"
 
 msgid "This category does not use sizes: it stays one size."
 msgstr "Esta categoría no usa talles: queda de talle único."
 
-#: assets/js/caja.js:3685
+#: assets/js/caja.js:3700
 msgid "No sizes: one size."
 msgstr "Sin talles: talle único."
 
-#: assets/js/caja.js:3686
+#: assets/js/caja.js:3701
 msgid "Marked by the category. If the product does not come in all of them, tap the extra ones to remove them."
 msgstr "Marcados por la categoría. Si el producto no viene en todos, tocá los que sobran para sacarlos."
 
-#: assets/js/caja.js:3932
+#: assets/js/caja.js:3947
 msgid "Choose a category."
 msgstr "Elegí una categoría."
 
-#: assets/js/caja.js:3934
+#: assets/js/caja.js:3949
 msgid "The SKU is missing."
 msgstr "Falta el SKU."
 
-#: assets/js/caja.js:3935
+#: assets/js/caja.js:3950
 msgid "That SKU is already taken."
 msgstr "Ese SKU ya está en uso."
 
@@ -2019,91 +2019,87 @@ msgstr "Ese SKU ya está en uso."
 msgid "A photo could not be uploaded: tap it to try again, or remove it."
 msgstr "Una foto no se pudo subir: tocala para reintentar o eliminala."
 
-#: assets/js/caja.js:3948
+#: assets/js/caja.js:3963
 msgid "Wait for the photos to finish uploading."
 msgstr "Esperá a que terminen de subirse las fotos."
 
-#: assets/js/caja.js:3981
+#: assets/js/caja.js:3996
 msgid "One-size product"
 msgstr "Producto de talle único"
 
-#: assets/js/caja.js:3984
+#: assets/js/caja.js:3999
 msgid "from %1$s to %2$s"
 msgstr "de %1$s a %2$s"
 
-#: assets/js/caja.js:3986
+#: assets/js/caja.js:4001
 msgid "leaves %1$s (%2$d %%)"
 msgstr "deja %1$s (%2$d %%)"
 
-#: assets/js/caja.js:3991
+#: assets/js/caja.js:4006
 msgid "Review and create"
 msgstr "Revisar y crear"
 
-#: assets/js/caja.js:4009
+#: assets/js/caja.js:4024
 msgid "No photo: it will show a gray box in the store."
 msgstr "Sin foto: en la tienda saldrá con un cuadro gris."
 
-#: assets/js/caja.js:4010
+#: assets/js/caja.js:4025
 msgid "No units: it will show as out of stock."
 msgstr "Sin unidades: saldrá agotado."
 
-#: assets/js/caja.js:4012
+#: assets/js/caja.js:4027
 msgid "The price is outside what is usual: in the store it goes from %1$s to %2$s. Check the zeros."
 msgstr "El precio se sale de lo habitual: en la tienda va de %1$s a %2$s. Revisá los ceros."
 
-#: assets/js/caja.js:4013
+#: assets/js/caja.js:4028
 msgid "There is already a product called %s."
 msgstr "Ya existe un producto llamado %s."
 
-#: assets/js/caja.js:4014
+#: assets/js/caja.js:4029
 msgid "The cost is higher than the price: it would sell at a loss."
 msgstr "El costo es mayor que el precio: se vendería a pérdida."
 
-#: assets/js/caja.js:4019
+#: assets/js/caja.js:4034
 msgid "The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones."
 msgstr "Los %d talles los marcó la categoría. Si el producto no viene en todos, volvé y sacá los que sobran."
 
-#: assets/js/caja.js:4031
+#: assets/js/caja.js:4046
 msgid "Check before creating"
 msgstr "Revisá antes de crear"
 
-#: assets/js/caja.js:4033
+#: assets/js/caja.js:4048
 msgid "no SKU"
 msgstr "sin SKU"
 
-#: assets/js/caja.js:4035
+#: assets/js/caja.js:4050
 msgid "leaves %s per unit"
 msgstr "deja %s por unidad"
 
-#: assets/js/caja.js:4035
+#: assets/js/caja.js:4050
 msgid "No cost"
 msgstr "Sin costo"
 
-#: assets/js/caja.js:4040
+#: assets/js/caja.js:4055
 msgid "No photo"
 msgstr "Sin foto"
 
-#: assets/js/caja.js:4041
+#: assets/js/caja.js:4056
 msgid "Store"
 msgstr "Tienda"
 
-#: assets/js/caja.js:4041
+#: assets/js/caja.js:4056
 msgid "It is published now"
 msgstr "Se publica ahora"
 
-#: assets/js/caja.js:4041
+#: assets/js/caja.js:4056
 msgid "It stays hidden"
 msgstr "Queda oculto"
 
-#: assets/js/caja.js:4045
+#: assets/js/caja.js:4060
 msgid "Back to review"
 msgstr "Volver a revisar"
 
-#: assets/js/caja.js:577
-msgid "Add a photo"
-msgstr "Agregar foto"
-
-#: assets/js/caja.js:4046
+#: assets/js/caja.js:4061
 msgid "Create without a photo"
 msgstr "Crear sin foto"
 
@@ -2111,247 +2107,247 @@ msgstr "Crear sin foto"
 msgid "Back"
 msgstr "Volver"
 
-#: assets/js/caja.js:4058
+#: assets/js/caja.js:4073
 msgid "Creating a product needs a connection."
 msgstr "Para crear un producto hace falta conexión."
 
-#: assets/js/caja.js:4065
+#: assets/js/caja.js:4080
 msgid "The product will have no photo. Save it like that?"
 msgstr "El producto quedará sin foto. ¿Guardarlo así?"
 
-#: assets/js/caja.js:4064
+#: assets/js/caja.js:4079
 msgid "Yes, save it"
 msgstr "Sí, guardar"
 
-#: assets/js/caja.js:4109
+#: assets/js/caja.js:4124
 msgid "No signal. Try again when the connection is back: the photos are already uploaded."
 msgstr "Sin señal. Volvé a intentarlo cuando vuelva la conexión: las fotos ya están subidas."
 
-#: assets/js/caja.js:4118
+#: assets/js/caja.js:4133
 msgid "It is already in the store"
 msgstr "Ya está en la tienda"
 
-#: assets/js/caja.js:4118
+#: assets/js/caja.js:4133
 msgid "Saved hidden, not published"
 msgstr "Guardado oculto, sin publicar"
 
-#: assets/js/caja.js:4118
+#: assets/js/caja.js:4133
 msgid "Fix something"
 msgstr "Corregir algo"
 
-#: assets/js/caja.js:4118
+#: assets/js/caja.js:4133
 msgid "Create another"
 msgstr "Crear otro"
 
-#: assets/js/caja.js:4377
+#: assets/js/caja.js:4393
 msgid "Saved"
 msgstr "Guardado"
 
-#: assets/js/caja.js:4377
+#: assets/js/caja.js:4393
 msgid "published"
 msgstr "publicado"
 
-#: assets/js/caja.js:4362
+#: assets/js/caja.js:4378
 msgid "Published in the store"
 msgstr "Publicado en la tienda"
 
-#: assets/js/caja.js:4363
+#: assets/js/caja.js:4379
 msgid "Off: it stays hidden, not shown and not sold."
 msgstr "Apagado: queda oculto, ni se ve ni se vende."
 
-#: assets/js/caja.js:4180
+#: assets/js/caja.js:4195
 msgid "one with no name yet"
 msgstr "uno sin nombre todavía"
 
-#: assets/js/caja.js:4182
+#: assets/js/caja.js:4197
 msgid "You have a product half done: %s. Carry on with it?"
 msgstr "Tenés un producto a medias: %s. ¿Seguir con él?"
 
-#: assets/js/caja.js:4182
+#: assets/js/caja.js:4197
 msgid "Carry on"
 msgstr "Seguir"
 
-#: assets/js/caja.js:4208
+#: assets/js/caja.js:4223
 msgid "The photos of that draft were already deleted because of the time passed: upload them again."
 msgstr "Las fotos de ese borrador ya se borraron por el tiempo pasado: volvé a subirlas."
 
-#: assets/js/caja.js:4211
+#: assets/js/caja.js:4226
 msgid "Start over? What you typed is erased."
 msgstr "¿Empezar de cero? Se borra lo escrito."
 
-#: assets/js/caja.js:4311
+#: assets/js/caja.js:4326
 msgid "Nothing matches. Try one word or the SKU."
 msgstr "No hay resultados. Probá con una palabra o con el SKU."
 
-#: assets/js/caja.js:4311
+#: assets/js/caja.js:4326
 msgid "The store has no products."
 msgstr "La tienda no tiene productos."
 
-#: assets/js/caja.js:4357
+#: assets/js/caja.js:4373
 msgid "The SKU is only changed in WooCommerce."
 msgstr "El SKU solo se cambia en WooCommerce."
 
-#: assets/js/caja.js:4357
+#: assets/js/caja.js:4373
 msgid "No SKU."
 msgstr "Sin SKU."
 
-#: assets/js/caja.js:4365
+#: assets/js/caja.js:4381
 msgid "Editing %1$s%2$s (%3$s)"
 msgstr "Editando %1$s%2$s (%3$s)"
 
-#: assets/js/caja.js:4366
+#: assets/js/caja.js:4382
 msgid "The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them."
 msgstr "Los talles tienen precios distintos (de %1$s a %2$s): si escribís un precio, se aplica a todos."
 
-#: assets/js/caja.js:4366
+#: assets/js/caja.js:4382
 msgid "Changes are saved with the button below."
 msgstr "Los cambios se guardan con el botón de abajo."
 
-#: assets/js/caja.js:4368
+#: assets/js/caja.js:4384
 msgid "It opens in another tab"
 msgstr "Se abre en otra pestaña"
 
-#: assets/js/caja.js:4368
+#: assets/js/caja.js:4384
 msgid "It is hidden: you see it because you are signed in, the customer does not"
 msgstr "Está oculto: lo ves vos porque iniciaste sesión, el cliente no"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Sun"
 msgstr "dom"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Mon"
 msgstr "lun"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Tue"
 msgstr "mar"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Wed"
 msgstr "mié"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Thu"
 msgstr "jue"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Fri"
 msgstr "vie"
 
-#: assets/js/caja.js:4412
+#: assets/js/caja.js:4428
 msgid "Sat"
 msgstr "sáb"
 
-#: assets/js/caja.js:4419
+#: assets/js/caja.js:4435
 msgid "for today, %s"
 msgstr "de hoy, %s"
 
-#: assets/js/caja.js:4419
+#: assets/js/caja.js:4435
 msgid "for %s"
 msgstr "del %s"
 
-#: assets/js/caja.js:4456
+#: assets/js/caja.js:4472
 msgid "No signal: the history is read from the store."
 msgstr "Sin señal: el historial se lee de la tienda."
 
-#: assets/js/caja.js:4482
+#: assets/js/caja.js:4498
 msgid "pays on delivery"
 msgstr "paga al recibir"
 
-#: assets/js/caja.js:4490
+#: assets/js/caja.js:4506
 msgid "Your sales"
 msgstr "Tus ventas"
 
-#: assets/js/caja.js:4492
+#: assets/js/caja.js:4508
 msgid "Per sale"
 msgstr "Por venta"
 
-#: assets/js/caja.js:4495
+#: assets/js/caja.js:4511
 msgid "Not paid yet (%d)"
 msgstr "Sin pagar aún (%d)"
 
-#: assets/js/caja.js:4503
+#: assets/js/caja.js:4519
 msgid "The cost is set in Products, or loaded all at once from the inventory Excel in Inventory."
 msgstr "El costo se configura en Productos, o se sube todo junto con el Excel del stock en la pestaña Stock."
 
-#: assets/js/caja.js:4504
+#: assets/js/caja.js:4520
 msgid "By channel"
 msgstr "Por canal"
 
-#: assets/js/caja.js:4504
+#: assets/js/caja.js:4520
 msgid "By payment method"
 msgstr "Por forma de pago"
 
-#: assets/js/caja.js:4504
+#: assets/js/caja.js:4520
 msgid "By salesperson"
 msgstr "Por vendedor"
 
-#: assets/js/caja.js:4505
+#: assets/js/caja.js:4521
 msgid "By day"
 msgstr "Por día"
 
-#: assets/js/caja.js:4506
+#: assets/js/caja.js:4522
 msgid "the latest %d"
 msgstr "los últimos %d"
 
-#: assets/js/caja.js:4507
+#: assets/js/caja.js:4523
 msgid "Nothing in this period."
 msgstr "Nada en este periodo."
 
-#: assets/js/caja.js:4514
+#: assets/js/caja.js:4530
 msgid "The cash"
 msgstr "La caja"
 
-#: assets/js/caja.js:4517
+#: assets/js/caja.js:4533
 msgid "To collect on delivery"
 msgstr "Por cobrar al entregar"
 
-#: assets/js/caja.js:4520
+#: assets/js/caja.js:4536
 msgid "Collected by payment method"
 msgstr "Cobrado por forma de pago"
 
-#: assets/js/caja.js:4541
+#: assets/js/caja.js:4557
 msgid "All"
 msgstr "Todos"
 
-#: assets/js/caja.js:4541
+#: assets/js/caja.js:4557
 msgid "Stock entries"
 msgstr "Entradas"
 
-#: assets/js/caja.js:4541 assets/js/ticket.js:105
+#: assets/js/caja.js:4557 assets/js/ticket.js:105
 msgid "Returned"
 msgstr "Devueltos"
 
-#: assets/js/caja.js:4541
+#: assets/js/caja.js:4557
 msgid "Adjustments"
 msgstr "Ajustes"
 
-#: assets/js/caja.js:4548
+#: assets/js/caja.js:4564
 msgid "in"
 msgstr "entraron"
 
-#: assets/js/caja.js:4548
+#: assets/js/caja.js:4564
 msgid "out"
 msgstr "salieron"
 
-#: assets/js/caja.js:4548
+#: assets/js/caja.js:4564
 msgid "No movements in this period. Every sale, stock entry, cancellation and stock change is kept here, with its reason and who did it."
 msgstr "Sin movimientos en este periodo. Aquí queda cada venta, entrada, anulación y cambio de stock, con su motivo y quién lo hizo."
 
-#: assets/js/caja.js:4305
+#: assets/js/caja.js:4320
 msgid "%1$s-%2$s of %3$s"
 msgstr "%1$s-%2$s de %3$s"
 
-#: assets/js/caja.js:4640
+#: assets/js/caja.js:4656
 msgid "Uploading…"
 msgstr "Subiendo…"
 
-#: assets/js/caja.js:4649
+#: assets/js/caja.js:4665
 msgid "Costs loaded"
 msgstr "Costos cargados"
 
-#: assets/js/caja.js:4652
+#: assets/js/caja.js:4668
 msgid "No signal: the file could not be uploaded."
 msgstr "Sin señal: no se pudo subir el archivo."
 
@@ -2425,7 +2421,7 @@ msgid_plural "%d records kept on this phone"
 msgstr[0] "%d registro guardado en el teléfono"
 msgstr[1] "%d registros guardados en el teléfono"
 
-#: assets/js/caja.js:3980
+#: assets/js/caja.js:3995
 msgid "%d variation"
 msgid_plural "%d variations"
 msgstr[0] "%d variación"
@@ -2437,61 +2433,61 @@ msgid_plural "%d photos"
 msgstr[0] "%d foto"
 msgstr[1] "%d fotos"
 
-#: assets/js/caja.js:4471 assets/js/mostrador.js:528 assets/js/ticket.js:119
+#: assets/js/caja.js:4487 assets/js/mostrador.js:528 assets/js/ticket.js:119
 msgid "%d sale"
 msgid_plural "%d sales"
 msgstr[0] "%d venta"
 msgstr[1] "%d ventas"
 
-#: assets/js/caja.js:4492
+#: assets/js/caja.js:4508
 msgid "Unit"
 msgid_plural "Units"
 msgstr[0] "Unidad"
 msgstr[1] "Unidades"
 
-#: assets/js/caja.js:4503
+#: assets/js/caja.js:4519
 msgid "%d sale does not have the cost of all its products, so it does not count towards the profit."
 msgid_plural "%d sales do not have the cost of all their products, so they do not count towards the profit."
 msgstr[0] "%d venta no tiene el costo de todos sus productos y no entra en la ganancia."
 msgstr[1] "%d ventas no tienen el costo de todos sus productos y no entran en la ganancia."
 
-#: assets/js/caja.js:4519
+#: assets/js/caja.js:4535
 msgid "%d sale without a complete cost does not count towards the profit."
 msgid_plural "%d sales without a complete cost do not count towards the profit."
 msgstr[0] "%d venta sin costo completo no entra en la ganancia."
 msgstr[1] "%d ventas sin costo completo no entran en la ganancia."
 
-#: assets/js/caja.js:4548
+#: assets/js/caja.js:4564
 msgid "%d movement"
 msgid_plural "%d movements"
 msgstr[0] "%d movimiento"
 msgstr[1] "%d movimientos"
 
-#: assets/js/caja.js:4645
+#: assets/js/caja.js:4661
 msgid "%d cost changed"
 msgid_plural "%d costs changed"
 msgstr[0] "%d costo cambiado"
 msgstr[1] "%d costos cambiados"
 
-#: assets/js/caja.js:4645
+#: assets/js/caja.js:4661
 msgid "out of %d row."
 msgid_plural "out of %d rows."
 msgstr[0] "de %d fila."
 msgstr[1] "de %d filas."
 
-#: assets/js/caja.js:4646
+#: assets/js/caja.js:4662
 msgid "%d was already the same."
 msgid_plural "%d were already the same."
 msgstr[0] "%d ya estaba igual."
 msgstr[1] "%d ya estaban igual."
 
-#: assets/js/caja.js:4647
+#: assets/js/caja.js:4663
 msgid "%d row with no cost (skipped)."
 msgid_plural "%d rows with no cost (skipped)."
 msgstr[0] "%d fila sin costo (se salta)."
 msgstr[1] "%d filas sin costo (se saltan)."
 
-#: assets/js/caja.js:4648
+#: assets/js/caja.js:4664
 msgid "%d SKU is not in the store"
 msgid_plural "%d SKUs are not in the store"
 msgstr[0] "%d SKU no está en la tienda"
@@ -2550,7 +2546,7 @@ msgstr "Pérdida"
 msgid "Losses noted on the sales"
 msgstr "Pérdidas anotadas en las ventas"
 
-#: includes/history.php assets/js/caja.js:4517
+#: includes/history.php assets/js/caja.js:4533
 msgid "Losses"
 msgstr "Pérdidas"
 
@@ -2618,7 +2614,7 @@ msgstr "Pérdida anotada."
 msgid "Loss removed."
 msgstr "Pérdida eliminada."
 
-#: assets/js/caja.js:4494
+#: assets/js/caja.js:4510
 msgid "Loss on %d sale"
 msgid_plural "Losses on %d sales"
 msgstr[0] "Pérdida en %d venta"
@@ -2685,23 +2681,23 @@ msgstr "l j \\d\\e F"
 msgid "Best sellers of the last 30 days"
 msgstr "Lo más vendido en los últimos 30 días"
 
-#: assets/js/caja.js:4688
+#: assets/js/caja.js:4704
 msgid "Refresh"
 msgstr "Actualizar"
 
-#: assets/js/caja.js:4678
+#: assets/js/caja.js:4694
 msgid "No signal: the dashboard reads from the shop."
 msgstr "Sin señal: el Escritorio lee de la tienda."
 
-#: assets/js/caja.js:4691
+#: assets/js/caja.js:4707
 msgid "Sold today"
 msgstr "Vendido hoy"
 
-#: assets/js/caja.js:4691
+#: assets/js/caja.js:4707
 msgid "yesterday %s"
 msgstr "ayer %s"
 
-#: assets/js/caja.js:4692
+#: assets/js/caja.js:4708
 msgid "Profit today"
 msgstr "Ganancia hoy"
 
@@ -2709,101 +2705,101 @@ msgstr "Ganancia hoy"
 msgid "%d %% margin"
 msgstr "%d %% de margen"
 
-#: assets/js/caja.js:4692
+#: assets/js/caja.js:4708
 msgid "%d sale with no cost"
 msgid_plural "%d sales with no cost"
 msgstr[0] "%d venta sin costo"
 msgstr[1] "%d ventas sin costo"
 
-#: assets/js/caja.js:4692
+#: assets/js/caja.js:4708
 msgid "losses %s"
 msgstr "pérdidas %s"
 
-#: assets/js/caja.js:4693
+#: assets/js/caja.js:4709
 msgid "cash on delivery %1$s (%2$d) · layaway %3$s (%4$d)"
 msgstr "contrarreembolso %1$s (%2$d) · apartados %3$s (%4$d)"
 
-#: assets/js/caja.js:4697
+#: assets/js/caja.js:4713
 msgid "last week at this point: %s"
 msgstr "la semana pasada a esta altura: %s"
 
-#: assets/js/caja.js:4698
+#: assets/js/caja.js:4714
 msgid "last month at this point: %s"
 msgstr "el mes pasado a esta altura: %s"
 
-#: assets/js/caja.js:4750
+#: assets/js/caja.js:4766
 msgid "sold in the last %d days"
 msgstr "vendido en los últimos %d días"
 
-#: assets/js/caja.js:4751
+#: assets/js/caja.js:4767
 msgid "%s a day"
 msgstr "%s al día"
 
-#: assets/js/caja.js:4752
+#: assets/js/caja.js:4768
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] "%d día"
 msgstr[1] "%d días"
 
-#: assets/js/caja.js:4703
+#: assets/js/caja.js:4719
 msgid "Best sellers"
 msgstr "Lo más vendido"
 
-#: assets/js/caja.js:4703
+#: assets/js/caja.js:4719
 msgid "last 30 days"
 msgstr "últimos 30 días"
 
-#: assets/js/caja.js:4704
+#: assets/js/caja.js:4720
 msgid "No sales in the last 30 days."
 msgstr "Sin ventas en los últimos 30 días."
 
-#: assets/js/caja.js:4705
+#: assets/js/caja.js:4721
 msgid "Collected today"
 msgstr "Cobrado hoy"
 
-#: assets/js/caja.js:4706
+#: assets/js/caja.js:4722
 msgid "Nothing collected yet today."
 msgstr "Hoy todavía no entró nada."
 
-#: assets/js/caja.js:4716
+#: assets/js/caja.js:4732
 msgid "On the way"
 msgstr "En camino"
 
-#: assets/js/caja.js:4716
+#: assets/js/caja.js:4732
 msgid "Payments to confirm"
 msgstr "Pagos por confirmar"
 
-#: assets/js/caja.js:4716
+#: assets/js/caja.js:4732
 msgid "Website orders unpaid"
 msgstr "De la web sin pagar"
 
-#: assets/js/caja.js:4717
+#: assets/js/caja.js:4733
 msgid "Orders to handle"
 msgstr "Pedidos por atender"
 
-#: assets/js/caja.js:4718
+#: assets/js/caja.js:4734
 msgid "Nothing pending."
 msgstr "Nada pendiente."
 
-#: assets/js/caja.js:4719
+#: assets/js/caja.js:4735
 msgid "Units in stock"
 msgstr "Unidades en stock"
 
-#: assets/js/caja.js:4719
+#: assets/js/caja.js:4735
 msgid "Products out of stock"
 msgstr "Productos agotados"
 
-#: templates/caja.php assets/js/caja.js:3805
+#: templates/caja.php assets/js/caja.js:3820
 msgid "Shared units"
 msgstr "Unidades compartidas"
 
-#: assets/js/caja.js:3821
+#: assets/js/caja.js:3836
 msgid "%s takes these units."
 msgid_plural "%s share these units: when one of them sells, they all go down."
 msgstr[0] "%s usa estas unidades."
 msgstr[1] "%s comparten estas unidades: al venderse uno, bajan para todos."
 
-#: assets/js/caja.js:3914
+#: assets/js/caja.js:3929
 msgid "and %d more"
 msgstr "y %d más"
 
@@ -2811,13 +2807,13 @@ msgstr "y %d más"
 msgid "%1$s and %2$s"
 msgstr "%1$s y %2$s"
 
-#: assets/js/caja.js:4025
+#: assets/js/caja.js:4040
 msgid "%1$d shared unit between %2$d sizes"
 msgid_plural "%1$d shared units between %2$d sizes"
 msgstr[0] "%1$d unidad compartida entre %2$d talles"
 msgstr[1] "%1$d unidades compartidas entre %2$d talles"
 
-#: assets/js/caja.js:4028
+#: assets/js/caja.js:4043
 msgid "shared"
 msgstr "compartidas"
 
@@ -2837,50 +2833,50 @@ msgstr "%1$d para todos los talles %2$s"
 msgid "%s: units shared among their sizes"
 msgstr "%s: unidades compartidas entre sus talles"
 
-#: assets/js/caja.js:3829
+#: assets/js/caja.js:3844
 msgid "Each colour keeps its own shared units: selling a size only lowers the units of its colour."
 msgstr "Cada color lleva sus propias unidades compartidas: vender un talle solo baja las de su color."
 
-#: assets/js/caja.js:3831
+#: assets/js/caja.js:3846
 msgid "These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving."
 msgstr "Estos talles compartían un solo total para todos los colores (%d). Desde ahora cada color lleva el suyo: revisá las cifras antes de guardar."
 
-#: assets/js/caja.js:3798
+#: assets/js/caja.js:3813
 msgid "Shares"
 msgstr "Comparte"
 
-#: assets/js/caja.js:3789
+#: assets/js/caja.js:3804
 msgid "All sizes share"
 msgstr "Todos los talles comparten"
 
-#: assets/js/caja.js:3828
+#: assets/js/caja.js:3843
 msgid "Do several sizes sell from the same units? Choose “Shares” on each one and write how many there are for all of them."
 msgstr "¿Varios talles se venden de las mismas unidades? Elegí «Comparte» en cada uno y escribí cuántas hay entre todos."
 
 msgid "Does not share"
 msgstr "No comparte"
 
-#: assets/js/caja.js:3798
+#: assets/js/caja.js:3813
 msgid "Shares (group %d)"
 msgstr "Comparte (grupo %d)"
 
-#: assets/js/caja.js:3799
+#: assets/js/caja.js:3814
 msgid "Shares, another group"
 msgstr "Comparte, otro grupo"
 
-#: assets/js/caja.js:3811
+#: assets/js/caja.js:3826
 msgid "Shared units · group %d"
 msgstr "Unidades compartidas · grupo %d"
 
-#: assets/js/caja.js:4025
+#: assets/js/caja.js:4040
 msgid "(group %d)"
 msgstr "(grupo %d)"
 
-#: assets/js/caja.js:4028
+#: assets/js/caja.js:4043
 msgid "shared (group %d)"
 msgstr "compartidas (grupo %d)"
 
-#: assets/js/caja.js:3830
+#: assets/js/caja.js:3845
 msgid "Each group keeps its own units too: selling a size only lowers the units of its group."
 msgstr "Cada grupo lleva también sus propias unidades: vender un talle solo baja las de su grupo."
 
@@ -2912,11 +2908,11 @@ msgstr "Sin señal: no se pudieron cargar más productos."
 msgid "There are no products yet."
 msgstr "Todavía no hay productos."
 
-#: assets/js/caja.js:4547
+#: assets/js/caja.js:4563
 msgid "Only this product"
 msgstr "Solo este producto"
 
-#: assets/js/caja.js:4547
+#: assets/js/caja.js:4563
 msgid "See them all"
 msgstr "Ver todos"
 
@@ -3532,15 +3528,15 @@ msgstr "Tocá un grupo y elegí la categoría. Podés marcar más de una."
 msgid "The sizes of this product do not all weigh or measure the same. Leave it empty to keep them as they are; what you type here goes to all of them."
 msgstr "Los talles de este producto no pesan o miden todos lo mismo. Dejalo vacío para que sigan como están; lo que escribas aquí va a todos."
 
-#: assets/js/caja.js:3945
+#: assets/js/caja.js:3960
 msgid "Enter the three measures (length, width and height), or leave them empty."
 msgstr "Ingresá las tres medidas (largo, ancho y alto) o dejalas vacías."
 
-#: assets/js/caja.js:4016
+#: assets/js/caja.js:4031
 msgid "No weight: the shipping by weight will charge it as if it weighed nothing."
 msgstr "Sin peso: el envío por peso lo cobrará como si no pesara nada."
 
-#: assets/js/caja.js:4039
+#: assets/js/caja.js:4054
 msgid "No weight or size"
 msgstr "Sin peso ni medidas"
 
@@ -3600,14 +3596,14 @@ msgstr "Más categorías (%d)…"
 msgid "New category…"
 msgstr "Nueva categoría…"
 
-#: assets/js/caja.js:3648
+#: assets/js/caja.js:3663
 msgid "Size, for example 42"
 msgstr "Talle, por ejemplo 42"
 
 msgid "Name of the new size"
-msgstr "Nombre de el talle nuevo"
+msgstr "Nombre del talle nuevo"
 
-#: assets/js/caja.js:3672
+#: assets/js/caja.js:3687
 msgid "New size…"
 msgstr "Nuevo talle…"
 
@@ -3618,7 +3614,7 @@ msgstr "Talles de %s:"
 msgid "Change type"
 msgstr "Cambiar"
 
-#: assets/js/caja.js:3349
+#: assets/js/caja.js:3351
 msgid "Changing it needs a connection."
 msgstr "Para cambiarlo hace falta conexión."
 
@@ -3626,7 +3622,7 @@ msgstr "Para cambiarlo hace falta conexión."
 msgid "Saved: %s will always use these sizes."
 msgstr "Guardado: %s usará siempre estos talles."
 
-#: assets/js/caja.js:3705
+#: assets/js/caja.js:3720
 msgid "Creating a size needs a connection."
 msgstr "Para crear un talle hace falta conexión."
 
@@ -3753,7 +3749,7 @@ msgstr "talle real %s"
 msgid "Keep searching"
 msgstr "Seguir buscando"
 
-#: assets/js/caja.js:4948
+#: assets/js/caja.js:4964
 msgid "Empty all"
 msgstr "Vaciar todo"
 
@@ -3776,55 +3772,55 @@ msgstr "Ver el pedido"
 msgid "Review and save"
 msgstr "Revisar y guardar"
 
-#: assets/js/caja.js:4948
+#: assets/js/caja.js:4964
 msgid "Empty the order? The products and the customer details are removed."
 msgstr "¿Vaciar el pedido? Se quitan los productos y los datos del cliente."
 
-#: assets/js/caja.js:4258
+#: assets/js/caja.js:4273
 msgid "You have unsaved changes"
 msgstr "Tenés cambios sin guardar"
 
-#: assets/js/caja.js:4258
+#: assets/js/caja.js:4273
 msgid "Leave the new product?"
 msgstr "¿Dejar el producto nuevo?"
 
-#: assets/js/caja.js:4259
+#: assets/js/caja.js:4274
 msgid "If you leave now, the changes you made to this product are lost."
 msgstr "Si salís ahora, se pierden los cambios que hiciste en este producto."
 
-#: assets/js/caja.js:4259
+#: assets/js/caja.js:4274
 msgid "What you typed stays on this phone: when you tap New product again you can carry on with it."
 msgstr "Lo que escribiste queda en este teléfono: al tocar Nuevo producto otra vez podés seguir con él."
 
-#: assets/js/caja.js:4260
+#: assets/js/caja.js:4275
 msgid "Discard changes"
 msgstr "Descartar cambios"
 
-#: assets/js/caja.js:4260
+#: assets/js/caja.js:4275
 msgid "Keep editing"
 msgstr "Seguir editando"
 
-#: assets/js/caja.js:4261
+#: assets/js/caja.js:4276
 msgid "Keep it for later"
 msgstr "Dejarlo para después"
 
-#: assets/js/caja.js:4261
+#: assets/js/caja.js:4276
 msgid "Discard it"
 msgstr "Descartarlo"
 
-#: assets/js/caja.js:4386
+#: assets/js/caja.js:4402
 msgid "You have unsaved changes in the product that is open. Discard them and open the other one?"
 msgstr "Tenés cambios sin guardar en el producto que está abierto. ¿Descartarlos y abrir el otro?"
 
-#: assets/js/caja.js:4386
+#: assets/js/caja.js:4402
 msgid "You have a new product half done. It stays on this phone; open the other one?"
 msgstr "Tenés un producto nuevo a medias. Queda en este teléfono; ¿abrir el otro?"
 
-#: assets/js/caja.js:4386
+#: assets/js/caja.js:4402
 msgid "Yes, open it"
 msgstr "Sí, abrirlo"
 
-#: assets/js/caja.js:4951
+#: assets/js/caja.js:4967
 msgid "Empty all? The %d unit you added is removed. The stock does not change."
 msgid_plural "Empty all? The %d units you added are removed. The stock does not change."
 msgstr[0] "¿Vaciar todo? Se quita la %d unidad que agregaste. El stock no cambia."
@@ -4169,7 +4165,7 @@ msgstr "Contá el efectivo del cajón: es el fondo de caja, y el cierre se compa
 msgid "Cash in the drawer"
 msgstr "Efectivo en el cajón"
 
-#: assets/js/caja.js:3505 assets/js/mostrador.js:534
+#: assets/js/caja.js:3512 assets/js/mostrador.js:534
 msgid "Not now"
 msgstr "Ahora no"
 
@@ -4561,11 +4557,11 @@ msgstr "El descuento puede ser como mucho el %d%% de la venta."
 msgid "Count all the cash in the drawer, float included, and write the total. You will see whether it matches when you close."
 msgstr "Contá toda la plata del cajón, con el fondo, y escribí el total. Al cerrar vas a ver si cierra."
 
-#: assets/js/caja.js:3748
+#: assets/js/caja.js:3763
 msgid "Own units"
 msgstr "Unidades propias"
 
-#: assets/js/caja.js:3748
+#: assets/js/caja.js:3763
 msgid "Not offered"
 msgstr "No se ofrece"
 
@@ -4610,7 +4606,7 @@ msgstr "Ajuste"
 msgid "Only administrators and shop managers can adjust a balance."
 msgstr "Solo los administradores y los gerentes de tienda pueden ajustar un saldo."
 
-#: assets/js/caja.js:4618
+#: assets/js/caja.js:4634
 msgid "Write the customer’s phone number."
 msgstr "Escribí el teléfono del cliente."
 
@@ -4618,7 +4614,7 @@ msgstr "Escribí el teléfono del cliente."
 msgid "Write the amount."
 msgstr "Escribí el importe."
 
-#: assets/js/caja.js:4616
+#: assets/js/caja.js:4632
 msgid "Write why: it stays in the history."
 msgstr "Escribí el motivo: queda en el historial."
 
@@ -4834,47 +4830,47 @@ msgstr "%1$s recibe %2$s de saldo a favor. Su saldo ahora es %3$s."
 msgid "The shop keeps %s as the exchange fee."
 msgstr "El local se queda %s como cargo por cambio."
 
-#: assets/js/caja.js:4498
+#: assets/js/caja.js:4514
 msgid "%s was given back in money and is already taken off."
 msgstr "Se devolvieron %s en dinero y ya están descontados."
 
-#: assets/js/caja.js:4499
+#: assets/js/caja.js:4515
 msgid "It includes %s in deposits to store credit."
 msgstr "Incluye %s en anticipos al saldo a favor."
 
-#: assets/js/caja.js:4500
+#: assets/js/caja.js:4516
 msgid "%s was paid with store credit: it does not add up here, it already counted when the money came in."
 msgstr "Se pagaron %s con saldo a favor: no suman acá, ya contaron cuando entró la plata."
 
-#: assets/js/caja.js:4575
+#: assets/js/caja.js:4591
 msgid "Name or phone"
 msgstr "Nombre o teléfono"
 
-#: assets/js/caja.js:4575
+#: assets/js/caja.js:4591
 msgid "Search customers"
 msgstr "Buscar clientes"
 
-#: assets/js/caja.js:4575
+#: assets/js/caja.js:4591
 msgid "Load a balance"
 msgstr "Cargar un saldo"
 
-#: assets/js/caja.js:4579
+#: assets/js/caja.js:4595
 msgid "Owed in store credit"
 msgstr "Saldo a favor por usar"
 
-#: assets/js/caja.js:4579
+#: assets/js/caja.js:4595
 msgid "Deposits and exchanges that customers have not used yet. Each one counted as a sale when the money came in; when it is used, it does not count again."
 msgstr "Anticipos y cambios que los clientes todavía no usaron. Cada uno contó como venta cuando entró la plata; cuando se usa, no vuelve a contar."
 
-#: assets/js/caja.js:4581
+#: assets/js/caja.js:4597
 msgid "No customer matches."
 msgstr "Ningún cliente coincide."
 
-#: assets/js/caja.js:4581
+#: assets/js/caja.js:4597
 msgid "No store credit yet. It appears when you take a deposit (Sell, Without a product) or return pieces to store credit from an order."
 msgstr "Todavía no hay saldos a favor. Aparecen al recibir un anticipo (Vender, Sin producto) o al devolver prendas al saldo a favor desde un pedido."
 
-#: assets/js/caja.js:4582
+#: assets/js/caja.js:4598
 msgid "last change %s"
 msgstr "último movimiento: %s"
 
@@ -4885,31 +4881,31 @@ msgstr "Importe"
 msgid "Balance"
 msgstr "Saldo"
 
-#: assets/js/caja.js:4600
+#: assets/js/caja.js:4616
 msgid "Adjust"
 msgstr "Ajustar"
 
-#: assets/js/caja.js:4606
+#: assets/js/caja.js:4622
 msgid "Adjust the balance of %s"
 msgstr "Ajustar el saldo de %s"
 
-#: assets/js/caja.js:4606
+#: assets/js/caja.js:4622
 msgid "Balance now: %s. Write a negative amount to lower it."
 msgstr "Saldo ahora: %s. Escribí un importe negativo para bajarlo."
 
-#: assets/js/caja.js:4606
+#: assets/js/caja.js:4622
 msgid "For a balance you kept somewhere else (a spreadsheet, a notebook). It does not count as a sale: that money already came in."
 msgstr "Para un saldo que llevabas en otro lado (una planilla, un cuaderno). No cuenta como venta: esa plata ya entró."
 
-#: assets/js/caja.js:4608
+#: assets/js/caja.js:4624
 msgid "Correction"
 msgstr "Corrección"
 
-#: assets/js/caja.js:4608
+#: assets/js/caja.js:4624
 msgid "Balance carried over from the spreadsheet"
 msgstr "Saldo que venía de la planilla"
 
-#: assets/js/caja.js:4622
+#: assets/js/caja.js:4638
 msgid "Saved. The balance is now %s."
 msgstr "Guardado. El saldo ahora es %s."
 
@@ -4953,13 +4949,13 @@ msgid_plural "%1$d pieces, money back: %2$s"
 msgstr[0] "%1$d prenda, devuelto en dinero: %2$s"
 msgstr[1] "%1$d prendas, devuelto en dinero: %2$s"
 
-#: assets/js/caja.js:4518
+#: assets/js/caja.js:4534
 msgid "%1$s went out in %2$d return, on the day it was given back and by the payment method it went out with."
 msgid_plural "%1$s went out in %2$d returns, on the day they were given back and by the payment method they went out with."
 msgstr[0] "Salieron %1$s en %2$d devolución, el día que se devolvió y por la forma de pago con que salió."
 msgstr[1] "Salieron %1$s en %2$d devoluciones, el día que se devolvieron y por la forma de pago con que salieron."
 
-#: assets/js/caja.js:4579
+#: assets/js/caja.js:4595
 msgid "%d customer with a balance"
 msgid_plural "%d customers with a balance"
 msgstr[0] "%d cliente con saldo"
@@ -4968,7 +4964,7 @@ msgstr[1] "%d clientes con saldo"
 msgid "Order #%s was returned in full"
 msgstr "El pedido #%s se devolvió entero"
 
-#: assets/js/caja.js:4597
+#: assets/js/caja.js:4613
 msgid "balance %s"
 msgstr "saldo %s"
 
@@ -5184,23 +5180,23 @@ msgstr "Se devuelven los anticipos de este apartado. El saldo a favor que el cli
 msgid "Give the money back"
 msgstr "Devolverle la plata"
 
-#: assets/js/caja.js:4710
+#: assets/js/caja.js:4726
 msgid "Layaways due soon"
 msgstr "Apartados por vencer"
 
-#: assets/js/caja.js:4712
+#: assets/js/caja.js:4728
 msgid "in %d h"
 msgstr "en %d h"
 
-#: assets/js/caja.js:4713
+#: assets/js/caja.js:4729
 msgid "deposited %s"
 msgstr "anticipo %s"
 
-#: assets/js/caja.js:4713
+#: assets/js/caja.js:4729
 msgid "no deposit"
 msgstr "sin anticipo"
 
-#: assets/js/caja.js:4714
+#: assets/js/caja.js:4730
 msgid "left %s"
 msgstr "falta %s"
 
@@ -5337,11 +5333,11 @@ msgstr "Prenda: %s"
 msgid "%s in the group"
 msgstr "%s en el grupo"
 
-#: assets/js/caja.js:3901
+#: assets/js/caja.js:3916
 msgid "A single actual size: all the units are of that size."
 msgstr "Un solo talle real: todas las unidades son de ese talle."
 
-#: assets/js/caja.js:3902
+#: assets/js/caja.js:3917
 msgid "Not split yet: write how many pieces carry each size on their tag."
 msgstr "Sin repartir: escribí cuántas prendas llevan cada talle en la etiqueta."
 
@@ -5349,11 +5345,11 @@ msgstr "Sin repartir: escribí cuántas prendas llevan cada talle en la etiqueta
 msgid "Piece"
 msgstr "Prenda"
 
-#: assets/js/caja.js:3813
+#: assets/js/caja.js:3828
 msgid "Pieces by actual size"
 msgstr "Prendas por talle real"
 
-#: assets/js/caja.js:3817
+#: assets/js/caja.js:3832
 #, javascript-format
 msgid "Pieces with the %s tag"
 msgstr "Prendas con etiqueta %s"
@@ -5371,12 +5367,12 @@ msgstr "Etiqueta"
 msgid "Tag: %s"
 msgstr "Etiqueta: %s"
 
-#: assets/js/caja.js:3904
+#: assets/js/caja.js:3919
 #, javascript-format
 msgid "They add up to %1$d and the group has %2$d. Check the numbers."
 msgstr "Suman %1$d y el grupo tiene %2$d. Revisá los números."
 
-#: assets/js/caja.js:3906
+#: assets/js/caja.js:3921
 #, javascript-format
 msgid "They add up to %d, the units of the group."
 msgstr "Suman %d, las unidades del grupo."
@@ -5385,7 +5381,7 @@ msgstr "Suman %d, las unidades del grupo."
 msgid "Which piece leaves"
 msgstr "Qué prenda sale"
 
-#: assets/js/caja.js:3901
+#: assets/js/caja.js:3916
 msgid "Write how many pieces carry each size on their tag."
 msgstr "Escribí cuántas prendas llevan cada talle en la etiqueta."
 
@@ -5408,14 +5404,14 @@ msgid_plural "%1$d with tag %2$s"
 msgstr[0] "%1$d con etiqueta %2$s"
 msgstr[1] "%1$d con etiqueta %2$s"
 
-#: assets/js/caja.js:4018
+#: assets/js/caja.js:4033
 #, javascript-format
 msgid "%d group of shared sizes is not split by actual size, or does not add up: the register will not know which piece leaves."
 msgid_plural "%d groups of shared sizes are not split by actual size, or do not add up: the register will not know which piece leaves."
 msgstr[0] "%d grupo de talles compartidos está sin repartir por talle real, o no cuadra: la caja no va a saber qué prenda sale."
 msgstr[1] "%d grupos de talles compartidos están sin repartir por talle real, o no cuadran: la caja no va a saber qué prenda sale."
 
-#: assets/js/caja.js:4104
+#: assets/js/caja.js:4119
 #, javascript-format
 msgid "Saved. %d group of shared sizes is not split by actual size, or does not add up."
 msgid_plural "Saved. %d groups of shared sizes are not split by actual size, or do not add up."
@@ -5719,11 +5715,11 @@ msgstr "Foto (opcional)"
 msgid "Add a photo"
 msgstr "Agregar una foto"
 
-#: assets/js/caja.js:3407
+#: assets/js/caja.js:3414
 msgid "%s created. Save to use it in this category."
 msgstr "%s quedó creado. Guardá para usarlo en esta categoría."
 
-#: assets/js/caja.js:3407
+#: assets/js/caja.js:3414
 msgid "%s is ready. Save to use it in this category."
 msgstr "%s quedó listo. Guardá para usarlo en esta categoría."
 
@@ -5731,7 +5727,7 @@ msgstr "%s quedó listo. Guardá para usarlo en esta categoría."
 msgid "%s varies by"
 msgstr "%s varía por"
 
-#: assets/js/caja.js:3470
+#: assets/js/caja.js:3477
 msgid "Add to %s…"
 msgstr "Agregar a %s…"
 
@@ -5739,34 +5735,34 @@ msgstr "Agregar a %s…"
 msgid "Change it"
 msgstr "Cambiar"
 
-#: assets/js/caja.js:3684
+#: assets/js/caja.js:3699
 msgid "Choose the category and its options appear."
 msgstr "Elegí la categoría y aparecen sus opciones."
 
 msgid "Choose up to two different attributes of the store."
 msgstr "Elegí hasta dos atributos distintos de la tienda."
 
-#: assets/js/caja.js:3667
+#: assets/js/caja.js:3682
 msgid "Choose values…"
 msgstr "Elegir valores…"
 
-#: assets/js/caja.js:3302
+#: assets/js/caja.js:3304
 msgid "Create"
 msgstr "Crear"
 
-#: assets/js/caja.js:3392
+#: assets/js/caja.js:3398
 msgid "Create %s anyway"
 msgstr "Crear %s igual"
 
-#: assets/js/caja.js:3381
+#: assets/js/caja.js:3386
 msgid "Creating an attribute needs a connection."
 msgstr "Para crear un atributo hace falta conexión."
 
-#: assets/js/caja.js:3578
+#: assets/js/caja.js:3593
 msgid "Creating it needs a connection."
 msgstr "Para crearlo hace falta conexión."
 
-#: assets/js/caja.js:3297
+#: assets/js/caja.js:3299
 msgid "First option (rows)"
 msgstr "Primera opción (filas)"
 
@@ -5776,44 +5772,45 @@ msgstr "Primera opción de %s"
 msgid "Give the attribute a name."
 msgstr "Ponele un nombre al atributo."
 
-#: assets/js/caja.js:3441
+#: assets/js/caja.js:3448
 msgid "It has none today. The first one you choose takes the units it already has."
 msgstr "Hoy no tiene ninguno. El primero que elijas se queda con las unidades que ya tiene."
 
 #: assets/js/caja.js:3466
 
+#: assets/js/caja.js:3473
 msgid "More (%d)…"
 msgstr "Más (%d)…"
 
-#: assets/js/caja.js:3667
+#: assets/js/caja.js:3682
 msgid "More values…"
 msgstr "Más valores…"
 
-#: assets/js/caja.js:3300
+#: assets/js/caja.js:3302
 msgid "Name of the new attribute"
 msgstr "Nombre del atributo nuevo"
 
-#: assets/js/caja.js:3300
+#: assets/js/caja.js:3302
 msgid "Name, for example Capacity"
 msgstr "Nombre, por ejemplo Capacidad"
 
-#: assets/js/caja.js:3299
+#: assets/js/caja.js:3301
 msgid "New attribute…"
 msgstr "Atributo nuevo…"
 
-#: assets/js/caja.js:3442
+#: assets/js/caja.js:3449
 msgid "No colors: the product only varies by %s."
 msgstr "Sin colores: el producto solo varía por %s."
 
-#: assets/js/caja.js:3298
+#: assets/js/caja.js:3300
 msgid "No second option"
 msgstr "Sin segunda opción"
 
-#: assets/js/caja.js:3443
+#: assets/js/caja.js:3450
 msgid "None marked: it does not vary by %s."
 msgstr "Ninguno marcado: no varía por %s."
 
-#: assets/js/caja.js:3297
+#: assets/js/caja.js:3299
 msgid "Nothing (one size)"
 msgstr "Nada (talle único)"
 
@@ -5821,11 +5818,11 @@ msgstr "Nada (talle único)"
 msgid "nothing (one size)"
 msgstr "nada (talle único)"
 
-#: assets/js/caja.js:3368
+#: assets/js/caja.js:3373
 msgid "Saved: the next products of %s come out like this."
 msgstr "Guardado: los próximos productos de %s salen así."
 
-#: assets/js/caja.js:3298
+#: assets/js/caja.js:3300
 msgid "Second option (columns)"
 msgstr "Segunda opción (columnas)"
 
@@ -5838,36 +5835,36 @@ msgstr "Esa opción ya está en el producto."
 msgid "The attribute %1$s could not be created: %2$s"
 msgstr "No se pudo crear el atributo %1$s: %2$s"
 
-#: assets/js/caja.js:4019
+#: assets/js/caja.js:4034
 msgid "The category marked %1$d values of %2$s. If the product does not come in all of them, go back and remove the extra ones."
 msgstr "La categoría marcó %1$d valores de %2$s. Si el producto no viene en todos, volvé y sacá los que sobran."
 
 msgid "The new option could not be added: reload and try again."
 msgstr "No se pudo agregar la opción nueva: recargá y probá otra vez."
 
-#: assets/js/caja.js:3392
+#: assets/js/caja.js:3397
 msgid "The store already has %s, which looks like the same thing. Use that one?"
 msgstr "La tienda ya tiene %s, que parece lo mismo. ¿Usás ese?"
 
 msgid "The store already has an attribute called %s."
 msgstr "La tienda ya tiene un atributo llamado %s."
 
-#: assets/js/caja.js:3441
+#: assets/js/caja.js:3448
 msgid "The units it already has are now %s."
 msgstr "Las unidades que ya tenía ahora son %s."
 
 msgid "This product varies by %s: the register edits products that vary by up to two things. Edit it in WooCommerce; it still sells from the register."
 msgstr "Este producto varía por %s: la caja edita productos que varían hasta por dos cosas. Editalo en WooCommerce; se sigue vendiendo desde la caja."
 
-#: assets/js/caja.js:3392
+#: assets/js/caja.js:3398
 msgid "Use %s"
 msgstr "Usar %s"
 
-#: assets/js/caja.js:3301
+#: assets/js/caja.js:3303
 msgid "Values of the new attribute"
 msgstr "Valores del atributo nuevo"
 
-#: assets/js/caja.js:3301
+#: assets/js/caja.js:3303
 msgid "Values: 350 ml, 500 ml"
 msgstr "Valores: 350 ml, 500 ml"
 
@@ -5880,13 +5877,13 @@ msgstr "Por qué varían los productos de cada categoría: hasta dos atributos d
 msgid "WooCommerce would not create the attribute."
 msgstr "WooCommerce no quiso crear el atributo."
 
-#: assets/js/caja.js:3681
+#: assets/js/caja.js:3696
 msgid "%d value"
 msgid_plural "%d values"
 msgstr[0] "%d valor"
 msgstr[1] "%d valores"
 
-#: assets/js/caja.js:4064
+#: assets/js/caja.js:4079
 msgid "The units it already has go to %s. Adding this option can only be undone in WooCommerce. Save the changes?"
 msgstr "Las unidades que ya tiene pasan a %s. Agregar esta opción solo se deshace en WooCommerce. ¿Guardar los cambios?"
 
@@ -5894,63 +5891,63 @@ msgstr "Las unidades que ya tiene pasan a %s. Agregar esta opción solo se desha
 msgid "%s does not vary (one size)"
 msgstr "%s no varía (talle único)"
 
-#: assets/js/caja.js:3407
+#: assets/js/caja.js:3414
 msgid "Added %1$s to %2$s. Save to use it in this category."
 msgstr "Se agregaron %1$s a %2$s. Guardá para usarlo en esta categoría."
 
-#: assets/js/caja.js:3488
+#: assets/js/caja.js:3495
 msgid "%s has no shade. Pick it so it shows in the register and in the store."
 msgstr "%s no tiene tono. Elegilo para que se vea en la caja y en la tienda."
 
-#: assets/js/caja.js:3488
+#: assets/js/caja.js:3495
 msgid "These colors have no shade. Pick each one so it shows in the register and in the store."
 msgstr "Estos colores no tienen tono. Elegí el de cada uno para que se vea en la caja y en la tienda."
 
-#: assets/js/caja.js:3495
+#: assets/js/caja.js:3502
 msgid "Shade of %s"
 msgstr "Tono de %s"
 
-#: assets/js/caja.js:3511
+#: assets/js/caja.js:3518
 msgid "Saving the shade needs a connection."
 msgstr "Para guardar el tono hace falta conexión."
 
-#: assets/js/caja.js:3515
+#: assets/js/caja.js:3522
 msgid "%s already had a shade: it keeps it."
 msgstr "%s ya tenía tono: se queda con el suyo."
 
-#: assets/js/caja.js:3515
+#: assets/js/caja.js:3522
 msgid "Shade of %s saved."
 msgstr "Tono de %s guardado."
 
-#: assets/js/caja.js:3340
+#: assets/js/caja.js:3342
 msgid "Affects the next products of %s"
 msgstr "Afecta a los próximos productos de %s"
 
-#: assets/js/caja.js:3341
+#: assets/js/caja.js:3343
 msgid "Today it has %d product: it stays as it is."
 msgid_plural "Today it has %d products: they stay as they are."
 msgstr[0] "Hoy tiene %d producto: se queda como está."
 msgstr[1] "Hoy tiene %d productos: se quedan como están."
 
-#: assets/js/caja.js:3341
+#: assets/js/caja.js:3343
 msgid "It has no products yet."
 msgstr "Todavía no tiene productos."
 
-#: assets/js/caja.js:3342
+#: assets/js/caja.js:3344
 msgid "It also applies to its subcategories that do not have their own."
 msgstr "También vale para sus subcategorías que no tengan uno propio."
 
-#: assets/js/caja.js:3344
+#: assets/js/caja.js:3346
 msgid "Its only product does not vary."
 msgid_plural "None of its %d products vary."
 msgstr[0] "Su único producto no varía."
 msgstr[1] "Ninguno de sus %d productos varía."
 
-#: assets/js/caja.js:3344
+#: assets/js/caja.js:3346
 msgid "Make it not vary"
 msgstr "Que no varíe"
 
-#: assets/js/caja.js:3368
+#: assets/js/caja.js:3373
 msgid "Saved: the next products of %1$s and of %2$d subcategory come out like this."
 msgid_plural "Saved: the next products of %1$s and of %2$d subcategories come out like this."
 msgstr[0] "Guardado: los próximos productos de %1$s y de %2$d subcategoría salen así."
@@ -5964,3 +5961,11 @@ msgstr "Ese color no está en la tienda."
 
 msgid "Pick a shade."
 msgstr "Elegí un tono."
+
+#: assets/js/caja.js:3449
+msgid "No colors: it is one size."
+msgstr "Sin colores: es talle único."
+
+#: includes/products.php:1927
+msgid "One of the options of this category is no longer in the store. Reload the register and try again."
+msgstr "Una de las opciones de esta categoría ya no está en la tienda. Recargá la caja y volvé a intentarlo."

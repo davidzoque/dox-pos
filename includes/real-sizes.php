@@ -36,7 +36,8 @@ const DOX_POS_REAL_OUT_ITEM  = '_dox_pos_real_out'; // Y las que ya salieron (se
  * @return int
  */
 function dox_pos_real_near() {
-	return max( 0, min( 9, (int) ( dox_pos_products_settings()['real_near'] ?? 0 ) ) );
+	$o = get_option( 'dox_pos_products', array() ); // Directo: se mira en la tienda en cada variación y no hace falta todo el ajuste.
+	return max( 0, min( 9, (int) ( is_array( $o ) ? ( $o['real_near'] ?? 0 ) : 0 ) ) );
 }
 
 /**

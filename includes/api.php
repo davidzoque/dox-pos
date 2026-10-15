@@ -98,9 +98,9 @@ function dox_pos_register_routes() {
 	register_rest_route( $ns, '/products', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_product', 'permission_callback' => $pperm ) );
 	register_rest_route( $ns, '/products/form', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_product_form', 'permission_callback' => $pperm ) );
 	register_rest_route( $ns, '/products/categories', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_category', 'permission_callback' => $pperm ) ); // Una categoría nueva, desde el formulario de producto.
-	register_rest_route( $ns, '/products/sizes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_size', 'permission_callback' => $pperm ) ); // Un valor nuevo ("42", "750 ml") en un atributo.
-	register_rest_route( $ns, '/products/attributes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_attribute', 'permission_callback' => $pperm ) ); // Un atributo nuevo (Capacidad) con sus valores.
-	register_rest_route( $ns, '/products/swatch', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_value_hex', 'permission_callback' => $pperm ) ); // El tono de un color que no lo tiene.
+	register_rest_route( $ns, '/products/sizes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_size', 'permission_callback' => 'dox_pos_rest_terms_permission' ) ); // Un valor nuevo ("42", "750 ml") en un atributo.
+	register_rest_route( $ns, '/products/attributes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_attribute', 'permission_callback' => 'dox_pos_rest_terms_permission' ) ); // Un atributo nuevo (Capacidad) con sus valores.
+	register_rest_route( $ns, '/products/swatch', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_value_hex', 'permission_callback' => 'dox_pos_rest_terms_permission' ) ); // El tono de un color que no lo tiene.
 	register_rest_route( $ns, '/products/category-size', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_category_size', 'permission_callback' => $pperm ) ); // Qué tallas usa una categoría (0.56).
 	register_rest_route( $ns, '/products/category-vary', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_category_vary', 'permission_callback' => $pperm ) ); // Por qué varían los productos de una categoría.
 	register_rest_route(
@@ -183,6 +183,23 @@ function dox_pos_rest_products_permission() {
 		return $ok;
 	}
 	if ( ! current_user_can( dox_pos_products_cap() ) ) {
+		return new WP_Error( 'dox_pos_sin_permiso', __( 'Only administrators and shop managers can create products.', 'dox-pos' ), array( 'status' => 403 ) );
+	}
+	return true;
+}
+
+/**
+ * Crear atributos, valores (una talla, un color) o el tono de un color: además, el permiso de WooCommerce para los
+ * términos de productos (lo tienen quien administra y el gestor de la tienda).
+ *
+ * @return true|WP_Error
+ */
+function dox_pos_rest_terms_permission() {
+	$ok = dox_pos_rest_products_permission();
+	if ( true !== $ok ) {
+		return $ok;
+	}
+	if ( ! current_user_can( 'manage_product_terms' ) ) {
 		return new WP_Error( 'dox_pos_sin_permiso', __( 'Only administrators and shop managers can create products.', 'dox-pos' ), array( 'status' => 403 ) );
 	}
 	return true;

@@ -1242,17 +1242,33 @@ function dox_pos_sanitize_products( $in ) {
 	// "-" es que no varía). Lo que se fija ahí también deja su talla en cat_size, para una versión anterior.
 	$cat_vary = array();
 	if ( ! empty( $in['vary_seen'] ) ) {
-		$cat_size = array();
+		// Solo cambia lo que se tocó en la pantalla (vary_orig dice cómo estaba al abrirla): lo demás se queda como está
+		// guardado, que la caja puede haber cambiado mientras esta pantalla seguía abierta.
+		$cat_vary = (array) ( $old['cat_vary'] ?? array() );
+		$cat_size = (array) ( $old['cat_size'] ?? array() );
+		$orig     = (array) ( $in['vary_orig'] ?? array() );
 		foreach ( (array) ( $in['cat_vary'] ?? array() ) as $cid => $pair ) {
-			$pair = array_values( array_map( 'strval', (array) $pair ) );
+			$cid  = (int) $cid;
+			$pair = array_values( array_map( 'strval', array_filter( (array) $pair, 'is_scalar' ) ) );
 			$a    = $pair[0] ?? '';
-			if ( (int) $cid <= 0 || '' === $a ) {
+			$b    = $pair[1] ?? '';
+			if ( $cid <= 0 || ( isset( $orig[ $cid ] ) && is_scalar( $orig[ $cid ] ) && (string) $orig[ $cid ] === $a . '|' . $b ) ) {
 				continue;
 			}
-			$set = '-' === $a ? array() : dox_pos_clean_vary( array_filter( array( $a, $pair[1] ?? '' ) ), $all );
+			if ( '' === $a ) { // Automático.
+				unset( $cat_vary[ $cid ], $cat_size[ $cid ] );
+				continue;
+			}
+			$set = '-' === $a ? array() : dox_pos_clean_vary( array_filter( array( $a, $b ) ), $all );
 			if ( null !== $set ) {
-				$cat_vary[ (int) $cid ] = $set ? dox_pos_vary_color_last( $set ) : array( '-' );
-				$cat_size[ (int) $cid ] = dox_pos_vary_size_compat( $set );
+				$cat_vary[ $cid ] = $set ? dox_pos_vary_color_last( $set ) : array( '-' );
+				$cat_size[ $cid ] = dox_pos_vary_size_compat( $set );
+			}
+		}
+		// Las categorías que ya no existen no se quedan en el ajuste.
+		foreach ( array_keys( $cat_vary + $cat_size ) as $cid ) {
+			if ( ! term_exists( (int) $cid, 'product_cat' ) ) {
+				unset( $cat_vary[ $cid ], $cat_size[ $cid ] );
 			}
 		}
 	} else {
@@ -2459,6 +2475,7 @@ function dox_pos_settings_page() {
 								$label = $c['path'] ? $c['path'] . ' › ' . $c['name'] : $c['name'];
 								?>
 							<div class="dp-pay dp-pay-cat dp-vary">
+								<input type="hidden" name="dox_pos_products[vary_orig][<?php echo (int) $cid; ?>]" value="<?php echo esc_attr( $first . '|' . ( '' === $first || '-' === $first ? '' : $second ) ); ?>">
 								<span class="dp-pay-main"><b><?php echo esc_html( $label ); ?></b><span class="dp-hint"><?php echo esc_html( sprintf( /* translators: %d: number of products */ _n( '%d product', '%d products', $c['count'], 'dox-pos' ), $c['count'] ) ); ?></span></span>
 								<span class="dp-vary-sel">
 									<select name="dox_pos_products[cat_vary][<?php echo (int) $cid; ?>][]" class="dp-input" data-vary="1" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: category name */ __( 'First option of %s', 'dox-pos' ), $c['name'] ) ); ?>">

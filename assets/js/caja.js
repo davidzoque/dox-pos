@@ -3285,10 +3285,12 @@
 		const nada = !(c.vary || []).filter(Boolean).length; // "Jeans no varía (talla única)" y no "varía por nada".
 		p.innerHTML = (nada ? esc(sprintf(__("%s does not vary (one size)", "dox-pos"), c.name)) : esc(sprintf(__("%s varies by", "dox-pos"), c.name)) + " <b>" + esc(nombresVaria(c.vary)) + "</b>") + ' · <button type="button" class="linkp" id="p-varia-cambiar">' + esc(__("Change it", "dox-pos")) + "</button>";
 		$("#p-varia-cambiar").onclick = () => { if ($("#p-variabox").hidden) abrirVaria(c); else $("#p-variabox").hidden = true; };
+		if ($("#p-variabox").dataset.cat !== String(c.id)) $("#p-variabox").hidden = true; // Se abrió para otra categoría.
 	}
 	// tonos: los valores recién creados de un atributo de color ({tax, names}), para elegirles el tono aquí mismo.
 	function abrirVaria(c, elegir, tonos) {
 		const box = $("#p-variabox");
+		box.dataset.cat = String(c.id);
 		const attrs = attrsForm();
 		const set = (c.vary || []).slice();
 		const opts = (sel, vacio) => (vacio ? '<option value="' + vacio[0] + '">' + esc(vacio[1]) + "</option>" : "") +
@@ -3351,15 +3353,18 @@
 		if (btn.getAttribute("aria-busy") === "true") return;
 		const soltar = ocupar(btn, __("Saving…", "dox-pos"));
 		try {
+			const filaAntes = ejes().row;
 			const d = await post("products/category-vary", { category: c.id, attrs: set });
 			const antes = {};
 			(pr.form.categories || []).forEach((x) => { antes[x.id] = JSON.stringify(x.vary || []); });
 			pr.form.categories = d.categories || pr.form.categories; // Sus subcategorías sin uno propio también cambian.
 			const hijas = pr.form.categories.filter((x) => x.id !== c.id && x.id in antes && antes[x.id] !== JSON.stringify(x.vary || [])).length;
 			const nueva = catElegida();
-			// Lo marcado era de las opciones de antes: se ponen los valores que sugiere la categoría con las nuevas.
-			pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
-			pr.tallasTocadas = false;
+			// Si cambiaron las filas, lo marcado era de las de antes: se ponen los valores que sugiere la categoría.
+			if (ejes().row !== filaAntes) {
+				pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
+				pr.tallasTocadas = false;
+			}
 			ajustarAEjes();
 			pr.masTallas = !pr.tallas.length; // Sin valores sugeridos todavía: salen todos para marcarlos.
 			$("#p-variabox").hidden = true;
@@ -3389,9 +3394,11 @@
 		} catch (e) {
 			soltar();
 			if (e.code === "dox_pos_parecido" && e.data && e.data.similar) {
-				const usar = await preguntar(sprintf(__("The store already has %s, which looks like the same thing. Use that one?", "dox-pos"), e.data.label), sprintf(__("Use %s", "dox-pos"), e.data.label), sprintf(__("Create %s anyway", "dox-pos"), name));
-				if (usar) { $("#p-v-nom").value = e.data.label; return crearAtributo(c, false); } // Con su nombre exacto: se usa ese y se le añaden los valores escritos.
-				return crearAtributo(c, true);
+				const r = await elegir(__("One moment", "dox-pos"), sprintf(__("The store already has %s, which looks like the same thing. Use that one?", "dox-pos"), e.data.label),
+					[[sprintf(__("Use %s", "dox-pos"), e.data.label), ""], [sprintf(__("Create %s anyway", "dox-pos"), name), "alt"], [__("Cancel", "dox-pos"), "alt"]]);
+				if (r === 0) { $("#p-v-nom").value = e.data.label; return crearAtributo(c, false); } // Con su nombre exacto: se usa ese y se le añaden los valores escritos.
+				if (r === 1) return crearAtributo(c, true);
+				return; // Cancelar, o cerrar el aviso: no se crea nada.
 			}
 			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -3439,7 +3446,7 @@
 		if (hint) {
 			hint.hidden = pr.colores.length > 0 && !sinColumnas(); // "Sin colores..." solo cuando no hay ninguno.
 			if (sinColumnas()) hint.textContent = pr.colores.length ? sprintf(__("The units it already has are now %s.", "dox-pos"), pr.colores[0].name) : __("It has none today. The first one you choose takes the units it already has.", "dox-pos");
-			else if (esColor) hint.textContent = filaEsTalla() || !ejes().row ? __("No colors: the product only varies by size.", "dox-pos") : sprintf(__("No colors: the product only varies by %s.", "dox-pos"), titFila());
+			else if (esColor) hint.textContent = !ejes().row ? __("No colors: it is one size.", "dox-pos") : filaEsTalla() ? __("No colors: the product only varies by size.", "dox-pos") : sprintf(__("No colors: the product only varies by %s.", "dox-pos"), titFila());
 			else hint.textContent = sprintf(__("None marked: it does not vary by %s.", "dox-pos"), titCol());
 		}
 		$("#p-color-swatch").hidden = !esColor;
@@ -3449,7 +3456,7 @@
 		const TOP = 12;
 		const ver = pr.masColores || pr.edit || all.length <= TOP + 3 ? all : all.filter((c, i) => i < TOP || pr.colores.some((x) => x.key === String(c.id)));
 		ver.forEach((c) => {
-			const ch = chip(c.label || c.name, pr.colores.some((x) => x.key === String(c.id)), () => toggleColor({ key: String(c.id), id: c.id, name: c.name, hex: c.hex || "" }));
+			const ch = chip(c.label || c.name, pr.colores.some((x) => x.key === String(c.id)), () => toggleColor({ key: String(c.id), id: c.id, name: c.name, hex: c.hex || "", img: !!c.img }));
 			ch.title = c.name;
 			if (c.hex) ch.prepend(dot(c.hex));
 			// Los que ya tiene no se quitan desde aquí; el que toma sus unidades, solo mientras sea el único elegido.
@@ -3480,7 +3487,7 @@
 	// Los colores sin tono (creados con "Atributo nuevo…", o de una tienda sin muestras) salían sin su punto, mezclados
 	// con los que sí lo tienen: aquí se les elige. Solo se guarda en los que no tienen; uno con muestra se queda con la suya.
 	function pintarTonos(box, tax, lista, fin, ahoraNo) {
-		const faltan = lista.filter((c) => c.id && !c.hex);
+		const faltan = lista.filter((c) => c.id && !c.hex && !c.img); // Los de muestra de foto no llevan tono.
 		box.innerHTML = "";
 		box.hidden = !faltan.length;
 		if (!faltan.length) return;
@@ -3530,10 +3537,12 @@
 	// Cambia las claves de las casillas (cantidades, grupos, tallas reales) al añadirle a un producto la opción que no
 	// tenía: lo que estaba en la columna sin nombre ("") pasa a la del primer valor, y lo de la fila 0 a la del primero.
 	function moverClaves(fn, fnPool) {
-		const m = (o) => { const n = {}; Object.keys(o).forEach((k) => { n[fn(k)] = o[k]; }); return n; };
-		pr.qty = m(pr.qty); pr.grupos = m(pr.grupos); pr.realQty = m(pr.realQty);
+		// Primero las que no se mueven y luego las movidas, que ganan: un valor que se marcó, se le escribieron unidades
+		// y se soltó deja sus claves, y no deben pisar las unidades que el producto ya tenía.
+		const m = (o, f) => { const n = {}; const ks = Object.keys(o); ks.forEach((k) => { if (f(k) === k) n[k] = o[k]; }); ks.forEach((k) => { if (f(k) !== k) n[f(k)] = o[k]; }); return n; };
+		pr.qty = m(pr.qty, fn); pr.grupos = m(pr.grupos, fn); pr.realQty = m(pr.realQty, fn);
 		pr.real = new Set([...pr.real].map(fn));
-		if (fnPool) { const n = {}; Object.keys(pr.totales).forEach((k) => { n[fnPool(k)] = pr.totales[k]; }); pr.totales = n; }
+		if (fnPool) pr.totales = m(pr.totales, fnPool);
 	}
 	function adoptarColumna(key) {
 		pr.adopt.color = key;
@@ -3567,12 +3576,18 @@
 		pintarCantidades();
 		pintarResumenProducto();
 	}
+	let añadiendoColor = false; // Un Enter doble mientras se crea no crea dos.
 	async function añadirColorNuevo() {
+		if (añadiendoColor) return;
+		añadiendoColor = true;
+		try { await añadirColorNuevoYa(); } finally { añadiendoColor = false; }
+	}
+	async function añadirColorNuevoYa() {
 		const name = $("#p-color-nom").value.trim();
 		if (!name) { $("#p-color-nom").focus(); return; }
 		const tax = ejes().col;
 		const ya = coloresDisponibles().find((c) => c.name.toLowerCase() === name.toLowerCase());
-		let c = ya ? { key: String(ya.id), id: ya.id, name: ya.name, hex: ya.hex || "" } : { key: "n:" + name.toLowerCase(), id: 0, name: name, hex: colEsColor() ? $("#p-color-hex").value : "", attr: tax };
+		let c = ya ? { key: String(ya.id), id: ya.id, name: ya.name, hex: ya.hex || "", img: !!ya.img } : { key: "n:" + name.toLowerCase(), id: 0, name: name, hex: colEsColor() ? $("#p-color-hex").value : "", attr: tax };
 		if (!ya && sinColumnas() && !pr.colores.length) {
 			// El primero que se le añade a un producto que no tenía la opción se crea ya: sus variaciones de hoy lo toman.
 			if (!navigator.onLine) { toast(__("Creating it needs a connection.", "dox-pos")); return; }
@@ -4123,7 +4138,7 @@
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.realQty = {}; pr.legacy = false; pr.legacyTotal = 0;
-		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null;
+		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null; pr.sinTonos = false; // "Ahora no" vale para un producto.
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
 		pr.paquete0 = null;
 		$("#p-pub").checked = true;
@@ -4330,6 +4345,7 @@
 		if (pr.edit || pr.fotos.length) limpiarProducto();
 		pr.modo = "editar";
 		pr.edit = d;
+		pr.sinTonos = false;
 		pr.adopt = { size: 0, color: "" };
 		pr.grupos = Object.assign({}, d.shared_groups || {}); // Las tallas que hoy comparten unidades, con su grupo.
 		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
@@ -4341,7 +4357,7 @@
 		pr.legacyTotal = d.shared === null || d.shared === undefined ? 0 : uds(d.shared);
 		pr.cats = (d.categories || []).slice();
 		pr.tallas = (d.sizes || []).slice();
-		pr.colores = (d.colors || []).map((c) => ({ key: String(c.key), id: c.id, name: c.name, hex: c.hex }));
+		pr.colores = (d.colors || []).map((c) => ({ key: String(c.key), id: c.id, name: c.name, hex: c.hex, img: !!c.img }));
 		pr.qty = {};
 		Object.keys(d.qty || {}).forEach((ck) => { Object.keys(d.qty[ck] || {}).forEach((sid) => { pr.qty[qKey(ck, sid)] = uds(d.qty[ck][sid]); }); });
 		pr.fotos = (d.images || []).map((im) => ({ uid: ++uidN, file: null, ext: "", estado: "ok", url: im.url || "", local: "", id: im.id, color: im.color || "", kb: 0, error: "", existing: true }));
