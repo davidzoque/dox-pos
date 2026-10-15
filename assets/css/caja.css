@@ -403,7 +403,7 @@ tr.off,li.off{opacity:.5}
 .catgroups{display:grid;gap:6px}
 .catg{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .catg b{flex-basis:100%;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}
-.chip .dot,.qcard-n .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.14)}
+.chip .dot,.qcard-n .dot,.qsz .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.14)}
 .chip[aria-pressed="true"] .dot{border-color:rgba(255,255,255,.55)}
 .chip.plus{border-style:dashed;color:var(--muted)}
 .nuevocolor{display:flex;gap:8px;align-items:center;margin-top:8px}
@@ -1023,7 +1023,18 @@ table.ped .lnk.items{white-space:normal}
 #p-nuevatalla{margin-top:10px}
 .tipotalla{margin:-4px 0 10px;font-size:13px;color:var(--muted)}
 .tipotalla b{color:var(--ink);font-weight:600}
-#p-tipos{margin-bottom:10px}
+#p-varia{margin:10px 0 0}
+/* cambiar el "Varía por" de la categoría: dos menús, un atributo nuevo y guardar */
+.variabox{margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--sunk);display:grid;gap:10px}
+.variarow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.variarow label{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.variarow select{width:100%}
+.variaattr{margin-top:0}
+.variaattr #p-v-nom{grid-column:1/-1}
+.variabox .hint{margin:0}
+.variabtn{display:flex;gap:6px}
+.variabtn .mini{min-height:40px}
+@media (max-width:520px){.variarow{grid-template-columns:1fr}}
 
 /* ---------- el engranaje: lo que se ajusta sin salir de la caja ---------- */
 .gear{appearance:none;border:0;background:none;color:var(--bar-ink);opacity:.85;width:36px;height:36px;margin-left:2px;border-radius:10px;

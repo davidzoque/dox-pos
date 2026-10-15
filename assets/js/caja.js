@@ -133,6 +133,7 @@
 			try { j = await r.json(); } catch (e) { /* sin cuerpo */ }
 			const err = new Error(j && j.message ? j.message : sprintf(__("Could not reach the store (%s).", "dox-pos"), r.status));
 			if (j && j.code) err.code = j.code; // por ejemplo dox_pos_factura_repetida
+			if (j && j.data) err.data = j.data; // lo que acompaña al error (el atributo parecido, por ejemplo)
 			throw err;
 		}
 		return r.json();
@@ -2494,6 +2495,7 @@
 		dup: null,          // un producto que ya se llama así: {id, sku, name}
 		restaurando: false, // mientras se vuelve a cargar el borrador no se guarda otra vez
 		paquete0: null,     // el peso y las medidas con que llegó el producto que se edita: si no cambian, no se mandan
+		adopt: { size: 0, color: "" }, // al editar, el primer valor de la opción que el producto no tenía: sus unidades de hoy pasan ahí
 	};
 	const hayProducto = () => !!$("#t-producto");
 	let uidN = 0;
@@ -2832,9 +2834,10 @@
 			if (!pr.manual && c.prefix) sugerirCodigo(c.prefix);
 		}
 		if (!pr.cats.length && !pr.tallasTocadas) pr.tallas = []; // Sin categoría, las tallas sugeridas se van con ella.
-		const validas = new Set(tallasDisponibles().map((t) => t.id)); // Pasar de Ropa a Zapatos cambia de tallas: las de la otra se van.
-		pr.tallas = pr.tallas.filter((id) => validas.has(id));
+		ajustarAEjes(); // Pasar de Ropa a Termos cambia de opciones: lo marcado de la otra se va.
 		pintarCategorias();
+		pintarColores();
+		pintarFotos();
 		pintarTallas();
 		pintarCantidades();
 		pintarResumenProducto();
@@ -2914,10 +2917,10 @@
 		const todas = p.variations || [];
 		const vs = todas.some(hayDe) ? todas.filter(hayDe) : todas;
 		if (!vs.length) return null;
-		const nombre = (v) => v.talla || v.label;
+		const nombre = (v) => v.talla || v.fila || v.label; // La talla, o la primera opción (la capacidad de un termo).
 		if (!vs.some((v) => v.color)) return [...new Set(vs.map(nombre))].join(" · ");
 		const grupos = {};
-		vs.forEach((v) => { (grupos[v.color || ""] = grupos[v.color || ""] || []).push(v.talla || ""); });
+		vs.forEach((v) => { (grupos[v.color || ""] = grupos[v.color || ""] || []).push(v.talla || v.fila || ""); });
 		return Object.keys(grupos).map((c) => { const t = [...new Set(grupos[c].filter(Boolean))].join(", "); return c ? c + (t ? ": " + t : "") : t; }).join(" · ");
 	}
 	function precioEtiqueta(p) {
@@ -2943,8 +2946,10 @@
 		}
 		const t = tallasEtiqueta(p);
 		const ref = sku ? sprintf(__("Ref. %s", "dox-pos"), sku) : "";
-		const soloColor = p.type === "variable" && !(p.variations || []).some((v) => v.talla); // Varía solo por color: no son tallas.
-		const tal = !t ? "" : sprintf(soloColor ? __("Colors: %s", "dox-pos") : __("Sizes: %s", "dox-pos"), t);
+		const vs = p.variations || [];
+		const soloColor = p.type === "variable" && !vs.some((v) => v.talla || v.fila); // Varía solo por color: no son tallas.
+		const otra = p.type === "variable" && !vs.some((v) => v.talla) && vs.some((v) => v.fila); // Varía por otra cosa (capacidad): sin título.
+		const tal = !t ? "" : otra ? t : sprintf(soloColor ? __("Colors: %s", "dox-pos") : __("Sizes: %s", "dox-pos"), t);
 		const medio = t0 === "s" ? (ref || tal ? '<div class="ref">' + esc([ref, tal].filter(Boolean).join(" · ")) + "</div>" : "")
 			: (ref ? '<div class="ref">' + esc(ref) + "</div>" : "") + (tal ? '<div class="tal">' + esc(tal) + "</div>" : "");
 		return '<div class="et"><div class="a"><span class="nom">' + esc(p.name) + '</span><span class="pre">' + esc(precioEtiqueta(p)) + "</span></div>" + medio + bc + "</div>";
@@ -3217,39 +3222,213 @@
 		return Object.keys(o).length ? o : undefined;
 	}
 
-	// Colores: los más usados (doce) y "Más colores…" para el resto; "Otro color…" crea uno nuevo con su tono.
+	// ---------- Varía por: las dos opciones del producto ----------
+	// Cada categoría dice por qué varían sus productos (hasta dos atributos de la tienda): la primera opción va en
+	// las filas (las tallas de siempre, o la capacidad de un termo) y la segunda en las columnas (los colores, o el
+	// material). Por dentro se siguen llamando tallas y colores: pr.tallas son los valores de las filas y pr.colores
+	// los de las columnas. Al editar manda lo que ya usa el producto.
+	const attrsForm = () => (pr.form && pr.form.attrs) || {};
+	const attrInfo = (tax) => (tax && attrsForm()[tax]) || null;
+	// Con dos opciones, la primera en filas y la segunda en columnas; con una, un color va en columnas y lo demás en filas.
+	function ejesDe(set) {
+		const s = (set || []).filter(Boolean);
+		if (s.length >= 2) return { row: s[0], col: s[1] };
+		if (!s.length) return { row: "", col: "" };
+		const a = attrInfo(s[0]);
+		return a && a.color ? { row: "", col: s[0] } : { row: s[0], col: "" };
+	}
+	const catElegida = () => (pr.cats.length ? ((pr.form && pr.form.categories) || []).find((x) => x.id === pr.cats[0]) || null : null);
+	function ejes() {
+		const f = pr.form || {};
+		if (pr.edit) return { row: pr.edit.size_attr || pr.edit.add_size_attr || "", col: pr.edit.color_attr || pr.edit.add_color_attr || "" };
+		const c = catElegida();
+		if (c && c.vary) return ejesDe(c.vary);
+		if (!f.attrs) return { row: f.size_attr || "", col: f.has_color ? f.color_attr || "" : "" }; // Un formulario de antes de la 0.57.
+		return ejesDe([f.size_attr, f.color_attr]); // Sin categoría todavía: la talla y el color de siempre.
+	}
+	// Las filas son tallas (y entonces caben las unidades compartidas y la talla real) o son otra cosa.
+	const filaEsTalla = () => { const a = attrInfo(ejes().row); return !a || a.size; };
+	const colEsColor = () => { const a = attrInfo(ejes().col); return !a || a.color; };
+	const nombreAttr = (tax) => (attrInfo(tax) ? attrInfo(tax).label : "");
+	// Los títulos: "Tallas" y "Colores" como siempre; con otras opciones, su nombre ("Capacidad", "Material").
+	const titFila = () => (filaEsTalla() ? __("Sizes", "dox-pos") : nombreAttr(ejes().row));
+	const titCol = () => (colEsColor() ? __("Colors", "dox-pos") : nombreAttr(ejes().col));
+	// "Talla y Color", "Capacidad", o "nada (talla única)".
+	function nombresVaria(set) {
+		const n = (set || []).filter(Boolean).map((t) => nombreAttr(t) || t);
+		if (!n.length) return __("nothing (one size)", "dox-pos");
+		return n.length > 1 ? sprintf(__("%1$s and %2$s", "dox-pos"), n[0], n[1]) : n[0];
+	}
+	// Al cambiar de categoría (o su "Varía por") cambian las opciones: lo marcado que ya no es de ellas se va.
+	function ajustarAEjes() {
+		const e = ejes();
+		const validas = new Set(tallasDisponibles().map((t) => t.id));
+		pr.tallas = pr.tallas.filter((id) => validas.has(id));
+		const vc = new Set(coloresDisponibles().map((c) => String(c.id)));
+		const fuera = pr.colores.filter((c) => (c.id ? !vc.has(String(c.id)) : (c.attr || (pr.form && pr.form.color_attr) || "") !== e.col));
+		if (fuera.length) {
+			pr.colores = pr.colores.filter((c) => !fuera.includes(c));
+			pr.fotos.forEach((f) => { if (fuera.some((c) => c.key === f.color)) f.color = ""; });
+		}
+	}
+
+	// La línea "Termos varía por Capacidad y Color · Cambiar", al crear y con una categoría elegida. Cambiarlo es lo
+	// mismo que en Ajustes > Productos > Varía por: queda para la categoría (y sus subcategorías sin uno propio).
+	function pintarVaria() {
+		const p = $("#p-varia");
+		const c = !pr.edit && pr.form && pr.form.attrs ? catElegida() : null;
+		if (!c) { p.hidden = true; $("#p-variabox").hidden = true; return; }
+		p.hidden = false;
+		p.innerHTML = esc(sprintf(__("%s varies by", "dox-pos"), c.name)) + " <b>" + esc(nombresVaria(c.vary)) + '</b> · <button type="button" class="linkp" id="p-varia-cambiar">' + esc(__("Change it", "dox-pos")) + "</button>";
+		$("#p-varia-cambiar").onclick = () => { if ($("#p-variabox").hidden) abrirVaria(c); else $("#p-variabox").hidden = true; };
+	}
+	function abrirVaria(c, elegir) {
+		const box = $("#p-variabox");
+		const attrs = attrsForm();
+		const set = (c.vary || []).slice();
+		const opts = (sel, vacio) => (vacio ? '<option value="' + vacio[0] + '">' + esc(vacio[1]) + "</option>" : "") +
+			Object.keys(attrs).map((t) => '<option value="' + esc(t) + '"' + (t === sel ? " selected" : "") + ">" + esc(attrs[t].label) + "</option>").join("");
+		const v1 = elegir ? elegir[0] : set[0] || "-", v2 = elegir ? elegir[1] : set[1] || "";
+		box.innerHTML = '<div class="variarow"><label><span>' + esc(__("First option (rows)", "dox-pos")) + '</span><select id="p-v1">' + opts(v1) + '<option value="-"' + (v1 === "-" ? " selected" : "") + ">" + esc(__("Nothing (one size)", "dox-pos")) + "</option></select></label>" +
+			"<label><span>" + esc(__("Second option (columns)", "dox-pos")) + '</span><select id="p-v2">' + opts(v2, ["", __("No second option", "dox-pos")]) + "</select></label></div>" +
+			'<button type="button" class="linkp" id="p-v-nuevo">' + esc(__("New attribute…", "dox-pos")) + "</button>" +
+			'<div class="nuevacat variaattr" id="p-v-attr" hidden><input id="p-v-nom" autocomplete="off" placeholder="' + esc(__("Name, for example Capacity", "dox-pos")) + '" aria-label="' + esc(__("Name of the new attribute", "dox-pos")) + '">' +
+			'<input id="p-v-vals" autocomplete="off" placeholder="' + esc(__("Values, separated by commas: 350 ml, 500 ml", "dox-pos")) + '" aria-label="' + esc(__("Values of the new attribute", "dox-pos")) + '">' +
+			'<button type="button" class="mini" id="p-v-crear">' + esc(__("Create", "dox-pos")) + "</button></div>" +
+			'<p class="hint">' + esc(sprintf(__("It is kept for %s: its next products come out like this too.", "dox-pos"), c.name)) + "</p>" +
+			'<div class="variabtn"><button type="button" class="mini main" id="p-v-ok">' + esc(__("Save", "dox-pos")) + '</button><button type="button" class="mini sec" id="p-v-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>";
+		box.hidden = false;
+		const s1 = $("#p-v1"), s2 = $("#p-v2");
+		const cuadrar = () => { // La segunda solo con una primera, y nunca la misma.
+			s2.disabled = s1.value === "-";
+			if (s2.value === s1.value) s2.value = "";
+			[...s2.options].forEach((o) => { o.disabled = o.value !== "" && o.value === s1.value; });
+		};
+		s1.onchange = cuadrar;
+		cuadrar();
+		$("#p-v-nuevo").onclick = () => { const r = $("#p-v-attr"); r.hidden = !r.hidden; if (!r.hidden) $("#p-v-nom").focus(); };
+		$("#p-v-crear").onclick = () => crearAtributo(c);
+		$("#p-v-vals").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); crearAtributo(c); } });
+		$("#p-v-no").onclick = () => { box.hidden = true; };
+		$("#p-v-ok").onclick = () => guardarVaria(c, s1.value === "-" ? [] : [s1.value, s2.disabled ? "" : s2.value].filter(Boolean));
+	}
+	async function guardarVaria(c, set) {
+		if (!navigator.onLine) { toast(__("Changing it needs a connection.", "dox-pos")); return; }
+		const btn = $("#p-v-ok");
+		if (btn.getAttribute("aria-busy") === "true") return;
+		const soltar = ocupar(btn, __("Saving…", "dox-pos"));
+		try {
+			const d = await post("products/category-vary", { category: c.id, attrs: set });
+			pr.form.categories = d.categories || pr.form.categories; // Sus subcategorías sin uno propio también cambian.
+			const nueva = catElegida();
+			// Lo marcado era de las opciones de antes: se ponen los valores que sugiere la categoría con las nuevas.
+			pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
+			pr.tallasTocadas = false;
+			ajustarAEjes();
+			pr.masTallas = !pr.tallas.length; // Sin valores sugeridos todavía: salen todos para marcarlos.
+			$("#p-variabox").hidden = true;
+			$("#p-nuevatalla").hidden = true;
+			$("#p-nuevocolor").hidden = true;
+			toast(sprintf(__("Saved: %s will always vary like this.", "dox-pos"), c.name));
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+		}
+		soltar();
+		pintarProducto();
+	}
+	// Un atributo nuevo ("Capacidad" con 350 ml y 500 ml): se crea en la tienda y queda elegido en el menú libre. Si
+	// se parece a uno que ya hay ("Tallas" y "Talla"), se pregunta antes: casi siempre es ese.
+	async function crearAtributo(c, forzar) {
+		const name = $("#p-v-nom").value.trim();
+		if (!name) { $("#p-v-nom").focus(); return; }
+		if (!navigator.onLine) { toast(__("Creating an attribute needs a connection.", "dox-pos")); return; }
+		const btn = $("#p-v-crear");
+		if (btn.getAttribute("aria-busy") === "true") return;
+		const elegido = [$("#p-v1").value, $("#p-v2").disabled ? "" : $("#p-v2").value];
+		let d = null;
+		const soltar = ocupar(btn, __("Creating…", "dox-pos"));
+		try {
+			d = await post("products/attributes", { name: name, values: $("#p-v-vals").value, force: !!forzar });
+		} catch (e) {
+			soltar();
+			if (e.code === "dox_pos_parecido" && e.data && e.data.similar) {
+				const usar = await preguntar(sprintf(__("The store already has %s, which looks like the same thing. Use that one?", "dox-pos"), e.data.label), sprintf(__("Use %s", "dox-pos"), e.data.label), sprintf(__("Create %s anyway", "dox-pos"), name));
+				if (usar) { $("#p-v-nom").value = e.data.label; return crearAtributo(c, false); } // Con su nombre exacto: se usa ese y se le añaden los valores escritos.
+				return crearAtributo(c, true);
+			}
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+			return;
+		}
+		soltar();
+		const a = d.attr;
+		pr.form.attrs = Object.assign({}, pr.form.attrs || {}, { [a.tax]: a });
+		if (elegido[0] === "-" || elegido[0] === a.tax) elegido[0] = a.tax; // Va en el primer hueco libre.
+		else if (elegido[1] !== a.tax) elegido[1] = a.tax;
+		abrirVaria(c, elegido);
+		toast(sprintf(d.created ? __("%s created. Save to use it in this category.", "dox-pos") : __("%s is ready. Save to use it in this category.", "dox-pos"), a.label));
+	}
+
+	// Las columnas (la segunda opción): los más usados (doce) y "Más…" para el resto; "Otro color…" crea uno nuevo,
+	// con su tono si es un color. Al editar, a un producto que no tiene esta opción se le puede añadir: sus unidades
+	// de hoy pasan al primer valor que se elija (pr.adopt), que queda fijo.
+	function coloresDisponibles() {
+		const f = pr.form || {};
+		const a = attrInfo(ejes().col);
+		const lista = a ? a.values || [] : (!f.attrs && ejes().col ? f.colors || [] : []);
+		// Al editar, los del producto siempre salen (uno creado hace un momento aún no está en la lista que se cargó).
+		const suyos = pr.edit ? (pr.edit.colors || []).filter((c) => !lista.some((x) => String(x.id) === String(c.id))) : [];
+		return suyos.length ? lista.concat(suyos) : lista;
+	}
+	const sinColumnas = () => pr.edit && pr.edit.type === "variable" && !pr.edit.color_attr; // Un producto que hoy no tiene esta opción.
 	function pintarColores() {
 		const box = $("#p-colores");
 		box.innerHTML = "";
-		$("#g-colores").hidden = !(pr.form && pr.form.has_color) || !!(pr.edit && pr.edit.type !== "variable");
-		if (!pr.form || !pr.form.has_color || (pr.edit && pr.edit.type !== "variable")) return;
-		if (pr.edit && !pr.edit.colors.length) { // Un producto que no varía por color no gana colores desde aquí.
+		const e = ejes();
+		$("#p-col-tit").textContent = titCol();
+		$("#g-colores").hidden = (!e.col && !(sinColumnas() && pr.form && pr.form.has_color)) || !!(pr.edit && pr.edit.type !== "variable");
+		if ($("#g-colores").hidden) return;
+		if (sinColumnas() && !pr.edit.add_color_attr) { // No tiene la opción y su categoría no da otra que añadirle.
 			box.innerHTML = '<span class="hint">' + esc(__("This product has no colors. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ncol").textContent = "";
+			if ($("#p-colores-hint")) $("#p-colores-hint").hidden = true;
+			$("#p-nuevocolor").hidden = true;
 			return;
 		}
-		if ($("#p-colores-hint")) $("#p-colores-hint").hidden = pr.colores.length > 0; // "Sin colores..." solo cuando no hay ninguno.
+		const esColor = colEsColor();
+		const hint = $("#p-colores-hint");
+		if (hint) {
+			hint.hidden = pr.colores.length > 0 && !sinColumnas(); // "Sin colores..." solo cuando no hay ninguno.
+			if (sinColumnas()) hint.textContent = pr.colores.length ? sprintf(__("The units it already has are now %s.", "dox-pos"), pr.colores[0].name) : __("It has none today. The first one you choose takes the units it already has.", "dox-pos");
+			else if (esColor) hint.textContent = filaEsTalla() || !ejes().row ? __("No colors: the product only varies by size.", "dox-pos") : sprintf(__("No colors: the product only varies by %s.", "dox-pos"), titFila());
+			else hint.textContent = sprintf(__("None marked: it does not vary by %s.", "dox-pos"), titCol());
+		}
+		$("#p-color-swatch").hidden = !esColor;
+		$("#p-color-nom").placeholder = esColor ? __("Color name", "dox-pos") : titCol();
 		const dot = (hex) => { const i = document.createElement("i"); i.className = "dot"; i.style.background = hex; return i; };
-		const all = pr.form.colors || [];
+		const all = coloresDisponibles();
 		const TOP = 12;
 		const ver = pr.masColores || pr.edit || all.length <= TOP + 3 ? all : all.filter((c, i) => i < TOP || pr.colores.some((x) => x.key === String(c.id)));
 		ver.forEach((c) => {
-			const ch = chip(c.name, pr.colores.some((x) => x.key === String(c.id)), () => toggleColor({ key: String(c.id), id: c.id, name: c.name, hex: c.hex }));
+			const ch = chip(c.label || c.name, pr.colores.some((x) => x.key === String(c.id)), () => toggleColor({ key: String(c.id), id: c.id, name: c.name, hex: c.hex || "" }));
+			ch.title = c.name;
 			if (c.hex) ch.prepend(dot(c.hex));
-			if (pr.edit && pr.edit.colors.some((x) => String(x.key) === String(c.id))) ch.disabled = true; // Los que ya tiene no se quitan desde aquí.
+			if (pr.edit && (pr.edit.colors.some((x) => String(x.key) === String(c.id)) || pr.adopt.color === String(c.id))) ch.disabled = true; // Los que ya tiene no se quitan desde aquí.
 			box.appendChild(ch);
 		});
 		pr.colores.filter((c) => !c.id).forEach((c) => {
 			const ch = chip(c.name, true, () => toggleColor(c));
-			ch.prepend(dot(c.hex));
+			if (c.hex) ch.prepend(dot(c.hex));
 			box.appendChild(ch);
 		});
 		if (ver.length < all.length) {
-			const mas = chip(sprintf(__("More colors (%d)\u2026", "dox-pos"), all.length - ver.length), false, () => { pr.masColores = true; pintarColores(); });
+			const n = all.length - ver.length;
+			const mas = chip(esColor ? sprintf(__("More colors (%d)…", "dox-pos"), n) : sprintf(__("More (%d)…", "dox-pos"), n), false, () => { pr.masColores = true; pintarColores(); });
 			mas.classList.add("plus");
 			box.appendChild(mas);
 		}
-		const nuevo = chip(__("Another color\u2026", "dox-pos"), false, () => {
+		const nuevo = chip(esColor ? __("Another color…", "dox-pos") : sprintf(__("Add to %s…", "dox-pos"), titCol()), false, () => {
 			const row = $("#p-nuevocolor");
 			row.hidden = !row.hidden;
 			if (!row.hidden) $("#p-color-nom").focus();
@@ -3258,23 +3437,60 @@
 		box.appendChild(nuevo);
 		$("#p-ncol").textContent = pr.colores.length ? pr.colores.map((c) => c.name).join(", ") : "";
 	}
+	// Cambia las claves de las casillas (cantidades, grupos, tallas reales) al añadirle a un producto la opción que no
+	// tenía: lo que estaba en la columna sin nombre ("") pasa a la del primer valor, y lo de la fila 0 a la del primero.
+	function moverClaves(fn, fnPool) {
+		const m = (o) => { const n = {}; Object.keys(o).forEach((k) => { n[fn(k)] = o[k]; }); return n; };
+		pr.qty = m(pr.qty); pr.grupos = m(pr.grupos); pr.realQty = m(pr.realQty);
+		pr.real = new Set([...pr.real].map(fn));
+		if (fnPool) { const n = {}; Object.keys(pr.totales).forEach((k) => { n[fnPool(k)] = pr.totales[k]; }); pr.totales = n; }
+	}
+	function adoptarColumna(key) {
+		pr.adopt.color = key;
+		moverClaves((k) => (k.startsWith("|") ? key + k : k), (k) => (k === "" || k.startsWith("#") ? key + k : k));
+	}
+	function adoptarFila(id) {
+		pr.adopt.size = id;
+		moverClaves((k) => (k.endsWith("|0") ? k.slice(0, -1) + id : k));
+	}
 	function toggleColor(c) {
 		const i = pr.colores.findIndex((x) => x.key === c.key);
 		if (i >= 0) {
 			pr.colores.splice(i, 1);
 			pr.fotos.forEach((f) => { if (f.color === c.key) f.color = ""; });
-		} else pr.colores.push(c);
+		} else {
+			if (sinColumnas() && !pr.colores.length) adoptarColumna(c.key);
+			pr.colores.push(c);
+		}
 		pintarColores();
 		pintarFotos();
 		pintarCantidades();
 		pintarResumenProducto();
 	}
-	function añadirColorNuevo() {
+	async function añadirColorNuevo() {
 		const name = $("#p-color-nom").value.trim();
 		if (!name) { $("#p-color-nom").focus(); return; }
-		const ya = (pr.form.colors || []).find((c) => c.name.toLowerCase() === name.toLowerCase());
-		const c = ya ? { key: String(ya.id), id: ya.id, name: ya.name, hex: ya.hex } : { key: "n:" + name.toLowerCase(), id: 0, name: name, hex: $("#p-color-hex").value };
-		if (!pr.colores.some((x) => x.key === c.key)) pr.colores.push(c);
+		const tax = ejes().col;
+		const ya = coloresDisponibles().find((c) => c.name.toLowerCase() === name.toLowerCase());
+		let c = ya ? { key: String(ya.id), id: ya.id, name: ya.name, hex: ya.hex || "" } : { key: "n:" + name.toLowerCase(), id: 0, name: name, hex: colEsColor() ? $("#p-color-hex").value : "", attr: tax };
+		if (!ya && sinColumnas() && !pr.colores.length) {
+			// El primero que se le añade a un producto que no tenía la opción se crea ya: sus variaciones de hoy lo toman.
+			if (!navigator.onLine) { toast(__("Creating it needs a connection.", "dox-pos")); return; }
+			try {
+				const d = await post("products/sizes", { name: name, attr: tax, hex: c.hex });
+				const a = attrInfo(d.attr);
+				if (a && !a.values.some((x) => x.id === d.size.id)) a.values.push(d.size);
+				c = { key: String(d.size.id), id: d.size.id, name: d.size.name, hex: d.size.hex || "" };
+			} catch (e) {
+				if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+				else if (e.message !== "sesion") toast(e.message);
+				return;
+			}
+		}
+		if (!pr.colores.some((x) => x.key === c.key)) {
+			if (sinColumnas() && !pr.colores.length) adoptarColumna(c.key);
+			pr.colores.push(c);
+		}
 		$("#p-color-nom").value = "";
 		$("#p-nuevocolor").hidden = true;
 		pintarColores();
@@ -3283,22 +3499,19 @@
 		pintarResumenProducto();
 	}
 
-	// Tallas: solo las que usa la categoría elegida (y "Otras tallas…" para el resto), por edad, con su
-	// etiqueta corta si el tema la tiene. Las que marca la categoría se pueden quitar con un toque.
-	// Cada categoría lleva su atributo de talla (Talla en la ropa, Talla calzado en los zapatos): manda la primera
-	// elegida. Al editar, el que ya usa el producto.
+	// Las filas (la primera opción): solo los valores que usa la categoría elegida (y "Otras…" para el resto), en orden
+	// de tallas, con su etiqueta corta si el tema la tiene. Los que marca la categoría se quitan con un toque.
 	function atributoTalla() {
-		const f = pr.form || {};
-		if (pr.edit) return pr.edit.size_attr || f.size_attr || "";
-		const cats = f.categories || [];
-		const c = pr.cats.length ? cats.find((x) => x.id === pr.cats[0]) : null;
-		return c && c.size_attr !== undefined ? c.size_attr : (f.size_attr || "");
+		return ejes().row;
 	}
 	function tallasDisponibles() {
 		const f = pr.form || {};
 		const tax = atributoTalla();
-		if (f.size_attrs && f.size_attrs[tax]) return f.size_attrs[tax].sizes || [];
-		return !f.size_attrs || tax === f.size_attr ? (f.sizes || []) : []; // Un formulario de antes de la 0.56 solo trae las de siempre.
+		const a = attrInfo(tax);
+		if (a) return a.values || [];
+		if (f.attrs) return [];
+		if (f.size_attrs && f.size_attrs[tax]) return f.size_attrs[tax].sizes || []; // Un formulario de antes de la 0.57.
+		return !f.size_attrs || tax === f.size_attr ? (f.sizes || []) : [];
 	}
 	function tallasDeCategoria() {
 		const cats = (pr.form && pr.form.categories) || [];
@@ -3309,41 +3522,53 @@
 		});
 		return ids;
 	}
+	const sinFilas = () => pr.edit && pr.edit.type === "variable" && !pr.edit.size_attr; // Un producto que hoy no tiene esta opción.
+	function marcarFila(id) {
+		if (pr.tallas.includes(id)) return;
+		if (sinFilas() && !pr.tallas.length) adoptarFila(id);
+		pr.tallas.push(id);
+	}
 	function pintarTallas() {
 		const box = $("#p-tallas");
 		const hint = $("#p-tallas-hint");
 		box.innerHTML = "";
 		const all = tallasDisponibles();
-		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable");
-		pintarTipoTalla();
-		if (pr.edit && pr.edit.type === "variable" && !pr.edit.sizes.length) { // Un producto que no varía por talla no gana tallas desde aquí.
+		const talla = filaEsTalla();
+		const tit = titFila();
+		$("#p-fila-tit").textContent = tit;
+		$("#g-tallas").hidden = (!atributoTalla() && !(sinFilas() && pr.form && pr.form.has_size)) || !!(pr.edit && pr.edit.type !== "variable");
+		pintarVaria();
+		if ($("#g-tallas").hidden) { $("#p-nuevatalla").hidden = true; return; }
+		if (sinFilas() && !pr.edit.add_size_attr) { // No tiene la opción y su categoría no da otra que añadirle.
 			box.innerHTML = '<span class="hint">' + esc(__("This product has no sizes. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ntal").textContent = "";
 			hint.textContent = "";
 			return;
 		}
+		$("#p-talla-nom").placeholder = talla ? __("Size, for example 42", "dox-pos") : tit;
 		const deCat = tallasDeCategoria();
 		const ver = pr.masTallas || pr.edit ? all : all.filter((t) => deCat.includes(t.id) || pr.tallas.includes(t.id));
 		ver.forEach((t) => {
 			const ch = chip(t.label || t.name, pr.tallas.includes(t.id), () => {
 				pr.tallasTocadas = true;
 				const i = pr.tallas.indexOf(t.id);
-				if (i >= 0) pr.tallas.splice(i, 1); else pr.tallas.push(t.id);
+				if (i >= 0) pr.tallas.splice(i, 1); else marcarFila(t.id);
 				pintarTallas();
 				pintarCantidades();
 				pintarResumenProducto();
 			});
 			ch.title = t.name;
-			if (pr.edit && pr.edit.sizes.includes(t.id)) ch.disabled = true; // Las que ya tiene no se quitan desde aquí.
+			if (t.hex) { const i = document.createElement("i"); i.className = "dot"; i.style.background = t.hex; ch.prepend(i); }
+			if (pr.edit && (pr.edit.sizes.includes(t.id) || pr.adopt.size === t.id)) ch.disabled = true; // Las que ya tiene no se quitan desde aquí.
 			box.appendChild(ch);
 		});
 		if (ver.length < all.length) {
-			const mas = chip(ver.length ? __("Other sizes\u2026", "dox-pos") : __("Choose sizes\u2026", "dox-pos"), false, () => { pr.masTallas = true; pintarTallas(); });
+			const mas = chip(talla ? (ver.length ? __("Other sizes…", "dox-pos") : __("Choose sizes…", "dox-pos")) : (ver.length ? __("More values…", "dox-pos") : __("Choose values…", "dox-pos")), false, () => { pr.masTallas = true; pintarTallas(); });
 			mas.classList.add("plus");
 			box.appendChild(mas);
 		}
-		if (atributoTalla()) { // Una talla que la tienda aún no tiene ("42"): se crea en las de la categoría.
-			const nueva = chip(__("New size\u2026", "dox-pos"), false, () => {
+		if (atributoTalla()) { // Un valor que la tienda aún no tiene ("42", "750 ml"): se crea en el atributo de las filas.
+			const nueva = chip(talla ? __("New size…", "dox-pos") : sprintf(__("Add to %s…", "dox-pos"), tit), false, () => {
 				const row = $("#p-nuevatalla");
 				row.hidden = !row.hidden;
 				if (!row.hidden) $("#p-talla-nom").focus();
@@ -3352,56 +3577,13 @@
 			box.appendChild(nueva);
 		} else $("#p-nuevatalla").hidden = true;
 		const n = pr.tallas.length;
-		$("#p-ntal").textContent = n ? sprintf(_n("%d size", "%d sizes", n, "dox-pos"), n) : __("one size", "dox-pos");
-		if (pr.edit) hint.textContent = "";
-		else if (!pr.cats.length && !n && !pr.masTallas) hint.textContent = __("Choose the category and its sizes appear.", "dox-pos");
-		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas && !atributoTalla() ? __("This category does not use sizes: it stays one size.", "dox-pos") : __("No sizes: one size.", "dox-pos");
+		$("#p-ntal").textContent = talla ? (n ? sprintf(_n("%d size", "%d sizes", n, "dox-pos"), n) : __("one size", "dox-pos")) : (n ? sprintf(_n("%d value", "%d values", n, "dox-pos"), n) : "");
+		if (sinFilas()) hint.textContent = n ? sprintf(__("The units it already has are now %s.", "dox-pos"), (all.find((t) => t.id === pr.tallas[0]) || {}).name || "") : __("It has none today. The first one you choose takes the units it already has.", "dox-pos");
+		else if (pr.edit) hint.textContent = "";
+		else if (!pr.cats.length && !n && !pr.masTallas) hint.textContent = talla ? __("Choose the category and its sizes appear.", "dox-pos") : __("Choose the category and its options appear.", "dox-pos");
+		else if (!n) hint.textContent = talla ? __("No sizes: one size.", "dox-pos") : sprintf(__("None marked: it does not vary by %s.", "dox-pos"), tit);
 		else if (!pr.tallasTocadas) hint.textContent = __("Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.", "dox-pos");
 		else hint.textContent = "";
-	}
-	// Qué tallas usa la categoría elegida ("Tallas de Zapatos: Talla calzado · Cambiar"), solo si la tienda tiene más
-	// de un tipo. Cambiarlo aquí es lo mismo que en Ajustes > Productos > Tallas por categoría: queda para siempre.
-	function pintarTipoTalla() {
-		const p = $("#p-tipotalla");
-		const box = $("#p-tipos");
-		const tipos = (pr.form && pr.form.size_attrs) || {};
-		const c = !pr.edit && pr.cats.length ? ((pr.form && pr.form.categories) || []).find((x) => x.id === pr.cats[0]) : null;
-		if (!c || Object.keys(tipos).length < 2) { p.hidden = true; box.hidden = true; return; }
-		const tax = atributoTalla();
-		p.hidden = false;
-		p.innerHTML = esc(sprintf(__("Sizes of %s:", "dox-pos"), c.name)) + " <b>" + esc(tax && tipos[tax] ? tipos[tax].label : __("No sizes", "dox-pos")) + '</b> · <button type="button" class="linkp" id="p-tipo-cambiar">' + esc(__("Change type", "dox-pos")) + "</button>";
-		$("#p-tipo-cambiar").onclick = () => { box.hidden = !box.hidden; };
-		box.innerHTML = "";
-		Object.keys(tipos).forEach((t) => {
-			const ej = (tipos[t].sizes || []).slice(0, 3).map((x) => x.label || x.name);
-			const ch = chip(tipos[t].label + (ej.length ? " (" + ej.join(", ") + ((tipos[t].sizes || []).length > 3 ? "\u2026" : "") + ")" : ""), t === tax, () => cambiarTipoTalla(c, t));
-			box.appendChild(ch);
-		});
-		box.appendChild(chip(__("No sizes", "dox-pos"), !tax, () => cambiarTipoTalla(c, "-")));
-	}
-	async function cambiarTipoTalla(c, t) {
-		if ((t === "-" ? "" : t) === atributoTalla()) { $("#p-tipos").hidden = true; return; }
-		if (!navigator.onLine) { toast(__("Changing it needs a connection.", "dox-pos")); return; }
-		try {
-			const d = await post("products/category-size", { category: c.id, attr: t });
-			pr.form.categories = d.categories || pr.form.categories; // Sus subcategorías sin tallas propias también cambian.
-			const nueva = pr.form.categories.find((x) => x.id === c.id);
-			// Las marcadas eran del tipo anterior y ya no valen: se ponen las que sugiere la categoría con el nuevo.
-			pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
-			pr.tallasTocadas = false;
-			const validas = new Set(tallasDisponibles().map((x) => x.id));
-			pr.tallas = pr.tallas.filter((id) => validas.has(id));
-			pr.masTallas = !pr.tallas.length; // Sin tallas sugeridas de ese tipo todavía: salen todas para marcarlas.
-			$("#p-tipos").hidden = true;
-			$("#p-nuevatalla").hidden = true;
-			toast(sprintf(__("Saved: %s will always use these sizes.", "dox-pos"), c.name));
-		} catch (e) {
-			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
-			else if (e.message !== "sesion") toast(e.message);
-		}
-		pintarTallas();
-		pintarCantidades();
-		pintarResumenProducto();
 	}
 	async function añadirTallaNueva() {
 		const name = $("#p-talla-nom").value.trim();
@@ -3409,7 +3591,7 @@
 		const tax = atributoTalla();
 		if (!tax) return;
 		const listo = (id) => {
-			if (!pr.tallas.includes(id)) pr.tallas.push(id);
+			marcarFila(id);
 			pr.tallasTocadas = true;
 			$("#p-talla-nom").value = "";
 			$("#p-nuevatalla").hidden = true;
@@ -3422,14 +3604,15 @@
 		if (!navigator.onLine) { toast(__("Creating a size needs a connection.", "dox-pos")); return; }
 		const btn = $("#p-talla-add");
 		if (btn.getAttribute("aria-busy") === "true") return;
-		const soltar = ocupar(btn, __("Creating\u2026", "dox-pos"));
+		const soltar = ocupar(btn, __("Creating…", "dox-pos"));
 		try {
 			const d = await post("products/sizes", { name: name, attr: tax });
 			const meter = (lista) => {
 				if (!lista || lista.some((t) => t.id === d.size.id)) return;
 				lista.push(d.size);
-				lista.sort((a, b) => (a.key - b.key) || a.name.localeCompare(b.name, undefined, { numeric: true }));
+				if (d.size.key !== undefined) lista.sort((a, b) => (a.key - b.key) || a.name.localeCompare(b.name, undefined, { numeric: true }));
 			};
+			if (attrInfo(d.attr)) meter(attrInfo(d.attr).values);
 			if (pr.form.size_attrs && pr.form.size_attrs[d.attr]) meter(pr.form.size_attrs[d.attr].sizes);
 			if (d.attr === pr.form.size_attr) meter(pr.form.sizes);
 			listo(d.size.id);
@@ -3487,6 +3670,9 @@
 		const cols = columnas();
 		const rows = filas();
 		const multi = cols.length > 1; // Con varios colores, cada color lleva sus propias unidades compartidas (una bolsa por color).
+		// Compartir unidades entre tallas (y la talla real) es cosa de tallas: con otras filas (capacidades) no se ofrece,
+		// salvo que el producto ya tenga alguna así (se respeta y se puede deshacer).
+		const comparte = filaEsTalla() || Object.keys(pr.grupos).some((k) => keys.includes(k) && pr.grupos[k] > 0);
 		const pool = (key) => (pr.totales[key] ? miles(pr.totales[key]) : "\u2013");
 		let algunas = 0, conGrupos = false;
 		// Una tarjeta por color (una sola si el producto no tiene colores): sus tallas en filas, y debajo las unidades que
@@ -3499,12 +3685,12 @@
 			const comparten = rows.filter((r) => grupoDe(qKey(c.key, r.id)) > 0);
 			algunas += comparten.length;
 			let h = '<div class="qcard">';
-			if (pr.colores.length) h += '<div class="qcard-h"><span class="qcard-n">' + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</span>" + (variable && rows.length > 1 ? '<label class="qshare qall"><input type="checkbox" data-all="' + esc(c.key) + '"' + (comparten.length === rows.length && !varios ? " checked" : "") + ">" + esc(__("All sizes share", "dox-pos")) + "</label>" : "") + "</div>";
+			if (pr.colores.length) h += '<div class="qcard-h"><span class="qcard-n">' + (c.hex ? '<i class="dot" style="background:' + esc(c.hex) + '"></i>' : "") + esc(c.name) + "</span>" + (variable && comparte && rows.length > 1 ? '<label class="qshare qall"><input type="checkbox" data-all="' + esc(c.key) + '"' + (comparten.length === rows.length && !varios ? " checked" : "") + ">" + esc(__("All sizes share", "dox-pos")) + "</label>" : "") + "</div>";
 			rows.forEach((r) => {
 				const k = qKey(c.key, r.id);
 				const g = grupoDe(k);
 				let ctrl = "";
-				if (variable) {
+				if (variable && comparte) {
 					// El menú de cada talla: lleva las suyas, comparte (en el grupo 1, 2...), o abre otro grupo que comparte aparte.
 					const lista = gs.length ? gs : [1];
 					let opts = '<option value="0"' + (g === 0 ? " selected" : "") + ">" + esc(sinCompartir(c.key, r.id)) + "</option>";
@@ -3514,7 +3700,7 @@
 				}
 				const v = pr.qty[k];
 				const esReal = g > 0 && pr.real.has(k) && rows.filter((x) => grupoDe(qKey(c.key, x.id)) === g).length > 1;
-				h += '<div class="qrow' + (esReal ? " real" : "") + '"><span class="qsz" title="' + esc(r.name) + '">' + esc(r.label || r.name) + (esReal ? '<span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + '</span><span class="qcell">' +
+				h += '<div class="qrow' + (esReal ? " real" : "") + '"><span class="qsz" title="' + esc(r.name) + '">' + (r.hex ? '<i class="dot" style="background:' + esc(r.hex) + '"></i>' : "") + esc(r.label || r.name) + (esReal ? '<span class="rt">' + esc(__("Actual size", "dox-pos")) + "</span>" : "") + '</span><span class="qcell">' +
 					(g ? '<span class="qpool" data-pool="' + esc(pk(c.key, g)) + '" title="' + esc(__("Shared units", "dox-pos")) + '">' + pool(pk(c.key, g)) + "</span>" : '<input inputmode="numeric" placeholder="0" data-c="' + esc(c.key) + '" data-s="' + r.id + '" value="' + (v === undefined ? "" : v) + '" aria-label="' + esc(r.name + ", " + c.name) + '">') +
 					ctrl + "</span></div>";
 			});
@@ -3538,7 +3724,7 @@
 		// Debajo de las tarjetas: cómo hacer que compartan, o que cada color (y cada grupo) va por su cuenta.
 		const hint = $("#p-qty-shared");
 		const partes = [];
-		if (variable && keys.length > 1 && !algunas) partes.push(__("Do several sizes sell from the same units? Choose \u201cShares\u201d on each one and write how many there are for all of them.", "dox-pos"));
+		if (variable && comparte && keys.length > 1 && !algunas) partes.push(__("Do several sizes sell from the same units? Choose \u201cShares\u201d on each one and write how many there are for all of them.", "dox-pos"));
 		if (multi && algunas) partes.push(__("Each colour keeps its own shared units: selling a size only lowers the units of its colour.", "dox-pos"));
 		if (conGrupos) partes.push(__("Each group keeps its own units too: selling a size only lowers the units of its group.", "dox-pos"));
 		if (multi && algunas && pr.legacy) partes.push(sprintf(__("These sizes used to share one total for every colour (%d). From now on each colour keeps its own: check the numbers before saving.", "dox-pos"), pr.legacyTotal));
@@ -3685,8 +3871,12 @@
 	function pintarResumenProducto() {
 		const nt = pr.tallas.length, nc = pr.colores.length, u = unidadesTotales();
 		const vars = (nt || 1) * (nc || 1);
+		// Tallas y colores: "(3 tallas × 2 colores)"; otras opciones con su nombre: "(Capacidad: 3 × 2 colores)".
+		const parteFila = filaEsTalla() ? sprintf(_n("%d size", "%d sizes", nt, "dox-pos"), nt) : titFila() + ": " + nt;
+		const parteCol = colEsColor() ? sprintf(_n("%d color", "%d colors", nc, "dox-pos"), nc) : titCol() + ": " + nc;
+		const detalle = parteFila + " × " + parteCol;
 		let que = (nt || nc)
-			? sprintf(_n("%d variation", "%d variations", vars, "dox-pos"), vars) + (nt && nc ? " (" + sprintf(_n("%d size", "%d sizes", nt, "dox-pos"), nt) + " × " + sprintf(_n("%d color", "%d colors", nc, "dox-pos"), nc) + ")" : "")
+			? sprintf(_n("%d variation", "%d variations", vars, "dox-pos"), vars) + (nt && nc ? " (" + detalle + ")" : "")
 			: __("One-size product", "dox-pos");
 		if (pr.edit && pr.edit.type !== "variable") que = __("One-size product", "dox-pos");
 		const precio = num($("#p-precio").value);
@@ -3725,7 +3915,7 @@
 			if (form.weight_matters && !paq.weight) avisos.push(__("No weight: the shipping by weight will charge it as if it weighed nothing.", "dox-pos"));
 			const rp = repartoPendiente(); // Avisa, no frena: se puede guardar y repartir después.
 			if (rp) avisos.push(sprintf(_n("%d group of shared sizes is not split by actual size, or does not add up: the register will not know which piece leaves.", "%d groups of shared sizes are not split by actual size, or do not add up: the register will not know which piece leaves.", rp, "dox-pos"), rp));
-			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length));
+			if (pr.tallas.length > 1 && !pr.tallasTocadas) avisos.push(filaEsTalla() ? sprintf(__("The category marked all %d sizes. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length) : sprintf(__("The category marked %1$d values of %2$s. If the product does not come in all of them, go back and remove the extra ones.", "dox-pos"), pr.tallas.length, titFila()));
 			let tabla = "";
 			const vivas = new Set(compartidasVivas());
 			if (pr.tallas.length || pr.colores.length) {
@@ -3743,7 +3933,7 @@
 				li(esc(__("Price", "dox-pos")), dinero(precio)) +
 				(cfg.costs ? li(esc(__("Cost", "dox-pos")), costoForm() ? dinero(costoForm()) + " · " + esc(sprintf(__("leaves %s per unit", "dox-pos"), dinero(precio - costoForm()))) : esc(__("No cost", "dox-pos"))) : "") +
 				li(esc(__("Category", "dox-pos")), esc(cats.join(", "))) +
-				(pr.colores.length ? li(esc(__("Colors", "dox-pos")), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
+				(pr.colores.length ? li(esc(titCol()), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
 				li(esc(__("Units", "dox-pos")), esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + tabla) +
 				li(esc(__("Package", "dox-pos")), esc(paqueteVacio(paq) ? __("No weight or size", "dox-pos") : paqueteTexto(paq))) +
 				li(esc(__("Photos", "dox-pos")), fotosOk.length ? esc(sprintf(_n("%d photo", "%d photos", fotosOk.length, "dox-pos"), fotosOk.length)) : esc(__("No photo", "dox-pos"))) +
@@ -3785,8 +3975,11 @@
 			description: $("#p-desc").value.trim(),
 			publish: $("#p-pub").checked,
 			sizes: rows.map((t) => t.id),
-			size_attr: atributoTalla(), // El atributo de esas tallas (pa_talla-calzado en un zapato).
+			size_attr: ejes().row,  // El atributo de las filas (pa_talla-calzado en un zapato, pa_capacidad en un termo)...
+			color_attr: ejes().col, // ...y el de las columnas (pa_color, pa_material).
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
+			adopt_size: pr.edit && pr.adopt.size ? pr.adopt.size : undefined,   // Al editar: la opción que se le añade y el valor que
+			adopt_color: pr.edit && pr.adopt.color ? pr.adopt.color : undefined, // toman sus variaciones de hoy.
 			qty: qty,
 			shared_cells: compartidasVivas(), // Las tallas que comparten unidades (clave color|talla)...
 			shared_groups: gruposVivos(),     // ...en qué grupo está cada una (1, 2...)...
@@ -3828,7 +4021,8 @@
 		$("#p-nuevocolor").hidden = true;
 		$("#p-nuevacat").hidden = true;
 		$("#p-nuevatalla").hidden = true;
-		$("#p-tipos").hidden = true;
+		$("#p-variabox").hidden = true;
+		pr.adopt = { size: 0, color: "" };
 		$("#p-cat-nom").value = "";
 		$("#p-nom-dup").hidden = true;
 		estadoSku("", "");
@@ -4026,6 +4220,7 @@
 		if (pr.edit || pr.fotos.length) limpiarProducto();
 		pr.modo = "editar";
 		pr.edit = d;
+		pr.adopt = { size: 0, color: "" };
 		pr.grupos = Object.assign({}, d.shared_groups || {}); // Las tallas que hoy comparten unidades, con su grupo.
 		if (!Object.keys(pr.grupos).length) (d.shared_cells || []).forEach((k) => { pr.grupos[k] = 1; });
 		pr.totales = Object.assign({}, d.pool_stock || {}); // Las unidades compartidas por columna de color.

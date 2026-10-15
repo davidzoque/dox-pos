@@ -1236,7 +1236,32 @@ function dox_pos_sanitize_products( $in ) {
 		}
 	}
 	if ( ! isset( $in['cat_size'] ) ) {
-		$cat_size = (array) ( $old['cat_size'] ?? array() ); // La tabla no salió (un solo atributo de talla): se guarda lo que había.
+		$cat_size = (array) ( $old['cat_size'] ?? array() ); // No viene de la pantalla: se guarda lo que había.
+	}
+	// "Varía por" de cada categoría (0.57): en la pantalla, dos menús por categoría (el primero vacío es automático,
+	// "-" es que no varía). Lo que se fija ahí también deja su talla en cat_size, para una versión anterior.
+	$cat_vary = array();
+	if ( ! empty( $in['vary_seen'] ) ) {
+		$cat_size = array();
+		foreach ( (array) ( $in['cat_vary'] ?? array() ) as $cid => $pair ) {
+			$pair = array_values( array_map( 'strval', (array) $pair ) );
+			$a    = $pair[0] ?? '';
+			if ( (int) $cid <= 0 || '' === $a ) {
+				continue;
+			}
+			$set = '-' === $a ? array() : dox_pos_clean_vary( array_filter( array( $a, $pair[1] ?? '' ) ), $all );
+			if ( null !== $set ) {
+				$cat_vary[ (int) $cid ] = $set ? $set : array( '-' );
+				$cat_size[ (int) $cid ] = dox_pos_vary_size_compat( $set );
+			}
+		}
+	} else {
+		foreach ( (array) ( $in['cat_vary'] ?? ( $old['cat_vary'] ?? array() ) ) as $cid => $set ) {
+			$set = dox_pos_clean_vary( $set, $all );
+			if ( (int) $cid > 0 && null !== $set ) {
+				$cat_vary[ (int) $cid ] = $set ? $set : array( '-' );
+			}
+		}
 	}
 	if ( $q < 50 || $q > 100 ) {
 		add_settings_error( 'dox_pos', 'quality', __( 'Quality goes from 50 to 100. It was left at 88.', 'dox-pos' ) );
@@ -1260,6 +1285,7 @@ function dox_pos_sanitize_products( $in ) {
 		'size_attrs' => $sizes,
 		'size_attr'  => isset( $sizes[0] ) && '-' !== $sizes[0] ? dox_pos_attributes_by_use( $sizes )[0] : '', // Para quien vuelva a una versión anterior a la 0.56.
 		'cat_size'   => $cat_size,
+		'cat_vary'   => $cat_vary,
 		'color_attr' => isset( $all[ $col ] ) ? $col : '',
 		'costs'      => ! empty( $in['costs'] ),
 		'real_near'  => ! empty( $in['real_near_on'] ) ? max( 1, min( 9, (int) ( $in['real_near'] ?? 1 ) ) ) : 0,
@@ -2361,21 +2387,21 @@ function dox_pos_settings_page() {
 						<?php if ( ! $attrs ) : ?>
 						<p class="dp-hint"><?php esc_html_e( 'The store has no global attributes yet (Products > Attributes). Without them, the register creates one-size products.', 'dox-pos' ); ?></p>
 						<?php else : ?>
-						<?php
-						$size_on   = dox_pos_size_attributes();
-						$size_auto = empty( $praw['size_attrs'] ) && empty( $praw['size_attr'] );
-						$size_uses = dox_pos_attribute_uses( array_keys( $attrs ) );
-						?>
+							<?php
+							$size_on   = dox_pos_size_attributes();
+							$size_auto = empty( $praw['size_attrs'] ) && empty( $praw['size_attr'] );
+							$size_uses = dox_pos_attribute_uses( array_keys( $attrs ) );
+							?>
 						<div class="dp-field">
 							<span class="dp-label"><?php esc_html_e( 'Size attributes', 'dox-pos' ); ?></span>
 							<p class="dp-hint"><?php echo $size_auto ? esc_html__( 'Detected by name. Mark every attribute that holds sizes: a store can have letters for clothes and numbers for shoes, and each category uses its own.', 'dox-pos' ) : esc_html__( 'Mark every attribute that holds sizes: a store can have letters for clothes and numbers for shoes, and each category uses its own.', 'dox-pos' ); ?></p>
 							<input type="hidden" name="dox_pos_products[size_seen]" value="1">
 							<div class="dp-pays" id="dp-size-attrs">
 								<?php foreach ( $attrs as $tax => $alabel ) : ?>
-								<?php
-								$ex = array_slice( array_column( dox_pos_attribute_terms( $tax, 'size' ), 'name' ), 0, 5 );
-								$n  = $size_uses[ $tax ] ?? 0;
-								?>
+									<?php
+									$ex = array_slice( array_column( dox_pos_attribute_terms( $tax, 'size' ), 'name' ), 0, 5 );
+									$n  = $size_uses[ $tax ] ?? 0;
+									?>
 								<div class="dp-pay<?php echo in_array( $tax, $size_on, true ) ? '' : ' off'; ?>">
 									<label class="dp-switch"><input type="checkbox" role="switch" name="dox_pos_products[size_attrs][]" value="<?php echo esc_attr( $tax ); ?>" <?php checked( in_array( $tax, $size_on, true ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $alabel ); ?></span></label>
 									<span class="dp-pay-main"><b><?php echo esc_html( $alabel ); ?></b><span class="dp-hint"><?php echo esc_html( implode( ', ', $ex ) . ( $ex ? ' · ' : '' ) . ( $n ? __( 'in use', 'dox-pos' ) : __( 'no product uses it yet', 'dox-pos' ) ) ); ?></span></span>
@@ -2395,32 +2421,60 @@ function dox_pos_settings_page() {
 						<?php endif; ?>
 					</div>
 
-					<?php if ( count( dox_pos_size_attributes() ) > 1 ) : ?>
-					<?php
-					$cat_set  = dox_pos_products_settings()['cat_size'];
-					$cat_list = dox_pos_product_categories();
-					?>
+					<?php if ( $attrs ) : ?>
+						<?php
+						$pset     = dox_pos_products_settings();
+						$cat_list = dox_pos_product_categories();
+						$names    = function ( $set ) use ( $attrs ) {
+							$set = array_map( fn( $t ) => $attrs[ $t ] ?? $t, (array) $set );
+							if ( ! $set ) {
+								return __( 'nothing (one size)', 'dox-pos' );
+							}
+							/* translators: 1: first option, 2: second option */
+							return 2 === count( $set ) ? sprintf( __( '%1$s and %2$s', 'dox-pos' ), $set[0], $set[1] ) : $set[0];
+						};
+	?>
 					<div class="dp-card">
 						<div class="dp-card-head">
-							<h2><?php esc_html_e( 'Sizes by category', 'dox-pos' ); ?></h2>
-							<p><?php esc_html_e( 'When a product is created, the category says which sizes come up. Automatic is the attribute that its products already use; a subcategory without one of its own takes its parent\'s.', 'dox-pos' ); ?></p>
+							<h2><?php esc_html_e( 'Varies by', 'dox-pos' ); ?></h2>
+							<p><?php esc_html_e( 'What the products of each category vary by: up to two attributes of the store (clothes by Size and Color, thermoses by Capacity and Color, cases by Model). The first one goes in the rows of the register\'s form and the second in the columns. Automatic is the size its products already use plus the color; a subcategory without one of its own takes its parent\'s.', 'dox-pos' ); ?></p>
 						</div>
-						<div class="dp-pays">
+						<input type="hidden" name="dox_pos_products[vary_seen]" value="1">
+						<div class="dp-pays" id="dp-vary">
 							<?php foreach ( $cat_list as $c ) : ?>
-							<?php
-							$mine = $cat_set;
-							unset( $mine[ $c['id'] ] );
-							$sola = dox_pos_category_size_map( $mine )[ $c['id'] ] ?? '';
-							?>
-							<div class="dp-pay dp-pay-cat">
-								<span class="dp-pay-main"><b><?php echo esc_html( $c['path'] ? $c['path'] . ' › ' . $c['name'] : $c['name'] ); ?></b><span class="dp-hint"><?php echo esc_html( sprintf( /* translators: %d: number of products */ _n( '%d product', '%d products', $c['count'], 'dox-pos' ), $c['count'] ) ); ?></span></span>
-								<select name="dox_pos_products[cat_size][<?php echo (int) $c['id']; ?>]" class="dp-input" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: category name */ __( 'Sizes of %s', 'dox-pos' ), $c['name'] ) ); ?>">
-									<option value=""><?php echo esc_html( sprintf( /* translators: %s: attribute that was detected */ __( 'Automatic: %s', 'dox-pos' ), '' === $sola ? __( 'no sizes', 'dox-pos' ) : ( $attrs[ $sola ] ?? $sola ) ) ); ?></option>
-									<?php foreach ( dox_pos_size_attributes() as $tax ) : ?>
-									<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $cat_set[ $c['id'] ] ?? '', $tax ); ?>><?php echo esc_html( $attrs[ $tax ] ?? $tax ); ?></option>
-									<?php endforeach; ?>
-									<option value="-" <?php selected( $cat_set[ $c['id'] ] ?? '', '-' ); ?>><?php esc_html_e( 'No sizes', 'dox-pos' ); ?></option>
-								</select>
+								<?php
+								$cid   = (int) $c['id'];
+								$vset  = $pset['cat_vary'];
+								$sset  = $pset['cat_size'];
+								$mine  = null; // Lo fijado a esta categoría: su "Varía por", o lo que fijó la 0.56 (su talla y el color).
+								if ( isset( $vset[ $cid ] ) ) {
+									$mine = $vset[ $cid ];
+								} elseif ( isset( $sset[ $cid ] ) ) {
+									$mine = array_values( array_unique( array_filter( array( '-' === $sset[ $cid ] ? '' : $sset[ $cid ], $pset['color_attr'] ) ) ) );
+								}
+								unset( $vset[ $cid ], $sset[ $cid ] );
+								$sola  = dox_pos_category_vary_map( $vset, $sset )[ $cid ] ?? array();
+								$first = null === $mine ? '' : ( $mine ? $mine[0] : '-' );
+								$second = $mine[1] ?? '';
+								$label = $c['path'] ? $c['path'] . ' › ' . $c['name'] : $c['name'];
+								?>
+							<div class="dp-pay dp-pay-cat dp-vary">
+								<span class="dp-pay-main"><b><?php echo esc_html( $label ); ?></b><span class="dp-hint"><?php echo esc_html( sprintf( /* translators: %d: number of products */ _n( '%d product', '%d products', $c['count'], 'dox-pos' ), $c['count'] ) ); ?></span></span>
+								<span class="dp-vary-sel">
+									<select name="dox_pos_products[cat_vary][<?php echo (int) $cid; ?>][]" class="dp-input" data-vary="1" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: category name */ __( 'First option of %s', 'dox-pos' ), $c['name'] ) ); ?>">
+										<option value=""><?php echo esc_html( sprintf( /* translators: %s: what the category varies by when nothing is set */ __( 'Automatic: %s', 'dox-pos' ), $names( $sola ) ) ); ?></option>
+										<?php foreach ( $attrs as $tax => $alabel ) : ?>
+										<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $first, $tax ); ?>><?php echo esc_html( $alabel ); ?></option>
+										<?php endforeach; ?>
+										<option value="-" <?php selected( $first, '-' ); ?>><?php esc_html_e( 'Nothing (one size)', 'dox-pos' ); ?></option>
+									</select>
+									<select name="dox_pos_products[cat_vary][<?php echo (int) $cid; ?>][]" class="dp-input" data-vary="2" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: category name */ __( 'Second option of %s', 'dox-pos' ), $c['name'] ) ); ?>"<?php disabled( '' === $first || '-' === $first ); ?>>
+										<option value=""><?php esc_html_e( 'No second option', 'dox-pos' ); ?></option>
+										<?php foreach ( $attrs as $tax => $alabel ) : ?>
+										<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $second, $tax ); ?>><?php echo esc_html( $alabel ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</span>
 							</div>
 							<?php endforeach; ?>
 						</div>

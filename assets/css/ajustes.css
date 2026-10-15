@@ -222,6 +222,10 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-pay-cat{grid-template-columns:minmax(0,1fr) minmax(150px,240px);padding:10px 14px}
 .dp-app .dp-pay-cat .dp-input{height:36px}
 @media (max-width:560px){.dp-pay-cat{grid-template-columns:1fr}}
+.dp-vary{grid-template-columns:minmax(0,1fr) minmax(260px,440px)}
+.dp-vary-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.dp-app .dp-vary-sel select:disabled{opacity:.5;background-image:none}
+@media (max-width:560px){.dp-vary{grid-template-columns:1fr}}
 .dp-pay.is-new{animation:dp-flash 700ms}
 .dp-pay.out{opacity:0;transform:scale(.98);transition:opacity 140ms ease,transform 140ms ease}
 .dp-pay-suggest{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}

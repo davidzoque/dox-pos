@@ -29,9 +29,11 @@ function dox_pos_products_cap() {
  * size_attrs son los atributos de talla (una tienda puede tener Talla en la ropa y Talla calzado en
  * los zapatos), el más usado primero; size_attr es ese primero, el de siempre para quien solo tiene uno.
  * cat_size dice el de cada categoría que se fijó a mano ("-": esa categoría no lleva tallas).
+ * cat_vary (0.57) dice por qué varían los productos de cada categoría fijada a mano: hasta dos atributos
+ * cualesquiera (Capacidad y Color en los termos), o ninguno.
  *
  * @param bool $reset Volver a leer la opción (después de cambiarla en la misma petición).
- * @return array{quality:int,max_px:int,sku:string,size_attrs:string[],size_attr:string,cat_size:array<int,string>,color_attr:string,costs:bool}
+ * @return array{quality:int,max_px:int,sku:string,size_attrs:string[],size_attr:string,cat_size:array<int,string>,cat_vary:array<int,string[]>,color_attr:string,costs:bool}
  */
 function dox_pos_products_settings( $reset = false ) {
 	static $cache = null;
@@ -48,6 +50,14 @@ function dox_pos_products_settings( $reset = false ) {
 			$cats[ (int) $cid ] = (string) $tax;
 		}
 	}
+	$all  = dox_pos_attribute_taxonomies();
+	$vary = array();
+	foreach ( (array) ( $s['cat_vary'] ?? array() ) as $cid => $set ) {
+		$set = dox_pos_clean_vary( $set, $all );
+		if ( (int) $cid > 0 && null !== $set ) {
+			$vary[ (int) $cid ] = $set;
+		}
+	}
 	$cache = array(
 		'quality'    => isset( $s['quality'] ) && (int) $s['quality'] >= 50 ? min( 100, (int) $s['quality'] ) : 88,
 		'max_px'     => isset( $s['max_px'] ) && (int) $s['max_px'] >= 800 ? min( 4000, (int) $s['max_px'] ) : 1600,
@@ -55,6 +65,7 @@ function dox_pos_products_settings( $reset = false ) {
 		'size_attrs' => $sizes,
 		'size_attr'  => $sizes ? $sizes[0] : '',
 		'cat_size'   => $cats,
+		'cat_vary'   => $vary,
 		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), dox_pos_attribute_names( 'color' ) ),
 		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
 		'real_near'  => max( 0, min( 9, (int) ( $s['real_near'] ?? 0 ) ) ), // 0: apagado. Si no, a cuántas tallas puede estar la prenda real (includes/real-sizes.php).
@@ -75,6 +86,29 @@ function dox_pos_attribute_taxonomies() {
 		}
 	}
 	return $out;
+}
+
+/**
+ * Un "Varía por" limpio: hasta dos atributos de la tienda, sin repetir. Array vacío = no varía (producto
+ * de talla única); null = no vale nada de lo que llegó.
+ *
+ * @param mixed                     $set Lo guardado: lista de taxonomías, o array( '-' ).
+ * @param array<string,string>|null $all Los atributos de la tienda (null: se leen).
+ * @return string[]|null
+ */
+function dox_pos_clean_vary( $set, $all = null ) {
+	$all = null === $all ? dox_pos_attribute_taxonomies() : $all;
+	$set = array_values( array_map( 'strval', (array) $set ) );
+	if ( array( '-' ) === $set ) {
+		return array();
+	}
+	$out = array();
+	foreach ( $set as $tax ) {
+		if ( isset( $all[ $tax ] ) && ! in_array( $tax, $out, true ) && count( $out ) < 2 ) {
+			$out[] = $tax;
+		}
+	}
+	return $out ? $out : null;
 }
 
 /**
@@ -251,6 +285,103 @@ function dox_pos_variation_size( $v ) {
 }
 
 /**
+ * El árbol de categorías: term_id => madre. Se lee una vez por petición.
+ *
+ * @return array<int,int>
+ */
+function dox_pos_category_parents() {
+	static $terms = null;
+	static $when  = null;
+	$now = wp_cache_get_last_changed( 'terms' ); // Una categoría creada en esta misma petición también cuenta.
+	if ( null === $terms || $when !== $now ) {
+		$terms = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false, 'fields' => 'id=>parent' ) );
+		$terms = is_wp_error( $terms ) ? array() : array_map( 'intval', $terms );
+		$when  = $now;
+	}
+	return $terms;
+}
+
+/**
+ * El atributo de talla que usan los productos de cada categoría (con lo de sus subcategorías), o '' si tiene
+ * productos y ninguno con tallas. Solo con más de un atributo de talla: con uno no hace falta mirar.
+ *
+ * @return array<int,string>
+ */
+function dox_pos_category_size_found() {
+	static $found = null;
+	if ( null !== $found ) {
+		return $found;
+	}
+	$found = array();
+	$taxes = dox_pos_size_attributes();
+	$terms = dox_pos_category_parents();
+	if ( count( $taxes ) < 2 ) {
+		return $found;
+	}
+	global $wpdb;
+	$keys = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
+	$in   = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	// Lo de cada subcategoría cuenta también para sus madres: Zapatos sin productos propios, pero con
+	// los tenis en Zapatos > Tenis, es de Talla calzado.
+	$uses = array();
+	foreach ( (array) $rows as $r ) {
+		$x = (int) $r['term_id'];
+		$n = 0;
+		while ( $x && $n++ < 10 ) {
+			$uses[ $x ][ substr( $r['k'], 10 ) ] = ( $uses[ $x ][ substr( $r['k'], 10 ) ] ?? 0 ) + (int) $r['n'];
+			$x = (int) ( $terms[ $x ] ?? 0 );
+		}
+	}
+	foreach ( $uses as $tid => $by ) {
+		uksort( $by, fn( $a, $b ) => array_search( $a, $taxes, true ) - array_search( $b, $taxes, true ) ); // A igual uso, el más usado de la tienda.
+		arsort( $by );
+		$found[ $tid ] = (string) array_key_first( $by );
+	}
+	// Una categoría con productos y ninguno con tallas (Carteras) no lleva tallas: sin esto le tocaría el
+	// tipo más usado de la tienda (calzado). Cuenta lo de sus subcategorías; una vacía hereda de su madre.
+	$counts = $wpdb->get_results( "SELECT term_id, count FROM {$wpdb->term_taxonomy} WHERE taxonomy = 'product_cat' AND count > 0", ARRAY_A );
+	foreach ( (array) $counts as $r ) {
+		$x = (int) $r['term_id'];
+		$n = 0;
+		while ( $x && $n++ < 10 ) {
+			if ( ! isset( $found[ $x ] ) ) {
+				$found[ $x ] = '';
+			}
+			$x = (int) ( $terms[ $x ] ?? 0 );
+		}
+	}
+	return $found;
+}
+
+/**
+ * La columna de una variación (su color, o su material si varía por Talla y Material): el valor que no es su
+ * talla. Las unidades compartidas van por columna (includes/pools.php).
+ *
+ * @param WC_Product|null $v Variación.
+ * @return array{0:string,1:string} [taxonomía, slug], vacíos si no tiene.
+ */
+function dox_pos_variation_column( $v ) {
+	if ( ! $v instanceof WC_Product ) {
+		return array( '', '' );
+	}
+	list( $stax ) = dox_pos_variation_size( $v );
+	$other        = array( '', '' );
+	foreach ( (array) $v->get_attributes() as $tax => $slug ) {
+		if ( ! is_string( $slug ) || '' === $slug || $tax === $stax ) {
+			continue;
+		}
+		if ( dox_pos_is_color_attribute( $tax ) ) {
+			return array( (string) $tax, $slug );
+		}
+		if ( '' === $other[0] ) {
+			$other = array( (string) $tax, $slug );
+		}
+	}
+	return $other;
+}
+
+/**
  * El atributo de talla de cada categoría: el fijado en Ajustes > Productos, si no el que usan sus
  * productos, si no el de su categoría madre, y si nada, el de siempre. Vacío: no lleva tallas.
  *
@@ -258,56 +389,14 @@ function dox_pos_variation_size( $v ) {
  * @return array<int,string> term_id => taxonomía.
  */
 function dox_pos_category_size_map( $set = null ) {
-	static $found = null;
 	$taxes = dox_pos_size_attributes();
 	if ( ! $taxes ) {
 		return array();
 	}
-	$terms = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false, 'fields' => 'id=>parent' ) );
-	if ( is_wp_error( $terms ) ) {
-		return array();
-	}
-	// El que más productos de la categoría usan en sus variaciones. Con un solo atributo no hace falta mirar.
-	if ( null === $found ) {
-		$found = array();
-		if ( count( $taxes ) > 1 ) {
-			global $wpdb;
-			$keys = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
-			$in   = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-			// Lo de cada subcategoría cuenta también para sus madres: Zapatos sin productos propios, pero con
-			// los tenis en Zapatos > Tenis, es de Talla calzado.
-			$uses = array();
-			foreach ( (array) $rows as $r ) {
-				$x = (int) $r['term_id'];
-				$n = 0;
-				while ( $x && $n++ < 10 ) {
-					$uses[ $x ][ substr( $r['k'], 10 ) ] = ( $uses[ $x ][ substr( $r['k'], 10 ) ] ?? 0 ) + (int) $r['n'];
-					$x = (int) ( $terms[ $x ] ?? 0 );
-				}
-			}
-			foreach ( $uses as $tid => $by ) {
-				uksort( $by, fn( $a, $b ) => array_search( $a, $taxes, true ) - array_search( $b, $taxes, true ) ); // A igual uso, el más usado de la tienda.
-				arsort( $by );
-				$found[ $tid ] = (string) array_key_first( $by );
-			}
-			// Una categoría con productos y ninguno con tallas (Carteras) no lleva tallas: sin esto le tocaría el
-			// tipo más usado de la tienda (calzado). Cuenta lo de sus subcategorías; una vacía hereda de su madre.
-			$counts = $wpdb->get_results( "SELECT term_id, count FROM {$wpdb->term_taxonomy} WHERE taxonomy = 'product_cat' AND count > 0", ARRAY_A );
-			foreach ( (array) $counts as $r ) {
-				$x = (int) $r['term_id'];
-				$n = 0;
-				while ( $x && $n++ < 10 ) {
-					if ( ! isset( $found[ $x ] ) ) {
-						$found[ $x ] = '';
-					}
-					$x = (int) ( $terms[ $x ] ?? 0 );
-				}
-			}
-		}
-	}
-	$set = null === $set ? dox_pos_products_settings()['cat_size'] : (array) $set;
-	$map = array();
+	$terms = dox_pos_category_parents();
+	$found = dox_pos_category_size_found();
+	$set   = null === $set ? dox_pos_products_settings()['cat_size'] : (array) $set;
+	$map   = array();
 	foreach ( $terms as $tid => $parent ) {
 		$x   = (int) $tid;
 		$tax = null;
@@ -326,6 +415,171 @@ function dox_pos_category_size_map( $set = null ) {
 		$map[ (int) $tid ] = null === $tax ? $taxes[0] : $tax;
 	}
 	return $map;
+}
+
+/**
+ * Por qué varían los productos de cada categoría ("Varía por"): hasta dos atributos, en orden. El primero
+ * va en las filas del formulario y el segundo en las columnas. Subiendo por las categorías madre, manda la
+ * primera que tenga algo: un "Varía por" fijado (0.57), o la talla de la 0.56 (fijada en Tallas por
+ * categoría o la que usan sus productos) más el color. Sin nada, la talla de siempre y el color: una tienda
+ * con solo Talla y Color sigue exactamente igual.
+ *
+ * @param array|null $vary Los "Varía por" fijados (null: los del ajuste). Ajustes lo pasa sin una categoría para saber qué le tocaría sola.
+ * @param array|null $size Las tallas fijadas a mano en la 0.56 (null: las del ajuste).
+ * @return array<int,string[]> term_id => taxonomías (0, 1 o 2).
+ */
+function dox_pos_category_vary_map( $vary = null, $size = null ) {
+	$s     = dox_pos_products_settings();
+	$vary  = null === $vary ? $s['cat_vary'] : (array) $vary;
+	$size  = null === $size ? $s['cat_size'] : (array) $size;
+	$terms = dox_pos_category_parents();
+	$found = dox_pos_category_size_found();
+	$smap  = dox_pos_category_size_map( $size );
+	$color = $s['color_attr'];
+	$def   = array_values( array_filter( array( $s['size_attr'], $color ) ) );
+	$map   = array();
+	foreach ( $terms as $tid => $parent ) {
+		$x   = (int) $tid;
+		$out = null;
+		$n   = 0;
+		while ( $x && $n++ < 10 ) {
+			if ( isset( $vary[ $x ] ) ) {
+				$out = (array) $vary[ $x ];
+				break;
+			}
+			if ( isset( $size[ $x ] ) || isset( $found[ $x ] ) ) {
+				// Lo de la 0.56: la talla de esa categoría (la misma que le da el mapa de tallas) y el color.
+				$out = array_values( array_unique( array_filter( array( $smap[ (int) $tid ] ?? '', $color ) ) ) );
+				break;
+			}
+			$x = (int) ( $terms[ $x ] ?? 0 );
+		}
+		$map[ (int) $tid ] = null === $out ? $def : $out;
+	}
+	return $map;
+}
+
+/**
+ * Los atributos que son colores: el del ajuste y los que se llaman como un color ("Color", "Color tapa").
+ * Sus valores llevan muestra de color en la caja.
+ *
+ * @return string[]
+ */
+function dox_pos_color_attributes() {
+	static $out = null;
+	if ( null === $out ) {
+		$out = dox_pos_attribute_candidates( dox_pos_attribute_names( 'color' ) );
+		$set = dox_pos_products_settings()['color_attr'];
+		if ( $set && ! in_array( $set, $out, true ) ) {
+			array_unshift( $out, $set );
+		}
+	}
+	return $out;
+}
+
+/**
+ * Si un atributo es de color (sus valores llevan muestra).
+ *
+ * @param string $tax Taxonomía.
+ * @return bool
+ */
+function dox_pos_is_color_attribute( $tax ) {
+	return '' !== (string) $tax && in_array( (string) $tax, dox_pos_color_attributes(), true );
+}
+
+/**
+ * Dónde va cada opción en el formulario: la primera en las filas y la segunda en las columnas. Con una sola,
+ * un color va en las columnas (como un producto que solo varía por color) y lo demás en las filas.
+ *
+ * @param string[] $set Las opciones, en orden.
+ * @return array{row:string,col:string}
+ */
+function dox_pos_vary_axes( $set ) {
+	$set = array_values( array_filter( array_map( 'strval', (array) $set ) ) );
+	if ( count( $set ) >= 2 ) {
+		return array( 'row' => $set[0], 'col' => $set[1] );
+	}
+	if ( ! $set ) {
+		return array( 'row' => '', 'col' => '' );
+	}
+	return dox_pos_is_color_attribute( $set[0] ) ? array( 'row' => '', 'col' => $set[0] ) : array( 'row' => $set[0], 'col' => '' );
+}
+
+/**
+ * El "Varía por" de una categoría (o de la primera de un producto que tenga una).
+ *
+ * @param int[] $cats Categorías.
+ * @return string[]
+ */
+function dox_pos_categories_vary( $cats ) {
+	$map = dox_pos_category_vary_map();
+	foreach ( (array) $cats as $cid ) {
+		if ( isset( $map[ (int) $cid ] ) ) {
+			return $map[ (int) $cid ];
+		}
+	}
+	$s = dox_pos_products_settings();
+	return array_values( array_filter( array( $s['size_attr'], $s['color_attr'] ) ) );
+}
+
+/**
+ * Por qué varía un producto que ya existe: los atributos de sus variaciones, colocados en filas y columnas.
+ * Si son los mismos que los de su categoría, en el orden de la categoría; si no, el color en las columnas y
+ * una talla en las filas. Sin variaciones todavía, lo de su categoría. Error si varía por más de dos cosas o
+ * por un atributo propio del producto (no global): eso se edita en WooCommerce.
+ *
+ * @param WC_Product $p Producto (o variación: se mira el padre).
+ * @return array{row:string,col:string}|WP_Error
+ */
+function dox_pos_product_axes( $p ) {
+	if ( $p instanceof WC_Product && $p->is_type( 'variation' ) ) {
+		$p = wc_get_product( $p->get_parent_id() );
+	}
+	if ( ! $p instanceof WC_Product ) {
+		return array( 'row' => '', 'col' => '' );
+	}
+	$cat = dox_pos_categories_vary( $p->get_category_ids() );
+	if ( ! $p->is_type( 'variable' ) ) {
+		return dox_pos_vary_axes( $cat );
+	}
+	$mine = array();
+	foreach ( $p->get_attributes() as $a ) {
+		if ( ! $a instanceof WC_Product_Attribute || ! $a->get_variation() ) {
+			continue;
+		}
+		if ( ! $a->is_taxonomy() ) {
+			/* translators: %s: attribute name */
+			return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'This product varies by "%s", which the register does not handle: edit it in WooCommerce.', 'dox-pos' ), $a->get_name() ) );
+		}
+		$mine[] = $a->get_name();
+	}
+	if ( count( $mine ) > 2 ) {
+		/* translators: %s: list of attribute names */
+		return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'This product varies by %s: the register edits products that vary by up to two things. Edit it in WooCommerce; it still sells from the register.', 'dox-pos' ), implode( ', ', array_map( 'wc_attribute_label', $mine ) ) ) );
+	}
+	if ( ! $mine ) {
+		return dox_pos_vary_axes( $cat );
+	}
+	if ( 1 === count( $mine ) ) {
+		$i = array_search( $mine[0], $cat, true );
+		if ( false !== $i && 2 === count( $cat ) ) {
+			return 0 === $i ? array( 'row' => $mine[0], 'col' => '' ) : array( 'row' => '', 'col' => $mine[0] );
+		}
+		return dox_pos_vary_axes( $mine );
+	}
+	if ( ! array_diff( $mine, $cat ) && ! array_diff( $cat, $mine ) ) {
+		return dox_pos_vary_axes( $cat );
+	}
+	// Otros que los de su categoría: el color en las columnas; si los dos son o no son color, la talla en las filas.
+	$c0 = dox_pos_is_color_attribute( $mine[0] );
+	$c1 = dox_pos_is_color_attribute( $mine[1] );
+	if ( $c0 !== $c1 ) {
+		return $c0 ? array( 'row' => $mine[1], 'col' => $mine[0] ) : array( 'row' => $mine[0], 'col' => $mine[1] );
+	}
+	if ( dox_pos_is_size_attribute( $mine[1] ) && ! dox_pos_is_size_attribute( $mine[0] ) ) {
+		return array( 'row' => $mine[1], 'col' => $mine[0] );
+	}
+	return array( 'row' => $mine[0], 'col' => $mine[1] );
 }
 
 /**
@@ -372,12 +626,12 @@ function dox_pos_color_attribute() {
  */
 function dox_pos_product_form() {
 	$cached = get_transient( 'dox_pos_product_form' );
-	if ( is_array( $cached ) && ( $cached['version'] ?? '' ) === DOX_POS_VERSION ) {
+	if ( is_array( $cached ) && ( $cached['version'] ?? '' ) === DOX_POS_VERSION && isset( $cached['attrs'] ) ) { // Sin attrs es de antes de la 0.57.
 		return $cached;
 	}
 	$s      = dox_pos_products_settings();
 	$labels = dox_pos_attribute_taxonomies();
-	$lists  = array(); // Las tallas de cada atributo de talla: cada categoría enseña las del suyo.
+	$lists  = array(); // Las tallas de cada atributo de talla (0.56; el Pro y las cajas viejas las leen).
 	foreach ( $s['size_attrs'] as $tax ) {
 		$lists[ $tax ] = array(
 			'label' => html_entity_decode( (string) ( $labels[ $tax ] ?? $tax ), ENT_QUOTES, 'UTF-8' ),
@@ -389,9 +643,11 @@ function dox_pos_product_form() {
 	$out    = array(
 		'version'    => DOX_POS_VERSION,
 		'categories' => dox_pos_product_categories(),
+		'attrs'      => (object) dox_pos_vary_attributes(), // Todos los atributos de la tienda con sus valores: cada categoría varía por los suyos.
 		'sizes'      => $sizes,             // Las del atributo de siempre (las de antes de la 0.56).
 		'size_attr'  => $s['size_attr'],
 		'size_attrs' => (object) $lists,
+		'color_attr' => $s['color_attr'],
 		'colors'     => $colors,
 		'sku_format' => $s['sku'],
 		'quality'    => $s['quality'],
@@ -403,6 +659,38 @@ function dox_pos_product_form() {
 		'weight_matters' => dox_pos_weight_matters(), // ¿Alguna zona cobra el envío por peso? Entonces crear un producto sin peso se avisa.
 	);
 	set_transient( 'dox_pos_product_form', $out, HOUR_IN_SECONDS );
+	return $out;
+}
+
+/**
+ * Un atributo de la tienda como lo pinta la caja: su nombre, si es de talla o de color, y sus valores (los
+ * colores con su muestra y por uso; lo demás en el orden de las tallas).
+ *
+ * @param string $tax Taxonomía.
+ * @return array{tax:string,label:string,size:bool,color:bool,values:array}
+ */
+function dox_pos_vary_attribute( $tax ) {
+	$labels = dox_pos_attribute_taxonomies();
+	$color  = dox_pos_is_color_attribute( $tax );
+	return array(
+		'tax'    => (string) $tax,
+		'label'  => html_entity_decode( (string) ( $labels[ $tax ] ?? $tax ), ENT_QUOTES, 'UTF-8' ),
+		'size'   => dox_pos_is_size_attribute( $tax ),
+		'color'  => $color,
+		'values' => dox_pos_attribute_terms( $tax, $color ? 'color' : 'size' ),
+	);
+}
+
+/**
+ * Todos los atributos globales de la tienda, listos para "Varía por".
+ *
+ * @return array<string,array>
+ */
+function dox_pos_vary_attributes() {
+	$out = array();
+	foreach ( array_keys( dox_pos_attribute_taxonomies() ) as $tax ) {
+		$out[ $tax ] = dox_pos_vary_attribute( $tax );
+	}
 	return $out;
 }
 
@@ -655,7 +943,9 @@ function dox_pos_term_hex( $term_id ) {
  * las demás detrás de "Más categorías", y una tienda recién instalada, sin productos, puede crear
  * el primero. La de "sin categoría" no sale: elegirla es no elegir ninguna.
  *
- * Cada una lleva su atributo de talla (size_attr: Talla calzado en Zapatos, Talla en Ropa).
+ * Cada una lleva su atributo de talla (size_attr: Talla calzado en Zapatos, Talla en Ropa) y por qué varían
+ * sus productos (vary: Capacidad y Color en Termos). Sus tallas sugeridas (sizes) son valores de la primera
+ * opción, sea talla o no.
  *
  * @param array $sizes Sin uso desde la 0.56 (cada categoría lleva las tallas de su atributo).
  * @return array
@@ -672,6 +962,7 @@ function dox_pos_product_categories( $sizes = array() ) { // phpcs:ignore Generi
 	$prefix = dox_pos_category_prefixes();
 	$sets   = dox_pos_category_size_sets();
 	$attr   = dox_pos_category_size_map();
+	$vary   = dox_pos_category_vary_map();
 	$plain  = fn( $s ) => html_entity_decode( (string) $s, ENT_QUOTES, 'UTF-8' ); // "Lazos &amp; pinzas" se guarda así en la base.
 	$none   = (int) get_option( 'default_product_cat', 0 ); // "Sin categoría", se llame como se llame en el idioma de la tienda.
 	$out    = array();
@@ -696,6 +987,7 @@ function dox_pos_product_categories( $sizes = array() ) { // phpcs:ignore Generi
 			'prefix'   => $prefix[ $t->term_id ] ?? '',
 			'sizes'    => $sets[ $t->term_id ] ?? array(),
 			'size_attr' => $attr[ (int) $t->term_id ] ?? dox_pos_size_attribute(),
+			'vary'      => $vary[ (int) $t->term_id ] ?? array(), // Por qué varían sus productos (0.57): filas y columnas del formulario.
 		);
 	}
 	usort(
@@ -741,20 +1033,26 @@ function dox_pos_category_prefixes() {
 }
 
 /**
- * Las tallas que más se repiten en los productos de cada categoría (las seis de un vestido,
- * las de rango de unas medias), como ids de término. Solo cuentan las del atributo de talla
- * de la categoría (dox_pos_category_size_map).
+ * Los valores de la primera opción que más se repiten en los productos de cada categoría (las seis tallas
+ * de un vestido, las capacidades de un termo), como ids de término. Solo cuentan los del atributo de las
+ * filas de la categoría (su "Varía por").
  *
  * @param array $sizes Sin uso desde la 0.56.
  * @return array<int,int[]>
  */
 function dox_pos_category_size_sets( $sizes = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 	global $wpdb;
-	$taxes = dox_pos_size_attributes();
+	$attr = array();
+	foreach ( dox_pos_category_vary_map() as $tid => $set ) {
+		$row = dox_pos_vary_axes( $set )['row'];
+		if ( '' !== $row ) {
+			$attr[ $tid ] = $row;
+		}
+	}
+	$taxes = array_values( array_unique( $attr ) );
 	if ( ! $taxes ) {
 		return array();
 	}
-	$attr    = dox_pos_category_size_map();
 	$keys    = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
 	$in      = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
 	$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, v.post_parent, t.meta_key k, GROUP_CONCAT(DISTINCT t.meta_value ORDER BY t.meta_value SEPARATOR ',') slugs FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status = 'publish' GROUP BY x.term_id, v.post_parent, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
@@ -807,13 +1105,16 @@ function dox_pos_sku_codes( $rebuild = false ) {
 
 function dox_pos_build_sku_codes( $prev ) {
 	global $wpdb;
-	$color_tax = dox_pos_color_attribute();
-	// Las tallas de todos los atributos de talla: un mismo nombre ("8") lleva el mismo código en cualquiera.
-	$keys      = array_map( fn( $t ) => 'attribute_' . $t, dox_pos_size_attributes() ? dox_pos_size_attributes() : array( '' ) );
-	$in        = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-	$rows      = $wpdb->get_results( $wpdb->prepare( "SELECT vs.meta_value vsku, ps.meta_value psku, t.meta_value talla, c.meta_value color FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} vs ON vs.post_id = v.ID AND vs.meta_key = '_sku' AND vs.meta_value <> '' JOIN {$wpdb->postmeta} ps ON ps.post_id = v.post_parent AND ps.meta_key = '_sku' AND ps.meta_value <> '' LEFT JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) LEFT JOIN {$wpdb->postmeta} c ON c.post_id = v.ID AND c.meta_key = %s WHERE v.post_type = 'product_variation'", array_merge( $keys, array( 'attribute_' . $color_tax ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-	$sizes     = array();
-	$colors    = array();
+	// Los valores de todos los atributos: un mismo nombre ("8") lleva el mismo código en cualquiera. Los dos
+	// primeros dígitos son la primera opción (la talla, la capacidad) y los dos últimos el color, si lo hay.
+	$rows = $wpdb->get_results( "SELECT v.ID, vs.meta_value vsku, ps.meta_value psku FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} vs ON vs.post_id = v.ID AND vs.meta_key = '_sku' AND vs.meta_value <> '' JOIN {$wpdb->postmeta} ps ON ps.post_id = v.post_parent AND ps.meta_key = '_sku' AND ps.meta_value <> '' WHERE v.post_type = 'product_variation'", ARRAY_A );
+	$vals = array();
+	$meta = $wpdb->get_results( $wpdb->prepare( "SELECT m.post_id, m.meta_key, m.meta_value FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} v ON v.ID = m.post_id AND v.post_type = 'product_variation' WHERE m.meta_key LIKE %s AND m.meta_value <> ''", $wpdb->esc_like( 'attribute_pa_' ) . '%' ), ARRAY_A );
+	foreach ( (array) $meta as $m ) {
+		$vals[ (int) $m['post_id'] ][ substr( $m['meta_key'], 10 ) ] = (string) $m['meta_value'];
+	}
+	$sizes  = array();
+	$colors = array();
 	foreach ( (array) $rows as $r ) {
 		if ( 0 !== strpos( $r['vsku'], $r['psku'] ) ) {
 			continue;
@@ -822,13 +1123,17 @@ function dox_pos_build_sku_codes( $prev ) {
 		if ( ! ctype_digit( $rem ) || ( 3 !== strlen( $rem ) && 4 !== strlen( $rem ) ) ) {
 			continue;
 		}
-		$sc = substr( $rem, 0, 2 );
-		$cc = 4 === strlen( $rem ) ? substr( $rem, 2, 2 ) : '';
-		if ( '' !== (string) $r['talla'] ) {
-			$sizes[ $r['talla'] ][ $sc ] = ( $sizes[ $r['talla'] ][ $sc ] ?? 0 ) + 1;
+		$sc  = substr( $rem, 0, 2 );
+		$cc  = 4 === strlen( $rem ) ? substr( $rem, 2, 2 ) : '';
+		$va  = $vals[ (int) $r['ID'] ] ?? array();
+		$ord = dox_pos_vary_axes( dox_pos_sku_order( array_keys( $va ) ) );
+		$one = '' !== $ord['row'] ? (string) ( $va[ $ord['row'] ] ?? '' ) : '';
+		$two = '' !== $ord['col'] ? (string) ( $va[ $ord['col'] ] ?? '' ) : '';
+		if ( '' !== $one ) {
+			$sizes[ $one ][ $sc ] = ( $sizes[ $one ][ $sc ] ?? 0 ) + 1;
 		}
-		if ( '' !== $cc && '' !== (string) $r['color'] ) {
-			$colors[ $r['color'] ][ $cc ] = ( $colors[ $r['color'] ][ $cc ] ?? 0 ) + 1;
+		if ( '' !== $cc && '' !== $two ) {
+			$colors[ $two ][ $cc ] = ( $colors[ $two ][ $cc ] ?? 0 ) + 1;
 		}
 	}
 	$pick = function ( $counts, $keep ) {
@@ -892,12 +1197,35 @@ function dox_pos_sku_code_no_size() {
 }
 
 /**
- * El código de una variación según el formato del ajuste.
+ * Los atributos de una variación en el orden de su código: la talla (o lo que no es color) primero y el color
+ * después. Para leer los códigos que ya existen sin saber de qué categoría es cada producto.
+ *
+ * @param string[] $taxes Taxonomías.
+ * @return string[] Las dos que cuentan.
+ */
+function dox_pos_sku_order( $taxes ) {
+	$taxes = array_values( (array) $taxes );
+	if ( count( $taxes ) < 2 ) {
+		return $taxes;
+	}
+	usort(
+		$taxes,
+		static function ( $a, $b ) {
+			$w = fn( $t ) => dox_pos_is_color_attribute( $t ) ? 2 : ( dox_pos_is_size_attribute( $t ) ? 0 : 1 );
+			return $w( $a ) - $w( $b );
+		}
+	);
+	return array_slice( $taxes, 0, 2 );
+}
+
+/**
+ * El código de una variación según el formato del ajuste: el del padre, los dos dígitos de la primera opción
+ * (la fila: talla, capacidad...) y los dos de la segunda (la columna: color, material...).
  *
  * @param string       $format codes, slugs o none.
  * @param string       $base   El código del padre.
- * @param WP_Term|null $size   La talla.
- * @param WP_Term|null $color  El color.
+ * @param WP_Term|null $size   El valor de la fila.
+ * @param WP_Term|null $color  El valor de la columna.
  * @return string
  */
 function dox_pos_variation_sku( $format, $base, $size, $color ) {
@@ -1250,14 +1578,23 @@ function dox_pos_create_product( $data ) {
 	if ( ! $cats ) {
 		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
-	// El atributo de talla: el que manda la pantalla (el de la categoría elegida) si es de talla; si no, el de
-	// la primera categoría; si nada, el de siempre.
-	$size_tax = (string) ( $data['size_attr'] ?? '' );
-	if ( ! dox_pos_is_size_attribute( $size_tax ) ) {
-		$map      = dox_pos_category_size_map();
-		$size_tax = $map[ $cats[0] ] ?? $s['size_attr'];
+	// Por qué varía: lo que manda la pantalla (size_attr en las filas y color_attr en las columnas, los de la
+	// categoría elegida) o, si no lo manda, lo de su primera categoría. Una caja anterior a la 0.57 manda solo size_attr.
+	$axes = dox_pos_vary_axes( dox_pos_categories_vary( $cats ) );
+	$all  = dox_pos_attribute_taxonomies();
+	if ( array_key_exists( 'size_attr', $data ) || array_key_exists( 'color_attr', $data ) ) {
+		$want_row = (string) ( $data['size_attr'] ?? '' );
+		$want_col = array_key_exists( 'color_attr', $data ) ? (string) $data['color_attr'] : $axes['col'];
+		if ( ! array_key_exists( 'color_attr', $data ) && ! dox_pos_is_size_attribute( $want_row ) ) {
+			$want_row = $axes['row']; // Una caja vieja manda la talla de siempre: si no es de talla, lo de la categoría.
+		}
+		$axes = array(
+			'row' => isset( $all[ $want_row ] ) ? $want_row : '',
+			'col' => isset( $all[ $want_col ] ) && $want_col !== $want_row ? $want_col : '',
+		);
 	}
-	$color_tax = $s['color_attr'];
+	$size_tax  = $axes['row'];
+	$color_tax = $axes['col'];
 	$sizes     = array(); // id => WP_Term
 	if ( $size_tax ) {
 		foreach ( (array) ( $data['sizes'] ?? array() ) as $sid ) {
@@ -1515,11 +1852,12 @@ function dox_pos_make_attribute( $tax, $term_ids, $position ) {
 }
 
 /**
- * Un color nuevo: se crea el término y, si el tema usa muestras de color, su hex.
+ * Un valor nuevo de la segunda opción (un color, un material): se crea el término y, si es un color y el tema
+ * usa muestras de color, su hex.
  *
  * @param string $name Nombre.
- * @param string $hex  Color.
- * @param string $tax  pa_color.
+ * @param string $hex  Color (solo cuenta en un atributo de color).
+ * @param string $tax  pa_color, pa_material...
  * @return WP_Term|WP_Error
  */
 function dox_pos_create_color( $name, $hex, $tax ) {
@@ -1529,10 +1867,11 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	$r = wp_insert_term( $name, $tax );
 	if ( is_wp_error( $r ) ) {
-		return new WP_Error( 'dox_pos_color', sprintf( /* translators: 1: colour, 2: reason */ __( 'The color %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
+		/* translators: 1: colour or value, 2: reason */
+		return new WP_Error( 'dox_pos_color', sprintf( __( 'The color %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
 	}
 	$hex = dox_pos_hex( $hex );
-	if ( $hex ) {
+	if ( $hex && dox_pos_is_color_attribute( $tax ) ) {
 		update_term_meta( (int) $r['term_id'], 'st-color-swatch', array( strtolower( $hex ) ) );
 	}
 	delete_transient( 'dox_pos_product_form' );
@@ -1540,10 +1879,10 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 }
 
 /**
- * Una talla nueva desde la caja ("42" en Talla calzado): se crea en el atributo de talla que se diga y
- * vuelve lista para las fichas. Si ya existe, vuelve la que hay.
+ * Un valor nuevo desde la caja ("42" en Talla calzado, "750 ml" en Capacidad): se crea en el atributo que se
+ * diga y vuelve listo para las fichas. Si ya existe, vuelve el que hay.
  *
- * @param array $data name y attr (pa_talla-calzado).
+ * @param array $data name, attr (pa_talla-calzado) y, en un atributo de color, hex.
  * @return array|WP_Error {size, attr}
  */
 function dox_pos_create_size( $data ) {
@@ -1552,7 +1891,8 @@ function dox_pos_create_size( $data ) {
 	if ( '' === $name ) {
 		return new WP_Error( 'dox_pos_talla', __( 'Write the size.', 'dox-pos' ) );
 	}
-	if ( ! dox_pos_is_size_attribute( $tax ) || ! taxonomy_exists( $tax ) ) {
+	$all = dox_pos_attribute_taxonomies();
+	if ( ! isset( $all[ $tax ] ) || ! taxonomy_exists( $tax ) ) {
 		return new WP_Error( 'dox_pos_talla', __( 'That type of size is not in the store.', 'dox-pos' ) );
 	}
 	$found = term_exists( $name, $tax );
@@ -1563,9 +1903,13 @@ function dox_pos_create_size( $data ) {
 		}
 		$found = $r;
 	}
-	$id = (int) ( is_array( $found ) ? $found['term_id'] : $found );
+	$id  = (int) ( is_array( $found ) ? $found['term_id'] : $found );
+	$hex = dox_pos_hex( (string) ( $data['hex'] ?? '' ) );
+	if ( $hex && dox_pos_is_color_attribute( $tax ) && '' === dox_pos_term_hex( $id ) ) {
+		update_term_meta( $id, 'st-color-swatch', array( strtolower( $hex ) ) ); // Un color nuevo con su muestra.
+	}
 	delete_transient( 'dox_pos_product_form' );
-	foreach ( dox_pos_attribute_terms( $tax, 'size' ) as $t ) {
+	foreach ( dox_pos_attribute_terms( $tax, dox_pos_is_color_attribute( $tax ) ? 'color' : 'size' ) as $t ) {
 		if ( $t['id'] === $id ) {
 			return array( 'size' => $t, 'attr' => $tax );
 		}
@@ -1574,9 +1918,8 @@ function dox_pos_create_size( $data ) {
 }
 
 /**
- * Fija desde la caja qué tallas usa una categoría (Zapatos: Talla calzado; Carteras: ninguna). Lo mismo
- * que Ajustes > Productos > Tallas por categoría. Vuelven todas las categorías, porque sus subcategorías
- * sin tallas propias lo heredan.
+ * Fija desde la caja qué tallas usa una categoría (Zapatos: Talla calzado; Carteras: ninguna). Lo de la 0.56,
+ * para las cajas que aún no se recargaron: quita su "Varía por" para que valga lo que se fija aquí.
  *
  * @param array $data category (id) y attr (taxonomía, o "-" para sin tallas).
  * @return array|WP_Error {categories}
@@ -1594,10 +1937,151 @@ function dox_pos_set_category_size( $data ) {
 	$o = is_array( $o ) ? $o : array();
 	$o['cat_size']         = (array) ( $o['cat_size'] ?? array() );
 	$o['cat_size'][ $cid ] = $tax;
+	unset( $o['cat_vary'][ $cid ] );
 	update_option( 'dox_pos_products', $o );
 	dox_pos_products_settings( true );
 	delete_transient( 'dox_pos_product_form' );
 	return array( 'categories' => dox_pos_product_categories() );
+}
+
+/**
+ * Fija desde la caja por qué varían los productos de una categoría (Termos: Capacidad y Color; Fundas: Modelo;
+ * Carteras: nada). Lo mismo que Ajustes > Productos > Varía por: queda para siempre, y sus subcategorías sin
+ * uno propio lo heredan. Vuelven todas las categorías.
+ *
+ * @param array $data category (id) y attrs (hasta dos taxonomías; vacío: no varía).
+ * @return array|WP_Error {categories}
+ */
+function dox_pos_set_category_vary( $data ) {
+	$cid = (int) ( $data['category'] ?? 0 );
+	if ( ! $cid || ! term_exists( $cid, 'product_cat' ) ) {
+		return new WP_Error( 'dox_pos_categoria', __( 'That category is not in the store.', 'dox-pos' ) );
+	}
+	$want = array_values( array_filter( array_map( 'strval', (array) ( $data['attrs'] ?? array() ) ) ) );
+	$set  = $want ? dox_pos_clean_vary( $want ) : array();
+	if ( null === $set || count( $set ) !== count( array_unique( $want ) ) ) {
+		return new WP_Error( 'dox_pos_varia', __( 'Choose up to two different attributes of the store.', 'dox-pos' ) );
+	}
+	$o = get_option( 'dox_pos_products', array() );
+	$o = is_array( $o ) ? $o : array();
+	$o['cat_vary']         = (array) ( $o['cat_vary'] ?? array() );
+	$o['cat_vary'][ $cid ] = $set ? $set : array( '-' );
+	$o['cat_size']         = (array) ( $o['cat_size'] ?? array() );
+	$o['cat_size'][ $cid ] = dox_pos_vary_size_compat( $set ); // Para una versión anterior a la 0.57 (y el Pro): su talla, o sin tallas.
+	update_option( 'dox_pos_products', $o );
+	dox_pos_products_settings( true );
+	delete_transient( 'dox_pos_product_form' );
+	return array( 'categories' => dox_pos_product_categories() );
+}
+
+/**
+ * Lo que una versión anterior a la 0.57 entiende de un "Varía por": su atributo de talla, o "-" (sin tallas).
+ *
+ * @param string[] $set Opciones.
+ * @return string
+ */
+function dox_pos_vary_size_compat( $set ) {
+	foreach ( (array) $set as $tax ) {
+		if ( dox_pos_is_size_attribute( $tax ) ) {
+			return (string) $tax;
+		}
+	}
+	return '-';
+}
+
+/**
+ * Un atributo nuevo desde la caja ("Capacidad" con 350 ml, 500 ml y 1 L): se crea como atributo global de
+ * WooCommerce con sus valores. Si se parece a uno que ya existe ("Tallas" y "Talla"), no se crea y se dice cuál
+ * es, salvo que se pida crearlo igual (force).
+ *
+ * @param array $data name, values (lista o texto separado por comas) y force.
+ * @return array|WP_Error {attr, created}; el error dox_pos_parecido lleva similar (taxonomía) y label.
+ */
+function dox_pos_create_attribute( $data ) {
+	$name = trim( sanitize_text_field( (string) ( $data['name'] ?? '' ) ) );
+	if ( '' === $name ) {
+		return new WP_Error( 'dox_pos_atributo', __( 'Give the attribute a name.', 'dox-pos' ) );
+	}
+	$vals = $data['values'] ?? array();
+	$vals = is_array( $vals ) ? $vals : explode( ',', (string) $vals );
+	$vals = array_values( array_unique( array_filter( array_map( fn( $v ) => trim( sanitize_text_field( (string) $v ) ), $vals ) ) ) );
+	$all  = dox_pos_attribute_taxonomies();
+	$tax  = '';
+	$new  = false;
+	foreach ( $all as $t => $label ) {
+		$same = dox_pos_attribute_likeness( $name, $label, substr( $t, 3 ) );
+		if ( 2 === $same ) {
+			$tax = $t; // Se llama igual: se usa ese y se le añaden los valores.
+			break;
+		}
+		if ( 1 === $same && empty( $data['force'] ) ) {
+			return new WP_Error(
+				'dox_pos_parecido',
+				/* translators: %s: attribute name */
+				sprintf( __( 'The store already has an attribute called %s.', 'dox-pos' ), html_entity_decode( $label, ENT_QUOTES, 'UTF-8' ) ),
+				array( 'similar' => $t, 'label' => html_entity_decode( $label, ENT_QUOTES, 'UTF-8' ) )
+			);
+		}
+	}
+	if ( '' === $tax ) {
+		if ( ! function_exists( 'wc_create_attribute' ) ) {
+			return new WP_Error( 'dox_pos_atributo', __( 'WooCommerce would not create the attribute.', 'dox-pos' ) );
+		}
+		$slug = substr( wc_sanitize_taxonomy_name( remove_accents( $name ) ), 0, 27 ); // WooCommerce admite 28 letras.
+		$slug = '' !== $slug ? $slug : 'atributo';
+		$base = $slug;
+		$i    = 2;
+		while ( taxonomy_exists( 'pa_' . $slug ) || isset( $all[ 'pa_' . $slug ] ) ) {
+			$slug = substr( $base, 0, 24 ) . '-' . $i++;
+		}
+		$id = wc_create_attribute( array( 'name' => $name, 'slug' => $slug, 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false ) );
+		if ( is_wp_error( $id ) ) {
+			/* translators: 1: attribute, 2: reason */
+			return new WP_Error( 'dox_pos_atributo', sprintf( __( 'The attribute %1$s could not be created: %2$s', 'dox-pos' ), $name, $id->get_error_message() ) );
+		}
+		$tax = wc_attribute_taxonomy_name( $slug );
+		$new = true;
+		// WooCommerce registra sus taxonomías al cargar la página: la nueva se registra ya para poder meterle valores.
+		if ( ! taxonomy_exists( $tax ) ) {
+			register_taxonomy( $tax, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => true, 'rewrite' => false ) );
+		}
+		dox_pos_products_settings( true );
+	}
+	foreach ( $vals as $v ) {
+		if ( ! term_exists( $v, $tax ) ) {
+			wp_insert_term( $v, $tax );
+		}
+	}
+	delete_transient( 'dox_pos_product_form' );
+	return array( 'attr' => dox_pos_vary_attribute( $tax ), 'created' => $new ); // created: false si ya existía y solo se le añadieron valores.
+}
+
+/**
+ * Cuánto se parecen dos nombres de atributo: 2 si son el mismo ("Capacidad" y "capacidad"), 1 si se parecen
+ * ("Tallas" y "Talla", "Talla zapato" y "Talla zapatos", "Colour" y "Color"), 0 si no.
+ *
+ * @param string $name  Lo escrito.
+ * @param string $label El nombre de uno que existe.
+ * @param string $slug  Su slug (sin pa_).
+ * @return int
+ */
+function dox_pos_attribute_likeness( $name, $label, $slug ) {
+	$norm = fn( $x ) => sanitize_title( remove_accents( html_entity_decode( (string) $x, ENT_QUOTES, 'UTF-8' ) ) );
+	$a    = $norm( $name );
+	$best = 0;
+	foreach ( array( $norm( $label ), $norm( $slug ) ) as $b ) {
+		if ( '' === $a || '' === $b ) {
+			continue;
+		}
+		if ( $a === $b ) {
+			return 2;
+		}
+		$sing = fn( $x ) => preg_replace( '/(es|s)(?=-|$)/', '', $x ); // Tallas, talles, colores: sin plural.
+		if ( $sing( $a ) === $sing( $b ) || ( strlen( $a ) >= 4 && strlen( $b ) >= 4 && levenshtein( $a, $b ) <= 2 ) ) {
+			$best = 1;
+		}
+	}
+	return $best;
 }
 
 /**
@@ -1760,38 +2244,39 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 }
 
 /**
- * El modelo talla × color de un producto variable: las tallas y colores de sus atributos y
- * una fila por variación (talla, color, existencias propias o heredadas, precio, imagen).
- * Error si el producto varía por algo que la caja no maneja.
+ * El modelo de un producto variable: los valores de sus dos opciones (las filas, "sizes", y las columnas,
+ * "colors", sean tallas y colores o capacidades y materiales) y una fila por variación (su valor de cada
+ * opción, existencias propias o heredadas, precio, imagen). Error si varía por algo que la caja no maneja.
  *
  * @param WC_Product $p         El producto.
- * @param string     $size_tax  pa_talla.
- * @param string     $color_tax pa_color.
- * @return array{sizes: int[], colors: array, variations: array, shared: int|null, size_attr: string}|WP_Error
+ * @param string     $size_tax  Sin uso desde la 0.57 (el Pro lo manda): cada producto lleva los suyos.
+ * @param string     $color_tax Sin uso desde la 0.57.
+ * @return array{sizes: int[], colors: array, variations: array, shared: int|null, size_attr: string, color_attr: string}|WP_Error
  */
-function dox_pos_product_model( $p, $size_tax, $color_tax ) {
-	// Cada producto lleva su atributo de talla (Talla calzado en un zapato): el que se pasa es el de respaldo.
-	$size_tax = dox_pos_product_size_attribute( $p, $size_tax );
-	$out      = array( 'sizes' => array(), 'colors' => array(), 'variations' => array(), 'shared' => null, 'pools' => array(), 'legacy_pool' => false, 'size_attr' => $size_tax );
+function dox_pos_product_model( $p, $size_tax = '', $color_tax = '' ) {
+	$axes = dox_pos_product_axes( $p );
+	if ( is_wp_error( $axes ) ) {
+		return $axes;
+	}
+	$size_tax  = $axes['row'];
+	$color_tax = $axes['col'];
+	$out       = array( 'sizes' => array(), 'colors' => array(), 'variations' => array(), 'shared' => null, 'pools' => array(), 'legacy_pool' => false, 'size_attr' => $size_tax, 'color_attr' => $color_tax );
 	if ( ! $p->is_type( 'variable' ) ) {
 		return $out;
 	}
+	$swatch = dox_pos_is_color_attribute( $color_tax );
 	foreach ( $p->get_attributes() as $a ) {
 		if ( ! $a instanceof WC_Product_Attribute || ! $a->get_variation() ) {
 			continue;
 		}
 		$name = $a->get_name();
-		if ( $name !== $size_tax && $name !== $color_tax ) {
-			/* translators: %s: attribute name */
-			return new WP_Error( 'dox_pos_no_editable', sprintf( __( 'This product varies by "%s", which the register does not handle: edit it in WooCommerce.', 'dox-pos' ), wc_attribute_label( $name ) ) );
-		}
 		if ( $name === $size_tax ) {
 			$out['sizes'] = array_map( 'intval', $a->get_options() );
-		} else {
+		} elseif ( $name === $color_tax ) {
 			foreach ( $a->get_options() as $tid ) {
 				$t = get_term( (int) $tid, $color_tax );
 				if ( $t && ! is_wp_error( $t ) ) {
-					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => dox_pos_term_hex( $t->term_id ) );
+					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => $swatch ? dox_pos_term_hex( $t->term_id ) : '' );
 				}
 			}
 		}
@@ -1879,10 +2364,21 @@ function dox_pos_product_edit_data( $id ) {
 	if ( ! $p || ! in_array( $p->get_type(), array( 'simple', 'variable' ), true ) ) {
 		return new WP_Error( 'dox_pos_no_editable', __( 'That product cannot be edited from the register (only simple products and those with sizes and colors).', 'dox-pos' ) );
 	}
-	$s     = dox_pos_products_settings();
-	$model = dox_pos_product_model( $p, $s['size_attr'], $s['color_attr'] );
+	$model = dox_pos_product_model( $p );
 	if ( is_wp_error( $model ) ) {
 		return $model;
+	}
+	// La opción que le falta (un producto creado sin colores): se le puede añadir la de su categoría.
+	$cat_axes = dox_pos_vary_axes( dox_pos_categories_vary( $p->get_category_ids() ) );
+	$add_row  = '';
+	$add_col  = '';
+	if ( $p->is_type( 'variable' ) && $model['variations'] ) {
+		if ( '' === $model['size_attr'] ) {
+			$add_row = $cat_axes['row'] !== $model['color_attr'] ? $cat_axes['row'] : '';
+		}
+		if ( '' === $model['color_attr'] ) {
+			$add_col = $cat_axes['col'] !== $model['size_attr'] ? $cat_axes['col'] : '';
+		}
 	}
 	$images = array();
 	$ids    = array_merge( $p->get_image_id() ? array( (int) $p->get_image_id() ) : array(), array_map( 'intval', $p->get_gallery_image_ids() ) );
@@ -1963,7 +2459,10 @@ function dox_pos_product_edit_data( $id ) {
 		'cost_max'    => $cs ? $cs['max'] : 0,
 		'package'     => dox_pos_product_package( $p ), // Peso y medidas; mixed si las tallas no llevan todas lo mismo.
 		'sizes'       => $model['sizes'],
-		'size_attr'   => $model['size_attr'], // Las tallas que se pueden añadir son las de este atributo.
+		'size_attr'   => $model['size_attr'], // Las filas (la primera opción): los valores que se pueden añadir son de este atributo.
+		'color_attr'  => $model['color_attr'], // Las columnas (la segunda opción).
+		'add_size_attr'  => $add_row,          // La opción de las filas que se le puede añadir (no tiene ninguna), o ''.
+		'add_color_attr' => $add_col,          // Y la de las columnas.
 		'colors'      => $model['colors'],
 		'qty'         => (object) $qty,
 		'shared'      => $model['shared'],  // El total del producto (null si cada talla lleva las suyas).
@@ -2090,13 +2589,26 @@ function dox_pos_update_product( $id, $data ) {
 	if ( ! $p || ! in_array( $p->get_type(), array( 'simple', 'variable' ), true ) ) {
 		return new WP_Error( 'dox_pos_no_editable', __( 'That product cannot be edited from the register.', 'dox-pos' ) );
 	}
-	$s         = dox_pos_products_settings();
-	$color_tax = $s['color_attr'];
-	$model     = dox_pos_product_model( $p, $s['size_attr'], $color_tax );
+	$s     = dox_pos_products_settings();
+	$model = dox_pos_product_model( $p );
 	if ( is_wp_error( $model ) ) {
 		return $model;
 	}
-	$size_tax = $model['size_attr'];
+	// A un producto que no tiene una de las dos opciones (sin colores, o solo con colores) se le puede añadir: la que
+	// mande la caja. Sus variaciones de hoy pasan al valor que se elige primero (adopt_size, adopt_color).
+	$adopt = dox_pos_adopt_axis( $p, $model, $data ); // Puede cambiar la clave del color nuevo en $data por su id.
+	if ( is_wp_error( $adopt ) ) {
+		return $adopt;
+	}
+	if ( $adopt ) {
+		$model = dox_pos_product_model( wc_get_product( $p->get_id() ) );
+		if ( is_wp_error( $model ) ) {
+			return $model;
+		}
+		$p = wc_get_product( $p->get_id() );
+	}
+	$size_tax  = $model['size_attr'];
+	$color_tax = $model['color_attr'];
 	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
 	if ( '' === $name ) {
 		return new WP_Error( 'dox_pos_sin_nombre', __( 'Give the product a name.', 'dox-pos' ) );
@@ -2131,8 +2643,8 @@ function dox_pos_update_product( $id, $data ) {
 		$cells = array();
 	}
 
-	// Tallas y colores: los que ya tenía, más los nuevos. A un producto que no varía por color
-	// (o por talla) no se le añaden desde aquí: sus variaciones quedarían para "cualquier" color.
+	// Los valores de cada opción: los que ya tenía, más los nuevos. Una opción que el producto no tiene solo se
+	// añade con adopt (arriba): si no, sus variaciones quedarían para "cualquier" valor.
 	$sizes  = array();
 	$colors = array();
 	if ( $variable ) {
@@ -2519,6 +3031,121 @@ function dox_pos_update_product( $id, $data ) {
 	delete_transient( 'dox_pos_product_form' );
 	do_action( 'litespeed_purge_post', $pid );
 	return dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
+}
+
+/**
+ * Añade a un producto la opción que no tiene (colores a un producto que solo varía por talla, o al revés):
+ * el atributo pasa al producto con el valor elegido primero, y todas sus variaciones de hoy toman ese valor.
+ * Así no queda ninguna para "cualquier" color y sus unidades, códigos e historial siguen donde estaban. Los
+ * demás valores se añaden después como cualquier valor nuevo.
+ *
+ * @param WC_Product $p     Producto variable.
+ * @param array      $model Su modelo (dox_pos_product_model).
+ * @param array      $data  Lo que manda la caja: size_attr y adopt_size (id), o color_attr y adopt_color (clave: id o "n:nombre").
+ *                          Si el valor era nuevo ("n:negro"), su clave pasa a ser su id en todo $data.
+ * @return bool|WP_Error true si se añadió algo.
+ */
+function dox_pos_adopt_axis( $p, $model, &$data ) {
+	if ( ! $p->is_type( 'variable' ) || ! $model['variations'] ) {
+		return false;
+	}
+	$all  = dox_pos_attribute_taxonomies();
+	$done = false;
+	foreach ( array( 'size', 'color' ) as $axis ) {
+		$have = $model[ $axis . '_attr' ];
+		$tax  = (string) ( $data[ $axis . '_attr' ] ?? '' );
+		$pick = $data[ 'adopt_' . $axis ] ?? '';
+		if ( '' !== $have || '' === $tax || '' === (string) $pick || ! isset( $all[ $tax ] ) ) {
+			continue;
+		}
+		$other = $model[ ( 'size' === $axis ? 'color' : 'size' ) . '_attr' ];
+		if ( $tax === $other || isset( $p->get_attributes()[ $tax ] ) ) {
+			return new WP_Error( 'dox_pos_varia', __( 'That option is already in the product.', 'dox-pos' ) );
+		}
+		$t = null;
+		if ( 'color' === $axis ) {
+			foreach ( (array) ( $data['colors'] ?? array() ) as $c ) {
+				$c = (array) $c;
+				if ( (string) ( $c['key'] ?? '' ) !== (string) $pick ) {
+					continue;
+				}
+				$t = (int) ( $c['id'] ?? 0 ) ? get_term( (int) $c['id'], $tax ) : dox_pos_create_color( sanitize_text_field( (string) ( $c['name'] ?? '' ) ), (string) ( $c['hex'] ?? '' ), $tax );
+				break;
+			}
+		} else {
+			$t = get_term( (int) $pick, $tax );
+		}
+		if ( is_wp_error( $t ) ) {
+			return $t;
+		}
+		if ( ! $t instanceof WP_Term ) {
+			return new WP_Error( 'dox_pos_varia', __( 'The new option could not be added: reload and try again.', 'dox-pos' ) );
+		}
+		$attrs         = $p->get_attributes();
+		$attrs[ $tax ] = dox_pos_make_attribute( $tax, array( (int) $t->term_id ), 'size' === $axis ? 0 : count( $attrs ) );
+		$p->set_attributes( $attrs );
+		$p->save();
+		wp_set_object_terms( $p->get_id(), array( (int) $t->term_id ), $tax, true );
+		foreach ( $model['variations'] as $vr ) {
+			$v = wc_get_product( $vr['id'] );
+			if ( ! $v ) {
+				continue;
+			}
+			$va         = $v->get_attributes();
+			$va[ $tax ] = $t->slug;
+			$v->set_attributes( $va );
+			dox_pos_stock_quiet( true ); // No es un movimiento de unidades: el kardex no lo apunta.
+			$v->save();
+			dox_pos_stock_quiet( false );
+		}
+		if ( 'color' === $axis && (string) $pick !== (string) $t->term_id ) {
+			$data = dox_pos_rename_column( $data, (string) $pick, (string) $t->term_id );
+		}
+		$model[ $axis . '_attr' ] = $tax;
+		$done                     = true;
+	}
+	if ( $done ) {
+		wc_delete_product_transients( $p->get_id() );
+	}
+	return $done;
+}
+
+/**
+ * Cambia la clave de una columna en todo lo que manda la caja ("n:negro" pasa a "123" cuando el color ya existe).
+ *
+ * @param array  $data Lo que llegó.
+ * @param string $old  Clave de antes.
+ * @param string $to   Clave nueva.
+ * @return array
+ */
+function dox_pos_rename_column( $data, $old, $to ) {
+	$cell = fn( $k ) => 0 === strpos( (string) $k, $old . '|' ) ? $to . substr( (string) $k, strlen( $old ) ) : (string) $k;
+	$pool = fn( $k ) => (string) $k === $old || 0 === strpos( (string) $k, $old . '#' ) ? $to . substr( (string) $k, strlen( $old ) ) : (string) $k;
+	foreach ( (array) ( $data['colors'] ?? array() ) as $i => $c ) {
+		if ( (string) ( ( (array) $c )['key'] ?? '' ) === $old ) {
+			$data['colors'][ $i ] = array_merge( (array) $c, array( 'key' => $to, 'id' => (int) $to ) );
+		}
+	}
+	if ( isset( $data['qty'][ $old ] ) ) {
+		$data['qty'][ $to ] = $data['qty'][ $old ];
+		unset( $data['qty'][ $old ] );
+	}
+	foreach ( array( 'shared_cells', 'real_cells' ) as $k ) {
+		if ( isset( $data[ $k ] ) && is_array( $data[ $k ] ) ) {
+			$data[ $k ] = array_map( $cell, $data[ $k ] );
+		}
+	}
+	foreach ( array( 'shared_groups' => $cell, 'real_qty' => $cell, 'pool_stock' => $pool ) as $k => $fn ) {
+		if ( isset( $data[ $k ] ) && is_array( $data[ $k ] ) ) {
+			$data[ $k ] = array_combine( array_map( $fn, array_keys( $data[ $k ] ) ), array_values( $data[ $k ] ) );
+		}
+	}
+	foreach ( (array) ( $data['images'] ?? array() ) as $i => $im ) {
+		if ( (string) ( ( (array) $im )['color'] ?? '' ) === $old ) {
+			$data['images'][ $i ] = array_merge( (array) $im, array( 'color' => $to ) );
+		}
+	}
+	return $data;
 }
 
 /**

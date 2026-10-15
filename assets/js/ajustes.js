@@ -425,6 +425,17 @@
 		if (sw) sw.closest(".dp-pay").classList.toggle("off", !sw.checked);
 	});
 
+	// Varía por: la segunda opción solo vale con una primera elegida (ni automático ni "no varía"), y no puede ser la misma.
+	const varia = $("#dp-vary");
+	if (varia) varia.addEventListener("change", (e) => {
+		const a = e.target.closest('select[data-vary="1"]');
+		if (!a) return;
+		const b = $('select[data-vary="2"]', a.closest(".dp-vary"));
+		b.disabled = a.value === "" || a.value === "-";
+		if (b.value === a.value) b.value = "";
+		$$("option", b).forEach((o) => { o.disabled = o.value !== "" && o.value === a.value; });
+	});
+
 	const pagos = $("#dp-pagos");
 	function pintarPagos() {
 		const box = $("#dp-preview-payments");

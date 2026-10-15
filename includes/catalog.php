@@ -214,19 +214,19 @@ function dox_pos_format_variation( $v, $simple = false ) {
 	$color  = '';
 	$others = array();
 	if ( ! $simple ) {
-		$color_tax = dox_pos_color_attribute(); // pa_color
 		foreach ( $v->get_attributes() as $tax => $slug ) {
 			$name = dox_pos_attribute_label( $tax, $slug );
 			if ( '' === $talla && dox_pos_is_size_attribute( $tax ) ) { // pa_talla, pa_talla-calzado...: cualquiera de talla.
 				$talla = $name;
-			} elseif ( $tax === $color_tax ) {
+			} elseif ( '' === $color && dox_pos_is_color_attribute( $tax ) ) { // pa_color, o el que se llame como un color.
 				$color = $name;
 			} else {
 				$others[] = $name;
 			}
 		}
 	}
-	$label = implode( ' · ', array_filter( array_merge( array( $talla, $color ), $others ) ) );
+	// Lo que no es talla ni color (una capacidad, un modelo, un material) va entre los dos: "500 ml · Rojo".
+	$label = implode( ' · ', array_filter( array_merge( array( $talla ), $others, array( $color ) ) ) );
 
 	// get_manage_stock() devuelve 'parent' cuando la variación hereda el stock del producto: también cuenta.
 	$manage = $v->get_manage_stock();
@@ -245,6 +245,8 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'label'     => $label ? $label : __( 'One size', 'dox-pos' ),
 		'talla'     => $talla,
 		'color'     => $color,
+		'fila'      => '' !== $talla ? $talla : (string) ( $others[0] ?? '' ), // La primera opción: la talla, o la capacidad de un termo.
+		'opciones'  => $others, // Lo demás por lo que varía, sin la talla ni el color.
 		'price'     => (float) $v->get_price(),
 		'cost'      => dox_pos_can_see_costs() ? dox_pos_product_cost( $v ) : null, // Solo para quien administra: la entrada lo propone como costo de compra.
 		'stock'     => $stock,

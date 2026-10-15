@@ -248,6 +248,8 @@ dox_pos_enqueue_caja( $cfg );
 									<select id="p-cat-padre" aria-label="<?php esc_attr_e( 'Inside another category', 'dox-pos' ); ?>"></select>
 									<button type="button" class="mini" id="p-cat-add"><?php esc_html_e( 'Add', 'dox-pos' ); ?></button>
 								</div>
+								<p class="tipotalla" id="p-varia" hidden></p><?php // Por qué varían los productos de la categoría elegida ("Termos varía por Capacidad y Color · Cambiar"). ?>
+								<div class="variabox" id="p-variabox" hidden><?php // Cambiarlo: dos menús, un atributo nuevo y guardar (lo pinta el JS). ?></div>
 							</div>
 							<div class="g2 mt">
 								<div class="field"><label for="p-precio"><?php esc_html_e( 'Price', 'dox-pos' ); ?></label><input id="p-precio" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
@@ -262,19 +264,17 @@ dox_pos_enqueue_caja( $cfg );
 							<?php endif; ?>
 						</div>
 						<div class="grp" id="g-colores">
-							<h4><?php esc_html_e( 'Colors', 'dox-pos' ); ?> <span class="cnt" id="p-ncol"></span></h4>
+							<h4><span id="p-col-tit"><?php esc_html_e( 'Colors', 'dox-pos' ); ?></span> <span class="cnt" id="p-ncol"></span></h4><?php // El título es el de la segunda opción: Colores, o Material. ?>
 							<div class="chips" id="p-colores"></div>
 							<div class="nuevocolor" id="p-nuevocolor" hidden>
-								<label class="swatchpick" title="<?php esc_attr_e( 'Pick the shade', 'dox-pos' ); ?>"><input type="color" id="p-color-hex" value="#F4C1C0" aria-label="<?php esc_attr_e( 'Shade of the new color', 'dox-pos' ); ?>"></label>
+								<label class="swatchpick" id="p-color-swatch" title="<?php esc_attr_e( 'Pick the shade', 'dox-pos' ); ?>"><input type="color" id="p-color-hex" value="#F4C1C0" aria-label="<?php esc_attr_e( 'Shade of the new color', 'dox-pos' ); ?>"></label>
 								<input id="p-color-nom" placeholder="<?php esc_attr_e( 'Color name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new color', 'dox-pos' ); ?>">
 								<button type="button" class="mini" id="p-color-add"><?php esc_html_e( 'Add', 'dox-pos' ); ?></button>
 							</div>
 							<p class="hint" id="p-colores-hint"><?php esc_html_e( 'No colors: the product only varies by size.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="grp" id="g-tallas">
-							<h4><?php esc_html_e( 'Sizes', 'dox-pos' ); ?> <span class="cnt" id="p-ntal"></span></h4>
-							<p class="tipotalla" id="p-tipotalla" hidden></p><?php // Qué tallas usa la categoría (Talla calzado) y "Cambiar", si la tienda tiene más de un tipo. ?>
-							<div class="chips" id="p-tipos" hidden></div>
+							<h4><span id="p-fila-tit"><?php esc_html_e( 'Sizes', 'dox-pos' ); ?></span> <span class="cnt" id="p-ntal"></span></h4><?php // El de la primera opción: Tallas, o Capacidad. ?>
 							<div class="chips" id="p-tallas"></div>
 							<div class="nuevacat" id="p-nuevatalla" hidden><?php // Una talla nueva: se crea al momento en las tallas de la categoría y queda marcada. ?>
 								<input id="p-talla-nom" placeholder="<?php esc_attr_e( 'Size, for example 42', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new size', 'dox-pos' ); ?>">

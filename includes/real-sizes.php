@@ -462,11 +462,10 @@ function dox_pos_real_stock_status( $status, $p ) {
  * @return string
  */
 function dox_pos_variation_cell( $v ) {
-	$va    = $v->get_attributes();
 	list( $stax, $sslug ) = dox_pos_variation_size( $v );
 	$size  = '' !== $sslug ? get_term_by( 'slug', $sslug, $stax ) : null;
-	$ctax  = dox_pos_color_attribute();
-	$color = $ctax ? get_term_by( 'slug', (string) ( $va[ $ctax ] ?? '' ), $ctax ) : null;
+	list( $ctax, $cslug ) = dox_pos_variation_column( $v ); // El color, o lo que vaya en las columnas.
+	$color = '' !== $cslug ? get_term_by( 'slug', $cslug, $ctax ) : null;
 	return ( $color ? (string) $color->term_id : '' ) . '|' . ( $size ? (int) $size->term_id : 0 );
 }
 

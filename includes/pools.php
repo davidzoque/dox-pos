@@ -46,8 +46,7 @@ function dox_pos_pool_key( $v ) {
  * @return string
  */
 function dox_pos_pool_name( $v ) {
-	$tax   = dox_pos_color_attribute();
-	$slug  = (string) ( $v->get_attributes()[ $tax ] ?? '' );
+	list( $tax, $slug ) = dox_pos_variation_column( $v ); // Su color, o lo que vaya en las columnas (un material).
 	$color = '' === $slug ? '' : dox_pos_attribute_label( $tax, $slug );
 	$key   = dox_pos_pool_key( $v );
 	if ( '' === $key ) {
