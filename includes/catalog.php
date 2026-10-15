@@ -214,11 +214,10 @@ function dox_pos_format_variation( $v, $simple = false ) {
 	$color  = '';
 	$others = array();
 	if ( ! $simple ) {
-		$size_tax  = dox_pos_size_attribute();  // pa_talla, o el que diga el ajuste
 		$color_tax = dox_pos_color_attribute(); // pa_color
 		foreach ( $v->get_attributes() as $tax => $slug ) {
 			$name = dox_pos_attribute_label( $tax, $slug );
-			if ( $tax === $size_tax ) {
+			if ( '' === $talla && dox_pos_is_size_attribute( $tax ) ) { // pa_talla, pa_talla-calzado...: cualquiera de talla.
 				$talla = $name;
 			} elseif ( $tax === $color_tax ) {
 				$color = $name;

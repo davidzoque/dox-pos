@@ -2832,6 +2832,8 @@
 			if (!pr.manual && c.prefix) sugerirCodigo(c.prefix);
 		}
 		if (!pr.cats.length && !pr.tallasTocadas) pr.tallas = []; // Sin categoría, las tallas sugeridas se van con ella.
+		const validas = new Set(tallasDisponibles().map((t) => t.id)); // Pasar de Ropa a Zapatos cambia de tallas: las de la otra se van.
+		pr.tallas = pr.tallas.filter((id) => validas.has(id));
 		pintarCategorias();
 		pintarTallas();
 		pintarCantidades();
@@ -3283,6 +3285,21 @@
 
 	// Tallas: solo las que usa la categoría elegida (y "Otras tallas…" para el resto), por edad, con su
 	// etiqueta corta si el tema la tiene. Las que marca la categoría se pueden quitar con un toque.
+	// Cada categoría lleva su atributo de talla (Talla en la ropa, Talla calzado en los zapatos): manda la primera
+	// elegida. Al editar, el que ya usa el producto.
+	function atributoTalla() {
+		const f = pr.form || {};
+		if (pr.edit) return pr.edit.size_attr || f.size_attr || "";
+		const cats = f.categories || [];
+		const c = pr.cats.length ? cats.find((x) => x.id === pr.cats[0]) : null;
+		return c && c.size_attr !== undefined ? c.size_attr : (f.size_attr || "");
+	}
+	function tallasDisponibles() {
+		const f = pr.form || {};
+		const tax = atributoTalla();
+		if (f.size_attrs && f.size_attrs[tax]) return f.size_attrs[tax].sizes || [];
+		return !f.size_attrs || tax === f.size_attr ? (f.sizes || []) : []; // Un formulario de antes de la 0.56 solo trae las de siempre.
+	}
 	function tallasDeCategoria() {
 		const cats = (pr.form && pr.form.categories) || [];
 		const ids = [];
@@ -3296,14 +3313,14 @@
 		const box = $("#p-tallas");
 		const hint = $("#p-tallas-hint");
 		box.innerHTML = "";
-		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable");
+		const all = tallasDisponibles();
+		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable") || (!pr.edit && pr.cats.length > 0 && !atributoTalla()); // Una categoría marcada "sin tallas".
 		if (pr.edit && pr.edit.type === "variable" && !pr.edit.sizes.length) { // Un producto que no varía por talla no gana tallas desde aquí.
 			box.innerHTML = '<span class="hint">' + esc(__("This product has no sizes. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ntal").textContent = "";
 			hint.textContent = "";
 			return;
 		}
-		const all = (pr.form && pr.form.sizes) || [];
 		const deCat = tallasDeCategoria();
 		const ver = pr.masTallas || pr.edit ? all : all.filter((t) => deCat.includes(t.id) || pr.tallas.includes(t.id));
 		ver.forEach((t) => {
@@ -3332,7 +3349,7 @@
 		else if (!pr.tallasTocadas) hint.textContent = __("Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.", "dox-pos");
 		else hint.textContent = "";
 	}
-	const tallasOrdenadas = () => ((pr.form && pr.form.sizes) || []).filter((t) => pr.tallas.includes(t.id));
+	const tallasOrdenadas = () => tallasDisponibles().filter((t) => pr.tallas.includes(t.id));
 
 	// Unidades: una casilla por talla y color. Empiezan vacías (0): lo que no se escribe no existe.
 	const qKey = (ckey, sid) => ckey + "|" + sid;
@@ -3678,6 +3695,7 @@
 			description: $("#p-desc").value.trim(),
 			publish: $("#p-pub").checked,
 			sizes: rows.map((t) => t.id),
+			size_attr: atributoTalla(), // El atributo de esas tallas (pa_talla-calzado en un zapato).
 			colors: pr.colores.map((c) => ({ key: c.key, id: c.id, name: c.name, hex: c.hex })),
 			qty: qty,
 			shared_cells: compartidasVivas(), // Las tallas que comparten unidades (clave color|talla)...

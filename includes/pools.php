@@ -458,11 +458,9 @@ function dox_pos_real_size( $v ) {
 	if ( in_array( (int) $v->get_id(), $real, true ) ) {
 		return array( 'real' => true, 'of' => '' );
 	}
-	$tax   = dox_pos_size_attribute();
 	$names = array();
 	foreach ( $real as $rid ) {
-		$r    = wc_get_product( $rid );
-		$slug = $r ? (string) ( $r->get_attributes()[ $tax ] ?? '' ) : '';
+		list( $tax, $slug ) = dox_pos_variation_size( wc_get_product( $rid ) );
 		if ( '' !== $slug ) {
 			$names[] = dox_pos_attribute_label( $tax, $slug );
 		}

@@ -418,6 +418,13 @@
 	const messaging = $("#dp-messaging");
 	if (messaging) messaging.addEventListener("change", () => { const wa = $(".dp-wa", prev); if (wa) wa.classList.toggle("dp-sms", $('input[value="sms"]', messaging).checked); });
 
+	// Los atributos de talla: la fila apagada se ve atenuada, como las formas de pago.
+	const tallasAttr = $("#dp-size-attrs");
+	if (tallasAttr) tallasAttr.addEventListener("change", (e) => {
+		const sw = e.target.closest('input[type="checkbox"]');
+		if (sw) sw.closest(".dp-pay").classList.toggle("off", !sw.checked);
+	});
+
 	const pagos = $("#dp-pagos");
 	function pintarPagos() {
 		const box = $("#dp-preview-payments");

@@ -46,8 +46,7 @@ function dox_pos_real_near() {
  * @return string
  */
 function dox_pos_real_size_label( $v ) {
-	$tax  = dox_pos_size_attribute();
-	$slug = $v ? (string) ( $v->get_attributes()[ $tax ] ?? '' ) : '';
+	list( $tax, $slug ) = dox_pos_variation_size( $v );
 	return '' === $slug ? '' : dox_pos_attribute_label( $tax, $slug );
 }
 
@@ -464,7 +463,8 @@ function dox_pos_real_stock_status( $status, $p ) {
  */
 function dox_pos_variation_cell( $v ) {
 	$va    = $v->get_attributes();
-	$size  = get_term_by( 'slug', (string) ( $va[ dox_pos_size_attribute() ] ?? '' ), dox_pos_size_attribute() );
+	list( $stax, $sslug ) = dox_pos_variation_size( $v );
+	$size  = '' !== $sslug ? get_term_by( 'slug', $sslug, $stax ) : null;
 	$ctax  = dox_pos_color_attribute();
 	$color = $ctax ? get_term_by( 'slug', (string) ( $va[ $ctax ] ?? '' ), $ctax ) : null;
 	return ( $color ? (string) $color->term_id : '' ) . '|' . ( $size ? (int) $size->term_id : 0 );

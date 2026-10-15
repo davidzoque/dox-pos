@@ -102,8 +102,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
-= 0.55.1 =
-* Fix: when the size attribute is left on Automatic, the register now also recognizes attributes whose name starts or ends with size (Talla calzado, Talla ropa, Shoe size), and if several look like a size it uses the one that the most products have. A store with an empty "Talla" and its shoes in "Talla calzado" used to get the empty one, and the product form offered sizes nobody uses. The same goes for color. Products > Sizes and colors says which ones were found and which one is in use.
+= 0.56.0 =
+* New: a store can have several size attributes, for example letters for clothes (Talla) and numbers for shoes (Talla calzado), and each category uses its own. In Settings > Products > Sizes and colors, mark every attribute that holds sizes; with none marked they are detected by name, also the ones whose name starts or ends with size (Talla calzado, Shoe size). The new Sizes by category card sets the one of each category: Automatic is the one its products already use, and a subcategory without one of its own takes its parent's. When a product is created, choosing the category brings up the sizes of its attribute; editing a product keeps the attribute it already has. The search, the sale, the inventory and the labels read the size of a variation whatever its attribute. A store with a single size attribute works as before.
+* Fix: with the size attribute on Automatic, a store with an empty "Talla" and its shoes in "Talla calzado" got the empty one, and the product form offered sizes nobody uses. Among several, the one that the most products have now comes first.
 
 = 0.55.0 =
 * New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.

@@ -66,6 +66,7 @@ function dox_pos_inventory_data() {
 	global $wpdb;
 	$see       = dox_pos_can_see_costs(); // El costo solo va para quien administra.
 	$size_tax  = dox_pos_size_attribute();
+	$size_many = count( dox_pos_size_attributes() ) > 1; // Talla y Talla calzado: la columna se llama solo "Talla".
 	$color_tax = dox_pos_color_attribute();
 	$taxes     = dox_pos_attribute_taxonomies();
 
@@ -192,7 +193,7 @@ function dox_pos_inventory_data() {
 				continue;
 			}
 			$label = $names[ $tax ][ $slug ] ?? $slug;
-			if ( $tax === $size_tax ) {
+			if ( '' === $size && dox_pos_is_size_attribute( $tax ) ) {
 				$size = $label;
 			} elseif ( $tax === $color_tax ) {
 				$color = $label;
@@ -292,7 +293,7 @@ function dox_pos_inventory_data() {
 	return array(
 		'rows'        => $rows,
 		'cats'        => $summary,
-		'size_label'  => $size_tax && isset( $taxes[ $size_tax ] ) ? $taxes[ $size_tax ] : __( 'Size', 'dox-pos' ),
+		'size_label'  => ! $size_many && $size_tax && isset( $taxes[ $size_tax ] ) ? $taxes[ $size_tax ] : __( 'Size', 'dox-pos' ),
 		'color_label' => $color_tax && isset( $taxes[ $color_tax ] ) ? $taxes[ $color_tax ] : __( 'Color', 'dox-pos' ),
 		'others'      => $others,
 		'costs'       => $see,
