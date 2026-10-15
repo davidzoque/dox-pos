@@ -102,6 +102,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.55.1 =
+* Fix: when the size attribute is left on Automatic, the register now also recognizes attributes whose name starts or ends with size (Talla calzado, Talla ropa, Shoe size), and if several look like a size it uses the one that the most products have. A store with an empty "Talla" and its shoes in "Talla calzado" used to get the empty one, and the product form offered sizes nobody uses. The same goes for color. Products > Sizes and colors says which ones were found and which one is in use.
+
 = 0.55.0 =
 * New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.
 
@@ -133,11 +136,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: a cashier who opens an order paid with store credit no longer sees the link to the customer's movements (it is for managers), and something the user is not allowed to do now says so instead of closing the session and losing the sale in progress.
 * Fix: the counter-only user can no longer download the inventory or the history in Excel.
 * Change: cancelling an order that was already paid says that the money is not refunded from there; marking an order as delivered asks first; Enter in a window does its main button; missing fields say what is missing; on a phone the order detail has a Close button at the bottom; a layaway deposit reads "Deposit on layaway #72" instead of "Deposit: Deposit on layaway #72"; and in Orders, what was deposited and what is left go to a second line instead of widening the list.
-
-= 0.52.0 =
-* New: pieces by actual size. In a group of sizes that share units, the product form says how many pieces carry each size on their tag (Pieces by actual size), checks that they add up to the units of the group, and warns when a group is not split yet or does not add up. Sell, Inventory and the Counter say "4 in the group · 2 with tag 12-18 months" instead of looking like 4 of each size.
-* New: when a size of a group is sold or put on layaway, the order line proposes which piece leaves (the closest actual size with pieces; if two are equally close, the one with more) and it can be changed right there. That piece goes down, the order's "Actual size" says the one that left, and cancelling, releasing or returning puts it back. Website orders take the closest piece when they are paid. A stock entry asks which tag the pieces came with. The stock history says which piece each movement was.
-* New: Settings, Products, "Offer a size only if there is a piece with an actual size close to it", with how close (1 to 4 sizes). Off by default. On, a size with no piece close enough shows as out of stock on the website and in the register, even if the group has units.
-* Change: in Orders, a deposit to store credit says "Deposit" instead of "Delivered".
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

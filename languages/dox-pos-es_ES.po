@@ -1034,6 +1034,11 @@ msgstr "Automático: %s"
 msgid "Automatic: none"
 msgstr "Automático: ninguno"
 
+#. translators: %s: attribute names, comma-separated
+#, php-format
+msgid "Several attributes look like this one (%s). Automatic uses the one that the most products have; choose another if that is not it."
+msgstr "Hay varios atributos que parecen este (%s). Automático usa el que tienen más productos; elige otro si no es ese."
+
 msgid "The SKU"
 msgstr "El código (SKU)"
 

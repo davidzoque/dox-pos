@@ -996,6 +996,7 @@ return array(
 		'Setting the shipping costs needs a connection.' => 'Para poner los costos de envío hace falta conexión.',
 		'Settings' => 'Ajustes',
 		'Settings sections' => 'Secciones de los ajustes',
+		'Several attributes look like this one (%s). Automatic uses the one that the most products have; choose another if that is not it.' => 'Hay varios atributos que parecen este (%s). Automático usa el que tienen más productos; elige otro si no es ese.',
 		'Shade of the new color' => 'Tono del color nuevo',
 		'Shared units' => 'Unidades compartidas',
 		'Shared units · group %d' => 'Unidades compartidas · grupo %d',

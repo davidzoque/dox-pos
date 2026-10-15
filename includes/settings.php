@@ -2345,6 +2345,13 @@ function dox_pos_settings_page() {
 									<option value="<?php echo esc_attr( $tax ); ?>" <?php selected( $praw[ $k ] ?? '', $tax ); ?>><?php echo esc_html( $alabel . ' (' . $tax . ')' ); ?></option>
 									<?php endforeach; ?>
 								</select>
+								<?php
+								// Si hay varios que parecen la talla (o el color), se dice cuáles y por qué ganó uno.
+								$cands = empty( $praw[ $k ] ) ? dox_pos_attribute_candidates( dox_pos_attribute_names( 'size_attr' === $k ? 'size' : 'color' ) ) : array();
+								if ( count( $cands ) > 1 ) :
+									?>
+								<p class="dp-hint"><?php echo esc_html( sprintf( /* translators: %s: attribute names, comma-separated */ __( 'Several attributes look like this one (%s). Automatic uses the one that the most products have; choose another if that is not it.', 'dox-pos' ), implode( ', ', array_map( static function ( $t ) use ( $attrs ) { return $attrs[ $t ]; }, $cands ) ) ) ); ?></p>
+								<?php endif; ?>
 							</div>
 							<?php endforeach; ?>
 						</div>

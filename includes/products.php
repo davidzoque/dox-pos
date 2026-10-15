@@ -40,8 +40,8 @@ function dox_pos_products_settings() {
 		'quality'    => isset( $s['quality'] ) && (int) $s['quality'] >= 50 ? min( 100, (int) $s['quality'] ) : 88,
 		'max_px'     => isset( $s['max_px'] ) && (int) $s['max_px'] >= 800 ? min( 4000, (int) $s['max_px'] ) : 1600,
 		'sku'        => in_array( $sku, array( 'codes', 'slugs', 'none' ), true ) ? $sku : 'codes',
-		'size_attr'  => dox_pos_attribute_taxonomy( (string) ( $s['size_attr'] ?? '' ), array( 'talla', 'tallas', 'talle', 'size', 'sizes' ) ),
-		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), array( 'color', 'colores', 'colour', 'colors' ) ),
+		'size_attr'  => dox_pos_attribute_taxonomy( (string) ( $s['size_attr'] ?? '' ), dox_pos_attribute_names( 'size' ) ),
+		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), dox_pos_attribute_names( 'color' ) ),
 		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
 		'real_near'  => max( 0, min( 9, (int) ( $s['real_near'] ?? 0 ) ) ), // 0: apagado. Si no, a cuántas tallas puede estar la prenda real (includes/real-sizes.php).
 	);
@@ -64,8 +64,67 @@ function dox_pos_attribute_taxonomies() {
 }
 
 /**
- * La taxonomía de un atributo ("pa_talla"): la del ajuste si existe, o la que se llame
- * como uno de los nombres dados. Vacío si la tienda no tiene ninguna así.
+ * Los nombres con los que se reconoce el atributo de talla o el de color.
+ *
+ * @param string $kind "size" o "color".
+ * @return string[]
+ */
+function dox_pos_attribute_names( $kind ) {
+	return 'size' === $kind ? array( 'talla', 'tallas', 'talle', 'size', 'sizes' ) : array( 'color', 'colores', 'colour', 'colors' );
+}
+
+/**
+ * Los atributos que parecen el que se busca, el más usado primero: los que se llaman como uno
+ * de los nombres o lo llevan delante o detrás ("talla-calzado", "shoe-size"). Una tienda puede
+ * tener "Talla" vacía y "Talla calzado" en todos sus zapatos; se queda la que tiene productos.
+ *
+ * @param string[] $names Nombres que valen (en minúsculas, sin tildes).
+ * @return string[] Taxonomías, de la más usada a la menos; a igual uso, la de nombre exacto.
+ */
+function dox_pos_attribute_candidates( $names ) {
+	$found = array();
+	foreach ( dox_pos_attribute_taxonomies() as $tax => $label ) {
+		$exact = false;
+		$near  = false;
+		foreach ( array( substr( $tax, 3 ), sanitize_title( remove_accents( $label ) ) ) as $slug ) {
+			foreach ( $names as $n ) {
+				$exact = $exact || $slug === $n;
+				$near  = $near || 0 === strpos( $slug, $n . '-' ) || substr( $slug, -strlen( $n ) - 1 ) === '-' . $n;
+			}
+		}
+		if ( $exact || $near ) {
+			$found[ $tax ] = $exact;
+		}
+	}
+	if ( count( $found ) < 2 ) {
+		return array_keys( $found );
+	}
+	// Cuántos productos usa cada uno: la suma del count de sus términos, en una sola consulta.
+	global $wpdb;
+	$taxes = array_keys( $found );
+	$in    = implode( ',', array_fill( 0, count( $taxes ), '%s' ) );
+	$uses  = $wpdb->get_results( $wpdb->prepare( "SELECT taxonomy, SUM( count ) n FROM {$wpdb->term_taxonomy} WHERE taxonomy IN ( $in ) GROUP BY taxonomy", $taxes ), OBJECT_K ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	$order = array_flip( $taxes );
+	usort(
+		$taxes,
+		static function ( $a, $b ) use ( $uses, $found, $order ) {
+			$na = isset( $uses[ $a ] ) ? (int) $uses[ $a ]->n : 0;
+			$nb = isset( $uses[ $b ] ) ? (int) $uses[ $b ]->n : 0;
+			if ( $na !== $nb ) {
+				return $nb - $na;
+			}
+			if ( $found[ $a ] !== $found[ $b ] ) {
+				return $found[ $a ] ? -1 : 1;
+			}
+			return $order[ $a ] - $order[ $b ];
+		}
+	);
+	return $taxes;
+}
+
+/**
+ * La taxonomía de un atributo ("pa_talla"): la del ajuste si existe, o la más usada de las que
+ * parecen ese atributo (dox_pos_attribute_candidates). Vacío si la tienda no tiene ninguna así.
  *
  * @param string   $set   Lo que dice el ajuste.
  * @param string[] $names Nombres que valen (en minúsculas, sin tildes).
@@ -76,12 +135,8 @@ function dox_pos_attribute_taxonomy( $set, $names ) {
 	if ( $set && isset( $all[ $set ] ) ) {
 		return $set;
 	}
-	foreach ( $all as $tax => $label ) {
-		if ( in_array( substr( $tax, 3 ), $names, true ) || in_array( strtolower( remove_accents( $label ) ), $names, true ) ) {
-			return $tax;
-		}
-	}
-	return '';
+	$found = dox_pos_attribute_candidates( $names );
+	return $found ? $found[0] : '';
 }
 
 function dox_pos_size_attribute() {
