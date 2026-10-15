@@ -147,7 +147,7 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .var:active:not(:disabled){transform:scale(.97)}
 .var:disabled{opacity:.5;cursor:not-allowed}
 .var .l{font:700 17px/1.15 var(--serif);letter-spacing:-.02em;max-width:100%;overflow-wrap:anywhere}
-.var .l i{display:block;font:500 10.5px var(--mono);letter-spacing:0;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.var .l i{display:block;font:500 10.5px var(--mono);letter-spacing:0;color:var(--muted);margin-top:3px;overflow-wrap:anywhere} /* El código entero: cortado se perdía justo el final, lo que distingue una variación de otra. */
 .var .l{width:100%}
 .var .s{font:700 11px/1.3 var(--ui);color:var(--st-ok);background:var(--st-ok-soft);padding:4px 8px;border-radius:999px}
 .var .s.warn{color:var(--st-warn);background:var(--st-warn-soft)}
@@ -475,6 +475,7 @@ tr.off,li.off{opacity:.5}
 .revt{border-collapse:collapse;font-size:12px;margin-top:6px}
 .revt th,.revt td{padding:3px 9px;text-align:center;border:1px solid var(--line)}
 .revt th{font-weight:500;color:var(--muted)}
+.revt tbody th{white-space:nowrap} /* "350 ml" se partía en dos líneas. */
 .revt td.zero{color:var(--faint)}
 .revwarn{margin:12px 0 0;padding:10px 12px 10px 28px;background:var(--st-warn-soft);border-radius:10px;font-size:12.5px;color:var(--st-warn);line-height:1.45}
 .revwarn li{margin:2px 0}
@@ -1203,6 +1204,10 @@ table.ped .lnk.items{white-space:normal}
   .con-tabbar .toasts{bottom:calc(74px + env(safe-area-inset-bottom))}
   /* Mientras se escribe, la barra se aparta como en las apps: el teclado ya tapa el borde de abajo. */
   .app:has(input:focus:not([type=checkbox]):not([type=radio]):not([type=file]),textarea:focus,select:focus) .tabbar{display:none}
+  /* Y el pie del producto (unidades, precio, Crear): encima del teclado tapaba el campo de "Añadir a Capacidad…" y su botón. */
+  .app:has(input:focus:not([type=checkbox]):not([type=radio]):not([type=file]),textarea:focus) #p-foot{display:none}
+  /* Los enlaces del formulario (Cambiarlo, Atributo nuevo…, Empezar de nuevo) medían 15 px de alto: se tocan con el dedo. */
+  #p-varia .linkp,#p-variabox .linkp,#p-vaciar:not([hidden]){min-height:40px;display:inline-flex;align-items:center;padding:0 6px}
   .masheet{display:flex;position:absolute;inset:0;z-index:8;align-items:flex-end}
   .masheet[hidden]{display:none}
   .masheet::before{content:"";position:absolute;inset:0;background:var(--scrim);transition:opacity 260ms var(--out)}

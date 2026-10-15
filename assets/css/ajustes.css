@@ -224,7 +224,6 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 @media (max-width:560px){.dp-pay-cat{grid-template-columns:1fr}}
 .dp-vary{grid-template-columns:minmax(0,1fr) minmax(260px,440px)}
 .dp-vary-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
-.dp-app .dp-vary-sel select:disabled{opacity:.5;background-image:none}
 @media (max-width:560px){.dp-vary{grid-template-columns:1fr}}
 .dp-pay.is-new{animation:dp-flash 700ms}
 .dp-pay.out{opacity:0;transform:scale(.98);transition:opacity 140ms ease,transform 140ms ease}
@@ -248,6 +247,11 @@ body[class*="_page_dox-pos"] #wpbody-content{padding-bottom:0}
 .dp-def:hover:not(:has(input:checked)):not(:has(input:disabled)){border-color:var(--dp-ink);color:var(--dp-ink)}
 .dp-def:active{transform:scale(.97)}
 @media screen and (max-width:640px){.dp-pay{grid-template-columns:auto minmax(0,1fr)}.dp-pay .dp-def{grid-column:2}.dp-pay-own{grid-template-columns:auto minmax(0,1fr) auto}.dp-pay-own .dp-quitar{grid-row:1}}
+/* Tallas y Varía por de cada categoría: en el teléfono, los desplegables debajo del nombre y a lo ancho (la regla de arriba los dejaba en una columna de 70 px). */
+@media screen and (max-width:640px){.dp-pay.dp-pay-cat{grid-template-columns:minmax(0,1fr)}.dp-vary-sel{grid-template-columns:minmax(0,1fr)}}
+/* Con Automático o "no varía" no hay segunda opción que elegir: no se enseña (gris al lado de "Automático: Talla y Color" se contradecía). */
+.dp-app .dp-vary-sel select:disabled{display:none}
+.dp-vary-sel:has(select:disabled) select{grid-column:1/-1}
 
 /* ---------- horas ---------- */
 .dp-unitfield{display:inline-flex;align-items:stretch;height:40px;border:1px solid var(--dp-line-2);border-radius:var(--dp-r-sm);overflow:hidden;background:#fff;transition:border-color 150ms ease,box-shadow 150ms ease}

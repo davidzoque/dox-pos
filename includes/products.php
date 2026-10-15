@@ -26,7 +26,7 @@ function dox_pos_products_cap() {
 /**
  * Los ajustes de productos (WooCommerce > Dox POS > Productos), ya validados.
  *
- * size_attrs son los atributos de talla (una tienda puede tener Talla en la ropa y Talla calzado en
+ * Los size_attrs son los atributos de talla (una tienda puede tener Talla en la ropa y Talla calzado en
  * los zapatos), el más usado primero; size_attr es ese primero, el de siempre para quien solo tiene uno.
  * cat_size dice el de cada categoría que se fijó a mano ("-": esa categoría no lleva tallas).
  * cat_vary (0.57) dice por qué varían los productos de cada categoría fijada a mano: hasta dos atributos
@@ -193,7 +193,7 @@ function dox_pos_attribute_uses( $taxes ) {
 		return array();
 	}
 	$in   = implode( ',', array_fill( 0, count( $taxes ), '%s' ) );
-	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT taxonomy, SUM( count ) n FROM {$wpdb->term_taxonomy} WHERE taxonomy IN ( $in ) GROUP BY taxonomy", array_values( $taxes ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT taxonomy, SUM( count ) n FROM {$wpdb->term_taxonomy} WHERE taxonomy IN ( $in ) GROUP BY taxonomy", array_values( $taxes ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
 	return array_map( 'intval', array_column( (array) $rows, 'n', 'taxonomy' ) );
 }
 
@@ -235,6 +235,14 @@ function dox_pos_attribute_taxonomy( $set, $names ) {
 		return $set;
 	}
 	$found = dox_pos_attribute_candidates( $names );
+	// Uno que se llama exactamente así (Color) gana a los que solo lo llevan en el nombre (Color de hilo), aunque
+	// tengan más productos: hasta la 0.55 solo contaba el exacto, y una tienda que actualiza no cambia de color.
+	foreach ( $found as $tax ) {
+		$slug = sanitize_title( remove_accents( dox_pos_attribute_taxonomies()[ $tax ] ?? '' ) );
+		if ( in_array( substr( $tax, 3 ), $names, true ) || in_array( $slug, $names, true ) ) {
+			return $tax;
+		}
+	}
 	return $found ? $found[0] : '';
 }
 
@@ -321,7 +329,7 @@ function dox_pos_category_size_found() {
 	global $wpdb;
 	$keys = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
 	$in   = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
 	// Lo de cada subcategoría cuenta también para sus madres: Zapatos sin productos propios, pero con
 	// los tenis en Zapatos > Tenis, es de Talla calzado.
 	$uses = array();
@@ -439,22 +447,27 @@ function dox_pos_category_vary_map( $vary = null, $size = null ) {
 	$def   = array_values( array_filter( array( $s['size_attr'], $color ) ) );
 	$map   = array();
 	foreach ( $terms as $tid => $parent ) {
-		$x   = (int) $tid;
-		$out = null;
-		$n   = 0;
+		$x    = (int) $tid;
+		$out  = null;
+		$n    = 0;
+		$auto = false;
+		// Lo de la 0.56: la talla de esa categoría (la misma que le da el mapa de tallas) y el color.
+		$old = array_values( array_unique( array_filter( array( $smap[ (int) $tid ] ?? '', $color ) ) ) );
 		while ( $x && $n++ < 10 ) {
 			if ( isset( $vary[ $x ] ) ) {
 				$out = (array) $vary[ $x ];
 				break;
 			}
-			if ( isset( $size[ $x ] ) || isset( $found[ $x ] ) ) {
-				// Lo de la 0.56: la talla de esa categoría (la misma que le da el mapa de tallas) y el color.
-				$out = array_values( array_unique( array_filter( array( $smap[ (int) $tid ] ?? '', $color ) ) ) );
+			if ( isset( $size[ $x ] ) || '' !== ( $found[ $x ] ?? '' ) ) {
+				$out = $old;
 				break;
 			}
-			$x = (int) ( $terms[ $x ] ?? 0 );
+			// Productos sin ninguna talla (los termos de Termos > Acero, que varían por Capacidad) no dicen nada:
+			// se sigue subiendo, por si la madre tiene su "Varía por".
+			$auto = $auto || isset( $found[ $x ] );
+			$x    = (int) ( $terms[ $x ] ?? 0 );
 		}
-		$map[ (int) $tid ] = null === $out ? $def : $out;
+		$map[ (int) $tid ] = null === $out ? ( $auto ? $old : $def ) : $out;
 	}
 	return $map;
 }
@@ -463,11 +476,12 @@ function dox_pos_category_vary_map( $vary = null, $size = null ) {
  * Los atributos que son colores: el del ajuste y los que se llaman como un color ("Color", "Color tapa").
  * Sus valores llevan muestra de color en la caja.
  *
+ * @param bool $reset Volver a mirarlos (después de crear un atributo).
  * @return string[]
  */
-function dox_pos_color_attributes() {
+function dox_pos_color_attributes( $reset = false ) {
 	static $out = null;
-	if ( null === $out ) {
+	if ( null === $out || $reset ) {
 		$out = dox_pos_attribute_candidates( dox_pos_attribute_names( 'color' ) );
 		$set = dox_pos_products_settings()['color_attr'];
 		if ( $set && ! in_array( $set, $out, true ) ) {
@@ -488,6 +502,21 @@ function dox_pos_is_color_attribute( $tax ) {
 }
 
 /**
+ * Un color va siempre de segundo (en las columnas), aunque se elija primero: las fotos y las unidades compartidas
+ * van por columna, y en las filas mezclarían las de cada color. [Color, Talla] queda [Talla, Color].
+ *
+ * @param string[] $set Las opciones, en orden.
+ * @return string[]
+ */
+function dox_pos_vary_color_last( $set ) {
+	$set = array_values( (array) $set );
+	if ( count( $set ) >= 2 && dox_pos_is_color_attribute( $set[0] ) && ! dox_pos_is_color_attribute( $set[1] ) ) {
+		$set = array_merge( array( $set[1], $set[0] ), array_slice( $set, 2 ) );
+	}
+	return $set;
+}
+
+/**
  * Dónde va cada opción en el formulario: la primera en las filas y la segunda en las columnas. Con una sola,
  * un color va en las columnas (como un producto que solo varía por color) y lo demás en las filas.
  *
@@ -495,7 +524,7 @@ function dox_pos_is_color_attribute( $tax ) {
  * @return array{row:string,col:string}
  */
 function dox_pos_vary_axes( $set ) {
-	$set = array_values( array_filter( array_map( 'strval', (array) $set ) ) );
+	$set = dox_pos_vary_color_last( array_values( array_filter( array_map( 'strval', (array) $set ) ) ) );
 	if ( count( $set ) >= 2 ) {
 		return array( 'row' => $set[0], 'col' => $set[1] );
 	}
@@ -561,9 +590,12 @@ function dox_pos_product_axes( $p ) {
 		return dox_pos_vary_axes( $cat );
 	}
 	if ( 1 === count( $mine ) ) {
-		$i = array_search( $mine[0], $cat, true );
-		if ( false !== $i && 2 === count( $cat ) ) {
-			return 0 === $i ? array( 'row' => $mine[0], 'col' => '' ) : array( 'row' => '', 'col' => $mine[0] );
+		$ax = dox_pos_vary_axes( $cat );
+		if ( $mine[0] === $ax['row'] && '' !== $ax['col'] ) {
+			return array( 'row' => $mine[0], 'col' => '' );
+		}
+		if ( $mine[0] === $ax['col'] && '' !== $ax['row'] ) {
+			return array( 'row' => '', 'col' => $mine[0] );
 		}
 		return dox_pos_vary_axes( $mine );
 	}
@@ -661,6 +693,31 @@ function dox_pos_product_form() {
 	set_transient( 'dox_pos_product_form', $out, HOUR_IN_SECONDS );
 	return $out;
 }
+
+/*
+ * Un atributo, un valor o una categoría cambiados en wp-admin renuevan el formulario guardado: si no, durante
+ * una hora la caja ofrecería un atributo ya borrado y el producto se crearía sin él. dox_pos_forget_product_form()
+ * está en includes/shipping-setup.php (lo mismo con los métodos de envío).
+ */
+add_action( 'woocommerce_attribute_added', 'dox_pos_forget_product_form' );
+add_action( 'woocommerce_attribute_updated', 'dox_pos_forget_product_form' );
+add_action( 'woocommerce_attribute_deleted', 'dox_pos_forget_product_form' );
+
+/**
+ * Lo mismo con los valores de un atributo (pa_) y con las categorías de productos.
+ *
+ * @param int    $term_id  Término.
+ * @param int    $tt_id    Su term_taxonomy_id.
+ * @param string $taxonomy Taxonomía.
+ */
+function dox_pos_forget_product_form_term( $term_id, $tt_id, $taxonomy ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundBeforeLastUsed
+	if ( 'product_cat' === $taxonomy || 0 === strpos( (string) $taxonomy, 'pa_' ) ) {
+		dox_pos_forget_product_form();
+	}
+}
+add_action( 'created_term', 'dox_pos_forget_product_form_term', 10, 3 );
+add_action( 'edited_term', 'dox_pos_forget_product_form_term', 10, 3 );
+add_action( 'delete_term', 'dox_pos_forget_product_form_term', 10, 3 );
 
 /**
  * Un atributo de la tienda como lo pinta la caja: su nombre, si es de talla o de color, y sus valores (los
@@ -1012,13 +1069,28 @@ function dox_pos_set_term_hex( $term_id, $tax, $hex ) {
 			update_term_meta( $term_id, 'product_attribute_color', $hex );
 		} elseif ( 'cfvsw' === $system ) {
 			update_term_meta( $term_id, 'cfvsw_color', $hex );
-		} elseif ( 'thwvsf' === $system ) {
+		} elseif ( 'thwvsf' === $system && 'color' === dox_pos_attribute_type( $tax ) ) {
+			// ThemeHigh guarda en el mismo meta el color, la imagen o la etiqueta, según el tipo del atributo.
 			update_term_meta( $term_id, 'product_' . $tax, $hex );
 		} elseif ( 'vi' === $system ) {
 			$old = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
-			update_term_meta( $term_id, 'vi_wpvs_terms_params', array_merge( is_array( $old ) ? $old : array(), array( 'type' => 'color', 'color' => array( $hex ), 'color_separator' => '1' ) ) );
+			$old = is_array( $old ) ? $old : array();
+			if ( empty( $old['type'] ) || 'color' === $old['type'] ) { // Uno con imagen se queda con su imagen.
+				update_term_meta( $term_id, 'vi_wpvs_terms_params', array_merge( $old, array( 'type' => 'color', 'color' => array( $hex ), 'color_separator' => '1' ) ) );
+			}
 		}
 	}
+}
+
+/**
+ * El tipo de un atributo global en WooCommerce (select, o el que añada un plugin de muestras: color, image, label).
+ *
+ * @param string $tax Taxonomía (pa_color).
+ * @return string
+ */
+function dox_pos_attribute_type( $tax ) {
+	$a = wc_get_attribute( wc_attribute_taxonomy_id_by_name( (string) $tax ) );
+	return $a ? (string) $a->type : '';
 }
 
 /**
@@ -1035,8 +1107,11 @@ function dox_pos_term_label( $term_id, $tax ) {
 	if ( is_string( $v ) && '' !== trim( $v ) ) {
 		return $v;
 	}
-	$v = $tax ? get_term_meta( $term_id, 'product_' . $tax, true ) : '';
-	return is_string( $v ) && '' !== trim( $v ) && ! is_numeric( $v ) && 0 !== strpos( trim( $v ), '#' ) ? $v : '';
+	if ( ! $tax || ! defined( 'THWVSF_VERSION' ) || 'label' !== dox_pos_attribute_type( $tax ) ) {
+		return '';
+	}
+	$v = get_term_meta( $term_id, 'product_' . $tax, true );
+	return is_string( $v ) ? trim( $v ) : '';
 }
 
 /**
@@ -1158,7 +1233,7 @@ function dox_pos_category_size_sets( $sizes = array() ) { // phpcs:ignore Generi
 	}
 	$keys    = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
 	$in      = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-	$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, v.post_parent, t.meta_key k, GROUP_CONCAT(DISTINCT t.meta_value ORDER BY t.meta_value SEPARATOR ',') slugs FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status = 'publish' GROUP BY x.term_id, v.post_parent, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, v.post_parent, t.meta_key k, GROUP_CONCAT(DISTINCT t.meta_value ORDER BY t.meta_value SEPARATOR ',') slugs FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status = 'publish' GROUP BY x.term_id, v.post_parent, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
 	$by_slug = array();
 	foreach ( $taxes as $tax ) {
 		$by_slug[ $tax ] = array_column( dox_pos_attribute_terms( $tax, 'size' ), 'id', 'slug' );
@@ -1989,8 +2064,9 @@ function dox_pos_create_color( $name, $hex, $tax ) {
  * @return array|WP_Error {size, attr}
  */
 function dox_pos_create_size( $data ) {
-	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
-	$tax  = (string) ( $data['attr'] ?? '' );
+	$name = $data['name'] ?? '';
+	$name = is_scalar( $name ) ? mb_substr( trim( sanitize_text_field( (string) $name ) ), 0, 100 ) : '';
+	$tax  = is_scalar( $data['attr'] ?? '' ) ? (string) ( $data['attr'] ?? '' ) : '';
 	if ( '' === $name ) {
 		return new WP_Error( 'dox_pos_talla', __( 'Write the size.', 'dox-pos' ) );
 	}
@@ -1999,7 +2075,8 @@ function dox_pos_create_size( $data ) {
 		return new WP_Error( 'dox_pos_talla', __( 'That type of size is not in the store.', 'dox-pos' ) );
 	}
 	$found = term_exists( $name, $tax );
-	if ( ! $found ) {
+	$nuevo = ! $found;
+	if ( $nuevo ) {
 		$r = wp_insert_term( $name, $tax );
 		if ( is_wp_error( $r ) ) {
 			return new WP_Error( 'dox_pos_talla', sprintf( /* translators: 1: size, 2: reason */ __( 'The size %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
@@ -2007,9 +2084,10 @@ function dox_pos_create_size( $data ) {
 		$found = $r;
 	}
 	$id  = (int) ( is_array( $found ) ? $found['term_id'] : $found );
-	$hex = dox_pos_hex( (string) ( $data['hex'] ?? '' ) );
-	if ( $hex && dox_pos_is_color_attribute( $tax ) && '' === dox_pos_term_hex( $id, $tax ) ) {
-		dox_pos_set_term_hex( $id, $tax, $hex ); // Un color nuevo con su muestra.
+	$hex = dox_pos_hex( is_scalar( $data['hex'] ?? '' ) ? (string) ( $data['hex'] ?? '' ) : '' );
+	// Solo un color recién creado lleva el tono de la caja: uno que ya existía conserva su muestra (o su imagen).
+	if ( $nuevo && $hex && dox_pos_is_color_attribute( $tax ) ) {
+		dox_pos_set_term_hex( $id, $tax, $hex );
 	}
 	delete_transient( 'dox_pos_product_form' );
 	foreach ( dox_pos_attribute_terms( $tax, dox_pos_is_color_attribute( $tax ) ? 'color' : 'size' ) as $t ) {
@@ -2068,7 +2146,7 @@ function dox_pos_set_category_vary( $data ) {
 	$o = get_option( 'dox_pos_products', array() );
 	$o = is_array( $o ) ? $o : array();
 	$o['cat_vary']         = (array) ( $o['cat_vary'] ?? array() );
-	$o['cat_vary'][ $cid ] = $set ? $set : array( '-' );
+	$o['cat_vary'][ $cid ] = $set ? dox_pos_vary_color_last( $set ) : array( '-' );
 	$o['cat_size']         = (array) ( $o['cat_size'] ?? array() );
 	$o['cat_size'][ $cid ] = dox_pos_vary_size_compat( $set ); // Para una versión anterior a la 0.57 (y el Pro): su talla, o sin tallas.
 	update_option( 'dox_pos_products', $o );
@@ -2101,13 +2179,15 @@ function dox_pos_vary_size_compat( $set ) {
  * @return array|WP_Error {attr, created}; el error dox_pos_parecido lleva similar (taxonomía) y label.
  */
 function dox_pos_create_attribute( $data ) {
-	$name = trim( sanitize_text_field( (string) ( $data['name'] ?? '' ) ) );
+	$name = $data['name'] ?? '';
+	$name = is_scalar( $name ) ? mb_substr( trim( sanitize_text_field( (string) $name ) ), 0, 100 ) : ''; // La tabla de WooCommerce guarda 200.
 	if ( '' === $name ) {
 		return new WP_Error( 'dox_pos_atributo', __( 'Give the attribute a name.', 'dox-pos' ) );
 	}
 	$vals = $data['values'] ?? array();
-	$vals = is_array( $vals ) ? $vals : explode( ',', (string) $vals );
-	$vals = array_values( array_unique( array_filter( array_map( fn( $v ) => trim( sanitize_text_field( (string) $v ) ), $vals ) ) ) );
+	$vals = is_array( $vals ) ? $vals : explode( ',', is_scalar( $vals ) ? (string) $vals : '' );
+	$vals = array_filter( $vals, 'is_scalar' );
+	$vals = array_slice( array_values( array_unique( array_filter( array_map( fn( $v ) => mb_substr( trim( sanitize_text_field( (string) $v ) ), 0, 100 ), $vals ) ) ) ), 0, 100 );
 	$all  = dox_pos_attribute_taxonomies();
 	$tax  = '';
 	$new  = false;
@@ -2130,14 +2210,20 @@ function dox_pos_create_attribute( $data ) {
 		if ( ! function_exists( 'wc_create_attribute' ) ) {
 			return new WP_Error( 'dox_pos_atributo', __( 'WooCommerce would not create the attribute.', 'dox-pos' ) );
 		}
-		$slug = substr( wc_sanitize_taxonomy_name( remove_accents( $name ) ), 0, 27 ); // WooCommerce admite 28 letras.
+		// WooCommerce admite 28 bytes: se corta sin partir una letra (un nombre en ruso o en griego no se translitera).
+		$slug = mb_strcut( wc_sanitize_taxonomy_name( remove_accents( $name ) ), 0, 27, 'UTF-8' );
 		$slug = '' !== $slug ? $slug : 'atributo';
 		$base = $slug;
 		$i    = 2;
-		while ( taxonomy_exists( 'pa_' . $slug ) || isset( $all[ 'pa_' . $slug ] ) ) {
-			$slug = substr( $base, 0, 24 ) . '-' . $i++;
+		// Los nombres que WordPress se reserva (Type, Name, Order, Page) también llevan número.
+		while ( taxonomy_exists( 'pa_' . $slug ) || isset( $all[ 'pa_' . $slug ] ) || wc_check_if_attribute_name_is_reserved( $slug ) ) {
+			$slug = mb_strcut( $base, 0, 24, 'UTF-8' ) . '-' . $i;
+			++$i;
 		}
 		$id = wc_create_attribute( array( 'name' => $name, 'slug' => $slug, 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false ) );
+		if ( ! is_wp_error( $id ) && ( ! $id || ! wc_get_attribute( $id ) ) ) { // Un fallo de la base de datos no llega como error.
+			$id = new WP_Error( 'dox_pos_atributo', __( 'WooCommerce would not create the attribute.', 'dox-pos' ) );
+		}
 		if ( is_wp_error( $id ) ) {
 			/* translators: 1: attribute, 2: reason */
 			return new WP_Error( 'dox_pos_atributo', sprintf( __( 'The attribute %1$s could not be created: %2$s', 'dox-pos' ), $name, $id->get_error_message() ) );
@@ -2149,14 +2235,17 @@ function dox_pos_create_attribute( $data ) {
 			register_taxonomy( $tax, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => true, 'rewrite' => false ) );
 		}
 		dox_pos_products_settings( true );
+		dox_pos_color_attributes( true ); // "Color tapa" vuelve ya como color, con su muestra.
 	}
+	$added = array();
 	foreach ( $vals as $v ) {
-		if ( ! term_exists( $v, $tax ) ) {
-			wp_insert_term( $v, $tax );
+		if ( ! term_exists( $v, $tax ) && ! is_wp_error( wp_insert_term( $v, $tax ) ) ) {
+			$added[] = $v;
 		}
 	}
 	delete_transient( 'dox_pos_product_form' );
-	return array( 'attr' => dox_pos_vary_attribute( $tax ), 'created' => $new ); // created: false si ya existía y solo se le añadieron valores.
+	// created: false si ya existía y solo se le añadieron valores; added: los que se le añadieron (XS y XXL a Talla).
+	return array( 'attr' => dox_pos_vary_attribute( $tax ), 'created' => $new, 'added' => $added );
 }
 
 /**
@@ -2180,7 +2269,11 @@ function dox_pos_attribute_likeness( $name, $label, $slug ) {
 			return 2;
 		}
 		$sing = fn( $x ) => preg_replace( '/(es|s)(?=-|$)/', '', $x ); // Tallas, talles, colores: sin plural.
-		if ( $sing( $a ) === $sing( $b ) || ( strlen( $a ) >= 4 && strlen( $b ) >= 4 && levenshtein( $a, $b ) <= 2 ) ) {
+		// Una letra de diferencia (Colour y Color, Talle y Talla) desde 5 letras, dos desde 8, y empezando igual: con
+		// palabras cortas salían parecidas cosas distintas (Olor y Color, Tela y Talla, Marca y Manga).
+		$min  = min( strlen( $a ), strlen( $b ) );
+		$dist = $a[0] === $b[0] ? levenshtein( $a, $b ) : 99;
+		if ( $sing( $a ) === $sing( $b ) || ( $min >= 5 && $dist <= 1 ) || ( $min >= 8 && $dist <= 2 ) ) {
 			$best = 1;
 		}
 	}
@@ -2697,21 +2790,7 @@ function dox_pos_update_product( $id, $data ) {
 	if ( is_wp_error( $model ) ) {
 		return $model;
 	}
-	// A un producto que no tiene una de las dos opciones (sin colores, o solo con colores) se le puede añadir: la que
-	// mande la caja. Sus variaciones de hoy pasan al valor que se elige primero (adopt_size, adopt_color).
-	$adopt = dox_pos_adopt_axis( $p, $model, $data ); // Puede cambiar la clave del color nuevo en $data por su id.
-	if ( is_wp_error( $adopt ) ) {
-		return $adopt;
-	}
-	if ( $adopt ) {
-		$model = dox_pos_product_model( wc_get_product( $p->get_id() ) );
-		if ( is_wp_error( $model ) ) {
-			return $model;
-		}
-		$p = wc_get_product( $p->get_id() );
-	}
-	$size_tax  = $model['size_attr'];
-	$color_tax = $model['color_attr'];
+	// Lo que no depende de las opciones se valida antes de añadir una: añadirla ya reescribe sus variaciones.
 	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
 	if ( '' === $name ) {
 		return new WP_Error( 'dox_pos_sin_nombre', __( 'Give the product a name.', 'dox-pos' ) );
@@ -2735,6 +2814,21 @@ function dox_pos_update_product( $id, $data ) {
 	if ( ! $cats ) {
 		return new WP_Error( 'dox_pos_sin_categoria', __( 'Choose at least one category.', 'dox-pos' ) );
 	}
+	// A un producto que no tiene una de las dos opciones (sin colores, o solo con colores) se le puede añadir: la que
+	// mande la caja. Sus variaciones de hoy pasan al valor que se elige primero (adopt_size, adopt_color).
+	$adopt = dox_pos_adopt_axis( $p, $model, $data ); // Puede cambiar la clave del color nuevo en $data por su id.
+	if ( is_wp_error( $adopt ) ) {
+		return $adopt;
+	}
+	if ( $adopt ) {
+		$model = dox_pos_product_model( wc_get_product( $p->get_id() ) );
+		if ( is_wp_error( $model ) ) {
+			return $model;
+		}
+		$p = wc_get_product( $p->get_id() );
+	}
+	$size_tax  = $model['size_attr'];
+	$color_tax = $model['color_attr'];
 	$variable = $p->is_type( 'variable' );
 	// Qué tallas salen del total del producto (shared_cells, clave color|talla) y ese total (shared_stock), tal
 	// como lo manda el formulario desde la 0.30. Sin shared_cells, ninguna talla cambia de sitio y solo se
@@ -3162,7 +3256,8 @@ function dox_pos_adopt_axis( $p, $model, &$data ) {
 			continue;
 		}
 		$other = $model[ ( 'size' === $axis ? 'color' : 'size' ) . '_attr' ];
-		if ( $tax === $other || isset( $p->get_attributes()[ $tax ] ) ) {
+		$had   = $p->get_attributes()[ $tax ] ?? null; // "Color: Negro" solo para el filtro de la tienda, sin variaciones.
+		if ( $tax === $other || ( $had instanceof WC_Product_Attribute && $had->get_variation() ) ) {
 			return new WP_Error( 'dox_pos_varia', __( 'That option is already in the product.', 'dox-pos' ) );
 		}
 		$t = null;
@@ -3184,11 +3279,13 @@ function dox_pos_adopt_axis( $p, $model, &$data ) {
 		if ( ! $t instanceof WP_Term ) {
 			return new WP_Error( 'dox_pos_varia', __( 'The new option could not be added: reload and try again.', 'dox-pos' ) );
 		}
+		// Si ya lo tenía sin variaciones, pasa a variar con el valor elegido (y deja de decir otro en el filtro).
 		$attrs         = $p->get_attributes();
-		$attrs[ $tax ] = dox_pos_make_attribute( $tax, array( (int) $t->term_id ), 'size' === $axis ? 0 : count( $attrs ) );
+		$pos           = $had instanceof WC_Product_Attribute ? $had->get_position() : ( 'size' === $axis ? 0 : count( $attrs ) );
+		$attrs[ $tax ] = dox_pos_make_attribute( $tax, array( (int) $t->term_id ), $pos );
 		$p->set_attributes( $attrs );
 		$p->save();
-		wp_set_object_terms( $p->get_id(), array( (int) $t->term_id ), $tax, true );
+		wp_set_object_terms( $p->get_id(), array( (int) $t->term_id ), $tax, false );
 		foreach ( $model['variations'] as $vr ) {
 			$v = wc_get_product( $vr['id'] );
 			if ( ! $v ) {

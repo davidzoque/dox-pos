@@ -3230,8 +3230,11 @@
 	const attrsForm = () => (pr.form && pr.form.attrs) || {};
 	const attrInfo = (tax) => (tax && attrsForm()[tax]) || null;
 	// Con dos opciones, la primera en filas y la segunda en columnas; con una, un color va en columnas y lo demás en filas.
+	const esColor = (tax) => { const a = attrInfo(tax); return !!(a && a.color); };
+	// Un color va siempre en las columnas (sus fotos y sus unidades compartidas van por columna), como en el servidor.
+	const colorAlFinal = (s) => (s.length >= 2 && esColor(s[0]) && !esColor(s[1]) ? [s[1], s[0]].concat(s.slice(2)) : s);
 	function ejesDe(set) {
-		const s = (set || []).filter(Boolean);
+		const s = colorAlFinal((set || []).filter(Boolean));
 		if (s.length >= 2) return { row: s[0], col: s[1] };
 		if (!s.length) return { row: "", col: "" };
 		const a = attrInfo(s[0]);
@@ -3279,7 +3282,8 @@
 		const c = !pr.edit && pr.form && pr.form.attrs ? catElegida() : null;
 		if (!c) { p.hidden = true; $("#p-variabox").hidden = true; return; }
 		p.hidden = false;
-		p.innerHTML = esc(sprintf(__("%s varies by", "dox-pos"), c.name)) + " <b>" + esc(nombresVaria(c.vary)) + '</b> · <button type="button" class="linkp" id="p-varia-cambiar">' + esc(__("Change it", "dox-pos")) + "</button>";
+		const nada = !(c.vary || []).filter(Boolean).length; // "Jeans no varía (talla única)" y no "varía por nada".
+		p.innerHTML = (nada ? esc(sprintf(__("%s does not vary (one size)", "dox-pos"), c.name)) : esc(sprintf(__("%s varies by", "dox-pos"), c.name)) + " <b>" + esc(nombresVaria(c.vary)) + "</b>") + ' · <button type="button" class="linkp" id="p-varia-cambiar">' + esc(__("Change it", "dox-pos")) + "</button>";
 		$("#p-varia-cambiar").onclick = () => { if ($("#p-variabox").hidden) abrirVaria(c); else $("#p-variabox").hidden = true; };
 	}
 	function abrirVaria(c, elegir) {
@@ -3293,16 +3297,18 @@
 			"<label><span>" + esc(__("Second option (columns)", "dox-pos")) + '</span><select id="p-v2">' + opts(v2, ["", __("No second option", "dox-pos")]) + "</select></label></div>" +
 			'<button type="button" class="linkp" id="p-v-nuevo">' + esc(__("New attribute…", "dox-pos")) + "</button>" +
 			'<div class="nuevacat variaattr" id="p-v-attr" hidden><input id="p-v-nom" autocomplete="off" placeholder="' + esc(__("Name, for example Capacity", "dox-pos")) + '" aria-label="' + esc(__("Name of the new attribute", "dox-pos")) + '">' +
-			'<input id="p-v-vals" autocomplete="off" placeholder="' + esc(__("Values, separated by commas: 350 ml, 500 ml", "dox-pos")) + '" aria-label="' + esc(__("Values of the new attribute", "dox-pos")) + '">' +
+			'<input id="p-v-vals" autocomplete="off" placeholder="' + esc(__("Values: 350 ml, 500 ml", "dox-pos")) + '" aria-label="' + esc(__("Values of the new attribute", "dox-pos")) + '">' +
 			'<button type="button" class="mini" id="p-v-crear">' + esc(__("Create", "dox-pos")) + "</button></div>" +
 			'<p class="hint">' + esc(sprintf(__("It is kept for %s: its next products come out like this too.", "dox-pos"), c.name)) + "</p>" +
 			'<div class="variabtn"><button type="button" class="mini main" id="p-v-ok">' + esc(__("Save", "dox-pos")) + '</button><button type="button" class="mini sec" id="p-v-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>";
 		box.hidden = false;
 		const s1 = $("#p-v1"), s2 = $("#p-v2");
-		const cuadrar = () => { // La segunda solo con una primera, y nunca la misma.
+		let antes = s1.value;
+		const cuadrar = () => { // La segunda solo con una primera, y nunca la misma: si se elige arriba la de abajo, se cambian de sitio.
 			s2.disabled = s1.value === "-";
-			if (s2.value === s1.value) s2.value = "";
+			if (s2.value === s1.value) s2.value = antes !== "-" && antes !== s1.value ? antes : "";
 			[...s2.options].forEach((o) => { o.disabled = o.value !== "" && o.value === s1.value; });
+			antes = s1.value;
 		};
 		s1.onchange = cuadrar;
 		cuadrar();
@@ -3310,7 +3316,7 @@
 		$("#p-v-crear").onclick = () => crearAtributo(c);
 		$("#p-v-vals").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); crearAtributo(c); } });
 		$("#p-v-no").onclick = () => { box.hidden = true; };
-		$("#p-v-ok").onclick = () => guardarVaria(c, s1.value === "-" ? [] : [s1.value, s2.disabled ? "" : s2.value].filter(Boolean));
+		$("#p-v-ok").onclick = () => guardarVaria(c, s1.value === "-" ? [] : colorAlFinal([s1.value, s2.disabled ? "" : s2.value].filter(Boolean)));
 	}
 	async function guardarVaria(c, set) {
 		if (!navigator.onLine) { toast(__("Changing it needs a connection.", "dox-pos")); return; }
@@ -3329,7 +3335,7 @@
 			$("#p-variabox").hidden = true;
 			$("#p-nuevatalla").hidden = true;
 			$("#p-nuevocolor").hidden = true;
-			toast(sprintf(__("Saved: %s will always vary like this.", "dox-pos"), c.name));
+			toast(sprintf(__("Saved: the next products of %s come out like this.", "dox-pos"), c.name));
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -3367,12 +3373,13 @@
 		if (elegido[0] === "-" || elegido[0] === a.tax) elegido[0] = a.tax; // Va en el primer hueco libre.
 		else if (elegido[1] !== a.tax) elegido[1] = a.tax;
 		abrirVaria(c, elegido);
-		toast(sprintf(d.created ? __("%s created. Save to use it in this category.", "dox-pos") : __("%s is ready. Save to use it in this category.", "dox-pos"), a.label));
+		const mas = (d.added || []).join(", "); // Al usar uno que ya existía, se dice qué valores se le añadieron.
+		toast(d.created ? sprintf(__("%s created. Save to use it in this category.", "dox-pos"), a.label) : mas ? sprintf(__("Added %1$s to %2$s. Save to use it in this category.", "dox-pos"), mas, a.label) : sprintf(__("%s is ready. Save to use it in this category.", "dox-pos"), a.label));
 	}
 
 	// Las columnas (la segunda opción): los más usados (doce) y "Más…" para el resto; "Otro color…" crea uno nuevo,
 	// con su tono si es un color. Al editar, a un producto que no tiene esta opción se le puede añadir: sus unidades
-	// de hoy pasan al primer valor que se elija (pr.adopt), que queda fijo.
+	// de hoy pasan al primer valor que se elija (pr.adopt), que se puede soltar mientras sea el único elegido.
 	function coloresDisponibles() {
 		const f = pr.form || {};
 		const a = attrInfo(ejes().col);
@@ -3414,7 +3421,8 @@
 			const ch = chip(c.label || c.name, pr.colores.some((x) => x.key === String(c.id)), () => toggleColor({ key: String(c.id), id: c.id, name: c.name, hex: c.hex || "" }));
 			ch.title = c.name;
 			if (c.hex) ch.prepend(dot(c.hex));
-			if (pr.edit && (pr.edit.colors.some((x) => String(x.key) === String(c.id)) || pr.adopt.color === String(c.id))) ch.disabled = true; // Los que ya tiene no se quitan desde aquí.
+			// Los que ya tiene no se quitan desde aquí; el que toma sus unidades, solo mientras sea el único elegido.
+			if (pr.edit && (pr.edit.colors.some((x) => String(x.key) === String(c.id)) || (pr.adopt.color === String(c.id) && pr.colores.length > 1))) ch.disabled = true;
 			box.appendChild(ch);
 		});
 		pr.colores.filter((c) => !c.id).forEach((c) => {
@@ -3453,9 +3461,19 @@
 		pr.adopt.size = id;
 		moverClaves((k) => (k.endsWith("|0") ? k.slice(0, -1) + id : k));
 	}
+	// Mientras no se guarde, el primero elegido se puede quitar (se tocó otro sin querer): lo suyo vuelve a donde estaba.
+	function soltarColumna(key) {
+		pr.adopt.color = "";
+		moverClaves((k) => (k.startsWith(key + "|") ? k.slice(key.length) : k), (k) => (k === key || k.startsWith(key + "#") ? k.slice(key.length) : k));
+	}
+	function soltarFila(id) {
+		pr.adopt.size = 0;
+		moverClaves((k) => (k.endsWith("|" + id) ? k.slice(0, -String(id).length) + "0" : k));
+	}
 	function toggleColor(c) {
 		const i = pr.colores.findIndex((x) => x.key === c.key);
 		if (i >= 0) {
+			if (pr.adopt.color === c.key) soltarColumna(c.key);
 			pr.colores.splice(i, 1);
 			pr.fotos.forEach((f) => { if (f.color === c.key) f.color = ""; });
 		} else {
@@ -3547,11 +3565,12 @@
 		}
 		$("#p-talla-nom").placeholder = talla ? __("Size, for example 42", "dox-pos") : tit;
 		const deCat = tallasDeCategoria();
-		const ver = pr.masTallas || pr.edit ? all : all.filter((t) => deCat.includes(t.id) || pr.tallas.includes(t.id));
+		const ver = pr.masTallas || (pr.edit && !deCat.length) ? all : all.filter((t) => deCat.includes(t.id) || pr.tallas.includes(t.id));
 		ver.forEach((t) => {
 			const ch = chip(t.label || t.name, pr.tallas.includes(t.id), () => {
 				pr.tallasTocadas = true;
 				const i = pr.tallas.indexOf(t.id);
+				if (i >= 0 && pr.adopt.size === t.id) soltarFila(t.id);
 				if (i >= 0) pr.tallas.splice(i, 1); else marcarFila(t.id);
 				pintarTallas();
 				pintarCantidades();
@@ -3559,7 +3578,7 @@
 			});
 			ch.title = t.name;
 			if (t.hex) { const i = document.createElement("i"); i.className = "dot"; i.style.background = t.hex; ch.prepend(i); }
-			if (pr.edit && (pr.edit.sizes.includes(t.id) || pr.adopt.size === t.id)) ch.disabled = true; // Las que ya tiene no se quitan desde aquí.
+			if (pr.edit && (pr.edit.sizes.includes(t.id) || (pr.adopt.size === t.id && pr.tallas.length > 1))) ch.disabled = true; // Las que ya tiene no se quitan desde aquí.
 			box.appendChild(ch);
 		});
 		if (ver.length < all.length) {
@@ -3957,7 +3976,12 @@
 		if (!navigator.onLine) { toast(__("Creating a product needs a connection.", "dox-pos")); return; }
 		if (!pr.edit) {
 			if (!(await modalRevisar())) return;
-		} else if (!pr.fotos.length && !(await preguntar(__("The product will have no photo. Save it like that?", "dox-pos"), __("Yes, save it", "dox-pos"), __("No", "dox-pos")))) return;
+		} else {
+			// Añadirle la opción que no tenía reescribe sus variaciones de hoy: se dice a cuál pasan sus unidades antes de guardar.
+			const toma = pr.adopt.color ? (pr.colores.find((c) => c.key === pr.adopt.color) || {}).name : pr.adopt.size ? (tallasDisponibles().find((t) => t.id === pr.adopt.size) || {}).name : "";
+			if (toma && !(await preguntar(sprintf(__("The units it already has go to %s. Adding this option can only be undone in WooCommerce. Save the changes?", "dox-pos"), toma), __("Yes, save it", "dox-pos"), __("No", "dox-pos")))) return;
+			if (!pr.fotos.length && !(await preguntar(__("The product will have no photo. Save it like that?", "dox-pos"), __("Yes, save it", "dox-pos"), __("No", "dox-pos")))) return;
+		}
 		pr.creando = true;
 		pintarResumenProducto();
 		const soltar = ocupar($("#p-crear"), pr.edit ? __("Saving\u2026", "dox-pos") : __("Creating\u2026", "dox-pos"));
@@ -3996,6 +4020,7 @@
 			else { borrarBorrador(); modalProductoCreado(d.product); }
 			volverDeFicha(false);
 			refrescarStock().catch(() => {}); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
+			api("products/form").then((f) => { pr.form = f; }).catch(() => {}); // Los valores creados con este (Verde menta) salen ya en el siguiente.
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back: the photos are already uploaded.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -4090,6 +4115,7 @@
 		pr.qty = Object.assign({}, b.qty || {});
 		pr.fotos = sinFotos ? [] : (b.fotos || []).map((f) => ({ uid: ++uidN, file: null, ext: "", estado: "ok", url: f.url, local: "", id: f.id, color: f.color || "", kb: f.kb || 0, error: "" }));
 		pr.grupo = null;
+		if (pr.form) ajustarAEjes(); // La categoría pudo cambiar de opciones desde que se guardó el borrador.
 		formatearPrecio();
 		if ($("#p-sku").value) { pr.skuOk = undefined; comprobarCodigo(); } // Se vuelve a comprobar por si alguien usó ese código.
 		pintarProducto();

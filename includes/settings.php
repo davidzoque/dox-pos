@@ -1251,7 +1251,7 @@ function dox_pos_sanitize_products( $in ) {
 			}
 			$set = '-' === $a ? array() : dox_pos_clean_vary( array_filter( array( $a, $pair[1] ?? '' ) ), $all );
 			if ( null !== $set ) {
-				$cat_vary[ (int) $cid ] = $set ? $set : array( '-' );
+				$cat_vary[ (int) $cid ] = $set ? dox_pos_vary_color_last( $set ) : array( '-' );
 				$cat_size[ (int) $cid ] = dox_pos_vary_size_compat( $set );
 			}
 		}

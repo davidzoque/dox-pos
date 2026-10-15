@@ -426,15 +426,24 @@
 	});
 
 	// Varía por: la segunda opción solo vale con una primera elegida (ni automático ni "no varía"), y no puede ser la misma.
+	// Si se elige arriba la que estaba abajo, se cambian de sitio (antes la de abajo se vaciaba y se perdía el color).
 	const varia = $("#dp-vary");
-	if (varia) varia.addEventListener("change", (e) => {
-		const a = e.target.closest('select[data-vary="1"]');
-		if (!a) return;
-		const b = $('select[data-vary="2"]', a.closest(".dp-vary"));
-		b.disabled = a.value === "" || a.value === "-";
-		if (b.value === a.value) b.value = "";
-		$$("option", b).forEach((o) => { o.disabled = o.value !== "" && o.value === a.value; });
-	});
+	if (varia) {
+		$$('select[data-vary="1"]', varia).forEach((a) => {
+			a.dataset.antes = a.value;
+			$$("option", $('select[data-vary="2"]', a.closest(".dp-vary"))).forEach((o) => { o.disabled = o.value !== "" && o.value === a.value; });
+		});
+		varia.addEventListener("change", (e) => {
+			const a = e.target.closest('select[data-vary="1"]');
+			if (!a) return;
+			const b = $('select[data-vary="2"]', a.closest(".dp-vary"));
+			const antes = a.dataset.antes || "";
+			b.disabled = a.value === "" || a.value === "-";
+			if (b.value === a.value) b.value = antes !== "" && antes !== "-" && antes !== a.value ? antes : "";
+			$$("option", b).forEach((o) => { o.disabled = o.value !== "" && o.value === a.value; });
+			a.dataset.antes = a.value;
+		});
+	}
 
 	const pagos = $("#dp-pagos");
 	function pintarPagos() {

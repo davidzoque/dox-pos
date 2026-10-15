@@ -187,6 +187,17 @@ function dox_pos_format_product( $pid ) {
 				$variations[] = dox_pos_format_variation( $v );
 			}
 		}
+		// Dentro de cada color, las tallas en su orden: las que se añaden al editar se crean al final y salía M antes que S.
+		$first = array();
+		foreach ( $variations as $i => $v ) {
+			$first[ $v['color'] ] = $first[ $v['color'] ] ?? $i;
+		}
+		$keyed = array();
+		foreach ( $variations as $i => $v ) {
+			$keyed[] = array( $first[ $v['color'] ], '' !== $v['talla'] ? dox_pos_size_sort_key( $v['talla'] ) : $i, $i, $v );
+		}
+		usort( $keyed, fn( $a, $b ) => array( $a[0], $a[1], $a[2] ) <=> array( $b[0], $b[1], $b[2] ) );
+		$variations = array_column( $keyed, 3 );
 	} else {
 		$variations[] = dox_pos_format_variation( $p, true );
 	}
