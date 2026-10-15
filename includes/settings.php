@@ -2425,6 +2425,7 @@ function dox_pos_settings_page() {
 						<?php
 						$pset     = dox_pos_products_settings();
 						$cat_list = dox_pos_product_categories();
+						$solas    = dox_pos_category_vary_map( null, null, false ); // Lo que le tocaría a cada una sin lo suyo: un mapa para todas.
 						$names    = function ( $set ) use ( $attrs ) {
 							$set = array_map( fn( $t ) => $attrs[ $t ] ?? $t, (array) $set );
 							if ( ! $set ) {
@@ -2452,8 +2453,7 @@ function dox_pos_settings_page() {
 								} elseif ( isset( $sset[ $cid ] ) ) {
 									$mine = array_values( array_unique( array_filter( array( '-' === $sset[ $cid ] ? '' : $sset[ $cid ], $pset['color_attr'] ) ) ) );
 								}
-								unset( $vset[ $cid ], $sset[ $cid ] );
-								$sola  = dox_pos_category_vary_map( $vset, $sset )[ $cid ] ?? array();
+								$sola  = $solas[ $cid ] ?? array();
 								$first = null === $mine ? '' : ( $mine ? $mine[0] : '-' );
 								$second = $mine[1] ?? '';
 								$label = $c['path'] ? $c['path'] . ' › ' . $c['name'] : $c['name'];

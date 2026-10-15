@@ -117,6 +117,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: with the color on Automatic, the attribute called exactly Color keeps being the color even if another one with color in its name (Color de hilo) has more products.
 * Fix: a color that already existed keeps its swatch or its image when it is chosen again from the register.
 * Fix: with the size attribute on Automatic, a store with an empty "Talla" and its shoes in "Talla calzado" got the empty one, and the product form offered sizes nobody uses. Among several, the one that the most products have now comes first.
+* Change: a color without a shade (created with New attribute…, or in a store without swatches) can get one from the register. When a color attribute is created with its values, each value shows a box to pick its shade; and when a color without a shade is chosen in a product, the form offers to pick it (or Not now). A color that already has a shade or an image keeps it.
+* Change: changing Varies by from the register says clearly that it affects the next products of the whole category (and of its subcategories without their own), with how many products it has today, which stay as they are. If none of them varies, it offers Make it not vary; after saving it says how many subcategories changed too.
+* Change: faster with several size attributes. What the products of each category use is counted once and kept until a product, a variation or a category changes, instead of on every request; and Settings > Products > Varies by works it out once for all the categories instead of once per category.
+* Fix: after saving changes to a product, only the Saved window shows. The Create another window of a new product came out on top of it.
 
 = 0.55.0 =
 * New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.

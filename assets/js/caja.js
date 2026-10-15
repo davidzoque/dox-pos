@@ -3286,7 +3286,8 @@
 		p.innerHTML = (nada ? esc(sprintf(__("%s does not vary (one size)", "dox-pos"), c.name)) : esc(sprintf(__("%s varies by", "dox-pos"), c.name)) + " <b>" + esc(nombresVaria(c.vary)) + "</b>") + ' · <button type="button" class="linkp" id="p-varia-cambiar">' + esc(__("Change it", "dox-pos")) + "</button>";
 		$("#p-varia-cambiar").onclick = () => { if ($("#p-variabox").hidden) abrirVaria(c); else $("#p-variabox").hidden = true; };
 	}
-	function abrirVaria(c, elegir) {
+	// tonos: los valores recién creados de un atributo de color ({tax, names}), para elegirles el tono aquí mismo.
+	function abrirVaria(c, elegir, tonos) {
 		const box = $("#p-variabox");
 		const attrs = attrsForm();
 		const set = (c.vary || []).slice();
@@ -3299,7 +3300,7 @@
 			'<div class="nuevacat variaattr" id="p-v-attr" hidden><input id="p-v-nom" autocomplete="off" placeholder="' + esc(__("Name, for example Capacity", "dox-pos")) + '" aria-label="' + esc(__("Name of the new attribute", "dox-pos")) + '">' +
 			'<input id="p-v-vals" autocomplete="off" placeholder="' + esc(__("Values: 350 ml, 500 ml", "dox-pos")) + '" aria-label="' + esc(__("Values of the new attribute", "dox-pos")) + '">' +
 			'<button type="button" class="mini" id="p-v-crear">' + esc(__("Create", "dox-pos")) + "</button></div>" +
-			'<p class="hint">' + esc(sprintf(__("It is kept for %s: its next products come out like this too.", "dox-pos"), c.name)) + "</p>" +
+			'<div class="tonos" id="p-v-tonos" hidden></div>' + avisoVaria(c) +
 			'<div class="variabtn"><button type="button" class="mini main" id="p-v-ok">' + esc(__("Save", "dox-pos")) + '</button><button type="button" class="mini sec" id="p-v-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>";
 		box.hidden = false;
 		const s1 = $("#p-v1"), s2 = $("#p-v2");
@@ -3310,13 +3311,39 @@
 			[...s2.options].forEach((o) => { o.disabled = o.value !== "" && o.value === s1.value; });
 			antes = s1.value;
 		};
-		s1.onchange = cuadrar;
+		const prop = $("#p-v-prop");
+		s1.onchange = () => { cuadrar(); if (prop) prop.hidden = s1.value === "-"; };
 		cuadrar();
+		if (prop) {
+			prop.hidden = s1.value === "-";
+			$("#p-v-nada").onclick = () => { s1.value = "-"; s1.onchange(); $("#p-v-ok").focus(); };
+		}
+		const ta = tonos && attrInfo(tonos.tax);
+		if (ta && ta.color) { // Rojo, Negro y Azul de un "Color tapa" recién creado: sin esto quedaban sin su punto.
+			const nombres = tonos.names.map((n) => n.toLowerCase());
+			const lista = (ta.values || []).filter((v) => nombres.includes(String(v.name).toLowerCase()));
+			const tb = $("#p-v-tonos");
+			const fin = () => pintarTonos(tb, tonos.tax, lista, fin);
+			fin();
+		}
 		$("#p-v-nuevo").onclick = () => { const r = $("#p-v-attr"); r.hidden = !r.hidden; if (!r.hidden) $("#p-v-nom").focus(); };
 		$("#p-v-crear").onclick = () => crearAtributo(c);
 		$("#p-v-vals").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); crearAtributo(c); } });
 		$("#p-v-no").onclick = () => { box.hidden = true; };
 		$("#p-v-ok").onclick = () => guardarVaria(c, s1.value === "-" ? [] : colorAlFinal([s1.value, s2.disabled ? "" : s2.value].filter(Boolean)));
+	}
+	// Cambiarlo vale para toda la categoría, no solo para este producto: se dice en grande, con cuántos productos tiene
+	// hoy (que no cambian). Si ninguno de ellos varía, se propone "no varía".
+	function avisoVaria(c) {
+		const n = c.count || 0;
+		const hijas = ((pr.form && pr.form.categories) || []).some((x) => x.parent === c.id);
+		let h = '<div class="variaaviso"><b>' + esc(sprintf(__("Affects the next products of %s", "dox-pos"), c.name)) + "</b><span>" +
+			esc(n ? sprintf(_n("Today it has %d product: it stays as it is.", "Today it has %d products: they stay as they are.", n, "dox-pos"), n) : __("It has no products yet.", "dox-pos")) +
+			(hijas ? " " + esc(__("It also applies to its subcategories that do not have their own.", "dox-pos")) : "") + "</span></div>";
+		if (n && c.varied === 0 && (c.vary || []).filter(Boolean).length) {
+			h += '<p class="variaprop" id="p-v-prop">' + esc(sprintf(_n("Its only product does not vary.", "None of its %d products vary.", n, "dox-pos"), n)) + ' <button type="button" class="linkp" id="p-v-nada">' + esc(__("Make it not vary", "dox-pos")) + "</button></p>";
+		}
+		return h;
 	}
 	async function guardarVaria(c, set) {
 		if (!navigator.onLine) { toast(__("Changing it needs a connection.", "dox-pos")); return; }
@@ -3325,7 +3352,10 @@
 		const soltar = ocupar(btn, __("Saving…", "dox-pos"));
 		try {
 			const d = await post("products/category-vary", { category: c.id, attrs: set });
+			const antes = {};
+			(pr.form.categories || []).forEach((x) => { antes[x.id] = JSON.stringify(x.vary || []); });
 			pr.form.categories = d.categories || pr.form.categories; // Sus subcategorías sin uno propio también cambian.
+			const hijas = pr.form.categories.filter((x) => x.id !== c.id && x.id in antes && antes[x.id] !== JSON.stringify(x.vary || [])).length;
 			const nueva = catElegida();
 			// Lo marcado era de las opciones de antes: se ponen los valores que sugiere la categoría con las nuevas.
 			pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
@@ -3335,7 +3365,7 @@
 			$("#p-variabox").hidden = true;
 			$("#p-nuevatalla").hidden = true;
 			$("#p-nuevocolor").hidden = true;
-			toast(sprintf(__("Saved: the next products of %s come out like this.", "dox-pos"), c.name));
+			toast(hijas ? sprintf(_n("Saved: the next products of %1$s and of %2$d subcategory come out like this.", "Saved: the next products of %1$s and of %2$d subcategories come out like this.", hijas, "dox-pos"), c.name, hijas) : sprintf(__("Saved: the next products of %s come out like this.", "dox-pos"), c.name));
 		} catch (e) {
 			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
 			else if (e.message !== "sesion") toast(e.message);
@@ -3372,7 +3402,7 @@
 		pr.form.attrs = Object.assign({}, pr.form.attrs || {}, { [a.tax]: a });
 		if (elegido[0] === "-" || elegido[0] === a.tax) elegido[0] = a.tax; // Va en el primer hueco libre.
 		else if (elegido[1] !== a.tax) elegido[1] = a.tax;
-		abrirVaria(c, elegido);
+		abrirVaria(c, elegido, a.color ? { tax: a.tax, names: d.added || [] } : null);
 		const mas = (d.added || []).join(", "); // Al usar uno que ya existía, se dice qué valores se le añadieron.
 		toast(d.created ? sprintf(__("%s created. Save to use it in this category.", "dox-pos"), a.label) : mas ? sprintf(__("Added %1$s to %2$s. Save to use it in this category.", "dox-pos"), mas, a.label) : sprintf(__("%s is ready. Save to use it in this category.", "dox-pos"), a.label));
 	}
@@ -3392,6 +3422,7 @@
 	function pintarColores() {
 		const box = $("#p-colores");
 		box.innerHTML = "";
+		$("#p-tonos").hidden = true;
 		const e = ejes();
 		$("#p-col-tit").textContent = titCol();
 		$("#g-colores").hidden = (!e.col && !(sinColumnas() && pr.form && pr.form.has_color)) || !!(pr.edit && pr.edit.type !== "variable");
@@ -3444,6 +3475,57 @@
 		nuevo.classList.add("plus");
 		box.appendChild(nuevo);
 		$("#p-ncol").textContent = pr.colores.length ? pr.colores.map((c) => c.name).join(", ") : "";
+		if (esColor && !pr.sinTonos) pintarTonos($("#p-tonos"), e.col, pr.colores, () => { pintarColores(); pintarCantidades(); }, () => { pr.sinTonos = true; $("#p-tonos").hidden = true; });
+	}
+	// Los colores sin tono (creados con "Atributo nuevo…", o de una tienda sin muestras) salían sin su punto, mezclados
+	// con los que sí lo tienen: aquí se les elige. Solo se guarda en los que no tienen; uno con muestra se queda con la suya.
+	function pintarTonos(box, tax, lista, fin, ahoraNo) {
+		const faltan = lista.filter((c) => c.id && !c.hex);
+		box.innerHTML = "";
+		box.hidden = !faltan.length;
+		if (!faltan.length) return;
+		const p = document.createElement("p");
+		p.textContent = faltan.length === 1 ? sprintf(__("%s has no shade. Pick it so it shows in the register and in the store.", "dox-pos"), faltan[0].name) : __("These colors have no shade. Pick each one so it shows in the register and in the store.", "dox-pos");
+		box.appendChild(p);
+		const fila = document.createElement("div");
+		fila.className = "tonolist";
+		faltan.forEach((c) => {
+			const l = document.createElement("label");
+			l.className = "tono";
+			l.innerHTML = '<span class="swatchpick vacio"><input type="color" value="#cccccc" aria-label="' + esc(sprintf(__("Shade of %s", "dox-pos"), c.name)) + '"></span><span>' + esc(c.name) + "</span>";
+			const inp = l.querySelector("input");
+			inp.onchange = () => guardarTono(tax, c, inp.value, fin);
+			fila.appendChild(l);
+		});
+		box.appendChild(fila);
+		if (ahoraNo) {
+			const b = document.createElement("button");
+			b.type = "button";
+			b.className = "linkp";
+			b.textContent = __("Not now", "dox-pos");
+			b.onclick = ahoraNo;
+			box.appendChild(b);
+		}
+	}
+	async function guardarTono(tax, c, hex, fin) {
+		if (!navigator.onLine) { toast(__("Saving the shade needs a connection.", "dox-pos")); return; }
+		try {
+			const d = await post("products/swatch", { attr: tax, id: c.id, hex: hex });
+			ponerTono(tax, d.value.id, d.value.hex);
+			toast(d.kept ? sprintf(__("%s already had a shade: it keeps it.", "dox-pos"), d.value.name) : sprintf(__("Shade of %s saved.", "dox-pos"), d.value.name));
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+			return;
+		}
+		fin();
+	}
+	// El tono nuevo en todas las listas que lo enseñan: los valores del atributo, lo elegido y lo que ya tenía el producto.
+	function ponerTono(tax, id, hex) {
+		const a = attrInfo(tax);
+		const listas = [(a && a.values) || [], pr.colores, (pr.edit && pr.edit.colors) || []];
+		if (pr.form && pr.form.color_attr === tax) listas.push(pr.form.colors || []);
+		listas.forEach((l) => l.forEach((x) => { if (String(x.id) === String(id) || String(x.key) === String(id)) x.hex = hex; }));
 	}
 	// Cambia las claves de las casillas (cantidades, grupos, tallas reales) al añadirle a un producto la opción que no
 	// tenía: lo que estaba en la columna sin nombre ("") pasa a la del primer valor, y lo de la fila 0 a la del primero.
@@ -4015,9 +4097,11 @@
 		try {
 			const d = await post(pr.edit ? "products/" + pr.edit.id : "products", payload);
 			const rp = repartoPendiente(); // Se guarda igual; se avisa.
+			// Al editar, "Guardado" con "Listo"; al crear, el de "Crear otro". El aviso del reparto va aparte: antes se
+			// comía el else y al editar salían los dos modales (el segundo, con "Crear otro", tapaba al primero).
 			if (pr.edit) modalProductoGuardado(d.product);
-			if (rp) toast(sprintf(_n("Saved. %d group of shared sizes is not split by actual size, or does not add up.", "Saved. %d groups of shared sizes are not split by actual size, or do not add up.", rp, "dox-pos"), rp));
 			else { borrarBorrador(); modalProductoCreado(d.product); }
+			if (rp) toast(sprintf(_n("Saved. %d group of shared sizes is not split by actual size, or does not add up.", "Saved. %d groups of shared sizes are not split by actual size, or do not add up.", rp, "dox-pos"), rp));
 			volverDeFicha(false);
 			refrescarStock().catch(() => {}); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
 			api("products/form").then((f) => { pr.form = f; }).catch(() => {}); // Los valores creados con este (Verde menta) salen ya en el siguiente.

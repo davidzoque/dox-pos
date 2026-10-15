@@ -1036,6 +1036,22 @@ table.ped .lnk.items{white-space:normal}
 .variabtn{display:flex;gap:6px}
 .variabtn .mini{min-height:40px}
 @media (max-width:520px){.variarow{grid-template-columns:1fr}}
+/* a qué afecta cambiarlo: a toda la categoría, no solo a este producto */
+.variaaviso{display:grid;gap:3px;padding:10px 12px;border-radius:10px;background:var(--st-info-soft);color:var(--ink);font-size:13px;line-height:1.45}
+.variaaviso b{font-size:14px;font-weight:600}
+.variaprop{margin:0;font-size:13px;color:var(--muted);line-height:1.45}
+.variaprop .linkp{color:var(--primary-strong);font-weight:600}
+
+/* los colores sin tono: un cuadro con cuadritos para elegir el de cada uno */
+.tonos{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px;display:grid;gap:8px}
+.variabox .tonos{margin-top:0;background:var(--surface)}
+.tonos p{margin:0;font-size:13px;color:var(--muted);line-height:1.4}
+.tonolist{display:flex;flex-wrap:wrap;gap:8px}
+.tono{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:4px 12px 4px 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:13px;font-weight:500;cursor:pointer}
+.tono .swatchpick{width:34px;height:34px;border-radius:9px}
+.swatchpick.vacio{background:repeating-conic-gradient(var(--line) 0 25%,var(--surface) 0 50%) 0 0/10px 10px}
+.swatchpick.vacio input{opacity:0}
+.tonos .linkp{justify-self:start;min-height:40px;display:inline-flex;align-items:center}
 
 /* ---------- el engranaje: lo que se ajusta sin salir de la caja ---------- */
 .gear{appearance:none;border:0;background:none;color:var(--bar-ink);opacity:.85;width:36px;height:36px;margin-left:2px;border-radius:10px;

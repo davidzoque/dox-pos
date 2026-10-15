@@ -266,6 +266,7 @@ dox_pos_enqueue_caja( $cfg );
 						<div class="grp" id="g-colores">
 							<h4><span id="p-col-tit"><?php esc_html_e( 'Colors', 'dox-pos' ); ?></span> <span class="cnt" id="p-ncol"></span></h4><?php // El título es el de la segunda opción: Colores, o Material. ?>
 							<div class="chips" id="p-colores"></div>
+							<div class="tonos" id="p-tonos" hidden></div><?php // Los colores elegidos que no tienen tono: aquí se les pone (lo pinta el JS). ?>
 							<div class="nuevocolor" id="p-nuevocolor" hidden>
 								<label class="swatchpick" id="p-color-swatch" title="<?php esc_attr_e( 'Pick the shade', 'dox-pos' ); ?>"><input type="color" id="p-color-hex" value="#F4C1C0" aria-label="<?php esc_attr_e( 'Shade of the new color', 'dox-pos' ); ?>"></label>
 								<input id="p-color-nom" placeholder="<?php esc_attr_e( 'Color name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new color', 'dox-pos' ); ?>">
