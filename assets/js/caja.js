@@ -3314,7 +3314,8 @@
 		const hint = $("#p-tallas-hint");
 		box.innerHTML = "";
 		const all = tallasDisponibles();
-		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable") || (!pr.edit && pr.cats.length > 0 && !atributoTalla()); // Una categoría marcada "sin tallas".
+		$("#g-tallas").hidden = !(pr.form && pr.form.has_size) || !!(pr.edit && pr.edit.type !== "variable");
+		pintarTipoTalla();
 		if (pr.edit && pr.edit.type === "variable" && !pr.edit.sizes.length) { // Un producto que no varía por talla no gana tallas desde aquí.
 			box.innerHTML = '<span class="hint">' + esc(__("This product has no sizes. If it needs them, they have to be created in WooCommerce.", "dox-pos")) + "</span>";
 			$("#p-ntal").textContent = "";
@@ -3341,13 +3342,102 @@
 			mas.classList.add("plus");
 			box.appendChild(mas);
 		}
+		if (atributoTalla()) { // Una talla que la tienda aún no tiene ("42"): se crea en las de la categoría.
+			const nueva = chip(__("New size\u2026", "dox-pos"), false, () => {
+				const row = $("#p-nuevatalla");
+				row.hidden = !row.hidden;
+				if (!row.hidden) $("#p-talla-nom").focus();
+			});
+			nueva.classList.add("plus");
+			box.appendChild(nueva);
+		} else $("#p-nuevatalla").hidden = true;
 		const n = pr.tallas.length;
 		$("#p-ntal").textContent = n ? sprintf(_n("%d size", "%d sizes", n, "dox-pos"), n) : __("one size", "dox-pos");
 		if (pr.edit) hint.textContent = "";
 		else if (!pr.cats.length && !n && !pr.masTallas) hint.textContent = __("Choose the category and its sizes appear.", "dox-pos");
-		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas ? __("This category does not use sizes: it stays one size.", "dox-pos") : __("No sizes: one size.", "dox-pos");
+		else if (!n) hint.textContent = pr.cats.length && !deCat.length && !pr.masTallas && !atributoTalla() ? __("This category does not use sizes: it stays one size.", "dox-pos") : __("No sizes: one size.", "dox-pos");
 		else if (!pr.tallasTocadas) hint.textContent = __("Marked by the category. If the product does not come in all of them, tap the extra ones to remove them.", "dox-pos");
 		else hint.textContent = "";
+	}
+	// Qué tallas usa la categoría elegida ("Tallas de Zapatos: Talla calzado · Cambiar"), solo si la tienda tiene más
+	// de un tipo. Cambiarlo aquí es lo mismo que en Ajustes > Productos > Tallas por categoría: queda para siempre.
+	function pintarTipoTalla() {
+		const p = $("#p-tipotalla");
+		const box = $("#p-tipos");
+		const tipos = (pr.form && pr.form.size_attrs) || {};
+		const c = !pr.edit && pr.cats.length ? ((pr.form && pr.form.categories) || []).find((x) => x.id === pr.cats[0]) : null;
+		if (!c || Object.keys(tipos).length < 2) { p.hidden = true; box.hidden = true; return; }
+		const tax = atributoTalla();
+		p.hidden = false;
+		p.innerHTML = esc(sprintf(__("Sizes of %s:", "dox-pos"), c.name)) + " <b>" + esc(tax && tipos[tax] ? tipos[tax].label : __("No sizes", "dox-pos")) + '</b> · <button type="button" class="linkp" id="p-tipo-cambiar">' + esc(__("Change", "dox-pos")) + "</button>";
+		$("#p-tipo-cambiar").onclick = () => { box.hidden = !box.hidden; };
+		box.innerHTML = "";
+		Object.keys(tipos).forEach((t) => {
+			const ej = (tipos[t].sizes || []).slice(0, 3).map((x) => x.label || x.name);
+			const ch = chip(tipos[t].label + (ej.length ? " (" + ej.join(", ") + ((tipos[t].sizes || []).length > 3 ? "\u2026" : "") + ")" : ""), t === tax, () => cambiarTipoTalla(c, t));
+			box.appendChild(ch);
+		});
+		box.appendChild(chip(__("No sizes", "dox-pos"), !tax, () => cambiarTipoTalla(c, "-")));
+	}
+	async function cambiarTipoTalla(c, t) {
+		if ((t === "-" ? "" : t) === atributoTalla()) { $("#p-tipos").hidden = true; return; }
+		if (!navigator.onLine) { toast(__("Changing it needs a connection.", "dox-pos")); return; }
+		try {
+			const d = await post("products/category-size", { category: c.id, attr: t });
+			pr.form.categories = d.categories || pr.form.categories; // Sus subcategorías sin tallas propias también cambian.
+			const nueva = pr.form.categories.find((x) => x.id === c.id);
+			// Las marcadas eran del tipo anterior y ya no valen: se ponen las que sugiere la categoría con el nuevo.
+			pr.tallas = nueva && nueva.sizes ? nueva.sizes.slice() : [];
+			pr.tallasTocadas = false;
+			const validas = new Set(tallasDisponibles().map((x) => x.id));
+			pr.tallas = pr.tallas.filter((id) => validas.has(id));
+			pr.masTallas = !pr.tallas.length; // Sin tallas sugeridas de ese tipo todavía: salen todas para marcarlas.
+			$("#p-tipos").hidden = true;
+			$("#p-nuevatalla").hidden = true;
+			toast(sprintf(__("Saved: %s will always use these sizes.", "dox-pos"), c.name));
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+		}
+		pintarTallas();
+		pintarCantidades();
+		pintarResumenProducto();
+	}
+	async function añadirTallaNueva() {
+		const name = $("#p-talla-nom").value.trim();
+		if (!name) { $("#p-talla-nom").focus(); return; }
+		const tax = atributoTalla();
+		if (!tax) return;
+		const listo = (id) => {
+			if (!pr.tallas.includes(id)) pr.tallas.push(id);
+			pr.tallasTocadas = true;
+			$("#p-talla-nom").value = "";
+			$("#p-nuevatalla").hidden = true;
+			pintarTallas();
+			pintarCantidades();
+			pintarResumenProducto();
+		};
+		const ya = tallasDisponibles().find((t) => t.name.toLowerCase() === name.toLowerCase());
+		if (ya) { listo(ya.id); return; } // Ya existía: se marca y no se repite.
+		if (!navigator.onLine) { toast(__("Creating a size needs a connection.", "dox-pos")); return; }
+		const btn = $("#p-talla-add");
+		if (btn.getAttribute("aria-busy") === "true") return;
+		const soltar = ocupar(btn, __("Creating\u2026", "dox-pos"));
+		try {
+			const d = await post("products/sizes", { name: name, attr: tax });
+			const meter = (lista) => {
+				if (!lista || lista.some((t) => t.id === d.size.id)) return;
+				lista.push(d.size);
+				lista.sort((a, b) => (a.key - b.key) || a.name.localeCompare(b.name, undefined, { numeric: true }));
+			};
+			if (pr.form.size_attrs && pr.form.size_attrs[d.attr]) meter(pr.form.size_attrs[d.attr].sizes);
+			if (d.attr === pr.form.size_attr) meter(pr.form.sizes);
+			listo(d.size.id);
+		} catch (e) {
+			if (e.red) toast(__("No signal. Try again when the connection is back.", "dox-pos"));
+			else if (e.message !== "sesion") toast(e.message);
+		}
+		soltar();
 	}
 	const tallasOrdenadas = () => tallasDisponibles().filter((t) => pr.tallas.includes(t.id));
 
@@ -3737,6 +3827,8 @@
 		$("#p-pub").checked = true;
 		$("#p-nuevocolor").hidden = true;
 		$("#p-nuevacat").hidden = true;
+		$("#p-nuevatalla").hidden = true;
+		$("#p-tipos").hidden = true;
 		$("#p-cat-nom").value = "";
 		$("#p-nom-dup").hidden = true;
 		estadoSku("", "");
@@ -4484,6 +4576,8 @@
 			$("#p-vaciar").onclick = vaciarProducto;
 			$("#p-color-add").onclick = añadirColorNuevo;
 			$("#p-cat-add").onclick = añadirCategoriaNueva;
+			$("#p-talla-add").onclick = añadirTallaNueva;
+			$("#p-talla-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirTallaNueva(); } });
 			$("#p-cat-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirCategoriaNueva(); } });
 			$("#p-color-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirColorNuevo(); } });
 			$("#p-crear").onclick = crearProducto;

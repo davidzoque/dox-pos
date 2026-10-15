@@ -273,7 +273,13 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp" id="g-tallas">
 							<h4><?php esc_html_e( 'Sizes', 'dox-pos' ); ?> <span class="cnt" id="p-ntal"></span></h4>
+							<p class="tipotalla" id="p-tipotalla" hidden></p><?php // Qué tallas usa la categoría (Talla calzado) y "Cambiar", si la tienda tiene más de un tipo. ?>
+							<div class="chips" id="p-tipos" hidden></div>
 							<div class="chips" id="p-tallas"></div>
+							<div class="nuevacat" id="p-nuevatalla" hidden><?php // Una talla nueva: se crea al momento en las tallas de la categoría y queda marcada. ?>
+								<input id="p-talla-nom" placeholder="<?php esc_attr_e( 'Size, for example 42', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new size', 'dox-pos' ); ?>">
+								<button type="button" class="mini" id="p-talla-add"><?php esc_html_e( 'Add', 'dox-pos' ); ?></button>
+							</div>
 							<p class="hint" id="p-tallas-hint"><?php esc_html_e( 'Choose the category and its sizes appear.', 'dox-pos' ); ?></p>
 						</div>
 						<div class="grp">

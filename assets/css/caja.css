@@ -1020,6 +1020,10 @@ table.ped .lnk.items{white-space:normal}
 .nuevacat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:4px}
 .nuevacat #p-cat-nom{grid-column:1/-1}
 .nuevacat .mini{min-height:42px;padding-left:16px;padding-right:16px}
+#p-nuevatalla{margin-top:10px}
+.tipotalla{margin:-4px 0 10px;font-size:13px;color:var(--muted)}
+.tipotalla b{color:var(--ink);font-weight:600}
+#p-tipos{margin-bottom:10px}
 
 /* ---------- el engranaje: lo que se ajusta sin salir de la caja ---------- */
 .gear{appearance:none;border:0;background:none;color:var(--bar-ink);opacity:.85;width:36px;height:36px;margin-left:2px;border-radius:10px;

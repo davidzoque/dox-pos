@@ -98,6 +98,8 @@ function dox_pos_register_routes() {
 	register_rest_route( $ns, '/products', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_product', 'permission_callback' => $pperm ) );
 	register_rest_route( $ns, '/products/form', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_product_form', 'permission_callback' => $pperm ) );
 	register_rest_route( $ns, '/products/categories', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_category', 'permission_callback' => $pperm ) ); // Una categoría nueva, desde el formulario de producto.
+	register_rest_route( $ns, '/products/sizes', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_size', 'permission_callback' => $pperm ) ); // Una talla nueva ("42"), en el atributo de talla de la categoría.
+	register_rest_route( $ns, '/products/category-size', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_category_size', 'permission_callback' => $pperm ) ); // Qué tallas usa una categoría.
 	register_rest_route(
 		$ns,
 		'/products/sku',
@@ -338,6 +340,14 @@ function dox_pos_rest_product_form() {
 
 function dox_pos_rest_create_category( WP_REST_Request $request ) {
 	return dox_pos_rest_out( dox_pos_create_category( (array) $request->get_json_params() ) );
+}
+
+function dox_pos_rest_create_size( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_create_size( (array) $request->get_json_params() ) );
+}
+
+function dox_pos_rest_category_size( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_set_category_size( (array) $request->get_json_params() ) );
 }
 
 /**

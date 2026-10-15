@@ -30,11 +30,12 @@ function dox_pos_products_cap() {
  * los zapatos), el más usado primero; size_attr es ese primero, el de siempre para quien solo tiene uno.
  * cat_size dice el de cada categoría que se fijó a mano ("-": esa categoría no lleva tallas).
  *
+ * @param bool $reset Volver a leer la opción (después de cambiarla en la misma petición).
  * @return array{quality:int,max_px:int,sku:string,size_attrs:string[],size_attr:string,cat_size:array<int,string>,color_attr:string,costs:bool}
  */
-function dox_pos_products_settings() {
+function dox_pos_products_settings( $reset = false ) {
 	static $cache = null;
-	if ( null !== $cache ) {
+	if ( null !== $cache && ! $reset ) {
 		return $cache;
 	}
 	$s   = get_option( 'dox_pos_products', array() );
@@ -289,6 +290,19 @@ function dox_pos_category_size_map( $set = null ) {
 				uksort( $by, fn( $a, $b ) => array_search( $a, $taxes, true ) - array_search( $b, $taxes, true ) ); // A igual uso, el más usado de la tienda.
 				arsort( $by );
 				$found[ $tid ] = (string) array_key_first( $by );
+			}
+			// Una categoría con productos y ninguno con tallas (Carteras) no lleva tallas: sin esto le tocaría el
+			// tipo más usado de la tienda (calzado). Cuenta lo de sus subcategorías; una vacía hereda de su madre.
+			$counts = $wpdb->get_results( "SELECT term_id, count FROM {$wpdb->term_taxonomy} WHERE taxonomy = 'product_cat' AND count > 0", ARRAY_A );
+			foreach ( (array) $counts as $r ) {
+				$x = (int) $r['term_id'];
+				$n = 0;
+				while ( $x && $n++ < 10 ) {
+					if ( ! isset( $found[ $x ] ) ) {
+						$found[ $x ] = '';
+					}
+					$x = (int) ( $terms[ $x ] ?? 0 );
+				}
 			}
 		}
 	}
@@ -1523,6 +1537,67 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	delete_transient( 'dox_pos_product_form' );
 	return get_term( (int) $r['term_id'], $tax );
+}
+
+/**
+ * Una talla nueva desde la caja ("42" en Talla calzado): se crea en el atributo de talla que se diga y
+ * vuelve lista para las fichas. Si ya existe, vuelve la que hay.
+ *
+ * @param array $data name y attr (pa_talla-calzado).
+ * @return array|WP_Error {size, attr}
+ */
+function dox_pos_create_size( $data ) {
+	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
+	$tax  = (string) ( $data['attr'] ?? '' );
+	if ( '' === $name ) {
+		return new WP_Error( 'dox_pos_talla', __( 'Write the size.', 'dox-pos' ) );
+	}
+	if ( ! dox_pos_is_size_attribute( $tax ) || ! taxonomy_exists( $tax ) ) {
+		return new WP_Error( 'dox_pos_talla', __( 'That type of size is not in the store.', 'dox-pos' ) );
+	}
+	$found = term_exists( $name, $tax );
+	if ( ! $found ) {
+		$r = wp_insert_term( $name, $tax );
+		if ( is_wp_error( $r ) ) {
+			return new WP_Error( 'dox_pos_talla', sprintf( /* translators: 1: size, 2: reason */ __( 'The size %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
+		}
+		$found = $r;
+	}
+	$id = (int) ( is_array( $found ) ? $found['term_id'] : $found );
+	delete_transient( 'dox_pos_product_form' );
+	foreach ( dox_pos_attribute_terms( $tax, 'size' ) as $t ) {
+		if ( $t['id'] === $id ) {
+			return array( 'size' => $t, 'attr' => $tax );
+		}
+	}
+	return new WP_Error( 'dox_pos_talla', __( 'The size could not be created.', 'dox-pos' ) );
+}
+
+/**
+ * Fija desde la caja qué tallas usa una categoría (Zapatos: Talla calzado; Carteras: ninguna). Lo mismo
+ * que Ajustes > Productos > Tallas por categoría. Vuelven todas las categorías, porque sus subcategorías
+ * sin tallas propias lo heredan.
+ *
+ * @param array $data category (id) y attr (taxonomía, o "-" para sin tallas).
+ * @return array|WP_Error {categories}
+ */
+function dox_pos_set_category_size( $data ) {
+	$cid = (int) ( $data['category'] ?? 0 );
+	$tax = (string) ( $data['attr'] ?? '' );
+	if ( ! $cid || ! term_exists( $cid, 'product_cat' ) ) {
+		return new WP_Error( 'dox_pos_categoria', __( 'That category is not in the store.', 'dox-pos' ) );
+	}
+	if ( '-' !== $tax && ! dox_pos_is_size_attribute( $tax ) ) {
+		return new WP_Error( 'dox_pos_talla', __( 'That type of size is not in the store.', 'dox-pos' ) );
+	}
+	$o = get_option( 'dox_pos_products', array() );
+	$o = is_array( $o ) ? $o : array();
+	$o['cat_size']         = (array) ( $o['cat_size'] ?? array() );
+	$o['cat_size'][ $cid ] = $tax;
+	update_option( 'dox_pos_products', $o );
+	dox_pos_products_settings( true );
+	delete_transient( 'dox_pos_product_form' );
+	return array( 'categories' => dox_pos_product_categories() );
 }
 
 /**
