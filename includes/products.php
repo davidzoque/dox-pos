@@ -863,11 +863,10 @@ function dox_pos_attribute_terms( $tax, $kind ) {
 	foreach ( $terms as $t ) {
 		$row = array( 'id' => (int) $t->term_id, 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'count' => (int) $t->count );
 		if ( 'size' === $kind ) {
-			$label        = get_term_meta( $t->term_id, 'st-label-swatch', true ); // La etiqueta corta de XStore ("0-12 M").
-			$row['label'] = is_string( $label ) ? $label : '';
+			$row['label'] = dox_pos_term_label( $t->term_id, $tax );
 			$row['key']   = dox_pos_size_sort_key( $t->name );
 		} else {
-			$row['hex'] = dox_pos_term_hex( $t->term_id );
+			$row['hex'] = dox_pos_term_hex( $t->term_id, $tax );
 		}
 		$out[] = $row;
 	}
@@ -923,17 +922,121 @@ function dox_pos_size_sort_key( $name ) {
 }
 
 /**
- * El color de una muestra ("#e8d8c3"): lo guarda el tema en st-color-swatch.
+ * Los sistemas de muestras que la tienda tiene activos, para escribir ahí el color de un valor nuevo. Cada tema o
+ * plugin guarda el color en su propio meta del término:
  *
- * @param int $term_id Término.
+ * - xstore: el tema XStore, en st-color-swatch (un array con el hex).
+ * - wvs: Variation Swatches for WooCommerce de GetWooPlugins (Emran Ahmed), en product_attribute_color.
+ * - cfvsw: Variation Swatches for WooCommerce de CartFlows, en cfvsw_color.
+ * - thwvsf: Product Variation Swatches de ThemeHigh, en product_{taxonomía} (product_pa_color).
+ * - vi: Product Variations Swatches de VillaTheme, en vi_wpvs_terms_params (un array con type y color).
+ *
+ * Si no hay ninguno se sigue escribiendo el de XStore, como antes: no estorba y la caja lo lee.
+ *
+ * @return string[]
+ */
+function dox_pos_swatch_systems() {
+	$out = array();
+	if ( 'xstore' === get_template() ) {
+		$out[] = 'xstore';
+	}
+	if ( defined( 'WOO_VARIATION_SWATCHES_PLUGIN_FILE' ) ) {
+		$out[] = 'wvs';
+	}
+	if ( defined( 'CFVSW_VER' ) ) {
+		$out[] = 'cfvsw';
+	}
+	if ( defined( 'THWVSF_VERSION' ) ) {
+		$out[] = 'thwvsf';
+	}
+	if ( defined( 'VI_WOO_PRODUCT_VARIATIONS_SWATCHES_VERSION' ) ) {
+		$out[] = 'vi';
+	}
+	return $out ? $out : array( 'xstore' );
+}
+
+/**
+ * El color de una muestra ("#e8d8c3"). Se busca en el meta de cada sistema de muestras (ver
+ * dox_pos_swatch_systems()), aunque ya no esté activo: el color que se puso con un plugin sigue sirviendo si se
+ * cambia de tema. Al final, el meta "color" que también lee GetWooPlugins (lo usan algunos temas).
+ *
+ * @param int    $term_id Término.
+ * @param string $tax     Su taxonomía (pa_color); si no se dice, se busca.
  * @return string Hex, o vacío.
  */
-function dox_pos_term_hex( $term_id ) {
-	$v = get_term_meta( $term_id, 'st-color-swatch', true );
-	if ( is_array( $v ) ) {
-		$v = reset( $v );
+function dox_pos_term_hex( $term_id, $tax = '' ) {
+	$term_id = (int) $term_id;
+	if ( '' === $tax ) {
+		$t   = get_term( $term_id );
+		$tax = $t && ! is_wp_error( $t ) ? $t->taxonomy : '';
 	}
-	return is_string( $v ) ? dox_pos_hex( $v ) : '';
+	$vi    = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
+	$found = array(
+		get_term_meta( $term_id, 'st-color-swatch', true ),
+		get_term_meta( $term_id, 'product_attribute_color', true ),
+		get_term_meta( $term_id, 'cfvsw_color', true ),
+		$tax ? get_term_meta( $term_id, 'product_' . $tax, true ) : '',
+		is_array( $vi ) && ! empty( $vi['color'] ) ? $vi['color'] : '',
+		get_term_meta( $term_id, 'color', true ),
+	);
+	foreach ( $found as $i => $v ) {
+		if ( is_array( $v ) ) {
+			$v = reset( $v );
+		}
+		// Fuera del de XStore, solo con su #: ThemeHigh guarda en el mismo meta el id de una imagen ("123").
+		$hex = is_string( $v ) && ( 0 === $i || 0 === strpos( trim( $v ), '#' ) ) ? dox_pos_hex( $v ) : '';
+		if ( '' !== $hex ) {
+			return $hex;
+		}
+	}
+	return '';
+}
+
+/**
+ * Guarda el color de un valor nuevo en el meta de cada sistema de muestras activo, para que la tienda enseñe su
+ * círculo de color igual que la caja.
+ *
+ * @param int    $term_id Término.
+ * @param string $tax     Taxonomía (pa_color).
+ * @param string $hex     Color.
+ */
+function dox_pos_set_term_hex( $term_id, $tax, $hex ) {
+	$hex = strtolower( dox_pos_hex( $hex ) );
+	if ( '' === $hex ) {
+		return;
+	}
+	foreach ( dox_pos_swatch_systems() as $system ) {
+		if ( 'xstore' === $system ) {
+			update_term_meta( $term_id, 'st-color-swatch', array( $hex ) );
+		} elseif ( 'wvs' === $system ) {
+			update_term_meta( $term_id, 'product_attribute_color', $hex );
+		} elseif ( 'cfvsw' === $system ) {
+			update_term_meta( $term_id, 'cfvsw_color', $hex );
+		} elseif ( 'thwvsf' === $system ) {
+			update_term_meta( $term_id, 'product_' . $tax, $hex );
+		} elseif ( 'vi' === $system ) {
+			$old = get_term_meta( $term_id, 'vi_wpvs_terms_params', true );
+			update_term_meta( $term_id, 'vi_wpvs_terms_params', array_merge( is_array( $old ) ? $old : array(), array( 'type' => 'color', 'color' => array( $hex ), 'color_separator' => '1' ) ) );
+		}
+	}
+}
+
+/**
+ * La etiqueta corta de una talla ("0-12 M"): la de XStore (st-label-swatch) o, con ThemeHigh, la de un atributo
+ * de tipo etiqueta (product_pa_talla, que en uno de color guarda el hex y en uno de imagen el id de la imagen).
+ * Los demás plugins de muestras no tienen etiqueta aparte: usan el nombre.
+ *
+ * @param int    $term_id Término.
+ * @param string $tax     Taxonomía.
+ * @return string
+ */
+function dox_pos_term_label( $term_id, $tax ) {
+	$v = get_term_meta( $term_id, 'st-label-swatch', true );
+	if ( is_string( $v ) && '' !== trim( $v ) ) {
+		return $v;
+	}
+	$v = $tax ? get_term_meta( $term_id, 'product_' . $tax, true ) : '';
+	return is_string( $v ) && '' !== trim( $v ) && ! is_numeric( $v ) && 0 !== strpos( trim( $v ), '#' ) ? $v : '';
 }
 
 /**
@@ -1852,8 +1955,8 @@ function dox_pos_make_attribute( $tax, $term_ids, $position ) {
 }
 
 /**
- * Un valor nuevo de la segunda opción (un color, un material): se crea el término y, si es un color y el tema
- * usa muestras de color, su hex.
+ * Un valor nuevo de la segunda opción (un color, un material): se crea el término y, si es un color, su hex en
+ * el sistema de muestras de la tienda (dox_pos_set_term_hex()).
  *
  * @param string $name Nombre.
  * @param string $hex  Color (solo cuenta en un atributo de color).
@@ -1872,7 +1975,7 @@ function dox_pos_create_color( $name, $hex, $tax ) {
 	}
 	$hex = dox_pos_hex( $hex );
 	if ( $hex && dox_pos_is_color_attribute( $tax ) ) {
-		update_term_meta( (int) $r['term_id'], 'st-color-swatch', array( strtolower( $hex ) ) );
+		dox_pos_set_term_hex( (int) $r['term_id'], $tax, $hex );
 	}
 	delete_transient( 'dox_pos_product_form' );
 	return get_term( (int) $r['term_id'], $tax );
@@ -1905,8 +2008,8 @@ function dox_pos_create_size( $data ) {
 	}
 	$id  = (int) ( is_array( $found ) ? $found['term_id'] : $found );
 	$hex = dox_pos_hex( (string) ( $data['hex'] ?? '' ) );
-	if ( $hex && dox_pos_is_color_attribute( $tax ) && '' === dox_pos_term_hex( $id ) ) {
-		update_term_meta( $id, 'st-color-swatch', array( strtolower( $hex ) ) ); // Un color nuevo con su muestra.
+	if ( $hex && dox_pos_is_color_attribute( $tax ) && '' === dox_pos_term_hex( $id, $tax ) ) {
+		dox_pos_set_term_hex( $id, $tax, $hex ); // Un color nuevo con su muestra.
 	}
 	delete_transient( 'dox_pos_product_form' );
 	foreach ( dox_pos_attribute_terms( $tax, dox_pos_is_color_attribute( $tax ) ? 'color' : 'size' ) as $t ) {
@@ -2276,7 +2379,7 @@ function dox_pos_product_model( $p, $size_tax = '', $color_tax = '' ) {
 			foreach ( $a->get_options() as $tid ) {
 				$t = get_term( (int) $tid, $color_tax );
 				if ( $t && ! is_wp_error( $t ) ) {
-					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => $swatch ? dox_pos_term_hex( $t->term_id ) : '' );
+					$out['colors'][] = array( 'key' => (string) $t->term_id, 'id' => (int) $t->term_id, 'name' => html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ), 'hex' => $swatch ? dox_pos_term_hex( $t->term_id, $color_tax ) : '' );
 				}
 			}
 		}
