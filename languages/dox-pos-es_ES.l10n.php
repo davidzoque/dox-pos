@@ -245,6 +245,7 @@ return array(
 		'Change deadline' => 'Cambiar plazo',
 		'Change due' => 'Cambio',
 		'Change the deadline' => 'Cambiar el plazo',
+		'Change type' => 'Cambiar',
 		'Changed in WooCommerce' => 'Cambiado en WooCommerce',
 		'Changes are saved with the button below.' => 'Los cambios se guardan con el botón de abajo.',
 		'Changing it needs a connection.' => 'Para cambiarlo hace falta conexión.',

@@ -3369,7 +3369,7 @@
 		if (!c || Object.keys(tipos).length < 2) { p.hidden = true; box.hidden = true; return; }
 		const tax = atributoTalla();
 		p.hidden = false;
-		p.innerHTML = esc(sprintf(__("Sizes of %s:", "dox-pos"), c.name)) + " <b>" + esc(tax && tipos[tax] ? tipos[tax].label : __("No sizes", "dox-pos")) + '</b> · <button type="button" class="linkp" id="p-tipo-cambiar">' + esc(__("Change", "dox-pos")) + "</button>";
+		p.innerHTML = esc(sprintf(__("Sizes of %s:", "dox-pos"), c.name)) + " <b>" + esc(tax && tipos[tax] ? tipos[tax].label : __("No sizes", "dox-pos")) + '</b> · <button type="button" class="linkp" id="p-tipo-cambiar">' + esc(__("Change type", "dox-pos")) + "</button>";
 		$("#p-tipo-cambiar").onclick = () => { box.hidden = !box.hidden; };
 		box.innerHTML = "";
 		Object.keys(tipos).forEach((t) => {
