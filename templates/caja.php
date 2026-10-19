@@ -189,6 +189,9 @@ dox_pos_enqueue_caja( $cfg );
 					<div class="foot">
 						<div class="sum" id="sum2"></div>
 						<button type="button" class="go" id="reg2"><?php esc_html_e( 'Save the entry and add the stock', 'dox-pos' ); ?></button>
+						<?php if ( ! empty( $cfg['writeoff'] ) ) : // Dar de baja lo dañado o perdido: las mismas líneas, pero restan. ?>
+						<button type="button" class="go alt" id="baja2"><?php esc_html_e( 'Write these off instead', 'dox-pos' ); ?></button>
+						<?php endif; ?>
 					</div>
 				</div>
 			</div>

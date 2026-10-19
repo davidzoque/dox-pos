@@ -448,6 +448,7 @@ function dox_pos_js_config() {
 		'history_full'    => dox_pos_history_full(),                      // ¿Ve todo el historial, o solo sus ventas de hoy?
 		'open_tab'        => dox_pos_history_full() && dox_pos_open_panel() ? 'panel' : '', // Sin # al entrar: quien administra cae en el Panel, si el ajuste lo dice.
 		'losses'          => dox_pos_can_see_losses(),                    // ¿Anota y ve las pérdidas de los pedidos? (administradores y gerentes)
+		'writeoff'        => dox_pos_can_see_losses() ? dox_pos_writeoff_reasons() : array(), // Los motivos para dar de baja lo dañado o perdido (vacío: no puede).
 		'credit'          => array( 'fee' => dox_pos_exchange_fee(), 'manage' => current_user_can( 'manage_woocommerce' ) ), // El saldo a favor: el cargo por cambio y si devuelve al saldo y ajusta (quien administra).
 		'margin_good'     => 40,                                          // La ganancia sale en verde desde este margen; el Pro pone el de sus ajustes.
 		'margin_low'      => 20,                                          // Y en rojo por debajo de este.

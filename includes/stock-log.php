@@ -31,7 +31,7 @@ function dox_pos_stock_log_table() {
  * Abre un contexto: todo cambio de existencias hasta dox_pos_stock_context_end() se apunta
  * con este motivo. Devuelve el contexto anterior, para restaurarlo.
  *
- * @param string $reason sale | hold | web | cancel | failed | release | refund | entry | entry_undo | create | edit | admin | import | api | cli | other.
+ * @param string $reason sale | hold | web | cancel | failed | release | refund | entry | entry_undo | writeoff | create | edit | admin | import | api | cli | other.
  * @param int    $ref_id El pedido o la entrada, si lo hay.
  * @param string $note   Un detalle corto (el proveedor, la factura).
  * @param array  $costs  Solo una entrada: el costo de compra por unidad de cada producto o talla (id => costo).
@@ -318,6 +318,8 @@ function dox_pos_stock_reason_label( $reason, $ref = 0 ) {
 			return __( 'Refund', 'dox-pos' ) . $n;
 		case 'entry':
 			return __( 'Stock entry', 'dox-pos' ) . $n;
+		case 'writeoff':
+			return __( 'Written off', 'dox-pos' );
 		case 'entry_undo':
 			return __( 'Stock entry', 'dox-pos' ) . $n . ' ' . __( 'voided', 'dox-pos' );
 		case 'create':
@@ -347,6 +349,7 @@ function dox_pos_stock_kinds() {
 		'ventas'    => array( 'sale', 'hold', 'web' ),
 		'entradas'  => array( 'entry', 'entry_undo' ),
 		'devueltos' => array( 'cancel', 'failed', 'release', 'refund' ),
+		'bajas'     => array( 'writeoff' ),
 		'ajustes'   => array( 'create', 'edit', 'admin', 'import', 'api', 'cli', 'other' ),
 	);
 }

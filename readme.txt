@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.57.0
+Stable tag: 0.58.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,11 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.58.0 =
+* New: write off stock. In Inventory, add what is damaged, lost or given away and tap Write these off instead: it asks why (damaged or defective, lost or stolen, gift or sample, other), takes the units out of the inventory and notes the loss at what each unit cost. It is for products that never went through a sale, so there is no order to note the loss in. Only administrators and shop managers see the button.
+* New: the written-off units show in Reports > Movements (filter Written off, with the reason and the cost per unit) and as a Written off figure in Reports > Daily cash, with the units and the loss.
+* Technical: new reason writeoff in the stock log (dox_pos_stock_context( 'writeoff' )) whose note carries the reason; the loss is read from those rows (-delta times unit_cost), no new table. includes/writeoffs.php: dox_pos_write_off() (needs dox_pos_can_see_losses(), refuses more units than the stock and products that do not track stock, subtracts from the real size when the line carries one), dox_pos_writeoff_reasons() (cfg.writeoff, empty for who cannot), dox_pos_writeoffs_by_day() (totals writeoff, writeoff_units and writeoff_unknown in dox_pos_history_cash()) and REST route POST /writeoffs. New kind bajas in dox_pos_stock_kinds(). Needs a connection: it is not queued like the entries.
+
 = 0.57.0 =
 * New: Varies by. Each category says what its products vary by: up to two of the store's attributes, whatever they are. Clothes by Size and Color, thermoses by Capacity and Color, phone cases by Model, rings by Size and Material, shoes by Shoe size. The product form in the register keeps its grid: the first option goes in the rows and the second in the columns, and the titles change on their own (Capacity instead of Sizes). An option that is a color keeps its swatches; any other shows text buttons, like sizes. Set it in Settings > Products > Varies by, or from the register: when a product is created, the chosen category shows "Thermoses varies by Capacity and Color · Change it". From there a new attribute can be created with its values (the register warns when it looks like one the store already has, like Sizes and Size), and Add to Capacity… creates a value that is missing (a 750 ml), already marked.
 * New: a store can have several size attributes, for example letters for clothes (Talla) and numbers for shoes (Talla calzado). In Settings > Products > Sizes and colors, mark every attribute that holds sizes. Until you change it they are detected by name, also the ones whose name starts or ends with size (Talla calzado, Shoe size); turning them all off means the store does not use sizes.
@@ -144,17 +149,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: in dark mode, the real-size pill, the "arrived" badge and the colored initials (Orders, the Pro PIN) were hard to read; and the phone's top bar follows the dark mode.
 * Fix: after opening and closing the layaway window, every key typed in the next windows (Labels among them) threw an error in the background, and a new layaway could show the previous one's summary.
 * Change: barcodes with numbers (a SKU like 7701234567890) take about a third less width, so they read better on small labels; a label of a product with nothing in stock lists its sizes instead of saying it is out of stock.
-
-= 0.53.0 =
-* New: a new look for the register, built on the Dox design system. The top bar has icons and its counters in small bubbles; Sell shows products as cards and each size as a tile with its stock in a colored pill (green, amber when few are left, red when none); channels and payment methods carry their color and icon (also the payment methods a shop creates); Orders shows each status in a colored pill, the customer's initials and the channel with its icon; the Dashboard, the Assistant, the windows and the login are cleaner. The four colors in Settings (background, bar, primary, text) still dress the whole register.
-* New: the order detail, redone. Three figures first (total, how it was paid and where the delivery is), the products on the left and the customer and the profit on the right, each in its card, the history folded at the end and the actions at the bottom. A deposit to store credit opens as a Deposit, with how much, how it was paid and the credit the customer has left. A layaway shows what is left to pay with a bar, its deposits and its deadline.
-* Fix: on the iPhone, Safari no longer zooms the register in when a field is tapped (the register stayed bigger, cut off on the left and with the bottom bar under Safari's own bar), and the search no longer takes the focus on its own on a phone (it hid the bottom bar).
-* Fix: right after adding a size of a group that shares units, its tiles counted one piece too many until the next search; and the line proposes the closest piece that is still free.
-* Change: the button to take one size off the order sits in the corner of its tile, so the size name no longer wraps.
-* Fix: a double tap (or Enter twice) on a window's main button no longer does it twice: one deposit on a layaway was recorded as two, and a line without a product could go in twice. Returning to store credit, in Orders and at the Counter, can no longer be saved twice while it is saving.
-* Fix: if a sale's answer never arrives (a timeout, a dropped connection) and it is recorded again, the store returns the order it already made instead of making a second one.
-* Fix: a cashier who opens an order paid with store credit no longer sees the link to the customer's movements (it is for managers), and something the user is not allowed to do now says so instead of closing the session and losing the sale in progress.
-* Fix: the counter-only user can no longer download the inventory or the history in Excel.
-* Change: cancelling an order that was already paid says that the money is not refunded from there; marking an order as delivered asks first; Enter in a window does its main button; missing fields say what is missing; on a phone the order detail has a Close button at the bottom; a layaway deposit reads "Deposit on layaway #72" instead of "Deposit: Deposit on layaway #72"; and in Orders, what was deposited and what is left go to a second line instead of widening the list.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

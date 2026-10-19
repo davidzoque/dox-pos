@@ -91,6 +91,7 @@ function dox_pos_register_routes() {
 			array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_create_entry', 'permission_callback' => $perm ),
 		)
 	);
+	register_rest_route( $ns, '/writeoffs', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_write_off', 'permission_callback' => $perm ) ); // Dar de baja lo dañado o perdido (solo quien ve pérdidas).
 	register_rest_route( $ns, '/entries/(?P<id>\d+)/cancel', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_cancel_entry', 'permission_callback' => $perm ) );
 
 	// Crear productos: solo administradores y gerentes de tienda.

@@ -733,6 +733,7 @@
 		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>" + esc(__("Cost of the goods", "dox-pos")) + "</span><span>" + (costo ? dinero(costo) : __("no cost", "dox-pos")) + (sinCosto && costo ? " · " + esc(sprintf(_n("%d line with no cost", "%d lines with no cost", sinCosto, "dox-pos"), sinCosto)) : "") + "</span></div>" : "") +
 			'<div class="tot"><span>' + esc(__("Units coming in", "dox-pos")) + "</span><span>" + uds + "</span></div>";
 		$("#reg2").disabled = st.ocupado || !st.entrada.length;
+		if ($("#baja2")) $("#baja2").disabled = st.ocupado || !st.entrada.length;
 	}
 	// La prenda de cada línea se decide antes de pintar nada, para que los cuadros de tallas ya cuenten con
 	// ella. En la venta, la más cercana que aún tenga prendas libres para esta línea.
@@ -1925,6 +1926,42 @@
 		st.ocupado = false;
 		soltar();
 		pintarSum();
+	}
+	// Dar de baja lo dañado, perdido o regalado: las líneas del inventario restan en vez de sumar, con su motivo,
+	// y la pérdida queda al costo de cada unidad. Pide conexión: no se encola como las entradas.
+	function modalBaja() {
+		if (st.ocupado || !st.entrada.length) return;
+		if (!navigator.onLine) { toast(__("You need a connection to write stock off.", "dox-pos")); return; }
+		const motivos = cfg.writeoff || {};
+		const uds = st.entrada.reduce((a, l) => a + l.n, 0);
+		const sinCosto = cfg.costs ? st.entrada.filter((l) => !l.c && !costoConocido(l.vid)).length : 0;
+		const valor = cfg.costs ? st.entrada.reduce((a, l) => a + l.n * (l.c || costoConocido(l.vid) || 0), 0) : 0;
+		modal("<h3>" + esc(__("Write off stock", "dox-pos")) + '</h3><p class="mp">' + esc(sprintf(_n("%d unit will come out of the inventory. It is not a sale: it is noted as a loss, at what each one cost.", "%d units will come out of the inventory. It is not a sale: it is noted as a loss, at what each one cost.", uds, "dox-pos"), uds)) + "</p>" +
+			(cfg.costs ? '<p class="mp"><b>' + esc(valor ? sprintf(__("Loss: %s", "dox-pos"), dinero(valor)) : __("No cost known yet", "dox-pos")) + "</b>" + (sinCosto && valor ? " · " + esc(sprintf(_n("%d line with no cost", "%d lines with no cost", sinCosto, "dox-pos"), sinCosto)) : "") + "</p>" : "") +
+			'<div class="field"><label for="m-bmot">' + esc(__("Why", "dox-pos")) + '</label><select id="m-bmot">' + Object.keys(motivos).map((k) => '<option value="' + esc(k) + '">' + esc(motivos[k]) + "</option>").join("") + '</select></div><div class="field mt"><label for="m-bnota">' + esc(__("Note", "dox-pos")) + '</label><input id="m-bnota" autocomplete="off" placeholder="' + esc(__("Bought before the inventory, came out with a defect", "dox-pos")) + '"></div>' +
+			'<div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Write off", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		$("#m-no").onclick = cerrarModal;
+		$("#m-ok").onclick = async () => {
+			const payload = { reason: $("#m-bmot").value, note: $("#m-bnota").value.trim(), lines: st.entrada.map((l) => ({ id: l.vid, qty: l.n, cost: l.c || "", real: l.real || 0 })) };
+			cerrarModal();
+			st.ocupado = true;
+			pintarSum();
+			const soltar = ocupar($("#baja2"), __("Saving\u2026", "dox-pos"));
+			try {
+				const r = await post("writeoffs", payload);
+				st.entrada = [];
+				$("#e-nota").value = "";
+				pintarTodo();
+				verPane("#paneseg2", "buscar");
+				await refrescarStock();
+				toast(sprintf(_n("%d unit written off.", "%d units written off.", r.units, "dox-pos"), r.units) + (r.value ? " " + sprintf(__("Loss: %s", "dox-pos"), dinero(r.value)) + "." : ""));
+			} catch (e) {
+				if (e.message !== "sesion") toast(e.message);
+			}
+			st.ocupado = false;
+			soltar();
+			pintarSum();
+		};
 	}
 	// Manda la entrada. Si esa factura ya estaba registrada (desde otro teléfono, por ejemplo),
 	// la tienda lo dice y aquí se pregunta: con "sí" se vuelve a mandar insistiendo (force);
@@ -4530,7 +4567,7 @@
 		let h = '<p class="hsub">' + esc(__("The cash", "dox-pos")) + " " + esc(textoPeriodo()) + "</p>";
 		const conCosto = !!d.costs;
 		const conPerdida = !!d.losses && t.loss > 0; // Hubo pérdidas anotadas en el periodo: salen como cifra y como columna.
-		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos"), "", "", "ok") + kpi(dinero(t.sold), __("Sold", "dox-pos"), "", "", "info") + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos"), "", "", "vio") : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos"), "", "", "bad") : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : ""), "", "", "warn") + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : ""), "", "", "warn") + "</div>";
+		h += '<div class="kpis">' + kpi(dinero(t.cashed), __("Collected", "dox-pos"), "", "", "ok") + kpi(dinero(t.sold), __("Sold", "dox-pos"), "", "", "info") + (conCosto ? kpi(dinero(t.profit), __("Profit", "dox-pos"), "", "", "vio") : "") + (conPerdida ? kpi("−" + dinero(t.loss), __("Losses", "dox-pos"), "", "", "bad") : "") + (d.losses && t.writeoff > 0 ? kpi("−" + dinero(t.writeoff), sprintf(_n("Written off · %d unit", "Written off · %d units", t.writeoff_units, "dox-pos"), t.writeoff_units), "", "", "bad") : "") + kpi(dinero(t.cod), __("To collect on delivery", "dox-pos") + (t.cod_n ? " (" + t.cod_n + ")" : ""), "", "", "warn") + kpi(dinero(t.holds), __("Unpaid layaway", "dox-pos") + (t.holds_n ? " (" + t.holds_n + ")" : ""), "", "", "warn") + "</div>";
 		if (t.refunded > 0) h += '<p class="hint">' + esc(sprintf(_n("%1$s went out in %2$d return, on the day it was given back and by the payment method it went out with.", "%1$s went out in %2$d returns, on the day they were given back and by the payment method they went out with.", t.refunds_n, "dox-pos"), dinero(t.refunded), t.refunds_n)) + "</p>";
 		if (conCosto && t.no_cost_n) h += '<p class="hint">' + esc(sprintf(_n("%d sale without a complete cost does not count towards the profit.", "%d sales without a complete cost do not count towards the profit.", t.no_cost_n, "dox-pos"), t.no_cost_n)) + "</p>";
 		if (d.method_totals && d.method_totals.length) h += '<div class="brk">' + listaHist(__("Collected by payment method", "dox-pos"), d.method_totals, false, true) + "</div>";
@@ -4554,7 +4591,7 @@
 		$("#h-caja").innerHTML = h;
 	}
 	function pintarTipos() {
-		const tipos = [["", __("All", "dox-pos")], ["ventas", __("Sales", "dox-pos")], ["entradas", __("Stock entries", "dox-pos")], ["devueltos", __("Returned", "dox-pos")], ["ajustes", __("Adjustments", "dox-pos")]];
+		const tipos = [["", __("All", "dox-pos")], ["ventas", __("Sales", "dox-pos")], ["entradas", __("Stock entries", "dox-pos")], ["devueltos", __("Returned", "dox-pos")], ["ajustes", __("Adjustments", "dox-pos")]].concat(cfg.writeoff && Object.keys(cfg.writeoff).length ? [["bajas", __("Written off", "dox-pos")]] : []);
 		chips($("#h-tipo"), tipos, hi.tipo, (x) => { hi.tipo = x; hi.page = 1; cargarHistorial(); });
 	}
 	function pintarMovimientos(d) {
@@ -4997,6 +5034,7 @@
 			modalApartar();
 		};
 		$("#reg2").onclick = guardarEntrada;
+		if ($("#baja2")) $("#baja2").onclick = modalBaja;
 		if ($("#e-costos")) {
 			$("#e-costos").onclick = () => $("#e-costos-file").click();
 			$("#e-costos-file").addEventListener("change", subirCostos);

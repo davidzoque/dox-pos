@@ -307,7 +307,7 @@ function dox_pos_history_cash( $from, $to ) {
 		$t += array( 'cost' => 0.0, 'profit' => 0.0, 'no_cost_n' => 0 ); // La ganancia del día, con las ventas que tienen costo completo.
 	}
 	if ( $losses ) {
-		$t += array( 'loss' => 0.0 ); // Las pérdidas anotadas en las ventas del periodo.
+		$t += array( 'loss' => 0.0, 'writeoff' => 0.0, 'writeoff_units' => 0, 'writeoff_unknown' => 0 ); // Las pérdidas anotadas en las ventas del periodo, y lo dado de baja del inventario.
 	}
 	$pending = array();
 	foreach ( $orders as $o ) {
@@ -315,7 +315,7 @@ function dox_pos_history_cash( $from, $to ) {
 		$day    = dox_pos_order_sale_date( $o ) ? dox_pos_order_sale_date( $o )->date_i18n( 'Y-m-d' ) : $range['from'];
 		$status = $o->get_status();
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'refunded' => 0.0 );
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'writeoff' => 0.0, 'refunded' => 0.0 );
 		}
 		if ( in_array( $status, DOX_POS_SOLD, true ) ) {
 			$days[ $day ]['n']++;
@@ -367,7 +367,7 @@ function dox_pos_history_cash( $from, $to ) {
 	foreach ( dox_pos_history_refunds( $range ) as $r ) {
 		$day = $r['day'];
 		if ( ! isset( $days[ $day ] ) ) {
-			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'refunded' => 0.0 );
+			$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'writeoff' => 0.0, 'refunded' => 0.0 );
 		}
 		$m                              = '' !== $r['method'] ? $r['method'] : __( 'No payment method', 'dox-pos' );
 		$days[ $day ]['refunded']      += $r['amount'];
@@ -381,7 +381,19 @@ function dox_pos_history_cash( $from, $to ) {
 		}
 		$methods[ $m ]['total'] -= $r['amount'];
 	}
-	$days = array_filter( $days, fn( $d ) => $d['n'] || $d['holds'] > 0 || $d['refunded'] > 0 );
+	// Lo dado de baja (dañado, perdido): sale del kardex, al costo que tenía cada unidad ese día.
+	if ( $losses ) {
+		foreach ( dox_pos_writeoffs_by_day( $range['from'], $range['to'] ) as $day => $w ) {
+			if ( ! isset( $days[ $day ] ) ) {
+				$days[ $day ] = array( 'day' => $day, 'n' => 0, 'sold' => 0.0, 'cashed' => 0.0, 'methods' => array(), 'cod' => 0.0, 'holds' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'loss' => 0.0, 'writeoff' => 0.0, 'refunded' => 0.0 );
+			}
+			$days[ $day ]['writeoff']  += $w['value'];
+			$t['writeoff']             += $w['value'];
+			$t['writeoff_units']       += $w['units'];
+			$t['writeoff_unknown']     += $w['unknown'];
+		}
+	}
+	$days = array_filter( $days, fn( $d ) => $d['n'] || $d['holds'] > 0 || $d['refunded'] > 0 || $d['writeoff'] > 0 );
 	ksort( $days );
 	usort( $methods, fn( $a, $b ) => $b['total'] <=> $a['total'] );
 	return array(
