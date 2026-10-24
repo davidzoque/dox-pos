@@ -2,6 +2,10 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.58.1 =
+* Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
+* Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
+
 = 0.58.0 =
 * New: write off stock. In Inventory, add what is damaged, lost or given away and tap Write these off instead: it asks why (damaged or defective, lost or stolen, gift or sample, other), takes the units out of the inventory and notes the loss at what each unit cost. It is for products that never went through a sale, so there is no order to note the loss in. Only administrators and shop managers see the button.
 * New: the written-off units show in Reports > Movements (filter Written off, with the reason and the cost per unit) and as a Written off figure in Reports > Daily cash, with the units and the loss.

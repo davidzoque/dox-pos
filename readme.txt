@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.58.0
+Stable tag: 0.58.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.58.1 =
+* Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
+* Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
+
 = 0.58.0 =
 * New: write off stock. In Inventory, add what is damaged, lost or given away and tap Write these off instead: it asks why (damaged or defective, lost or stolen, gift or sample, other), takes the units out of the inventory and notes the loss at what each unit cost. It is for products that never went through a sale, so there is no order to note the loss in. Only administrators and shop managers see the button.
 * New: the written-off units show in Reports > Movements (filter Written off, with the reason and the cost per unit) and as a Written off figure in Reports > Daily cash, with the units and the loss.
@@ -135,19 +139,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.54.1 =
 * Fix: in the product form, under Pieces by actual size, a group with a single actual size showed a "?" in that size, as if something were missing. It now shows the units of the group, which are all of that size.
-
-= 0.54.0 =
-* New: labels to stick on the products, from Products > Labels. Each one carries the name, the SKU, the price, the sizes in stock when it is printed and the barcode of the SKU: scan it at the Counter, with a scanner or the phone camera, and its sizes show up. They print from the browser on the label sheets sold in stationery shops (Letter with 30, 20, 14 or 10 labels, Avery 5160 to 5163; A4 with 24, 21 or 14, Avery L7159, L7160 and L7163), or on a whole adhesive sheet with lines to cut; one per product or one per unit in stock, and a sheet already started can be used from any label.
-* New: dark mode. In Settings > Brand, Appearance: Light (as always), Dark, or Like the device (it follows the dark mode of each phone or computer). The dark colors are made from the store's own: its main color, lightened until it reads, on an almost black background.
-* Change: Reports in the Dox design: each figure with the dot of its color, channels and payment methods with their icon, and what is left to collect with its status and a link to the order. The register preview in Settings paints channels and payment methods like the register.
-* New: the sign-in screen, redone. The store's bar color, logo and name on one side and the form on the other (on a phone, a strip with the logo). Password or code by email is now a two-option switch instead of a loose link, the password has an eye to see it while typing, errors and notices come in boxes with their icon, and below it says who to ask for a user.
-* Change: the product form, redone on the Dox design system: each part in its own card, what is chosen (category, colors, sizes, package) in the store's tint instead of solid color, a green profit, and the save bar floating at the bottom with the total and the button side by side on a computer.
-* Fix: letter sizes now come in their order (XS, S, M, L, XL) and not alphabetically; and the note "No colors" no longer shows when the product has colors.
-* Fix: in Settings > Sales, the sample receipt did not show until saving when Settings was opened on another tab.
-* Fix: sizes in the Mexican and Central American style (CH, M, G, EG or XG) and the Brazilian one (PP, P, M, G, GG, XG) also come in their order.
-* Fix: after a wrong password, the sign-in keeps the username and puts the cursor on the password.
-* Fix: in dark mode, the real-size pill, the "arrived" badge and the colored initials (Orders, the Pro PIN) were hard to read; and the phone's top bar follows the dark mode.
-* Fix: after opening and closing the layaway window, every key typed in the next windows (Labels among them) threw an error in the background, and a new layaway could show the previous one's summary.
-* Change: barcodes with numbers (a SKU like 7701234567890) take about a third less width, so they read better on small labels; a label of a product with nothing in stock lists its sizes instead of saying it is out of stock.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/
