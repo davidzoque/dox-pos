@@ -958,6 +958,44 @@ function dox_pos_list_orders( $limit = 80 ) {
 }
 
 /**
+ * El nombre de una línea con lo que eligió la clienta. La caja ya guarda "Producto · talla · color", pero
+ * WooCommerce, en los pedidos de la web, deja solo el nombre del producto y los valores en metas aparte:
+ * sin esto, quien empaca no sabe qué talla sacar (unas baletas sin talla, Rosella 24/10/2026).
+ */
+function dox_pos_order_line_name( $item ) {
+	$name = $item->get_name();
+	if ( ! $item->get_variation_id() ) {
+		return $name;
+	}
+	// Las claves de los atributos: las de la variación, o si ya no existe, las metas de atributos globales.
+	$v    = $item->get_product();
+	$keys = $v ? array_keys( $v->get_attributes() ) : array();
+	if ( ! $v ) {
+		foreach ( $item->get_meta_data() as $m ) {
+			if ( 0 === strpos( $m->key, 'pa_' ) ) {
+				$keys[] = $m->key;
+			}
+		}
+	}
+	$parts = array_map( 'strtolower', array_map( 'trim', explode( ' · ', $name ) ) );
+	foreach ( $keys as $key ) {
+		$val = (string) $item->get_meta( $key );
+		if ( '' === $val ) {
+			continue;
+		}
+		if ( taxonomy_exists( $key ) ) {
+			$term = get_term_by( 'slug', $val, $key );
+			$val  = $term ? $term->name : $val;
+		}
+		// Comparado contra los trozos del nombre, no como texto suelto: una talla "S" no está en "Sirenita".
+		if ( ! in_array( strtolower( $val ), $parts, true ) ) {
+			$name .= ' · ' . $val;
+		}
+	}
+	return $name;
+}
+
+/**
  * Un pedido tal como lo entiende la caja. Los estados se leen según el origen: en la
  * caja, "en espera" es un apartado; en la web, "pendiente" es que dejó el pago a medias
  * (sin inventario descontado), "en espera" que el pago va en camino (PSE) y "fallido"
@@ -988,7 +1026,7 @@ function dox_pos_format_order( $order ) {
 	foreach ( $order->get_items() as $item ) {
 		$real    = (string) $item->get_meta( DOX_POS_REAL_SIZE_ITEM ); // La pieza que hay que sacar, si se vendió otra talla de su grupo.
 		/* translators: %s: the size on the label of the piece, e.g. "18-24 months" */
-		$items[] = $item->get_name() . ( '' !== $real ? ' (' . sprintf( __( 'actual size %s', 'dox-pos' ), $real ) . ')' : '' ) . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
+		$items[] = dox_pos_order_line_name( $item ) . ( '' !== $real ? ' (' . sprintf( __( 'actual size %s', 'dox-pos' ), $real ) . ')' : '' ) . ( $item->get_quantity() > 1 ? ' ×' . $item->get_quantity() : '' );
 	}
 	$deposit = dox_pos_order_deposit( $order );
 	$de_apartado = (int) $order->get_meta( '_dox_pos_layaway_of' ) > 0; // "Abono al apartado #72" ya dice que es un abono.
@@ -1374,7 +1412,7 @@ function dox_pos_order_detail( $id ) {
 			'id'           => $vid ? $vid : $pid,
 			'product_id'   => $pid,
 			'variation_id' => $vid,
-			'name'         => $it->get_name(),
+			'name'         => dox_pos_order_line_name( $it ),
 			'sku'          => $sku,
 			'qty'          => $qty,
 			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, wc_get_price_decimals() ) : 0,
