@@ -515,7 +515,8 @@ tr.off,li.off{opacity:.5}
 .kpi[data-k]>span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:1px}
 .kpi[data-k="ok"]{--c:var(--st-ok)}.kpi[data-k="vio"]{--c:var(--st-vio)}.kpi[data-k="warn"]{--c:var(--st-warn)}.kpi[data-k="bad"]{--c:var(--st-bad)}.kpi[data-k="info"]{--c:var(--st-info)}
 .chan.pago[data-k="cash"]{--c:var(--st-ok)}.chan.pago[data-k="card"],.chan.pago[data-k="credit"]{--c:var(--st-vio)}.chan.pago[data-k="transfer"]{--c:var(--st-info)}.chan.pago[data-k="cod"]{--c:var(--ch-per)}
-.bl .chan{font-weight:500}
+.bl .chan{font-weight:500;white-space:normal}
+.bl li>span:first-child{min-width:0} /* un nombre largo (Daviplata o Bancolombia) baja de renglón en vez de empujar la cifra encima de la columna de al lado */
 .bl .tag{margin-left:4px;vertical-align:1px}
 .bl .lnk[data-ver]{color:var(--primary-text);font-weight:600;text-decoration:none}
 .kpi em.up,.ks em.up{color:var(--st-ok)}

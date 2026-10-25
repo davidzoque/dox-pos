@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.58.1
+Stable tag: 0.58.2
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,6 +102,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.58.2 =
+* Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
+* Technical: in assets/css/caja.css, .bl .chan can wrap and the first span of each .bl row takes min-width:0.
+
 = 0.58.1 =
 * Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
 * Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
@@ -136,8 +140,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 = 0.55.0 =
 * New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.
-
-= 0.54.1 =
-* Fix: in the product form, under Pieces by actual size, a group with a single actual size showed a "?" in that size, as if something were missing. It now shows the units of the group, which are all of that size.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

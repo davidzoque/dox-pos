@@ -2,6 +2,10 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.58.2 =
+* Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
+* Technical: in assets/css/caja.css, .bl .chan can wrap and the first span of each .bl row takes min-width:0.
+
 = 0.58.1 =
 * Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
 * Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
