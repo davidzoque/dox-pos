@@ -2,6 +2,13 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.59.0 =
+* New: stores in several languages with Polylang or WPML. Each product exists once per language, and the register showed it twice (or three times): in Sell, Inventory, Edit product, the Excel file, the stock counts and the codes the product form suggests. Now only the products in the store's default language show, plus the ones with no language; a variation follows its product. Searching by the name in another language still finds the product, scanning the code of a translation sells the main product, and a web order placed in another language counts toward its main product in the best sellers.
+* New: in Movements, when the translations share their stock, a change is written once, on the main product (also for a variation, matched by its attributes). The tools that keep the stock of the translations the same save the other translation too, and that second save was written as a second movement. When each translation keeps its own stock, its movements stay on it.
+* New: a product created from the register is saved in the default language, whatever language filter the dashboard has.
+* Stock still changes only through WooCommerce, so whatever the store uses to copy stock between translations (Polylang for WooCommerce, WooCommerce Multilingual or a snippet) keeps working. Polylang (free) does not copy it.
+* Technical: new includes/multilingual.php with dox_pos_lang_plugin(), dox_pos_lang_where() (a NOT EXISTS on the language terms of Polylang or on icl_translations of WPML, for products and for variations through their parent), dox_pos_lang_main_id() (with Polylang, a variation of a translation maps to the variation of the main product with the same attributes) and dox_pos_lang_assign(). Without Polylang or WPML they make no queries and leave every query as it was.
+
 = 0.58.2 =
 * Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
 * Technical: in assets/css/caja.css, .bl .chan can wrap and the first span of each .bl row takes min-width:0.

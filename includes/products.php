@@ -398,7 +398,7 @@ function dox_pos_category_usage( $forget = false ) {
 	};
 	// Cuántos productos de cada categoría tienen variaciones: si ninguno varía, la caja propone "no varía".
 	$varied = array();
-	$rows   = $wpdb->get_results( "SELECT x.term_id, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id", ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Se guarda en el transitorio dox_pos_category_usage.
+	$rows   = $wpdb->get_results( "SELECT x.term_id, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' )" . dox_pos_lang_where( 'v' ) . ' GROUP BY x.term_id', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery -- Se guarda en el transitorio dox_pos_category_usage.
 	foreach ( (array) $rows as $r ) {
 		$up(
 			$r['term_id'],
@@ -411,7 +411,7 @@ function dox_pos_category_usage( $forget = false ) {
 	if ( count( $taxes ) >= 2 ) { // Con un solo atributo de talla no hace falta mirar cuál usa cada categoría.
 		$keys = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
 		$in   = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' ) GROUP BY x.term_id, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, t.meta_key k, COUNT( DISTINCT v.post_parent ) n FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status IN ( 'publish', 'private' )" . dox_pos_lang_where( 'v' ) . ' GROUP BY x.term_id, t.meta_key', $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
 		// Zapatos sin productos propios, pero con los tenis en Zapatos > Tenis, es de Talla calzado.
 		$uses = array();
 		foreach ( (array) $rows as $r ) {
@@ -1049,6 +1049,8 @@ function dox_pos_product_package( $p ) {
  */
 function dox_pos_common_packages() {
 	global $wpdb;
+	$lang = dox_pos_lang_where( 'p' );
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lang lo arma dox_pos_lang_where().
 	$rows = $wpdb->get_results(
 		"SELECT w.meta_value weight, l.meta_value length, a.meta_value width, h.meta_value height, COUNT(*) n
 		FROM {$wpdb->posts} p
@@ -1056,12 +1058,13 @@ function dox_pos_common_packages() {
 		LEFT JOIN {$wpdb->postmeta} l ON l.post_id = p.ID AND l.meta_key = '_length'
 		LEFT JOIN {$wpdb->postmeta} a ON a.post_id = p.ID AND a.meta_key = '_width'
 		LEFT JOIN {$wpdb->postmeta} h ON h.post_id = p.ID AND h.meta_key = '_height'
-		WHERE p.post_type = 'product' AND p.post_status IN ( 'publish', 'private' )
+		WHERE p.post_type = 'product' AND p.post_status IN ( 'publish', 'private' ){$lang}
 		AND ( w.meta_value > '' OR l.meta_value > '' OR a.meta_value > '' OR h.meta_value > '' )
 		GROUP BY w.meta_value, l.meta_value, a.meta_value, h.meta_value
 		ORDER BY n DESC LIMIT 12",
 		ARRAY_A
 	);
+	// phpcs:enable
 	$out = array();
 	foreach ( (array) $rows as $r ) {
 		$pkg = array(
@@ -1428,7 +1431,7 @@ function dox_pos_product_categories( $sizes = array() ) { // phpcs:ignore Generi
  */
 function dox_pos_category_prefixes() {
 	global $wpdb;
-	$rows  = $wpdb->get_results( "SELECT x.term_id, pm.meta_value sku FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_sku' AND pm.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE p.post_type = 'product' AND p.post_status IN ('publish','private')", ARRAY_A );
+	$rows  = $wpdb->get_results( "SELECT x.term_id, pm.meta_value sku FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_sku' AND pm.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE p.post_type = 'product' AND p.post_status IN ('publish','private')" . dox_pos_lang_where( 'p' ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery -- Sin datos de fuera; el idioma lo arma dox_pos_lang_where().
 	$count = array();
 	foreach ( (array) $rows as $r ) {
 		if ( preg_match( '/^([A-Za-z]{1,4})\d/', $r['sku'], $m ) ) {
@@ -1467,7 +1470,7 @@ function dox_pos_category_size_sets( $sizes = array() ) { // phpcs:ignore Generi
 	}
 	$keys    = array_map( fn( $t ) => 'attribute_' . $t, $taxes );
 	$in      = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
-	$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, v.post_parent, t.meta_key k, GROUP_CONCAT(DISTINCT t.meta_value ORDER BY t.meta_value SEPARATOR ',') slugs FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status = 'publish' GROUP BY x.term_id, v.post_parent, t.meta_key", $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
+	$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT x.term_id, v.post_parent, t.meta_key k, GROUP_CONCAT(DISTINCT t.meta_value ORDER BY t.meta_value SEPARATOR ',') slugs FROM {$wpdb->posts} v JOIN {$wpdb->postmeta} t ON t.post_id = v.ID AND t.meta_key IN ( $in ) AND t.meta_value <> '' JOIN {$wpdb->term_relationships} tr ON tr.object_id = v.post_parent JOIN {$wpdb->term_taxonomy} x ON x.term_taxonomy_id = tr.term_taxonomy_id AND x.taxonomy = 'product_cat' WHERE v.post_type = 'product_variation' AND v.post_status = 'publish'" . dox_pos_lang_where( 'v' ) . ' GROUP BY x.term_id, v.post_parent, t.meta_key', $keys ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in solo lleva marcadores %s; los valores van a prepare().
 	$by_slug = array();
 	foreach ( $taxes as $tax ) {
 		$by_slug[ $tax ] = array_column( dox_pos_attribute_terms( $tax, 'size' ), 'id', 'slug' );
@@ -2185,6 +2188,7 @@ function dox_pos_create_product( $data ) {
 	}
 	update_post_meta( $pid, '_dox_pos_ref', $ref );
 	update_post_meta( $pid, '_dox_pos_created_by', get_current_user_id() );
+	dox_pos_lang_assign( $pid ); // En una tienda en varios idiomas, nace en el principal.
 
 	$nvars = 0;
 	if ( $variable ) {
@@ -2762,7 +2766,7 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 	$q     = trim( (string) $q );
 	$page  = max( 1, (int) $page );
 	$per   = max( 1, min( 50, (int) $per ) );
-	$where = "p.post_type = 'product' AND p.post_status IN ( 'publish', 'private', 'draft' )";
+	$where = "p.post_type = 'product' AND p.post_status IN ( 'publish', 'private', 'draft' )" . dox_pos_lang_where( 'p' );
 	$args  = array();
 	if ( '' !== $q ) {
 		$like   = '%' . $wpdb->esc_like( $q ) . '%';

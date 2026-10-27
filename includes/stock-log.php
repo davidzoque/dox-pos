@@ -208,9 +208,22 @@ function dox_pos_stock_changed( $product ) {
 		if ( $b === $a ) {
 			return;
 		}
+		// En una tienda en varios idiomas cada ficha traducida lleva sus existencias, y lo que la tienda use
+		// para igualarlas vuelve a avisar en la otra: el movimiento se apunta una vez, en la ficha principal.
+		// Solo si de verdad las comparten (la principal está en el antes o en el después); si cada ficha lleva
+		// las suyas, el movimiento es de la traducción y se apunta en ella, como siempre.
+		$main = dox_pos_lang_main_id( $id );
+		if ( $main !== $id ) {
+			$other = wc_get_product( $main );
+			$ms    = $other ? $other->get_stock_quantity() : null;
+			if ( null !== $ms && ( (int) $ms === $b || (int) $ms === $a ) ) {
+				$product = $other;
+				$id      = $main;
+			}
+		}
 		$key = $b . '>' . $a;
 		if ( ( $GLOBALS['dox_pos_stock_last'][ $id ] ?? '' ) === $key ) {
-			return; // El mismo cambio avisado dos veces.
+			return; // El mismo cambio avisado dos veces (o por la otra traducción).
 		}
 		$GLOBALS['dox_pos_stock_last'][ $id ] = $key;
 		$ctx  = dox_pos_stock_guess_context( $creating );

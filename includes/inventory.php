@@ -70,6 +70,8 @@ function dox_pos_inventory_data() {
 	$color_tax = dox_pos_color_attribute();
 	$taxes     = dox_pos_attribute_taxonomies();
 
+	// En una tienda en varios idiomas, solo las fichas del idioma principal (includes/multilingual.php).
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Sin datos de fuera; el idioma lo arma dox_pos_lang_where().
 	$posts = $wpdb->get_results(
 		"SELECT p.ID, p.post_parent, p.post_title, p.post_status, p.post_type,
 			MAX( CASE WHEN m.meta_key = '_sku' THEN m.meta_value END ) AS sku,
@@ -81,10 +83,11 @@ function dox_pos_inventory_data() {
 			MAX( CASE WHEN m.meta_key = '_dox_pos_pool' THEN m.meta_value END ) AS pool
 		FROM {$wpdb->posts} p
 		LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key IN ( '_sku', '_stock', '_manage_stock', '_stock_status', '_price', '_cogs_total_value', '_dox_pos_pool' )
-		WHERE p.post_type IN ( 'product', 'product_variation' ) AND p.post_status IN ( 'publish', 'private', 'draft', 'pending' )
-		GROUP BY p.ID",
+		WHERE p.post_type IN ( 'product', 'product_variation' ) AND p.post_status IN ( 'publish', 'private', 'draft', 'pending' )" . dox_pos_lang_where( 'p' ) . '
+		GROUP BY p.ID',
 		ARRAY_A
 	);
+	// phpcs:enable
 
 	// Los atributos de cada variación (attribute_pa_talla = 6-12-meses).
 	$attrs = array();

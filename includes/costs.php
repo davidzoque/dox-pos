@@ -584,7 +584,7 @@ function dox_pos_costs_import( $file ) {
 			$out['skipped']++;
 			continue;
 		}
-		$pid = wc_get_product_id_by_sku( $key );
+		$pid = dox_pos_lang_main_id( wc_get_product_id_by_sku( $key ) );
 		$p   = $pid ? wc_get_product( $pid ) : null;
 		if ( ! $p ) {
 			$out['missing']++;

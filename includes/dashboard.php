@@ -233,7 +233,8 @@ function dox_pos_dashboard_pending() {
  */
 function dox_pos_dashboard_stock() {
 	global $wpdb;
-	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lang lo arma dox_pos_lang_where().
+	$lang = dox_pos_lang_where( 'p' ); // En una tienda en varios idiomas, cada producto una vez.
 	// Las que llevan las suyas (y el total de cada producto que lo lleva), solo de productos publicados:
 	// las tallas de un producto oculto siguen "publicadas" aunque el producto no se vea...
 	$units = (int) $wpdb->get_var(
@@ -243,7 +244,7 @@ function dox_pos_dashboard_stock() {
 		 LEFT JOIN {$wpdb->postmeta} b ON b.post_id = p.ID AND b.meta_key = '_dox_pos_pool'
 		 LEFT JOIN {$wpdb->posts} pp ON pp.ID = p.post_parent
 		 WHERE p.post_status = 'publish' AND ( p.post_type = 'product' OR ( p.post_type = 'product_variation' AND pp.post_status = 'publish' ) )
-		   AND l.stock_quantity > 0 AND b.meta_id IS NULL"
+		   AND l.stock_quantity > 0 AND b.meta_id IS NULL{$lang}"
 	);
 	// ...más cada bolsa de color una sola vez (la menor de sus tallas, ver includes/pools.php).
 	$units += (int) $wpdb->get_var(
@@ -253,14 +254,14 @@ function dox_pos_dashboard_stock() {
 			JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_manage_stock' AND m.meta_value = 'yes'
 			JOIN {$wpdb->postmeta} b ON b.post_id = p.ID AND b.meta_key = '_dox_pos_pool'
 			JOIN {$wpdb->posts} pp ON pp.ID = p.post_parent AND pp.post_status = 'publish'
-			WHERE p.post_status = 'publish' AND p.post_type = 'product_variation'
+			WHERE p.post_status = 'publish' AND p.post_type = 'product_variation'{$lang}
 			GROUP BY p.post_parent, b.meta_value
 		 ) t WHERE t.n > 0"
 	);
 	$out   = (int) $wpdb->get_var(
 		"SELECT COUNT(*) FROM {$wpdb->wc_product_meta_lookup} l
 		 JOIN {$wpdb->posts} p ON p.ID = l.product_id
-		 WHERE p.post_status = 'publish' AND p.post_type = 'product' AND l.stock_status = 'outofstock'"
+		 WHERE p.post_status = 'publish' AND p.post_type = 'product' AND l.stock_status = 'outofstock'{$lang}"
 	);
 	// phpcs:enable
 	return array( 'units' => $units, 'out' => $out );
@@ -289,7 +290,7 @@ function dox_pos_top_products( $days = 30, $fresh = false ) {
 			continue;
 		}
 		foreach ( $o->get_items() as $iid => $it ) {
-			$pid = (int) $it->get_product_id();
+			$pid = dox_pos_lang_main_id( (int) $it->get_product_id() ); // Lo vendido en la web en otro idioma suma a su ficha principal.
 			$qty = (int) $it->get_quantity() - abs( (int) $o->get_qty_refunded_for_item( $iid ) ); // Lo devuelto no se vendió.
 			if ( ! $pid || $qty <= 0 ) {
 				continue;

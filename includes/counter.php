@@ -109,6 +109,7 @@ function dox_pos_counter_scan( $code ) {
 	if ( ! $id ) {
 		return null;
 	}
+	$id   = dox_pos_lang_main_id( $id ); // Si el código dio con la ficha en otro idioma, se vende la principal.
 	$pid  = dox_pos_parent_id( $id );
 	$item = $pid ? dox_pos_format_product( $pid ) : null;
 	if ( ! $item ) {

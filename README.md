@@ -103,6 +103,23 @@ El Pro irá por el servidor de licencias; mientras, `subir.sh`.
 
 `./subir.sh milasros` empaqueta la carpeta, la deja en `wp-content/plugins/dox-pos` de esa cuenta y reinicia sus procesos PHP para que no quede código viejo en OPcache. La activación se hace una vez desde Plugins.
 
+## Tiendas en varios idiomas (0.59.0)
+
+Con Polylang o WPML cada producto es un post por idioma, enlazados como traducciones. Todo lo que lista o cuenta
+productos (Inventario, el buscador de Vender, Editar producto, el Excel, las cuentas del Panel, las sugerencias de
+códigos y del formulario, y el asistente del Pro) añade `dox_pos_lang_where( 'p' )` a su consulta: un `NOT EXISTS`
+que deja fuera lo que lleve otro idioma (la variación mira a su padre). Sin plugin de idiomas devuelve `''` y no
+consulta nada. `dox_pos_lang_main_id()` lleva un ID al de su ficha principal: lo usan el buscador (lo encontrado
+por el nombre en inglés cuenta como su ficha en español), el lector de códigos, la carga de costos, lo más vendido y
+el kardex, que apunta cada cambio una vez en la ficha principal aunque la sincronización de la tienda guarde también
+la otra traducción (solo si comparten existencias: la principal está en el antes o en el después; si no, el movimiento
+se queda en la traducción). Con Polylang gratis las variaciones no se traducen: la de la ficha principal es la que
+lleva los mismos atributos (`dox_pos_lang_twin_variation()`). Un producto creado desde la caja pasa por `dox_pos_lang_assign()`. Todo está en
+`includes/multilingual.php`.
+
+Dox POS no iguala las existencias entre traducciones: las cambia siempre con las funciones de WooCommerce y deja que
+la tienda lo haga (Polylang for WooCommerce, WooCommerce Multilingual o un código propio, como el de SOLZ en su tema).
+
 ## Cómo se mueve el inventario
 
 Nunca lo toca el plugin directamente: registrar una venta pone el pedido en "procesando" y WooCommerce descuenta; apartar lo pone "en espera" y también descuenta; anular o liberar lo cancela y WooCommerce devuelve. Solo las entradas de mercancía suman stock a mano (`wc_update_product_stock`), y anular una entrada lo resta. Las bajas (`includes/writeoffs.php`) también lo restan a mano. Todo eso, y lo que se haga por fuera de la caja, queda en el kardex (abajo). Una entrada suma las unidades y guarda su fila en una sola transacción (`wc_transaction_query`): si la fila no se puede guardar, las unidades vuelven. No admite productos sin control de existencias ni fechas que no existen.

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.58.2
+Stable tag: 0.59.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -84,6 +84,10 @@ Open the register, tap the gear at the top and choose Shipping costs. Add a cost
 
 Yes. The register reads the store country from WooCommerce. A Colombian store gets Nequi, the local carriers (Coordinadora, Servientrega, Interrapidísimo, TCC...) and WhatsApp; a US store gets Zelle and Venmo, USPS, UPS, FedEx and DHL, and text messages instead of WhatsApp; Mexico, Spain, Argentina, Chile, Peru and Ecuador have their own carriers, and any other country starts with DHL, UPS and FedEx. Card, cash, bank transfer and cash on delivery are there everywhere, and you can rename, turn off or add payment methods, carriers and channels in WooCommerce > Dox POS > Sales.
 
+= Does it work with a store in several languages (Polylang, WPML)? =
+
+Yes. With Polylang or WPML each product exists once per language. Dox POS shows only the products in the store's default language (and the ones with no language), so each product appears once in Sell, Inventory, the Excel file and the counts. A web order placed in another language counts toward its main product in the best sellers and in Movements, and a product created from the register is saved in the default language. Dox POS changes stock only through WooCommerce, but it does not copy stock between translations: Polylang (free) does not do it either, so the store needs Polylang for WooCommerce, WooCommerce Multilingual (WPML) or a snippet that keeps the stock of the translations the same.
+
 = Does it work with the block checkout and with HPOS? =
 
 Yes. Orders are created through the WooCommerce API, and the plugin declares compatibility with High-Performance Order Storage and with the cart and checkout blocks.
@@ -101,6 +105,13 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 9. The receipt editor, with its live preview.
 
 == Changelog ==
+
+= 0.59.0 =
+* New: stores in several languages with Polylang or WPML. Each product exists once per language, and the register showed it twice (or three times): in Sell, Inventory, Edit product, the Excel file, the stock counts and the codes the product form suggests. Now only the products in the store's default language show, plus the ones with no language; a variation follows its product. Searching by the name in another language still finds the product, scanning the code of a translation sells the main product, and a web order placed in another language counts toward its main product in the best sellers.
+* New: in Movements, when the translations share their stock, a change is written once, on the main product (also for a variation, matched by its attributes). The tools that keep the stock of the translations the same save the other translation too, and that second save was written as a second movement. When each translation keeps its own stock, its movements stay on it.
+* New: a product created from the register is saved in the default language, whatever language filter the dashboard has.
+* Stock still changes only through WooCommerce, so whatever the store uses to copy stock between translations (Polylang for WooCommerce, WooCommerce Multilingual or a snippet) keeps working. Polylang (free) does not copy it.
+* Technical: new includes/multilingual.php with dox_pos_lang_plugin(), dox_pos_lang_where() (a NOT EXISTS on the language terms of Polylang or on icl_translations of WPML, for products and for variations through their parent), dox_pos_lang_main_id() (with Polylang, a variation of a translation maps to the variation of the main product with the same attributes) and dox_pos_lang_assign(). Without Polylang or WPML they make no queries and leave every query as it was.
 
 = 0.58.2 =
 * Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
@@ -137,8 +148,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * Fix: saving Settings no longer undoes a Varies by changed from the register while the settings page was open: only the categories changed on the page are saved.
 * Fix: closing the "looks like an existing attribute" warning no longer creates the attribute; it has Use it, Create anyway and Cancel. Saving Varies by from the register keeps the values already marked if the rows did not change.
 * Fix: when colors are added to an existing product, marking a value, typing its units, removing it and marking it again no longer overwrites the units the product already had. Retrying a save that failed halfway does not create the same variations twice.
-
-= 0.55.0 =
-* New: what is sold without a product (a made-to-order piece, a repair) can carry a photo. In Sell > Without a product, Photo (optional): on a phone it opens the camera or the gallery. It is saved as WebP like product photos and shows in the sale line, in the order detail and in the WooCommerce order, under the line's name. Deposits to store credit do not carry a photo.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

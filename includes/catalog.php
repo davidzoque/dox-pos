@@ -31,9 +31,10 @@ function dox_pos_search( $term, $limit = 20 ) {
 	$ids   = array_merge( $ids, $store->search_products( $term, '', true, false, $limit * 4 ) );
 
 	// Una variación encontrada por su SKU representa a su producto padre; se respeta el orden en que salieron.
+	// En una tienda en varios idiomas, lo encontrado en otro idioma cuenta como su ficha principal.
 	$parents = array();
 	foreach ( $ids as $id ) {
-		$pid = dox_pos_parent_id( $id );
+		$pid = dox_pos_lang_main_id( dox_pos_parent_id( $id ) );
 		if ( $pid ) {
 			$parents[ $pid ] = true;
 		}
@@ -66,10 +67,11 @@ function dox_pos_catalog_page( $page = 1, $per = 20 ) {
 	global $wpdb;
 	$page  = max( 1, (int) $page );
 	$per   = max( 1, min( 50, (int) $per ) );
-	$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$lang  = dox_pos_lang_where( 'p' ); // En una tienda en varios idiomas, solo los del principal.
+	$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} p WHERE p.post_type = 'product' AND p.post_status = 'publish'{$lang}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lang lo arma dox_pos_lang_where().
 	$ids   = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish' ORDER BY post_title ASC, ID ASC LIMIT %d OFFSET %d",
+			"SELECT p.ID FROM {$wpdb->posts} p WHERE p.post_type = 'product' AND p.post_status = 'publish'{$lang} ORDER BY p.post_title ASC, p.ID ASC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lang lo arma dox_pos_lang_where().
 			$per,
 			( $page - 1 ) * $per
 		)
@@ -94,9 +96,10 @@ function dox_pos_catalog_page( $page = 1, $per = 20 ) {
 function dox_pos_title_matches( $term, $limit ) {
 	global $wpdb;
 	$like = '%' . $wpdb->esc_like( $term ) . '%';
+	$lang = dox_pos_lang_where( 'p' );
 	$ids  = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product' AND post_status = 'publish' AND post_title LIKE %s ORDER BY post_title ASC LIMIT %d",
+			"SELECT p.ID FROM {$wpdb->posts} p WHERE p.post_type = 'product' AND p.post_status = 'publish' AND p.post_title LIKE %s{$lang} ORDER BY p.post_title ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $lang lo arma dox_pos_lang_where().
 			$like,
 			$limit
 		)
