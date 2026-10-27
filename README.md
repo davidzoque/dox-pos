@@ -122,7 +122,8 @@ Con Polylang, la caja además escribe en las traducciones (`dox_pos_lang_sync()`
 se crea con `WC_Admin_Duplicate_Product` (sin `_dox_pos_ref`, para que un reintento no devuelva la copia), se enlaza con
 `pll_save_post_translations` y se publica como la principal. Al crear y al editar se copia lo compartido (precio salvo
 el filtro `dox_pos_lang_sync_price`, costo, fotos, peso y medidas, unidades, bolsas de color, atributos y variaciones,
-categorías por `pll_get_term`) dentro de `dox_pos_stock_quiet()`, así el kardex no apunta las copias. Cada variación de la
+categorías por `pll_get_term`) dentro de `dox_pos_stock_quiet()`, así el kardex no apunta las copias. Las fotos solo pasan si cambiaron en la principal
+(`dox_pos_lang_copy_images()` y `_dox_pos_lang_imgs`): una traducción con fotos propias, como las de SOLZ, las conserva. Cada variación de la
 traducción lleva `_dox_pos_lang_of` con su variación principal. El código de la traducción es el principal con `-EN`
 (filtro `dox_pos_translation_sku`); solo se pone al crearla o si está vacío. El formulario manda `i18n` ({ en: { name,
 short, description } }) con el texto de cada pestaña; al editar, una traducción que no existe se crea si el ajuste está

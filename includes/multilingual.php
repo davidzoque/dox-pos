@@ -414,7 +414,7 @@ function dox_pos_lang_duplicate( $main, $lang ) {
 	}
 	$mid = (int) $main->get_id();
 	// La referencia de la caja es de la ficha principal: con ella en la copia, un reintento devolvería la copia.
-	$skip = fn( $keys ) => array_merge( (array) $keys, array( '_dox_pos_ref', '_dox_pos_lang_of', '_dox_pos_lang', '_dox_pos_lang_pending' ) );
+	$skip = fn( $keys ) => array_merge( (array) $keys, array( '_dox_pos_ref', '_dox_pos_lang_of', '_dox_pos_lang', '_dox_pos_lang_pending', '_dox_pos_lang_imgs' ) );
 	// Las marcas van en el mismo guardado que crea cada ficha: no queda ninguna copia sin ellas.
 	$mark = function ( $dup, $orig ) use ( $mid, $lang ) {
 		$dup->update_meta_data( '_dox_pos_lang_of', (int) $orig->get_id() );
@@ -554,8 +554,32 @@ function dox_pos_lang_set_text( $p, $field, $text ) {
 }
 
 /**
+ * Las fotos de la ficha principal en su traducción, solo cuando cambian en la principal. Una traducción puede
+ * llevar sus propias fotos (subidas aparte, con el texto alternativo en su idioma): esas no se pisan mientras la
+ * principal siga con las mismas. _dox_pos_lang_imgs guarda las de la principal que se vieron la última vez.
+ *
+ * @param WC_Product $from    Ficha principal (o su variación).
+ * @param WC_Product $to      La traducción (o su variación).
+ * @param bool       $gallery También la galería (las variaciones no la tienen).
+ */
+function dox_pos_lang_copy_images( $from, $to, $gallery ) {
+	$now  = array( (string) (int) $from->get_image_id( 'edit' ), $gallery ? implode( ',', $from->get_gallery_image_ids( 'edit' ) ) : '' );
+	$raw  = (string) $to->get_meta( '_dox_pos_lang_imgs', true );
+	$last = '' === $raw ? null : array_pad( explode( '|', $raw, 2 ), 2, '' );
+	$to->update_meta_data( '_dox_pos_lang_imgs', implode( '|', $now ) );
+	// La foto y la galería van cada una por su lado: cambiar solo la galería no pisa la foto propia.
+	// La primera vez que la caja ve la traducción, lo que ya tenga es suyo.
+	if ( $last ? $now[0] !== $last[0] : ! $to->get_image_id( 'edit' ) ) {
+		$to->set_image_id( $from->get_image_id( 'edit' ) );
+	}
+	if ( $gallery && ( $last ? $now[1] !== $last[1] : ! $to->get_gallery_image_ids( 'edit' ) ) ) {
+		$to->set_gallery_image_ids( $from->get_gallery_image_ids( 'edit' ) );
+	}
+}
+
+/**
  * Lo compartido de la ficha principal, copiado a una ficha (la traducción o una de sus variaciones):
- * precio (salvo que el filtro dox_pos_lang_sync_price diga que no), costo, foto, peso y medidas, unidades.
+ * precio (salvo que el filtro dox_pos_lang_sync_price diga que no), costo, foto (si cambió), peso y medidas, unidades.
  *
  * @param WC_Product $from  De dónde.
  * @param WC_Product $to    A dónde.
@@ -571,7 +595,7 @@ function dox_pos_lang_copy_shared( $from, $to, $price ) {
 	if ( method_exists( $from, 'get_cogs_value' ) ) {
 		$to->set_cogs_value( $from->get_cogs_value( 'edit' ) );
 	}
-	$to->set_image_id( $from->get_image_id( 'edit' ) );
+	dox_pos_lang_copy_images( $from, $to, ! $to instanceof WC_Product_Variation ); // La galería solo la tiene el producto.
 	$to->set_weight( $from->get_weight( 'edit' ) );
 	$to->set_length( $from->get_length( 'edit' ) );
 	$to->set_width( $from->get_width( 'edit' ) );
@@ -708,7 +732,6 @@ function dox_pos_lang_sync( $pid, $texts, $create ) {
 				}
 			}
 			$t->set_category_ids( $cats );
-			$t->set_gallery_image_ids( $main->get_gallery_image_ids( 'edit' ) );
 			$price = (bool) apply_filters( 'dox_pos_lang_sync_price', true, (int) $pid, $lang );
 			dox_pos_lang_copy_shared( $main, $t, $price );
 			if ( $new || '' === $t->get_sku( 'edit' ) || $main->get_sku( 'edit' ) === preg_replace( '/-\d+$/', '', $t->get_sku( 'edit' ) ) ) {

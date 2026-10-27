@@ -2,6 +2,10 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.59.1 =
+* Fix: with Polylang, saving a product from the register no longer replaces the photos of its translations when the photos of the main product did not change. A translation can have its own photos (uploaded apart, with the alt text in its language); they are kept, and the translation only takes the main product's photos when they change in the register.
+* Technical: dox_pos_lang_copy_images() copies the photo and the gallery to a translation, each on its own, only when the main product's one differs from the last one it saw (_dox_pos_lang_imgs); the first time, a translation that already has a photo or a gallery keeps it.
+
 = 0.59.0 =
 * New: stores in several languages with Polylang or WPML. Each product exists once per language, and the register showed it twice (or three times): in Sell, Inventory, Edit product, the Excel file, the stock counts and the codes the product form suggests. Now only the products in the store's default language show, plus the ones with no language; a variation follows its product. Searching by the name in another language still finds the product, scanning the code of a translation sells the main product, and a web order placed in another language counts toward its main product in the best sellers.
 * New: in Movements, when the translations share their stock, a change is written once, on the main product (also for a variation, matched by its attributes). The tools that keep the stock of the translations the same save the other translation too, and that second save was written as a second movement. When each translation keeps its own stock, its movements stay on it.
