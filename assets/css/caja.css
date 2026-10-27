@@ -1546,3 +1546,10 @@ table.hsm td.num{white-space:nowrap}
 .langtab.untr .ldot{display:block}
 .langtools{margin-left:auto;display:flex;gap:6px}
 textarea.corta,.p-ltx[data-f="short"]{min-height:44px}
+/* La traducción que falta: el aviso del formulario y la marca de las listas. */
+.langmiss{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:8px 10px 8px 12px;border-radius:12px;
+  background:var(--st-warn-soft);color:var(--st-warn);font:500 13px/1.35 var(--ui)}
+.langmiss[hidden]{display:none}
+.langmiss span{flex:1 1 180px}
+.langmiss.ok{background:var(--st-ok-soft);color:var(--st-ok)}
+.prod .n i.nolang{color:var(--st-warn)}

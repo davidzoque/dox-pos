@@ -140,6 +140,7 @@ function dox_pos_register_routes() {
 			array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_update_product', 'permission_callback' => $pperm ),
 		)
 	);
+	register_rest_route( $ns, '/products/(?P<id>\d+)/translations', array( 'methods' => WP_REST_Server::CREATABLE, 'callback' => 'dox_pos_rest_product_translations', 'permission_callback' => $pperm ) ); // Crear las traducciones que faltan (Polylang).
 	register_rest_route( $ns, '/products/(?P<id>\d+)/card', array( 'methods' => WP_REST_Server::READABLE, 'callback' => 'dox_pos_rest_product_card', 'permission_callback' => $perm ) ); // La tarjeta: cualquiera con acceso a la caja.
 	register_rest_route( $ns, '/products/image/(?P<id>\d+)', array( 'methods' => WP_REST_Server::DELETABLE, 'callback' => 'dox_pos_rest_delete_image', 'permission_callback' => $pperm ) );
 	// Los costos de golpe, desde el Excel del inventario con la columna Costo llena.
@@ -426,6 +427,10 @@ function dox_pos_rest_find_products( WP_REST_Request $request ) {
 
 function dox_pos_rest_get_product( WP_REST_Request $request ) {
 	return dox_pos_rest_out( dox_pos_product_edit_data( (int) $request['id'] ) );
+}
+
+function dox_pos_rest_product_translations( WP_REST_Request $request ) {
+	return dox_pos_rest_out( dox_pos_product_translations( (int) $request['id'] ) );
 }
 
 function dox_pos_rest_product_card( WP_REST_Request $request ) {

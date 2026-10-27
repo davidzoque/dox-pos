@@ -396,12 +396,15 @@ function dox_pos_lang_sku( $sku, $lang, $id ) {
 }
 
 /**
- * Una copia de un producto (con sus variaciones), con la herramienta de duplicar de WooCommerce.
+ * Una copia de un producto (con sus variaciones), con la herramienta de duplicar de WooCommerce. La copia
+ * nace marcada (de qué ficha y de qué idioma es, y a medias): si la petición se corta antes de terminar, la
+ * siguiente vez que se guarda el producto la encuentra y la termina en vez de hacer otra.
  *
  * @param WC_Product $main Ficha principal.
+ * @param string     $lang Idioma de la copia.
  * @return int ID de la copia, 0 si no se pudo.
  */
-function dox_pos_lang_duplicate( $main ) {
+function dox_pos_lang_duplicate( $main, $lang ) {
 	if ( ! class_exists( 'WC_Admin_Duplicate_Product' ) ) {
 		$f = WC_ABSPATH . 'includes/admin/class-wc-admin-duplicate-product.php';
 		if ( ! file_exists( $f ) ) {
@@ -409,16 +412,126 @@ function dox_pos_lang_duplicate( $main ) {
 		}
 		include_once $f;
 	}
+	$mid = (int) $main->get_id();
 	// La referencia de la caja es de la ficha principal: con ella en la copia, un reintento devolvería la copia.
-	$skip = fn( $keys ) => array_merge( (array) $keys, array( '_dox_pos_ref', '_dox_pos_lang_of' ) );
+	$skip = fn( $keys ) => array_merge( (array) $keys, array( '_dox_pos_ref', '_dox_pos_lang_of', '_dox_pos_lang', '_dox_pos_lang_pending' ) );
+	// Las marcas van en el mismo guardado que crea cada ficha: no queda ninguna copia sin ellas.
+	$mark = function ( $dup, $orig ) use ( $mid, $lang ) {
+		$dup->update_meta_data( '_dox_pos_lang_of', (int) $orig->get_id() );
+		if ( (int) $orig->get_id() === $mid ) {
+			$dup->update_meta_data( '_dox_pos_lang', (string) $lang );
+			$dup->update_meta_data( '_dox_pos_lang_pending', 1 );
+		}
+	};
 	add_filter( 'woocommerce_duplicate_product_exclude_meta', $skip );
+	add_action( 'woocommerce_product_duplicate_before_save', $mark, 1, 2 );
 	try {
-		$d = ( new WC_Admin_Duplicate_Product() )->product_duplicate( wc_get_product( $main->get_id() ) );
+		$d = ( new WC_Admin_Duplicate_Product() )->product_duplicate( wc_get_product( $mid ) );
 	} catch ( Exception $e ) {
 		$d = null;
+	} finally {
+		remove_filter( 'woocommerce_duplicate_product_exclude_meta', $skip );
+		remove_action( 'woocommerce_product_duplicate_before_save', $mark, 1 );
 	}
-	remove_filter( 'woocommerce_duplicate_product_exclude_meta', $skip );
 	return $d && $d->get_id() ? (int) $d->get_id() : 0;
+}
+
+/**
+ * La copia de una ficha que la caja empezó en ese idioma y no llegó a enlazar (la petición se cortó). Solo
+ * una a medias: una traducción terminada que alguien desenlazó en Polylang no se vuelve a coger.
+ *
+ * @param int    $pid  Ficha principal.
+ * @param string $lang Idioma.
+ * @return int 0 si no hay.
+ */
+function dox_pos_lang_orphan( $pid, $lang ) {
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$ids = $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} o ON o.post_id = p.ID AND o.meta_key = '_dox_pos_lang_of' AND o.meta_value = %s JOIN {$wpdb->postmeta} l ON l.post_id = p.ID AND l.meta_key = '_dox_pos_lang' AND l.meta_value = %s JOIN {$wpdb->postmeta} w ON w.post_id = p.ID AND w.meta_key = '_dox_pos_lang_pending' WHERE p.post_type = 'product' AND p.post_status NOT IN ( 'trash', 'auto-draft' ) ORDER BY p.ID ASC", (string) $pid, (string) $lang ) );
+	foreach ( array_map( 'intval', $ids ) as $id ) {
+		// Polylang le pone un idioma al guardarla (el principal, casi siempre): vale mientras no esté enlazada con otra.
+		$group = array_diff( array_map( 'intval', (array) pll_get_post_translations( $id ) ), array( $id ) );
+		if ( ! $group ) {
+			return $id;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Un candado por producto e idioma mientras se crea su traducción. Es una fila de wp_options que se inserta con
+ * INSERT IGNORE (add_option() no sirve: si ya existe, la pisa). Uno de hace más de dos minutos es de una petición
+ * que murió y se puede coger.
+ *
+ * @param int    $pid  Ficha principal.
+ * @param string $lang Idioma.
+ * @param bool   $take true coge el candado, false lo suelta.
+ * @return bool Si se cogió.
+ */
+function dox_pos_lang_lock( $pid, $lang, $take = true ) {
+	global $wpdb;
+	static $mine = array(); // Lo que escribió esta petición en cada candado: solo suelta el suyo.
+	$key = 'dox_pos_lang_lock_' . (int) $pid . '_' . sanitize_key( $lang );
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Tiene que ir a la base, sin caché.
+	if ( ! $take ) {
+		if ( isset( $mine[ $key ] ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $key, $mine[ $key ] ) );
+			unset( $mine[ $key ] );
+		}
+		return true;
+	}
+	$now = time();
+	$val = $now . '-' . wp_generate_password( 8, false ); // La hora (para la caducidad) y algo único.
+	$got = (bool) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'no' )", $key, $val ) );
+	if ( ! $got ) {
+		$old = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $key ) );
+		$got = (int) $old < $now - 120 && $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $val, $key, $old ) );
+	}
+	// phpcs:enable
+	if ( $got ) {
+		$mine[ $key ] = $val;
+	}
+	return (bool) $got;
+}
+
+/**
+ * Las traducciones de un producto leídas de la base, sin la caché de Polylang: [ idioma => ID ].
+ *
+ * @param int $pid Producto.
+ * @return array<string,int>
+ */
+function dox_pos_lang_links_db( $pid ) {
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Justo lo que se quiere: sin caché.
+	$raw = $wpdb->get_var( $wpdb->prepare( "SELECT tt.description FROM {$wpdb->term_relationships} tr JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id AND tt.taxonomy = 'post_translations' WHERE tr.object_id = %d LIMIT 1", (int) $pid ) );
+	$map = $raw ? maybe_unserialize( $raw ) : array();
+	return is_array( $map ) ? array_map( 'intval', $map ) : array();
+}
+
+/**
+ * Los idiomas en los que a un producto le falta su traducción (o la tiene a medio crear): [ slug => nombre ].
+ * La que está en la papelera no falta: alguien la quitó y la caja no la vuelve a hacer.
+ * Vacío sin Polylang, con un solo idioma, o si el producto no es del idioma principal.
+ *
+ * @param int $pid Ficha principal.
+ * @return array<string,string>
+ */
+function dox_pos_lang_missing( $pid ) {
+	$out   = array();
+	$langs = dox_pos_lang_languages();
+	$pid   = (int) $pid;
+	if ( count( $langs ) < 2 || ! $pid || pll_get_post_language( $pid ) !== dox_pos_lang_default() ) {
+		return $out;
+	}
+	$links = (array) pll_get_post_translations( $pid );
+	foreach ( array_slice( $langs, 1 ) as $l ) {
+		$tid  = (int) ( $links[ $l['slug'] ] ?? 0 );
+		$post = $tid ? get_post( $tid ) : null;
+		if ( ! $post || ( 'trash' !== $post->post_status && get_post_meta( $tid, '_dox_pos_lang_pending', true ) ) ) {
+			$out[ $l['slug'] ] = $l['name'];
+		}
+	}
+	return $out;
 }
 
 /**
@@ -478,17 +591,19 @@ function dox_pos_lang_copy_shared( $from, $to, $price ) {
 }
 
 /**
- * Escribe un producto de la caja en sus traducciones: las crea si faltan (al crear con el ajuste puesto,
- * o al editar si se escribió algo en ese idioma), pone el texto de cada idioma y copia lo compartido.
+ * Escribe un producto de la caja en sus traducciones: las crea si faltan (con el ajuste puesto, o si se
+ * escribió algo en ese idioma), pone el texto de cada idioma y copia lo compartido. Se puede repetir sin
+ * miedo: una traducción que se cortó a medias (enlazada o no) se termina, y nunca se hace una segunda.
  * Nada de esto es un movimiento de unidades: el kardex no lo apunta.
  *
  * @param int   $pid    Ficha principal, ya guardada.
  * @param array $texts  dox_pos_lang_texts_from().
  * @param bool  $create Crear las traducciones que falten aunque no se haya escrito nada en ellas.
- * @return array made (idiomas creados), untranslated (creados con el texto de la principal), nocat ([idioma => categorías sin traducir]).
+ * @return array made (idiomas creados), untranslated (creados con el texto de la principal), nocat ([idioma => categorías sin traducir]),
+ *               failed (los que no se pudieron crear).
  */
 function dox_pos_lang_sync( $pid, $texts, $create ) {
-	$out   = array( 'made' => array(), 'untranslated' => array(), 'nocat' => array() );
+	$out   = array( 'made' => array(), 'untranslated' => array(), 'nocat' => array(), 'failed' => array() );
 	$langs = dox_pos_lang_languages();
 	$main  = wc_get_product( (int) $pid );
 	if ( count( $langs ) < 2 || ! $main || ! function_exists( 'pll_save_post_translations' ) ) {
@@ -504,6 +619,7 @@ function dox_pos_lang_sync( $pid, $texts, $create ) {
 	}
 	$links[ $def ] = (int) $pid;
 	$cat_tr        = function_exists( 'pll_is_translated_taxonomy' ) && pll_is_translated_taxonomy( 'product_cat' );
+	$held = array(); // Los candados que se cogieron (dox_pos_lang_lock()).
 	dox_pos_stock_quiet( true );
 	try {
 		foreach ( array_slice( $langs, 1 ) as $l ) {
@@ -512,19 +628,57 @@ function dox_pos_lang_sync( $pid, $texts, $create ) {
 			$typed = $sent && ( '' !== $sent['name'] || '' !== $sent['short'] || '' !== $sent['description'] );
 			$tid   = (int) ( $links[ $lang ] ?? 0 );
 			$new   = false;
-			if ( ! $tid || ! wc_get_product( $tid ) ) {
-				if ( ! $create && ! $typed ) {
+			if ( $tid && ! wc_get_product( $tid ) ) {
+				$tid = 0;
+			}
+			if ( $tid && 'trash' === get_post_status( $tid ) ) {
+				continue; // La mandaron a la papelera: se respeta, ni se toca ni se hace otra.
+			}
+			if ( ! $tid || get_post_meta( $tid, '_dox_pos_lang_pending', true ) ) {
+				if ( ! $tid && ! $create && ! $typed ) {
 					continue;
 				}
-				$tid = dox_pos_lang_duplicate( $main );
+				// Crear (o terminar) una traducción, de una petición a la vez: abrir el producto y guardarlo casi a la
+				// vez, o dos teléfonos, harían dos copias. La que llega segunda no crea nada y lo dice.
+				if ( ! dox_pos_lang_lock( (int) $pid, $lang ) ) {
+					$out['failed'][] = $l['name'];
+					continue;
+				}
+				$held[] = $lang;
+				// Con el candado puesto, los enlaces de la base (los leídos antes pueden ser de antes de que la otra terminara).
+				foreach ( dox_pos_lang_links_db( (int) $pid ) as $ol => $oid ) {
+					if ( $ol !== $def && ! isset( $links[ $ol ] ) ) {
+						$links[ $ol ] = $oid;
+					}
+				}
+				$tid = (int) ( $links[ $lang ] ?? 0 );
+				if ( $tid && ! wc_get_product( $tid ) ) {
+					$tid = 0;
+				}
+				if ( $tid && 'trash' === get_post_status( $tid ) ) {
+					continue; // La otra petición la dejó hecha y alguien ya la mandó a la papelera.
+				}
 				if ( ! $tid ) {
-					continue;
+					// Primero la que se empezó y se cortó antes de enlazarla; si no hay, una copia nueva.
+					$tid = dox_pos_lang_orphan( (int) $pid, $lang );
+					if ( ! $tid ) {
+						$tid = dox_pos_lang_duplicate( $main, $lang );
+					}
+					if ( ! $tid ) {
+						$out['failed'][] = $l['name'];
+						continue;
+					}
+					pll_set_post_language( $tid, $lang );
+					$links[ $lang ] = $tid;
+					pll_save_post_translations( $links );
+					update_post_meta( $tid, '_dox_pos_lang_pending', 1 );
 				}
-				pll_set_post_language( $tid, $lang );
-				$links[ $lang ] = $tid;
-				pll_save_post_translations( $links );
-				$new           = true;
-				$out['made'][] = $l['name'];
+				wp_cache_delete( $tid, 'post_meta' );
+				// La que quedó a medias (la petición se cortó) se termina como si fuera nueva.
+				if ( get_post_meta( $tid, '_dox_pos_lang_pending', true ) ) {
+					$new           = true;
+					$out['made'][] = $l['name'];
+				}
 			}
 			$t = wc_get_product( $tid );
 			// El texto: el que se escribió en esa pestaña; si no se escribió nombre, el de la principal.
@@ -572,11 +726,15 @@ function dox_pos_lang_sync( $pid, $texts, $create ) {
 			if ( $main->is_type( 'variable' ) ) {
 				dox_pos_lang_sync_variations( $main, $tid, $lang, $price );
 			}
+			delete_post_meta( $tid, '_dox_pos_lang_pending' ); // Terminada.
 			wc_delete_product_transients( $tid );
 			do_action( 'litespeed_purge_post', $tid );
 		}
 	} finally {
 		dox_pos_stock_quiet( false );
+		foreach ( $held as $lang ) {
+			dox_pos_lang_lock( (int) $pid, $lang, false );
+		}
 	}
 	return $out;
 }

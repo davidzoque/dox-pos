@@ -246,6 +246,9 @@ dox_pos_enqueue_caja( $cfg );
 							<h4><?php esc_html_e( 'The product', 'dox-pos' ); ?></h4>
 							<?php // Con Polylang: pestañas por idioma encima de lo que se escribe en cada uno (includes/multilingual.php). ?>
 							<?php dox_pos_lang_tabs_html( $cfg['langs'] ); ?>
+							<?php if ( $cfg['langs'] ) : // Lo pinta caja.js: "Falta la versión en English" y su botón Crear ahora. ?>
+								<div class="langmiss" id="p-langmiss" role="status" hidden></div>
+							<?php endif; ?>
 							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><?php dox_pos_lang_fields_html( $cfg['langs'], 'name', 'input', __( 'Name', 'dox-pos' ) ); ?><p class="fwarn" id="p-nom-dup" hidden></p></div>
 							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div>
 								<div class="nuevacat" id="p-nuevacat" hidden><?php // Una categoría nueva: se crea al momento y queda elegida (la abre el botón "Nueva categoría…", que pinta el JS). ?>

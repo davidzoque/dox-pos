@@ -125,9 +125,23 @@ el filtro `dox_pos_lang_sync_price`, costo, fotos, peso y medidas, unidades, bol
 categorías por `pll_get_term`) dentro de `dox_pos_stock_quiet()`, así el kardex no apunta las copias. Cada variación de la
 traducción lleva `_dox_pos_lang_of` con su variación principal. El código de la traducción es el principal con `-EN`
 (filtro `dox_pos_translation_sku`); solo se pone al crearla o si está vacío. El formulario manda `i18n` ({ en: { name,
-short, description } }) con el texto de cada pestaña; al editar, una traducción que no existe solo se crea si se escribió
-algo en su pestaña. Las pestañas las pinta `dox_pos_lang_tabs_html()` y las mueve caja.js, que avisa con `idioma` para
-que el Pro ponga "Traducir" (`/assistant/translate`). Con WPML solo se filtran las listas.
+short, description } }) con el texto de cada pestaña; al editar, una traducción que no existe se crea si el ajuste está
+puesto o si se escribió algo en su pestaña.
+
+Crear una traducción se puede repetir sin miedo. `dox_pos_lang_duplicate()` marca la copia en el mismo guardado que la
+crea (gancho `woocommerce_product_duplicate_before_save`): la ficha lleva `_dox_pos_lang_of` (la principal),
+`_dox_pos_lang` (su idioma) y `_dox_pos_lang_pending` hasta que `dox_pos_lang_sync()` la termina; cada variación lleva
+`_dox_pos_lang_of` con la suya. Si la petición se corta, la siguiente vez `dox_pos_lang_sync()` adopta la copia suelta
+(`dox_pos_lang_orphan()`: Polylang le pone el idioma principal al guardarla, así que vale mientras no esté enlazada con
+otra) o termina la que quedó a medias, en vez de hacer otra. Se repara al reintentar el mismo envío (misma `ref`), al
+guardar desde Editar producto y con `POST /products/{id}/translations` ("Crear ahora"), que caja.js llama solo al abrir
+un producto si el ajuste está puesto. `dox_pos_lang_missing()` da `lang_missing` en los datos de edición y `nolang` en
+Inventario (`/catalog`) y en la lista de Editar producto (la marca "Falta en English"). Crear o terminar una traducción va con un candado por
+producto e idioma (`dox_pos_lang_lock()`, una fila de `wp_options` con `INSERT IGNORE`; caduca a los dos minutos): la
+petición que llega segunda no crea nada y lo dice en `failed`, y la que lo coge relee los enlaces de la base
+(`dox_pos_lang_links_db()`). Una traducción en la papelera se respeta: no cuenta como que falta y no se rehace. Las pestañas las pinta `dox_pos_lang_tabs_html()` y las mueve caja.js, que avisa con `idioma` para
+que el Pro ponga "Traducir" (`/assistant/translate`). Con WPML solo se filtran las listas: crear traducciones, las
+pestañas y la marca de lo que falta son solo de Polylang, porque no hay una tienda con WPML donde probarlo.
 
 Dox POS no iguala las existencias entre traducciones: las cambia siempre con las funciones de WooCommerce y deja que
 la tienda lo haga (Polylang for WooCommerce, WooCommerce Multilingual o un código propio, como el de SOLZ en su tema).

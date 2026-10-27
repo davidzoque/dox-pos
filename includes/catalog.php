@@ -80,6 +80,10 @@ function dox_pos_catalog_page( $page = 1, $per = 20 ) {
 	foreach ( $ids as $id ) {
 		$item = dox_pos_format_product( (int) $id );
 		if ( $item ) {
+			$miss = dox_pos_lang_missing( (int) $id ); // Con Polylang: la marca de Inventario de lo que no tiene traducción.
+			if ( $miss ) {
+				$item['nolang'] = array_values( $miss );
+			}
 			$items[] = $item;
 		}
 	}

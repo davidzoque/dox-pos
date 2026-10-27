@@ -328,6 +328,8 @@
 		}
 	}
 	// Una fila de la lista: el producto y, si está desplegado, sus tallas.
+	// Con Polylang: la marca del producto al que le falta una traducción (Inventario y Editar producto).
+	const marcaIdioma = (p) => (p.nolang && p.nolang.length ? '<i class="nolang">' + esc(sprintf(__("Missing in %s", "dox-pos"), p.nolang.join(", "))) + "</i>" : "");
 	function filaProducto(p, modo) {
 		// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
 		const bolsas = {};
@@ -343,7 +345,7 @@
 		b.className = "prod";
 		b.setAttribute("aria-expanded", st.abierto[modo] === p.id);
 		b.innerHTML =
-			'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i></span>" +
+			'<span class="n">' + esc(p.name) + "<i>" + p.variations.length + " " + que + "</i>" + (modo === "entrada" ? marcaIdioma(p) : "") + "</span>" +
 			'<span class="p">' + dinero(p.price) + '<i class="' + (sinLimite || hay ? "" : "bad") + '">' + (sinLimite ? __("available", "dox-pos") : hay ? sprintf(__("%d in stock", "dox-pos"), hay) : __("out of stock", "dox-pos")) + "</i></span>";
 		b.prepend(miniatura(p));
 		b.onclick = () => desplegarProducto(p.id, modo);
@@ -4150,7 +4152,10 @@
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
 		try {
-			const d = await post(pr.edit ? "products/" + pr.edit.id : "products", payload);
+			const eid = pr.edit ? pr.edit.id : 0;
+			if (pr.sanando) await pr.sanando; // Que "Crear ahora" termine antes: si no, las dos peticiones crearían la traducción.
+			if ((pr.edit ? pr.edit.id : 0) !== eid) { soltar(); return; } // Mientras tanto se abrió otro producto: esto no es suyo.
+			const d = await post(eid ? "products/" + eid : "products", payload);
 			const rp = repartoPendiente(); // Se guarda igual; se avisa.
 			// Al editar, "Guardado" con "Listo"; al crear, el de "Crear otro". El aviso del reparto va aparte: antes se
 			// comía el else y al editar salían los dos modales (el segundo, con "Crear otro", tapaba al primero).
@@ -4177,6 +4182,7 @@
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
+		pr.faltan = {}; pintarFaltan();
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.realQty = {}; pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null; pr.sinTonos = false; // "Ahora no" vale para un producto.
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-corta", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
@@ -4375,7 +4381,7 @@
 			b.className = "prod";
 			const estado = p.status === "publish" ? "" : '<i class="oculto">' + (p.status === "private" ? __("Hidden", "dox-pos") : __("Draft", "dox-pos")) + "</i>";
 			const que = p.type === "variable" ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
-			b.innerHTML = '<span class="n">' + esc(p.name) + "<i>" + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + "</i>" + estado + "</span>" + '<span class="p">' + dinero(p.price) + "</span>";
+			b.innerHTML = '<span class="n">' + esc(p.name) + "<i>" + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + "</i>" + estado + marcaIdioma(p) + "</span>" + '<span class="p">' + dinero(p.price) + "</span>";
 			b.prepend(miniatura(p));
 			b.onclick = () => cargarProducto(p.id);
 			li.appendChild(b);
@@ -4418,6 +4424,7 @@
 		$("#p-desc").value = d.description || "";
 		if ($("#p-corta")) $("#p-corta").value = d.short || "";
 		ponerTextosIdiomas(d.i18n);
+		pr.faltan = d.lang_missing || {};
 		pr.paquete0 = d.package || null; // Lo que varía entre las tallas llega vacío (mixed_fields): si se deja así, no se manda y no se toca.
 		ponerPaquete(pr.paquete0);
 		$("#p-pub").checked = d.status === "publish";
@@ -4433,9 +4440,13 @@
 		pintarModo();
 		pr.huella = huellaProducto();
 		$("#t-producto .scroll").scrollTop = 0;
+		// Le falta una traducción (o se cortó a medias): con el ajuste puesto se crea ya; si no, se ofrece.
+		if (Object.keys(pr.faltan).length && cfg.lang_copies) crearTraducciones(true);
+		else pintarFaltan();
 	}
 	function modalProductoGuardado(p, langs) {
 		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
+		if (pr.edit && langs && langs.missing) { pr.faltan = langs.missing; pintarFaltan(); }
 		modal("<h3>" + esc(__("Saved", "dox-pos")) + '</h3><p class="mp">' + esc(p.name) + " · " + esc(p.status === "publish" ? __("published", "dox-pos") : __("hidden", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + ".</p>" + avisoIdiomas(langs) + '<div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 	}
@@ -4504,10 +4515,57 @@
 		ponerIdioma(LDEF);
 	}
 	const huellaIdiomas = () => [...document.querySelectorAll(".p-ltx")].map((el) => el.value);
+	// El aviso de la traducción que falta, encima del nombre: "Falta la versión en English" y Crear ahora.
+	function pintarFaltan(hecho) {
+		const box = $("#p-langmiss");
+		if (!box) return;
+		const nombres = Object.values(pr.faltan || {});
+		if (!pr.edit || (!nombres.length && !hecho)) { box.hidden = true; box.innerHTML = ""; return; }
+		box.hidden = false;
+		if (!nombres.length) { box.className = "langmiss ok"; box.innerHTML = "<span>" + esc(sprintf(__("Also created in %s.", "dox-pos"), hecho)) + "</span>"; return; }
+		box.className = "langmiss";
+		box.innerHTML = "<span>" + esc(sprintf(__("The %s version is missing.", "dox-pos"), nombres.join(", "))) + '</span><button type="button" class="mini" id="p-langmiss-go">' + esc(__("Create now", "dox-pos")) + "</button>";
+		$("#p-langmiss-go").onclick = () => crearTraducciones(false);
+	}
+	// Crea las que faltan con lo que tiene la ficha guardada. Lo que ya se escribió en esas pestañas no se pisa.
+	function crearTraducciones(solo) {
+		const id = pr.edit && pr.edit.id;
+		if (!id || pr.sanando) return pr.sanando;
+		pr.sanando = pedirTraducciones(id, solo).finally(() => { pr.sanando = null; });
+		return pr.sanando;
+	}
+	async function pedirTraducciones(id, solo) {
+		const btn = $("#p-langmiss-go");
+		const soltar = btn ? ocupar(btn, __("Creating…", "dox-pos")) : () => {};
+		let d;
+		try { d = await api("products/" + id + "/translations", { method: "POST" }); } catch (e) {
+			soltar();
+			if (e.message === "sesion" || !pr.edit || pr.edit.id !== id) return;
+			if (!solo) toast(e.message);
+			pintarFaltan();
+			return;
+		}
+		soltar();
+		if (!pr.edit || pr.edit.id !== id) return; // Mientras tanto se abrió otro.
+		const limpia = huellaProducto() === pr.huella; // Se mira ahora: lo que se escribió mientras tanto sigue contando como cambio.
+		pr.edit.i18n = d.i18n || {};
+		LANGS.slice(1).forEach((l) => {
+			const t = (d.i18n || {})[l.slug] || {};
+			camposIdioma(l.slug).forEach((el) => { if (!el.value.trim()) el.value = t[el.dataset.f] || ""; });
+		});
+		pintarIdiomas();
+		if (limpia) pr.huella = huellaProducto();
+		pr.faltan = d.lang_missing || {};
+		const hechos = (d.langs && d.langs.made) || [];
+		pintarFaltan(hechos.join(", "));
+		if (!solo && Object.keys(pr.faltan).length) toast(sprintf(__("It could not be created in %s. Try again in a moment.", "dox-pos"), Object.values(pr.faltan).join(", ")));
+	}
 	// Lo que se dice al crear: en qué idiomas quedó, si el texto sigue en el principal y qué categoría no tiene traducción.
 	function avisoIdiomas(langs) {
-		if (!langs || !langs.made || !langs.made.length) return "";
-		let t = sprintf(__("Also created in %s.", "dox-pos"), langs.made.join(", "));
+		if (!langs) return "";
+		const fallo = langs.failed && langs.failed.length ? " " + sprintf(__("It could not be created in %s. Try again in a moment.", "dox-pos"), langs.failed.join(", ")) : "";
+		if (!langs.made || !langs.made.length) return fallo ? '<p class="mp">' + esc(fallo.trim()) + "</p>" : "";
+		let t = sprintf(__("Also created in %s.", "dox-pos"), langs.made.join(", ")) + fallo;
 		if (langs.untranslated && langs.untranslated.length) t += " " + sprintf(__("The text is in %1$s until you translate it (%2$s).", "dox-pos"), (LANGS[0] || {}).name || LDEF, langs.untranslated.join(", "));
 		Object.keys(langs.nocat || {}).forEach((ln) => { t += " " + sprintf(__("In %1$s it has no category, because %2$s has no translation in that language.", "dox-pos"), ln, langs.nocat[ln].join(", ")); });
 		return '<p class="mp">' + esc(t) + "</p>";

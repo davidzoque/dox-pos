@@ -2001,7 +2001,19 @@ function dox_pos_create_product( $data ) {
 	if ( $ref ) {
 		$dup = dox_pos_product_by_ref( $ref ); // El mismo envío dos veces: se devuelve lo que ya existe.
 		if ( $dup ) {
-			return dox_pos_product_response( $dup );
+			// Si el primero se cortó después de guardar la ficha, aquí se terminan sus traducciones (sin repetir ninguna).
+			$langs = null;
+			if ( dox_pos_lang_copies_on() ) {
+				if ( ! pll_get_post_language( $dup->get_id() ) ) {
+					dox_pos_lang_assign( $dup->get_id() );
+				}
+				$langs = dox_pos_lang_sync( $dup->get_id(), dox_pos_lang_texts_from( $data ), true );
+			}
+			$out = dox_pos_product_response( wc_get_product( $dup->get_id() ) );
+			if ( $langs ) {
+				$out['langs'] = $langs;
+			}
+			return $out;
 		}
 	}
 	$name = sanitize_text_field( (string) ( $data['name'] ?? '' ) );
@@ -2804,6 +2816,7 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 			'price'      => (float) $p->get_price(),
 			'image'      => $p->get_image_id() ? wp_get_attachment_image_url( $p->get_image_id(), 'woocommerce_thumbnail' ) : '',
 			'variations' => $p->is_type( 'variable' ) ? count( $p->get_children() ) : 0,
+			'nolang'     => array_values( dox_pos_lang_missing( $pid ) ), // Con Polylang: los idiomas en que le falta la traducción.
 		);
 	}
 	return array( 'items' => $items, 'total' => $total, 'page' => $page, 'pages' => max( 1, (int) ceil( $total / $per ) ) );
@@ -3020,6 +3033,7 @@ function dox_pos_product_edit_data( $id ) {
 		'description' => dox_pos_plain_text( $p->get_description( 'edit' ) ),
 		'short'       => dox_pos_plain_text( $p->get_short_description( 'edit' ) ),
 		'i18n'        => dox_pos_lang_languages() ? dox_pos_lang_edit_texts( $p->get_id() ) : array(), // Con Polylang: los textos de cada traducción.
+		'lang_missing' => dox_pos_lang_missing( $p->get_id() ), // Los idiomas sin traducción (o con la suya a medias).
 		'price'       => 1 === count( $prices ) ? $prices[0] : '', // Vacío: las tallas tienen precios distintos.
 		'price_min'   => $prices ? min( $prices ) : 0,
 		'price_max'   => $prices ? max( $prices ) : 0,
@@ -3610,7 +3624,11 @@ function dox_pos_update_product( $id, $data ) {
 		update_post_meta( $pid, '_dox_pos_axes', array( (string) $model['size_attr'], (string) $model['color_attr'] ) );
 	}
 	// Con Polylang, lo compartido pasa a sus traducciones y cada idioma guarda su texto (includes/multilingual.php).
-	$langs = dox_pos_lang_languages() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), false ) : null;
+	// Con el ajuste puesto, la traducción que falte (o que se cortó a medias) se crea ahora.
+	$langs = dox_pos_lang_languages() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), dox_pos_lang_copies_on() ) : null;
+	if ( $langs ) {
+		$langs['missing'] = dox_pos_lang_missing( $pid ); // Para que el aviso de la caja quede al día.
+	}
 	delete_transient( 'dox_pos_product_form' );
 	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
@@ -3619,6 +3637,29 @@ function dox_pos_update_product( $id, $data ) {
 		$out['langs'] = $langs;
 	}
 	return $out;
+}
+
+/**
+ * "Crear ahora": las traducciones que le faltan a un producto (o que se cortaron a medias), con lo que tiene
+ * la ficha principal. Lo pide la caja al abrir el producto (con el ajuste puesto) o desde su aviso.
+ *
+ * @param int $id Producto.
+ * @return array|WP_Error langs (lo de dox_pos_lang_sync()), i18n y lang_missing al día.
+ */
+function dox_pos_product_translations( $id ) {
+	$p = wc_get_product( (int) $id );
+	if ( ! $p || $p->is_type( 'variation' ) ) {
+		return new WP_Error( 'dox_pos_no_existe', __( 'That product does not exist.', 'dox-pos' ), array( 'status' => 404 ) );
+	}
+	if ( ! dox_pos_lang_languages() || ! function_exists( 'pll_save_post_translations' ) ) {
+		return new WP_Error( 'dox_pos_sin_idiomas', __( 'The store is not in several languages.', 'dox-pos' ) );
+	}
+	$langs = dox_pos_lang_sync( $p->get_id(), array(), true );
+	return array(
+		'langs'        => $langs,
+		'i18n'         => dox_pos_lang_edit_texts( $p->get_id() ),
+		'lang_missing' => dox_pos_lang_missing( $p->get_id() ),
+	);
 }
 
 /**
