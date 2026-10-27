@@ -69,6 +69,7 @@ function dox_pos_products_settings( $reset = false ) {
 		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), dox_pos_attribute_names( 'color' ) ),
 		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
 		'real_near'  => max( 0, min( 9, (int) ( $s['real_near'] ?? 0 ) ) ), // 0: apagado. Si no, a cuántas tallas puede estar la prenda real (includes/real-sizes.php).
+		'translations' => ! isset( $s['translations'] ) || ! empty( $s['translations'] ), // Con Polylang, crear también en los otros idiomas (includes/multilingual.php).
 	);
 	return $cache;
 }
@@ -1363,7 +1364,7 @@ function dox_pos_term_label( $term_id, $tax ) {
  * @return array
  */
 function dox_pos_product_categories( $sizes = array() ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
-	$all = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) );
+	$all = get_terms( dox_pos_lang_term_args( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) ) ); // Con Polylang, las del idioma principal.
 	if ( is_wp_error( $all ) ) {
 		return array();
 	}
@@ -2134,6 +2135,7 @@ function dox_pos_create_product( $data ) {
 	$product->set_catalog_visibility( 'visible' );
 	$product->set_category_ids( $cats );
 	$product->set_description( wp_kses_post( (string) ( $data['description'] ?? '' ) ) );
+	$product->set_short_description( wp_kses_post( (string) ( $data['short'] ?? '' ) ) );
 	$cost = dox_pos_can_see_costs() ? dox_pos_parse_money( $data['cost'] ?? '' ) : null;
 	if ( null !== $cost && $cost > 0 ) {
 		$product->set_cogs_value( round( $cost, 2 ) ); // El costo por unidad va en el producto; cada talla lo hereda.
@@ -2281,10 +2283,16 @@ function dox_pos_create_product( $data ) {
 		delete_post_meta( $im['id'], '_dox_pos_pending' );
 		wp_update_post( array( 'ID' => $im['id'], 'post_parent' => $pid ) );
 	}
+	// Con Polylang y el ajuste puesto, también en los otros idiomas (includes/multilingual.php).
+	$langs = dox_pos_lang_copies_on() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), true ) : null;
 	delete_transient( 'dox_pos_product_form' );
 	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
-	return dox_pos_product_response( wc_get_product( $pid ), $units, $nvars );
+	$out = dox_pos_product_response( wc_get_product( $pid ), $units, $nvars );
+	if ( $langs ) {
+		$out['langs'] = $langs;
+	}
+	return $out;
 }
 
 /**
@@ -2666,6 +2674,7 @@ function dox_pos_create_category( $data ) {
 			return new WP_Error( 'dox_pos_categoria', sprintf( /* translators: 1: category, 2: reason */ __( 'The category %1$s could not be created: %2$s', 'dox-pos' ), $name, $r->get_error_message() ) );
 		}
 		$id = (int) $r['term_id'];
+		dox_pos_lang_assign_term( $id ); // En una tienda en varios idiomas, nace en el principal.
 	}
 	delete_transient( 'dox_pos_product_form' );
 	foreach ( dox_pos_product_categories() as $c ) {
@@ -3009,6 +3018,8 @@ function dox_pos_product_edit_data( $id ) {
 		'url'         => get_permalink( $p->get_id() ),
 		'categories'  => array_map( 'intval', $p->get_category_ids() ),
 		'description' => dox_pos_plain_text( $p->get_description( 'edit' ) ),
+		'short'       => dox_pos_plain_text( $p->get_short_description( 'edit' ) ),
+		'i18n'        => dox_pos_lang_languages() ? dox_pos_lang_edit_texts( $p->get_id() ) : array(), // Con Polylang: los textos de cada traducción.
 		'price'       => 1 === count( $prices ) ? $prices[0] : '', // Vacío: las tallas tienen precios distintos.
 		'price_min'   => $prices ? min( $prices ) : 0,
 		'price_max'   => $prices ? max( $prices ) : 0,
@@ -3267,6 +3278,9 @@ function dox_pos_update_product( $id, $data ) {
 	$desc = (string) ( $data['description'] ?? '' );
 	if ( trim( $desc ) !== dox_pos_plain_text( $p->get_description( 'edit' ) ) ) {
 		$p->set_description( wp_kses_post( $desc ) ); // Solo si se tocó: así no se pierde el HTML de una descripción hecha en WooCommerce.
+	}
+	if ( array_key_exists( 'short', $data ) ) { // Una caja anterior a la 0.59 no la manda: no se toca.
+		dox_pos_lang_set_text( $p, 'short', trim( (string) $data['short'] ) );
 	}
 	// Fotos: la principal es la primera "para todas"; el resto va a la galería; las que se quitaron
 	// se sueltan del producto (el archivo sigue en la biblioteca de medios).
@@ -3595,10 +3609,16 @@ function dox_pos_update_product( $id, $data ) {
 		// Lo editado desde la caja se queda con las filas y columnas con las que se editó (dox_pos_product_axes()).
 		update_post_meta( $pid, '_dox_pos_axes', array( (string) $model['size_attr'], (string) $model['color_attr'] ) );
 	}
+	// Con Polylang, lo compartido pasa a sus traducciones y cada idioma guarda su texto (includes/multilingual.php).
+	$langs = dox_pos_lang_languages() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), false ) : null;
 	delete_transient( 'dox_pos_product_form' );
 	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
-	return dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
+	$out = dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
+	if ( $langs ) {
+		$out['langs'] = $langs;
+	}
+	return $out;
 }
 
 /**

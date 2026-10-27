@@ -7,7 +7,12 @@
  *
  * Las existencias se siguen cambiando solo con las funciones de WooCommerce, para que lo que la tienda
  * use para igualarlas entre traducciones (Polylang for WooCommerce, WPML o un código propio) se entere.
- * Dox POS no las iguala por su cuenta.
+ * Lo que vende la web no lo iguala Dox POS: eso es de la tienda.
+ *
+ * Con Polylang, un producto creado o editado desde la caja se escribe también en sus traducciones
+ * (dox_pos_lang_sync()): cada idioma con su nombre y sus descripciones, y lo demás (precio, costo, fotos,
+ * categorías, unidades, tallas y colores) copiado de la ficha principal. Con WPML todavía no (TODO: sus
+ * traducciones se crean desde su propio editor).
  *
  * Sin Polylang ni WPML nada de esto consulta la base: las funciones devuelven '' o lo mismo que reciben.
  *
@@ -151,6 +156,16 @@ function dox_pos_lang_main_id( $id ) {
  */
 function dox_pos_lang_twin_variation( $id, $main ) {
 	global $wpdb;
+	// La que la caja creó o copió de esta lleva su marca: vale aunque los atributos cambien después.
+	$of = (int) get_post_meta( $id, '_dox_pos_lang_of', true );
+	if ( $of && (int) get_post_field( 'post_parent', $of ) === (int) $main ) {
+		return $of;
+	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$marked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_dox_pos_lang_of' AND m.meta_value = %s WHERE p.post_parent = %d AND p.post_type = 'product_variation' LIMIT 1", (string) $id, $main ) );
+	if ( $marked ) {
+		return $marked;
+	}
 	$attrs = array();
 	foreach ( get_post_meta( $id ) as $k => $v ) {
 		if ( 0 === strpos( $k, 'attribute_' ) ) {
@@ -175,6 +190,31 @@ function dox_pos_lang_twin_variation( $id, $main ) {
 		}
 	}
 	return 0;
+}
+
+/**
+ * Los argumentos de get_terms() para las categorías de producto, con Polylang solo las del idioma principal
+ * (si las categorías se traducen). Sin plugin de idiomas, los mismos.
+ *
+ * @param array $args Argumentos de get_terms().
+ * @return array
+ */
+function dox_pos_lang_term_args( $args ) {
+	if ( 'polylang' === dox_pos_lang_plugin() && function_exists( 'pll_is_translated_taxonomy' ) && pll_is_translated_taxonomy( 'product_cat' ) ) {
+		$args['lang'] = dox_pos_lang_default();
+	}
+	return $args;
+}
+
+/**
+ * Una categoría creada desde la caja queda en el idioma principal.
+ *
+ * @param int $term_id Categoría.
+ */
+function dox_pos_lang_assign_term( $term_id ) {
+	if ( 'polylang' === dox_pos_lang_plugin() && function_exists( 'pll_set_term_language' ) && function_exists( 'pll_is_translated_taxonomy' ) && pll_is_translated_taxonomy( 'product_cat' ) ) {
+		pll_set_term_language( (int) $term_id, dox_pos_lang_default() );
+	}
 }
 
 /**
@@ -206,4 +246,389 @@ function dox_pos_lang_assign( $id ) {
 			);
 			break;
 	}
+}
+
+/* =====================================================================
+ * Las traducciones de un producto creado o editado desde la caja (Polylang)
+ * ===================================================================== */
+
+/**
+ * Los idiomas de la tienda para el formulario de producto, el principal primero:
+ * [ [ 'slug' => 'es', 'name' => 'Español' ], ... ]. Solo con Polylang y más de un idioma.
+ *
+ * @return array
+ */
+function dox_pos_lang_languages() {
+	static $out = null;
+	if ( null !== $out ) {
+		return $out;
+	}
+	$out = array();
+	if ( 'polylang' !== dox_pos_lang_plugin() || ! function_exists( 'pll_languages_list' ) ) {
+		return $out;
+	}
+	$slugs = array_values( (array) pll_languages_list( array( 'fields' => 'slug' ) ) );
+	$names = array_values( (array) pll_languages_list( array( 'fields' => 'name' ) ) );
+	if ( count( $slugs ) < 2 ) {
+		return $out;
+	}
+	$def = dox_pos_lang_default();
+	foreach ( $slugs as $i => $slug ) {
+		$row = array( 'slug' => (string) $slug, 'name' => (string) ( $names[ $i ] ?? $slug ) );
+		if ( $slug === $def ) {
+			array_unshift( $out, $row );
+		} else {
+			$out[] = $row;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Las pestañas de idioma del formulario de producto (caja.js las enseña y esconde).
+ *
+ * @param array $langs dox_pos_lang_languages().
+ */
+function dox_pos_lang_tabs_html( $langs ) {
+	if ( ! $langs ) {
+		return;
+	}
+	echo '<div class="langtabs" role="tablist" aria-label="' . esc_attr__( 'Language of the text', 'dox-pos' ) . '" hidden>';
+	foreach ( $langs as $i => $l ) {
+		echo '<button type="button" class="langtab" role="tab" data-lang="' . esc_attr( $l['slug'] ) . '" aria-selected="' . ( $i ? 'false' : 'true' ) . '" title="' . esc_attr( $l['name'] ) . '">' . esc_html( strtoupper( $l['slug'] ) ) . ( $i ? '<i class="ldot" title="' . esc_attr__( 'Not translated', 'dox-pos' ) . '"></i>' : '' ) . '</button>';
+	}
+	echo '<span class="langtools"></span></div>';
+}
+
+/**
+ * Los campos de un texto en cada otro idioma, escondidos hasta tocar su pestaña.
+ *
+ * @param array  $langs dox_pos_lang_languages().
+ * @param string $field name, short o description.
+ * @param string $tag   input o textarea.
+ * @param string $label Nombre del campo, para los lectores de pantalla.
+ */
+function dox_pos_lang_fields_html( $langs, $field, $tag, $label ) {
+	foreach ( array_slice( (array) $langs, 1 ) as $l ) {
+		/* translators: 1: field, like "Name"; 2: language, like "English" */
+		$aria = sprintf( __( '%1$s (%2$s)', 'dox-pos' ), $label, $l['name'] );
+		$attr = 'class="p-ltx" data-lang="' . esc_attr( $l['slug'] ) . '" data-f="' . esc_attr( $field ) . '" aria-label="' . esc_attr( $aria ) . '" hidden';
+		echo 'input' === $tag ? '<input ' . $attr . ' autocomplete="off">' : '<textarea ' . $attr . '></textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Cada pieza ya va escapada arriba.
+	}
+}
+
+/**
+ * ¿Un producto nuevo de la caja se crea también en los otros idiomas? (Ajustes > Productos.)
+ *
+ * @return bool
+ */
+function dox_pos_lang_copies_on() {
+	$s = dox_pos_products_settings();
+	return ! empty( $s['translations'] ) && count( dox_pos_lang_languages() ) > 1 && function_exists( 'pll_save_post_translations' );
+}
+
+/**
+ * Los textos de cada idioma que manda el formulario (i18n: { en: { name, short, description } }).
+ * Solo los idiomas que mandó; los que no, no se tocan.
+ *
+ * @param array $data Lo que manda la caja.
+ * @return array<string,array{name:string,short:string,description:string}>
+ */
+function dox_pos_lang_texts_from( $data ) {
+	$out = array();
+	$in  = is_array( $data['i18n'] ?? null ) ? $data['i18n'] : array();
+	foreach ( array_slice( dox_pos_lang_languages(), 1 ) as $l ) {
+		if ( ! is_array( $in[ $l['slug'] ] ?? null ) ) {
+			continue;
+		}
+		$t                 = $in[ $l['slug'] ];
+		$out[ $l['slug'] ] = array(
+			'name'        => sanitize_text_field( (string) ( $t['name'] ?? '' ) ),
+			'short'       => trim( (string) ( $t['short'] ?? '' ) ), // Crudo: dox_pos_lang_set_text() lo compara así y lo limpia al ponerlo.
+			'description' => trim( (string) ( $t['description'] ?? '' ) ),
+		);
+	}
+	return $out;
+}
+
+/**
+ * Los textos de las traducciones de un producto, para editarlos en la caja. null en un idioma sin traducción.
+ *
+ * @param int $pid Producto (la ficha principal).
+ * @return array<string,array|null>
+ */
+function dox_pos_lang_edit_texts( $pid ) {
+	$out = array();
+	foreach ( array_slice( dox_pos_lang_languages(), 1 ) as $l ) {
+		$tid               = (int) pll_get_post( (int) $pid, $l['slug'] );
+		$t                 = $tid && $tid !== (int) $pid ? wc_get_product( $tid ) : null;
+		$out[ $l['slug'] ] = $t ? array(
+			'id'          => $tid,
+			'name'        => $t->get_name( 'edit' ),
+			'short'       => dox_pos_plain_text( $t->get_short_description( 'edit' ) ),
+			'description' => dox_pos_plain_text( $t->get_description( 'edit' ) ),
+			'url'         => get_permalink( $tid ),
+		) : null;
+	}
+	return $out;
+}
+
+/**
+ * El código de la traducción: el de la ficha principal con el idioma detrás (YUBA-BLKGLD-EN), porque
+ * WooCommerce no deja repetir un código. Una tienda que lo hace de otra forma lo cambia con el filtro
+ * dox_pos_translation_sku. Si el código ya lo lleva otro producto, la traducción se queda sin código.
+ *
+ * @param string $sku  Código de la ficha principal.
+ * @param string $lang Idioma de la traducción.
+ * @param int    $id   ID de la traducción (o de su variación).
+ * @return string
+ */
+function dox_pos_lang_sku( $sku, $lang, $id ) {
+	$sku = (string) $sku;
+	if ( '' === $sku ) {
+		return '';
+	}
+	$s = (string) apply_filters( 'dox_pos_translation_sku', $sku . '-' . strtoupper( $lang ), $sku, $lang, (int) $id );
+	if ( '' === $s ) {
+		return '';
+	}
+	return wc_product_has_unique_sku( (int) $id, $s ) ? $s : '';
+}
+
+/**
+ * Una copia de un producto (con sus variaciones), con la herramienta de duplicar de WooCommerce.
+ *
+ * @param WC_Product $main Ficha principal.
+ * @return int ID de la copia, 0 si no se pudo.
+ */
+function dox_pos_lang_duplicate( $main ) {
+	if ( ! class_exists( 'WC_Admin_Duplicate_Product' ) ) {
+		$f = WC_ABSPATH . 'includes/admin/class-wc-admin-duplicate-product.php';
+		if ( ! file_exists( $f ) ) {
+			return 0;
+		}
+		include_once $f;
+	}
+	// La referencia de la caja es de la ficha principal: con ella en la copia, un reintento devolvería la copia.
+	$skip = fn( $keys ) => array_merge( (array) $keys, array( '_dox_pos_ref', '_dox_pos_lang_of' ) );
+	add_filter( 'woocommerce_duplicate_product_exclude_meta', $skip );
+	try {
+		$d = ( new WC_Admin_Duplicate_Product() )->product_duplicate( wc_get_product( $main->get_id() ) );
+	} catch ( Exception $e ) {
+		$d = null;
+	}
+	remove_filter( 'woocommerce_duplicate_product_exclude_meta', $skip );
+	return $d && $d->get_id() ? (int) $d->get_id() : 0;
+}
+
+/**
+ * Pone un texto solo si cambió (comparado sin HTML): así no se pierde el HTML hecho en WooCommerce.
+ *
+ * @param WC_Product $p     Producto.
+ * @param string     $field 'short' o 'description'.
+ * @param string     $text  Lo escrito.
+ */
+function dox_pos_lang_set_text( $p, $field, $text ) {
+	$now = 'short' === $field ? $p->get_short_description( 'edit' ) : $p->get_description( 'edit' );
+	if ( trim( (string) $text ) === dox_pos_plain_text( $now ) ) {
+		return;
+	}
+	if ( 'short' === $field ) {
+		$p->set_short_description( wp_kses_post( (string) $text ) );
+	} else {
+		$p->set_description( wp_kses_post( (string) $text ) );
+	}
+}
+
+/**
+ * Lo compartido de la ficha principal, copiado a una ficha (la traducción o una de sus variaciones):
+ * precio (salvo que el filtro dox_pos_lang_sync_price diga que no), costo, foto, peso y medidas, unidades.
+ *
+ * @param WC_Product $from  De dónde.
+ * @param WC_Product $to    A dónde.
+ * @param bool       $price Copiar el precio.
+ */
+function dox_pos_lang_copy_shared( $from, $to, $price ) {
+	if ( $price ) {
+		$to->set_regular_price( $from->get_regular_price( 'edit' ) );
+		$to->set_sale_price( $from->get_sale_price( 'edit' ) );
+		$to->set_date_on_sale_from( $from->get_date_on_sale_from( 'edit' ) );
+		$to->set_date_on_sale_to( $from->get_date_on_sale_to( 'edit' ) );
+	}
+	if ( method_exists( $from, 'get_cogs_value' ) ) {
+		$to->set_cogs_value( $from->get_cogs_value( 'edit' ) );
+	}
+	$to->set_image_id( $from->get_image_id( 'edit' ) );
+	$to->set_weight( $from->get_weight( 'edit' ) );
+	$to->set_length( $from->get_length( 'edit' ) );
+	$to->set_width( $from->get_width( 'edit' ) );
+	$to->set_height( $from->get_height( 'edit' ) );
+	$to->set_manage_stock( $from->get_manage_stock( 'edit' ) );
+	$to->set_backorders( $from->get_backorders( 'edit' ) );
+	if ( $from->get_manage_stock( 'edit' ) && 'parent' !== $from->get_manage_stock() ) {
+		$to->set_stock_quantity( $from->get_stock_quantity( 'edit' ) );
+	}
+	$to->set_stock_status( $from->get_stock_status( 'edit' ) );
+	$pool = $from->get_meta( DOX_POS_POOL_META, true ); // La bolsa de color (includes/pools.php) también va con la variación.
+	if ( '' !== (string) $pool ) {
+		$to->update_meta_data( DOX_POS_POOL_META, $pool );
+	} elseif ( '' !== (string) $to->get_meta( DOX_POS_POOL_META, true ) ) {
+		$to->delete_meta_data( DOX_POS_POOL_META );
+	}
+}
+
+/**
+ * Escribe un producto de la caja en sus traducciones: las crea si faltan (al crear con el ajuste puesto,
+ * o al editar si se escribió algo en ese idioma), pone el texto de cada idioma y copia lo compartido.
+ * Nada de esto es un movimiento de unidades: el kardex no lo apunta.
+ *
+ * @param int   $pid    Ficha principal, ya guardada.
+ * @param array $texts  dox_pos_lang_texts_from().
+ * @param bool  $create Crear las traducciones que falten aunque no se haya escrito nada en ellas.
+ * @return array made (idiomas creados), untranslated (creados con el texto de la principal), nocat ([idioma => categorías sin traducir]).
+ */
+function dox_pos_lang_sync( $pid, $texts, $create ) {
+	$out   = array( 'made' => array(), 'untranslated' => array(), 'nocat' => array() );
+	$langs = dox_pos_lang_languages();
+	$main  = wc_get_product( (int) $pid );
+	if ( count( $langs ) < 2 || ! $main || ! function_exists( 'pll_save_post_translations' ) ) {
+		return $out;
+	}
+	if ( dox_pos_lang_main_id( (int) $pid ) !== (int) $pid || pll_get_post_language( (int) $pid ) !== dox_pos_lang_default() ) {
+		return $out; // Una traducción editada por su ID (o una ficha en otro idioma) no manda sobre las demás.
+	}
+	$def   = dox_pos_lang_default();
+	$links = array( $def => (int) $pid );
+	foreach ( (array) pll_get_post_translations( (int) $pid ) as $l => $t ) {
+		$links[ $l ] = (int) $t;
+	}
+	$links[ $def ] = (int) $pid;
+	$cat_tr        = function_exists( 'pll_is_translated_taxonomy' ) && pll_is_translated_taxonomy( 'product_cat' );
+	dox_pos_stock_quiet( true );
+	try {
+		foreach ( array_slice( $langs, 1 ) as $l ) {
+			$lang  = $l['slug'];
+			$sent  = $texts[ $lang ] ?? null;
+			$typed = $sent && ( '' !== $sent['name'] || '' !== $sent['short'] || '' !== $sent['description'] );
+			$tid   = (int) ( $links[ $lang ] ?? 0 );
+			$new   = false;
+			if ( ! $tid || ! wc_get_product( $tid ) ) {
+				if ( ! $create && ! $typed ) {
+					continue;
+				}
+				$tid = dox_pos_lang_duplicate( $main );
+				if ( ! $tid ) {
+					continue;
+				}
+				pll_set_post_language( $tid, $lang );
+				$links[ $lang ] = $tid;
+				pll_save_post_translations( $links );
+				$new           = true;
+				$out['made'][] = $l['name'];
+			}
+			$t = wc_get_product( $tid );
+			// El texto: el que se escribió en esa pestaña; si no se escribió nombre, el de la principal.
+			if ( $new || $sent ) {
+				$t->set_name( $sent && '' !== $sent['name'] ? $sent['name'] : $main->get_name( 'edit' ) );
+				if ( $sent ) {
+					dox_pos_lang_set_text( $t, 'short', '' !== $sent['short'] || ! $new ? $sent['short'] : $main->get_short_description( 'edit' ) );
+					dox_pos_lang_set_text( $t, 'description', '' !== $sent['description'] || ! $new ? $sent['description'] : $main->get_description( 'edit' ) );
+				}
+				if ( $new && ( ! $typed || $t->get_name( 'edit' ) === $main->get_name( 'edit' ) ) ) {
+					$out['untranslated'][] = $l['name'];
+				}
+			}
+			if ( $new || in_array( $t->get_status( 'edit' ), array( 'publish', 'private' ), true ) ) {
+				$t->set_status( $main->get_status( 'edit' ) );
+			}
+			$t->set_catalog_visibility( $main->get_catalog_visibility( 'edit' ) );
+			// Las categorías, en su traducción; la que no tiene traducción en ese idioma se queda fuera (y se avisa).
+			$cats = array();
+			foreach ( $main->get_category_ids( 'edit' ) as $cid ) {
+				$tc = $cat_tr ? (int) pll_get_term( (int) $cid, $lang ) : (int) $cid;
+				if ( $tc ) {
+					$cats[] = $tc;
+				} else {
+					$term                   = get_term( (int) $cid, 'product_cat' );
+					$out['nocat'][ $l['name'] ][] = $term && ! is_wp_error( $term ) ? $term->name : (string) $cid;
+				}
+			}
+			$t->set_category_ids( $cats );
+			$t->set_gallery_image_ids( $main->get_gallery_image_ids( 'edit' ) );
+			$price = (bool) apply_filters( 'dox_pos_lang_sync_price', true, (int) $pid, $lang );
+			dox_pos_lang_copy_shared( $main, $t, $price );
+			if ( $new || '' === $t->get_sku( 'edit' ) || $main->get_sku( 'edit' ) === preg_replace( '/-\d+$/', '', $t->get_sku( 'edit' ) ) ) {
+				try {
+					$t->set_sku( dox_pos_lang_sku( $main->get_sku( 'edit' ), $lang, $tid ) );
+				} catch ( Exception $e ) {
+					$t->set_sku( '' ); // Ocupado: sin código antes que con el de otro.
+				}
+			}
+			if ( $main->is_type( 'variable' ) ) {
+				$t->set_attributes( $main->get_attributes( 'edit' ) );
+				$t->update_meta_data( '_dox_pos_axes', $main->get_meta( '_dox_pos_axes', true ) );
+			}
+			$t->save();
+			if ( $main->is_type( 'variable' ) ) {
+				dox_pos_lang_sync_variations( $main, $tid, $lang, $price );
+			}
+			wc_delete_product_transients( $tid );
+			do_action( 'litespeed_purge_post', $tid );
+		}
+	} finally {
+		dox_pos_stock_quiet( false );
+	}
+	return $out;
+}
+
+/**
+ * Las variaciones de la traducción: cada una de la principal con su gemela (la crea si falta), con su
+ * precio, unidades y foto. Las que la principal ya no tiene se quedan como están.
+ *
+ * @param WC_Product $main  Ficha principal (variable).
+ * @param int        $tid   Su traducción.
+ * @param string     $lang  Idioma de la traducción.
+ * @param bool       $price Copiar el precio.
+ */
+function dox_pos_lang_sync_variations( $main, $tid, $lang, $price ) {
+	foreach ( $main->get_children() as $vid ) {
+		$v = wc_get_product( $vid );
+		if ( ! $v ) {
+			continue;
+		}
+		$twin = dox_pos_lang_twin_variation( (int) $vid, (int) $tid );
+		$w    = $twin ? wc_get_product( $twin ) : null;
+		if ( ! $w ) {
+			$w = new WC_Product_Variation();
+			$w->set_parent_id( (int) $tid );
+		}
+		$w->set_status( $v->get_status( 'edit' ) ); // También la que se ocultó porque la principal la había perdido y vuelve.
+		$w->set_attributes( $v->get_attributes( 'edit' ) );
+		dox_pos_lang_copy_shared( $v, $w, $price );
+		$w->update_meta_data( '_dox_pos_lang_of', (int) $vid );
+		if ( '' === $w->get_sku( 'edit' ) || $v->get_sku( 'edit' ) === preg_replace( '/-\d+$/', '', $w->get_sku( 'edit' ) ) ) {
+			try {
+				$w->set_sku( dox_pos_lang_sku( $v->get_sku( 'edit' ), $lang, (int) $w->get_id() ) );
+			} catch ( Exception $e ) {
+				$w->set_sku( '' );
+			}
+		}
+		$w->save();
+	}
+	// La que copió de una variación que la principal ya no tiene, deja de venderse en ese idioma. Las hijas se leen de
+	// la base: la lista de WooCommerce va en un transitorio que puede seguir con la que se borró.
+	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$kids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = 'product_variation'", $main->get_id() ) ) );
+	foreach ( wc_get_product( (int) $tid )->get_children() as $wid ) {
+		$of = (int) get_post_meta( $wid, '_dox_pos_lang_of', true );
+		if ( $of && ! in_array( $of, $kids, true ) ) {
+			$w = wc_get_product( $wid );
+			if ( $w && 'private' !== $w->get_status( 'edit' ) ) {
+				$w->set_status( 'private' );
+				$w->save();
+			}
+		}
+	}
+	WC_Product_Variable::sync( (int) $tid );
 }

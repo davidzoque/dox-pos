@@ -117,6 +117,18 @@ se queda en la traducción). Con Polylang gratis las variaciones no se traducen:
 lleva los mismos atributos (`dox_pos_lang_twin_variation()`). Un producto creado desde la caja pasa por `dox_pos_lang_assign()`. Todo está en
 `includes/multilingual.php`.
 
+Con Polylang, la caja además escribe en las traducciones (`dox_pos_lang_sync()`). Al crear, con el ajuste
+"Crear también en los otros idiomas" (`translations` en `dox_pos_products`, encendido de fábrica), cada idioma que falta
+se crea con `WC_Admin_Duplicate_Product` (sin `_dox_pos_ref`, para que un reintento no devuelva la copia), se enlaza con
+`pll_save_post_translations` y se publica como la principal. Al crear y al editar se copia lo compartido (precio salvo
+el filtro `dox_pos_lang_sync_price`, costo, fotos, peso y medidas, unidades, bolsas de color, atributos y variaciones,
+categorías por `pll_get_term`) dentro de `dox_pos_stock_quiet()`, así el kardex no apunta las copias. Cada variación de la
+traducción lleva `_dox_pos_lang_of` con su variación principal. El código de la traducción es el principal con `-EN`
+(filtro `dox_pos_translation_sku`); solo se pone al crearla o si está vacío. El formulario manda `i18n` ({ en: { name,
+short, description } }) con el texto de cada pestaña; al editar, una traducción que no existe solo se crea si se escribió
+algo en su pestaña. Las pestañas las pinta `dox_pos_lang_tabs_html()` y las mueve caja.js, que avisa con `idioma` para
+que el Pro ponga "Traducir" (`/assistant/translate`). Con WPML solo se filtran las listas.
+
 Dox POS no iguala las existencias entre traducciones: las cambia siempre con las funciones de WooCommerce y deja que
 la tienda lo haga (Polylang for WooCommerce, WooCommerce Multilingual o un código propio, como el de SOLZ en su tema).
 

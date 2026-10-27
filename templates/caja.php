@@ -244,7 +244,9 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'The product', 'dox-pos' ); ?></h4>
-							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><p class="fwarn" id="p-nom-dup" hidden></p></div>
+							<?php // Con Polylang: pestañas por idioma encima de lo que se escribe en cada uno (includes/multilingual.php). ?>
+							<?php dox_pos_lang_tabs_html( $cfg['langs'] ); ?>
+							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><?php dox_pos_lang_fields_html( $cfg['langs'], 'name', 'input', __( 'Name', 'dox-pos' ) ); ?><p class="fwarn" id="p-nom-dup" hidden></p></div>
 							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div>
 								<div class="nuevacat" id="p-nuevacat" hidden><?php // Una categoría nueva: se crea al momento y queda elegida (la abre el botón "Nueva categoría…", que pinta el JS). ?>
 									<input id="p-cat-nom" placeholder="<?php esc_attr_e( 'Category name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new category', 'dox-pos' ); ?>">
@@ -304,7 +306,9 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Description', 'dox-pos' ); ?> <span class="cnt"><?php esc_html_e( 'optional', 'dox-pos' ); ?></span></h4>
-							<textarea id="p-desc" aria-label="<?php esc_attr_e( 'Description', 'dox-pos' ); ?>" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea>
+							<?php dox_pos_lang_tabs_html( $cfg['langs'] ); ?>
+							<div class="field"><label for="p-corta"><?php esc_html_e( 'Short description', 'dox-pos' ); ?></label><textarea id="p-corta" class="corta" placeholder="<?php esc_attr_e( 'One line under the price', 'dox-pos' ); ?>"></textarea><?php dox_pos_lang_fields_html( $cfg['langs'], 'short', 'textarea', __( 'Short description', 'dox-pos' ) ); ?></div>
+							<div class="field mt"><label for="p-desc"><?php esc_html_e( 'Description', 'dox-pos' ); ?></label><textarea id="p-desc" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea><?php dox_pos_lang_fields_html( $cfg['langs'], 'description', 'textarea', __( 'Description', 'dox-pos' ) ); ?></div>
 						</div>
 						<div class="grp">
 							<label class="switch"><input type="checkbox" id="p-pub" checked><span class="switch-ui" aria-hidden="true"></span><span><span id="p-pub-text"><?php esc_html_e( 'Publish in the store now', 'dox-pos' ); ?></span><i id="p-pub-hint"><?php esc_html_e( 'Off: it is saved but hidden; you publish it later from Products.', 'dox-pos' ); ?></i></span></label>

@@ -1533,3 +1533,16 @@ table.hsm td.num{white-space:nowrap}
 .qrqmsg{margin:6px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
 .qrqmsg.ok{color:var(--ok)}
 .qrqmsg.bad{color:var(--danger-ink)}
+
+/* Tienda en varios idiomas (Polylang): pestañas encima del nombre y de las descripciones; lo demás es de todos.
+   El punto marca un idioma que sigue con el texto del principal. */
+.langtabs{display:flex;align-items:center;gap:6px;margin:0 0 10px}
+.langtabs[hidden]{display:none}
+.langtab{appearance:none;position:relative;border:1px solid var(--line);background:var(--sunk);color:var(--muted);
+  font:600 12px var(--ui);letter-spacing:.04em;padding:6px 14px;border-radius:999px;cursor:pointer;min-height:32px}
+.langtab[aria-selected="true"]{background:var(--surface);color:var(--ink);border-color:var(--primary);box-shadow:0 0 0 2px var(--ring)}
+.langtab:active{transform:scale(.97)}
+.langtab .ldot{position:absolute;top:3px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--warn);display:none}
+.langtab.untr .ldot{display:block}
+.langtools{margin-left:auto;display:flex;gap:6px}
+textarea.corta,.p-ltx[data-f="short"]{min-height:44px}

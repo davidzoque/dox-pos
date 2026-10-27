@@ -1305,6 +1305,8 @@ function dox_pos_sanitize_products( $in ) {
 		'color_attr' => isset( $all[ $col ] ) ? $col : '',
 		'costs'      => ! empty( $in['costs'] ),
 		'real_near'  => ! empty( $in['real_near_on'] ) ? max( 1, min( 9, (int) ( $in['real_near'] ?? 1 ) ) ) : 0,
+		// El interruptor solo sale con Polylang: sin él en el formulario, se queda como estaba.
+		'translations' => ! empty( $in['translations_seen'] ) ? ! empty( $in['translations'] ) : (bool) dox_pos_products_settings()['translations'],
 	);
 }
 
@@ -2531,6 +2533,18 @@ function dox_pos_settings_page() {
 							<p class="dp-hint"><?php esc_html_e( 'With 1, a 6-12 months size is offered only if there is a piece of 0-6, 6-12 or 12-18 months.', 'dox-pos' ); ?></p>
 						</div>
 					</div>
+
+					<?php if ( count( dox_pos_lang_languages() ) > 1 ) : ?>
+					<div class="dp-card">
+						<div class="dp-card-head">
+							<h2><?php esc_html_e( 'Languages', 'dox-pos' ); ?></h2>
+							<p><?php echo esc_html( sprintf( /* translators: %s: languages, like "Español, English" */ __( 'The store is in %s (Polylang). The register shows each product once, in the main language.', 'dox-pos' ), implode( ', ', array_column( dox_pos_lang_languages(), 'name' ) ) ) ); ?></p>
+						</div>
+						<input type="hidden" name="dox_pos_products[translations_seen]" value="1">
+						<label class="dp-toggle"><input type="checkbox" role="switch" name="dox_pos_products[translations]" value="1" <?php checked( ! empty( $products['translations'] ) ); ?>><span class="dp-switch-ui" aria-hidden="true"></span><span class="dp-toggle-text"><b><?php esc_html_e( 'Also create in the other languages', 'dox-pos' ); ?></b><span><?php esc_html_e( 'A product created in the register is also created, linked, in every other language, published and with the same price, photos, units and sizes, so it sells in every language from day one. Its text stays in the main language until you translate it in the product form.', 'dox-pos' ); ?></span></span></label>
+						<p class="dp-hint"><?php esc_html_e( 'The SKU of each translation ends in its language (VE-0012-EN), because WooCommerce does not allow the same SKU twice. Stock sold on the website is not copied between languages by Dox POS: that needs Polylang for WooCommerce or a snippet that keeps it the same.', 'dox-pos' ); ?></p>
+					</div>
+					<?php endif; ?>
 
 					<div class="dp-card">
 						<div class="dp-card-head">
