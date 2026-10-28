@@ -476,9 +476,8 @@ function dox_pos_counter_summary( $shift ) {
 	$refund_other = 0.0;
 	$refunds      = wc_get_orders( array( 'type' => 'shop_order_refund', 'limit' => -1, 'meta_key' => '_dox_pos_shift', 'meta_value' => (int) $shift->id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 	foreach ( $refunds as $r ) {
-		$rparent = wc_get_order( $r->get_parent_id() );
-		if ( $rparent instanceof WC_Order && $rparent->get_currency() !== $cur ) {
-			continue; // Una devolución de otra moneda no sale de este cajón.
+		if ( $r->get_currency() !== $cur ) {
+			continue; // Una devolución de otra moneda no sale de este cajón (la devolución lleva la moneda de su pedido).
 		}
 		if ( 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ) {
 			$refund_cash += abs( (float) $r->get_amount() );
@@ -865,7 +864,7 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 			$want[ $item_id ] = ( $want[ $item_id ] ?? 0 ) + $qty;
 		}
 	}
-	$dec    = dox_pos_decimals();
+	$dec    = dox_pos_decimals( $order->get_currency() );
 	$items  = array();
 	$amount = 0.0;
 	foreach ( $want as $item_id => $qty ) {

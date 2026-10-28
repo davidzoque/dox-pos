@@ -87,6 +87,16 @@ function dox_pos_credit_scope( $currency = null ) {
 	return $wpdb->prepare( ' AND currency = %s', $cur );
 }
 
+/**
+ * Los decimales de un saldo: los de su moneda (vacía: la de la tienda, la del saldo de siempre).
+ *
+ * @param string $currency La moneda del saldo, como la apunta dox_pos_credit_currency().
+ * @return int
+ */
+function dox_pos_credit_decimals( $currency ) {
+	return dox_pos_decimals( '' !== (string) $currency ? (string) $currency : get_woocommerce_currency() );
+}
+
 function dox_pos_credit_table() {
 	global $wpdb;
 	return $wpdb->prefix . 'dox_pos_credit';
@@ -154,7 +164,7 @@ function dox_pos_credit_balance( $key, $currency = null ) {
 		return 0.0;
 	}
 	$sum = $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(amount) FROM %i WHERE phone = %s', dox_pos_credit_table(), $key ) . dox_pos_credit_scope( $currency ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
-	return round( (float) $sum, dox_pos_decimals() );
+	return round( (float) $sum, dox_pos_credit_decimals( null === $currency ? dox_pos_credit_currency() : $currency ) );
 }
 
 /**
@@ -178,7 +188,8 @@ function dox_pos_credit_name( $key ) {
  */
 function dox_pos_credit_insert( $key, $name, $amount, $kind, $order_id = 0, $note = '' ) {
 	global $wpdb;
-	$amount = round( (float) $amount, dox_pos_decimals() );
+	$cur    = dox_pos_credit_currency( $order_id );
+	$amount = round( (float) $amount, dox_pos_credit_decimals( $cur ) );
 	if ( '' === (string) $key || 0.0 === $amount ) {
 		return 0;
 	}
@@ -195,7 +206,6 @@ function dox_pos_credit_insert( $key, $name, $amount, $kind, $order_id = 0, $not
 		'created'   => current_time( 'mysql', true ),
 	);
 	$fmt  = array( '%s', '%s', '%f', '%s', '%d', '%s', '%d', '%s', '%s' );
-	$cur  = dox_pos_credit_currency( $order_id );
 	if ( '' !== $cur && get_option( 'dox_pos_credit_db' ) === DOX_POS_CREDIT_DB ) {
 		$row['currency'] = $cur; // El saldo de una moneda que no es la de siempre.
 		$fmt[]           = '%s';
@@ -266,7 +276,7 @@ function dox_pos_credit_history( $key ) {
 	$rows = '' === (string) $key ? array() : $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE phone = %s', dox_pos_credit_table(), $key ) . dox_pos_credit_scope() . ' ORDER BY id ASC' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 	$out  = array();
 	$run  = 0.0;
-	$dec  = dox_pos_decimals();
+	$dec  = dox_pos_credit_decimals( dox_pos_credit_currency() );
 	/* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
 	$fmt = _x( 'F j, Y G:i', 'date and time format with year', 'dox-pos' );
 	foreach ( (array) $rows as $r ) {
@@ -327,7 +337,7 @@ function dox_pos_credit_customers( $q = '', $page = 1 ) {
 	$rows   = $wpdb->get_results( $wpdb->prepare( $sql, ...$args ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 	$more   = count( (array) $rows ) > $per;
 	$rows   = array_slice( (array) $rows, 0, $per );
-	$dec    = dox_pos_decimals();
+	$dec    = dox_pos_credit_decimals( dox_pos_credit_currency() );
 	$out    = array();
 	/* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
 	$fmt = _x( 'F j, Y', 'date format with year', 'dox-pos' );
@@ -372,7 +382,7 @@ function dox_pos_credit_adjust( $phone, $name, $amount, $note ) {
 	$raw    = trim( (string) $amount );
 	$neg    = 0 === strpos( $raw, '-' ) || 0 === strpos( $raw, '−' );
 	$amount = dox_pos_parse_money( ltrim( $raw, '-−' ) );
-	$amount = null === $amount ? 0.0 : round( abs( $amount ), dox_pos_decimals() ) * ( $neg ? -1 : 1 );
+	$amount = null === $amount ? 0.0 : round( abs( $amount ), dox_pos_credit_decimals( dox_pos_credit_currency() ) ) * ( $neg ? -1 : 1 );
 	if ( 0.0 === $amount ) {
 		return new WP_Error( 'dox_pos_importe', __( 'Write the amount.', 'dox-pos' ) );
 	}
@@ -579,13 +589,14 @@ function dox_pos_credit_give_back( $order, $amount, $note ) {
 	$fresh = wc_get_order( $order->get_id() );
 	$order = $fresh instanceof WC_Order ? $fresh : $order;
 	$key  = (string) $order->get_meta( '_dox_pos_credit_key' );
-	$left = round( dox_pos_order_credit_used( $order ) - (float) $order->get_meta( '_dox_pos_credit_restored' ), dox_pos_decimals() );
-	$amount = round( min( (float) $amount, $left ), dox_pos_decimals() );
+	$dec  = dox_pos_decimals( $order->get_currency() );
+	$left = round( dox_pos_order_credit_used( $order ) - (float) $order->get_meta( '_dox_pos_credit_restored' ), $dec );
+	$amount = round( min( (float) $amount, $left ), $dec );
 	if ( '' === $key || $amount <= 0 || ! $order->get_meta( '_dox_pos_credit_posted' ) ) {
 		return 0.0;
 	}
 	dox_pos_credit_insert( $key, trim( $order->get_formatted_billing_full_name() ), $amount, 'restore', $order->get_id(), $note );
-	$order->update_meta_data( '_dox_pos_credit_restored', wc_format_decimal( (float) $order->get_meta( '_dox_pos_credit_restored' ) + $amount, dox_pos_decimals() ) );
+	$order->update_meta_data( '_dox_pos_credit_restored', wc_format_decimal( (float) $order->get_meta( '_dox_pos_credit_restored' ) + $amount, $dec ) );
 	$order->save_meta_data();
 	return $amount;
 }
@@ -716,7 +727,7 @@ function dox_pos_credit_return_locked( $order_id, $lines, $args ) {
 			$want[ $item_id ] = ( $want[ $item_id ] ?? 0 ) + $qty;
 		}
 	}
-	$dec   = dox_pos_decimals();
+	$dec   = dox_pos_decimals( $order->get_currency() );
 	$items = array();
 	$value = 0.0;
 	$what  = array();

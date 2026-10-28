@@ -115,7 +115,7 @@ function dox_pos_layaway_info( $order ) {
 	if ( ! dox_pos_is_layaway( $order ) ) {
 		return null;
 	}
-	$dec   = dox_pos_decimals();
+	$dec   = dox_pos_decimals( $order->get_currency() );
 	$paid  = round( dox_pos_order_credit_used( $order ), $dec );
 	$total = (float) $order->get_total();
 	$open  = $order->has_status( array( 'on-hold', 'pending', 'failed' ) );
@@ -281,7 +281,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	if ( ! dox_pos_layaway_open( $order ) ) {
 		return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 	}
-	$dec    = dox_pos_decimals();
+	$dec    = dox_pos_decimals( $order->get_currency() ); // Los del apartado, aunque la caja venda hoy en otra moneda.
 	$amount = dox_pos_parse_money( $amount );
 	$amount = null === $amount ? 0.0 : round( $amount, $dec );
 	$left   = round( (float) $order->get_total(), $dec );
@@ -376,7 +376,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
  * @return true|WP_Error
  */
 function dox_pos_layaway_complete( $order, $payment ) {
-	$left = round( (float) $order->get_total(), dox_pos_decimals() );
+	$left = round( (float) $order->get_total(), dox_pos_decimals( $order->get_currency() ) );
 	if ( $left <= 0 ) {
 		$order->set_payment_method( 'dox_pos_credit' );
 		$order->set_payment_method_title( dox_pos_order_layaway_deposits( $order ) > 0 ? __( 'Deposits', 'dox-pos' ) : __( 'Store credit', 'dox-pos' ) );
@@ -437,7 +437,7 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 		if ( ! $dep instanceof WC_Order || $dep->has_status( array( 'cancelled', 'refunded', 'failed' ) ) || $dep->get_meta( '_dox_pos_deposit_reversed' ) ) {
 			continue;
 		}
-		$amount = round( (float) $dep->get_total() - (float) $dep->get_total_refunded(), dox_pos_decimals() );
+		$amount = round( (float) $dep->get_total() - (float) $dep->get_total_refunded(), dox_pos_decimals( $dep->get_currency() ) );
 		if ( $amount <= 0 ) {
 			continue;
 		}

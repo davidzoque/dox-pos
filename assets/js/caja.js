@@ -87,6 +87,7 @@
 	const numB = numF(MB), redondearB = redondearF(MB), milesB = milesF(MB);
 	// El teclado de los importes en los campos que se pintan desde aquí: con decimales, el que trae la coma.
 	const IM = M.decimals > 0 ? "decimal" : "numeric";
+	const IMB = MB.decimals > 0 ? "decimal" : "numeric"; // El de los costos, que van en la moneda base.
 
 	const st = {
 		tab: "vender",
@@ -502,7 +503,7 @@
 				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i>" + pieza + "</span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
-					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IM + '" placeholder="0" value="' + esc(milesB(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dineroB(l.n * l.c) : "") + "</span></span>"
+					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IMB + '" placeholder="0" value="' + esc(milesB(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dineroB(l.n * l.c) : "") + "</span></span>"
 					: '<span class="v">' + dinero(l.n * d.v.price) + "</span>");
 			if (conCosto) {
 				const inp = li.querySelector(".cst input");
@@ -3197,7 +3198,7 @@
 	}
 	function formatearPrecio() { formatearMiles($("#p-precio"), false, true); formatearMiles($("#p-costo"), false, true); }
 	// El costo escrito en el formulario (0 si no hay campo o está vacío).
-	const costoForm = () => ($("#p-costo") ? num($("#p-costo").value) : 0);
+	const costoForm = () => ($("#p-costo") ? numB($("#p-costo").value) : 0); // El costo es de la moneda base.
 	// Qué costo se manda: al crear, el escrito; al editar, solo si cambió ('' = no tocar; 0 = quitarlo).
 	function costoPayload() {
 		if (!cfg.costs || !$("#p-costo")) return "";

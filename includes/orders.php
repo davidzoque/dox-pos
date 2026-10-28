@@ -175,6 +175,9 @@ function dox_pos_disable_admin_mail( $enabled, $order ) {
  * @return array|WP_Error El pedido formateado, con el mensaje de WhatsApp.
  */
 function dox_pos_create_order( $data, $hold ) {
+	// La moneda del pedido no la elige la caja: es la de su zona. Solo la pone el abono a un apartado (layaways.php),
+	// que no pasa por aquí. Así un cliente de la API no puede registrar una venta en otra moneda que sus precios.
+	unset( $data['currency'] );
 	$cust = is_array( $data['customer'] ?? null ) ? $data['customer'] : array();
 	// El abono al apartar, revisado antes de crear nada (y antes del candado): con qué entra y a nombre de quién.
 	$hd     = $hold && is_array( $data['hold_deposit'] ?? null ) ? $data['hold_deposit'] : null;
@@ -250,7 +253,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		$lines[] = array( 'product' => $p, 'qty' => $qty, 'real' => (int) ( $l['real'] ?? 0 ) ); // real: la prenda que eligió la caja (0: la más cercana).
 	}
 	// Lo que se vende sin producto (un diseño por encargo, un arreglo): nombre, precio y cantidad. No mueve inventario.
-	$dec  = dox_pos_decimals();
+	$dec  = dox_pos_decimals( (string) ( $data['currency'] ?? '' ) ); // Un abono a un apartado de otra moneda, con los decimales de esa.
 	$free = array();
 	foreach ( (array) ( $data['free'] ?? array() ) as $f ) {
 		if ( ! is_array( $f ) ) {
@@ -1427,14 +1430,14 @@ function dox_pos_order_detail( $id ) {
 			'line'         => (int) $it->get_id(),                 // La línea del pedido (para devolverla).
 			'free'         => (bool) $it->get_meta( '_dox_pos_free' ), // Se vendió sin producto.
 			'refundable'   => max( 0, $qty - abs( (int) $order->get_qty_refunded_for_item( $it->get_id() ) ) ),
-			'unit_value'   => $qty > 0 ? round( dox_pos_unit_value( $order, $it ), dox_pos_decimals() ) : 0, // Lo que vale una unidad devuelta.
+			'unit_value'   => $qty > 0 ? round( dox_pos_unit_value( $order, $it ), dox_pos_decimals( $order->get_currency() ) ) : 0, // Lo que vale una unidad devuelta.
 			'id'           => $vid ? $vid : $pid,
 			'product_id'   => $pid,
 			'variation_id' => $vid,
 			'name'         => dox_pos_order_line_name( $it ),
 			'sku'          => $sku,
 			'qty'          => $qty,
-			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, dox_pos_decimals() ) : 0,
+			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, dox_pos_decimals( $order->get_currency() ) ) : 0,
 			'total'        => (float) $it->get_total(),
 			'image'        => $img ? (string) wp_get_attachment_image_url( $img, 'woocommerce_thumbnail' ) : '',
 			'url'          => $parent && 'publish' === $parent->get_status() ? get_permalink( $parent->get_id() ) : '',
