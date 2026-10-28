@@ -68,7 +68,7 @@ function dox_pos_international_notice_html( $context ) {
 	if ( ! dox_pos_international_notice_due() ) {
 		return '';
 	}
-	$text = __( 'Several languages or currencies? Dox POS Pro sells in each one and keeps translations in sync.', 'dox-pos' );
+	$text = __( 'Several languages or currencies? Dox POS Pro handles both.', 'dox-pos' );
 	return '<div class="dox-intl-notice dox-intl-' . esc_attr( $context ) . '" role="status">'
 		. '<span>' . esc_html( $text ) . ' <a href="' . esc_url( dox_pos_site_url( 'plans' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'See Dox POS Pro', 'dox-pos' ) . '</a></span>'
 		. '<button type="button" class="dox-intl-close" aria-label="' . esc_attr__( 'Dismiss', 'dox-pos' ) . '">&times;</button>'
