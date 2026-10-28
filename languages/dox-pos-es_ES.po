@@ -6029,8 +6029,8 @@ msgid "One line under the price"
 msgstr "Una línea debajo del precio"
 
 #: includes/international-notice.php
-msgid "Several languages or currencies? Dox POS Pro sells in each zone's currency and keeps translations in sync."
-msgstr "¿Varios idiomas o monedas? Dox POS Pro vende en la moneda de cada zona y mantiene las traducciones al día."
+msgid "Several languages or currencies? Dox POS Pro sells in each one and keeps translations in sync."
+msgstr "¿Varios idiomas o monedas? Dox POS Pro vende en cada una y mantiene las traducciones al día."
 
 #: includes/international-notice.php
 msgid "Dismiss"

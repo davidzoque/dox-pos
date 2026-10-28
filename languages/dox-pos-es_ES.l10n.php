@@ -1061,7 +1061,7 @@ return array(
 		'Setting the shipping costs needs a connection.' => 'Para poner los costos de envío hace falta conexión.',
 		'Settings' => 'Ajustes',
 		'Settings sections' => 'Secciones de los ajustes',
-		'Several languages or currencies? Dox POS Pro sells in each zone\'s currency and keeps translations in sync.' => '¿Varios idiomas o monedas? Dox POS Pro vende en la moneda de cada zona y mantiene las traducciones al día.',
+		'Several languages or currencies? Dox POS Pro sells in each one and keeps translations in sync.' => '¿Varios idiomas o monedas? Dox POS Pro vende en cada una y mantiene las traducciones al día.',
 		'Shade of %s' => 'Tono de %s',
 		'Shade of %s saved.' => 'Tono de %s guardado.',
 		'Shade of the new color' => 'Tono del color nuevo',
