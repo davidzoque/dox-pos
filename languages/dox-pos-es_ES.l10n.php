@@ -1047,7 +1047,6 @@ return array(
 		'Second option of %s' => 'Segunda opción de %s',
 		'Sections' => 'Secciones',
 		'See Dox POS Pro' => 'Ver Dox POS Pro',
-		'See Dox POS Pro' => 'Ver Dox POS Pro',
 		'See the %d remaining user' . "\0" . 'See the %d remaining users' => 'Ver el usuario que falta' . "\0" . 'Ver los %d usuarios que faltan',
 		'See the plans' => 'Ver los planes',
 		'See their movements' => 'Ver sus movimientos',

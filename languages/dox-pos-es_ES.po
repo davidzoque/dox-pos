@@ -6033,9 +6033,5 @@ msgid "Your store sells in several languages or currencies. Dox POS sells with t
 msgstr "Tu tienda vende en varios idiomas o monedas. Dox POS vende con el precio base en la moneda de tu tienda y edita solo el idioma principal. Dox POS Pro vende con la moneda y los precios de cada zona y mantiene las traducciones al día."
 
 #: includes/international-notice.php
-msgid "See Dox POS Pro"
-msgstr "Ver Dox POS Pro"
-
-#: includes/international-notice.php
 msgid "Dismiss"
 msgstr "Cerrar"
