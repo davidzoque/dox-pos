@@ -2,6 +2,9 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.60.1 =
+* Fix: in Orders, tapping anywhere on an order opens its detail, cancelled orders included. Before, only the order number and the products did, and on a phone it was easy to miss. The buttons on the order still do their own thing, and selecting text (to copy a phone number) does not open it.
+
 = 0.60.0 =
 * Fix: in stores that keep orders as posts (without HPOS), a new sale could bring back an earlier order instead of being recorded. Every sale is recorded again.
 * Fix: in stores that keep orders as posts (without HPOS), Orders no longer lists the deposits of a layaway as separate orders, and the layaways about to expire and the layaway payments in History show the right ones.

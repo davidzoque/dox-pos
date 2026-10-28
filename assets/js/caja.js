@@ -1860,6 +1860,8 @@
 		st.pedidos.forEach((p) => {
 			const tr = document.createElement("tr");
 			if (p.status === "anulado" || p.status === "reembolsado") tr.className = "off";
+			// Toda la fila (la tarjeta en el celular) abre el detalle, también la de un pedido anulado.
+			if (p.id) { tr.dataset.abre = p.id; tr.classList.add("abre"); }
 			const cls = claseEstado(p.status);
 			const web = p.origin !== "caja";
 			let pago = __("Pays on delivery", "dox-pos");
@@ -5145,6 +5147,15 @@
 		// Solo cuando el atributo trae el número del pedido: un data-ver vacío es otro botón
 		// (los añadidos usan sus propios atributos) y no tiene que abrir ninguna ficha.
 		document.addEventListener("click", (e) => { const b = e.target.closest("[data-ver]"); const id = b ? parseInt(b.dataset.ver, 10) : 0; if (b && id > 0) { e.preventDefault(); verPedido(id); } });
+		// Un toque en cualquier parte de un pedido de la lista lo abre; los botones y enlaces de la fila
+		// siguen haciendo lo suyo, y seleccionar texto (copiar un teléfono) no lo abre.
+		$("#tped").addEventListener("click", (e) => {
+			const fila = e.target.closest("tr[data-abre]");
+			if (!fila || e.target.closest("button, a, input, select, textarea, label")) return;
+			if (String(window.getSelection ? window.getSelection() : "").trim()) return;
+			const id = parseInt(fila.dataset.abre, 10);
+			if (id > 0) verPedido(id);
+		});
 		// Y tocar el nombre de un producto (en el resumen, los consejos o lo que se agota) abre su ficha.
 		// Un producto nombrado en cualquier parte (el asistente, el historial): su tarjeta, sin salir de donde se está.
 		document.addEventListener("click", (e) => { const b = e.target.closest("[data-prod]"); if (b) { e.preventDefault(); verProducto(+b.dataset.prod); } });

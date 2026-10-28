@@ -281,6 +281,7 @@ a.mini{display:inline-block;text-decoration:none;line-height:1.4}
 td.acts{white-space:nowrap}
 td.items{max-width:280px}
 tr.off,li.off{opacity:.5}
+#tped tr.abre{cursor:pointer} /* toda la fila abre el pedido */
 .tag.d{background:var(--sunk);color:var(--muted);text-decoration:line-through}
 .tag.y{background:var(--st-warn-soft);color:var(--st-warn)}
 .tag.r{background:var(--st-bad-soft);color:var(--st-bad)}

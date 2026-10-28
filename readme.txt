@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.60.0
+Stable tag: 0.60.1
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -111,6 +111,9 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.60.1 =
+* Fix: in Orders, tapping anywhere on an order opens its detail, cancelled orders included. Before, only the order number and the products did, and on a phone it was easy to miss. The buttons on the order still do their own thing, and selecting text (to copy a phone number) does not open it.
+
 = 0.60.0 =
 * Fix: in stores that keep orders as posts (without HPOS), a new sale could bring back an earlier order instead of being recorded. Every sale is recorded again.
 * Fix: in stores that keep orders as posts (without HPOS), Orders no longer lists the deposits of a layaway as separate orders, and the layaways about to expire and the layaway payments in History show the right ones.
@@ -145,9 +148,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 = 0.58.2 =
 * Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
 * Technical: in assets/css/caja.css, .bl .chan can wrap and the first span of each .bl row takes min-width:0.
-
-= 0.58.1 =
-* Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
-* Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/
