@@ -455,7 +455,9 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		if ( $balance + 0.00001 < $credit_want ) {
 			$order->delete( true );
 			/* translators: %s: balance */
-			return new WP_Error( 'dox_pos_saldo', sprintf( __( 'The customer’s store credit is %s now. Check the amount.', 'dox-pos' ), dox_pos_money( $balance ) ), array( 'balance' => $balance ) );
+			$msg = sprintf( __( 'The customer’s store credit is %s now. Check the amount.', 'dox-pos' ), dox_pos_money( $balance ) );
+			$msg = apply_filters( 'dox_pos_credit_short_message', $msg, $credit_key, $balance ); // Un añadido puede avisar de otro saldo (el Pro: el que tiene en otra moneda).
+			return new WP_Error( 'dox_pos_saldo', $msg, array( 'balance' => $balance ) );
 		}
 		$room = round( (float) $order->get_total() - ( $deposit ? $deposit['amount'] : 0 ), $dec );
 		$take = round( min( $credit_want, max( 0.0, $room ) ), $dec );

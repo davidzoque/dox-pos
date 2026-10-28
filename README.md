@@ -181,6 +181,7 @@ nada más.
 | función `dox_pos_report_currency()` / filtro `dox_pos_report_currency` | `( string $currency )` | La moneda que cuentan los informes (`dox_pos_history_orders()`, y con él Caja del día, Historial, Panel y Rendimiento). Vacío: todas, como siempre. |
 | filtro `dox_pos_history_response` | `( array $out, string $kind, WP_REST_Request $request )` | La respuesta de `history/sales` (`sales`) y `history/cash` (`cash`): el Pro suma `currency` y `currencies`. |
 | función `dox_pos_credit_currency( $order_id )` / filtro `dox_pos_credit_currency` | `( string $currency, int $order_id )` | La moneda del movimiento de saldo (vacío: la de siempre). La tabla de saldo tiene una columna `currency` (versión `2`); el saldo, el historial y la lista de clientas se separan por ella. |
+| filtro `dox_pos_credit_short_message` | `( string $msg, string $key, float $balance )` | El aviso de "el saldo es X" al pagar con más saldo del que hay (el Pro: suma el saldo que tiene en otra moneda). |
 | filtro `dox_pos_shipping_rates` | `( array $rates, array $package )` | Las tarifas de envío de la caja (el Pro: las pasa a la moneda de la zona). |
 | filtro `dox_pos_order_profit_pre` | `( null\|array $profit, WC_Order $order )` | Un añadido decide la ganancia de un pedido (el Pro: sin costo si no es de la moneda de la tienda, donde está el costo). |
 | filtro `dox_pos_xlsx_money_format` | `( string $code, string $currency )` | El formato de los importes del Excel. |
