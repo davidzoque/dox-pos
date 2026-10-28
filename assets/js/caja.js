@@ -4565,7 +4565,7 @@
 			const d = await def.cargar(a, b);
 			if (n !== hi.req) return;
 			box.dataset.listo = "1";
-			def.pintar(d);
+			enMoneda(d && d.currency, () => def.pintar(d)); // Con d.currency (el Pro: la moneda del informe) los importes salen en ella.
 			emit("historialPintado", { vista: hi.vista, datos: d, caja: box }); // Los añadidos suman lo suyo (el Pro: el selector de moneda).
 		} catch (e) {
 			if (n === hi.req && e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? __("No signal: the history is read from the store.", "dox-pos") : e.message) + "</p>";
