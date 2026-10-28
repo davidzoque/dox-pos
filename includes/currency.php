@@ -86,3 +86,33 @@ function dox_pos_report_currency() {
 function dox_pos_credit_currency( $order_id = 0 ) {
 	return strtoupper( (string) apply_filters( 'dox_pos_credit_currency', '', (int) $order_id ) );
 }
+
+/**
+ * La caja no vende con los precios ni la moneda del país de quien la abre. Price Based on Country (wcpbc) trata
+ * /pos/ como una página de la tienda y también la REST que llega desde ella (la caja manda la página como
+ * referer), y les pone la moneda y los precios de la zona del visitante. La caja vende siempre en la moneda de
+ * la tienda (o en la de la zona que elija un añadido por los filtros), así que aquí se quitan, solo en la página
+ * de la caja y en su API (/dox-pos/), nunca en la tienda, el checkout, wp-admin ni /wc/store/.
+ */
+function dox_pos_stop_visitor_prices() {
+	if ( class_exists( 'WCPBC_Frontend_Pricing' ) && is_callable( array( 'WCPBC_Frontend_Pricing', 'unset' ) ) ) {
+		WCPBC_Frontend_Pricing::unset();
+	}
+	// Para que un añadido quite también los de otros plugins de monedas.
+	do_action( 'dox_pos_stop_visitor_prices' );
+}
+
+add_action( 'template_redirect', 'dox_pos_stop_visitor_prices_page', -1 );
+function dox_pos_stop_visitor_prices_page() {
+	if ( get_query_var( 'dox_pos' ) ) {
+		dox_pos_stop_visitor_prices();
+	}
+}
+
+add_filter( 'rest_pre_dispatch', 'dox_pos_stop_visitor_prices_rest', 0, 3 );
+function dox_pos_stop_visitor_prices_rest( $result, $server, $request ) {
+	if ( 0 === strpos( (string) $request->get_route(), '/dox-pos/' ) ) {
+		dox_pos_stop_visitor_prices();
+	}
+	return $result;
+}
