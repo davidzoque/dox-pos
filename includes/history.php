@@ -83,10 +83,11 @@ function dox_pos_history_orders( $range, $seller = 0 ) {
 	// el suyo): salen los pagados fuera del periodo y entran los pagados en él aunque se apartaran antes.
 	$paid = $args;
 	unset( $paid['date_created'] );
-	$paid['date_paid']  = $range['start'] . '...' . $range['end'];
-	$paid['meta_query'] = array( array( 'key' => '_dox_pos_layaway', 'compare' => 'EXISTS' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-	$byid               = array();
-	foreach ( array_merge( $orders, wc_get_orders( $paid ) ) as $o ) {
+	$paid['date_paid'] = $range['start'] . '...' . $range['end'];
+	// Solo los apartados, filtrados en PHP (sin HPOS, WooCommerce ignora meta_query).
+	$layaways = array_filter( wc_get_orders( $paid ), fn( $o ) => (bool) $o->get_meta( '_dox_pos_layaway' ) );
+	$byid     = array();
+	foreach ( array_merge( $orders, $layaways ) as $o ) {
 		$t = dox_pos_order_sale_date( $o );
 		if ( $t && $t->getTimestamp() >= $range['start'] && $t->getTimestamp() <= $range['end'] ) {
 			$byid[ $o->get_id() ] = $o;

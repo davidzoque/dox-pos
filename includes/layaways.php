@@ -528,24 +528,30 @@ function dox_pos_layaway_refund_warning( $r ) {
 function dox_pos_layaways_due( $days = 3 ) {
 	$out    = array();
 	$limit  = time() + $days * DAY_IN_SECONDS;
-	$orders = wc_get_orders(
-		array(
-			'limit'       => 100,
-			'type'        => 'shop_order',
-			'created_via' => DOX_POS_VIA,
-			'status'      => array( 'wc-on-hold', 'wc-pending', 'wc-failed' ),
-			// Solo los que tienen fecha y vencen dentro del límite (los vencidos también), desde la base:
-			// en una tienda con muchos pedidos abiertos, los más viejos no se quedan fuera.
-			'meta_query'  => array( // phpcs:ignore WordPress.DB.SlowDBQuery
-				array(
-					'key'     => '_dox_pos_hold_until',
-					'value'   => array( 1, $limit ),
-					'compare' => 'BETWEEN',
-					'type'    => 'NUMERIC',
-				),
-			),
-		)
-	);
+	// Solo los que tienen fecha y vencen dentro del límite (los vencidos también). Se filtra en PHP, no con
+	// meta_query (sin HPOS WooCommerce lo ignora), y se pide por páginas para que en una tienda con muchos
+	// pedidos abiertos los más viejos no se queden fuera.
+	$orders = array();
+	for ( $page = 1; $page <= 10; $page++ ) {
+		$batch = wc_get_orders(
+			array(
+				'limit'       => 100,
+				'paged'       => $page,
+				'type'        => 'shop_order',
+				'created_via' => DOX_POS_VIA,
+				'status'      => array( 'wc-on-hold', 'wc-pending', 'wc-failed' ),
+			)
+		);
+		foreach ( $batch as $o ) {
+			$until = (int) $o->get_meta( '_dox_pos_hold_until' );
+			if ( $until >= 1 && $until <= $limit ) {
+				$orders[] = $o;
+			}
+		}
+		if ( count( $batch ) < 100 ) {
+			break;
+		}
+	}
 	foreach ( $orders as $o ) {
 		$i = dox_pos_layaway_info( $o );
 		if ( ! $i || ! $i['until'] || $i['until'] > $limit ) {

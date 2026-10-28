@@ -976,8 +976,24 @@ function dox_pos_list_orders( $limit = 80 ) {
 	if ( ! dox_pos_show_web_orders() ) {
 		$args['created_via'] = DOX_POS_VIA;
 	}
-	$args['meta_query'] = array( array( 'key' => '_dox_pos_layaway_of', 'compare' => 'NOT EXISTS' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-	return array_map( 'dox_pos_format_order', wc_get_orders( $args ) );
+	// Los abonos de un apartado no son ventas aparte: se quitan en PHP, porque con los pedidos guardados como
+	// entradas (sin HPOS) WooCommerce ignora meta_query. Se piden por páginas hasta juntar el límite.
+	$out   = array();
+	$page  = 1;
+	$count = 0;
+	do {
+		$args['paged'] = $page;
+		$batch         = wc_get_orders( $args );
+		$more          = count( $batch ) >= $limit;
+		foreach ( $batch as $o ) {
+			if ( ! $o->get_meta( '_dox_pos_layaway_of' ) ) {
+				$out[] = $o;
+				++$count;
+			}
+		}
+		++$page;
+	} while ( $more && $count < $limit && $page <= 10 );
+	return array_map( 'dox_pos_format_order', array_slice( $out, 0, $limit ) );
 }
 
 /**

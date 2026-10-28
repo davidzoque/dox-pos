@@ -42,7 +42,7 @@ remove_role( 'caja_mostrador' ); // El cajero de mostrador.
 global $wpdb;
 // Los pedidos de demostración, si quedaron, se van con el plugin (sus filas de kardex también).
 if ( function_exists( 'wc_get_orders' ) && get_option( 'dox_pos_demo' ) ) {
-	$demo_ids = wc_get_orders( array( 'limit' => -1, 'type' => 'shop_order', 'return' => 'ids', 'status' => array_merge( array_keys( wc_get_order_statuses() ), array( 'trash' ) ), 'meta_query' => array( array( 'key' => '_dox_pos_demo', 'value' => '1' ) ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+	$demo_ids = wc_get_orders( array( 'limit' => -1, 'type' => 'shop_order', 'return' => 'ids', 'status' => array_merge( array_keys( wc_get_order_statuses() ), array( 'trash' ) ), 'meta_key' => '_dox_pos_demo', 'meta_value' => '1' ) ); // phpcs:ignore WordPress.DB.SlowDBQuery -- meta_key y no meta_query: sin HPOS WooCommerce ignora meta_query.
 	foreach ( (array) $demo_ids as $demo_id ) {
 		$demo_order = wc_get_order( $demo_id );
 		if ( $demo_order ) {
