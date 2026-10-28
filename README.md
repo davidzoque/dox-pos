@@ -136,7 +136,7 @@ Genéricos: los usa el Pro para los idiomas y los usará para los precios por zo
 | Gancho | Firma | Qué hace |
 |---|---|---|
 | filtro `dox_pos_product_form_fields` | `( string $html, string $slot, array $cfg )` | HTML (ya escapado por quien lo arma) que se mete en un hueco del formulario. Huecos: `name_before`, `name_after` (dentro del campo del nombre), `price_after`, `short_before`, `short_after`, `description_after`. Los campos básicos (`#p-nom`, `#p-corta`, `#p-desc`) siguen siendo del núcleo. |
-| acción `dox_pos_product_saved` | `( int $pid, array $data, bool $created )` | Después de guardar un producto desde la caja, con lo que mandó el formulario. `$created` es true al crear (también al repetirse el mismo envío, `ref`, que devuelve el producto ya creado). |
+| acción `dox_pos_product_saved` | `( int $pid, array $data, bool $created )` | Después de guardar un producto desde la caja, con lo que mandó el formulario (`$data` llega tal cual, sin sanear: cada añadido limpia y valida lo suyo; un `$data['zonas']` que mande un campo propio hay que pasarlo por `sanitize_*` o `wc_format_decimal`). `$created` es true al crear (también al repetirse el mismo envío, `ref`, que devuelve el producto ya creado). |
 | filtro `dox_pos_product_response` | `( array $out, WC_Product $p )` | La respuesta de crear o guardar (`product`, y lo que sume el añadido: el Pro pone `langs`). |
 | filtro `dox_pos_product_edit_data` | `( array $out, WC_Product $p )` | Los datos al abrir un producto para editar (el Pro suma `i18n` y `lang_missing`). |
 | filtro `dox_pos_catalog_item` | `( array $item, int $id, string $context )` | Cada producto de `/catalog` (`catalog`) y de la lista de Editar producto (`products`); el Pro suma `nolang`. |
