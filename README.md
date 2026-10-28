@@ -163,6 +163,36 @@ Genéricos: los usa el Pro para los idiomas y los usará para los precios por zo
 
 `DoxPOS.producto` da `editado()` (el producto abierto o null), `huella()`, `limpio()`, `fijarHuella()` y `borrador()`.
 
+## Ganchos de moneda y de precio (0.60.0)
+
+La gratuita vende en la moneda de la tienda y con el precio de WooCommerce. Pero cada pregunta de moneda o de precio pasa
+por una función con su filtro (`includes/currency.php`), para que Dox POS Pro (multimoneda con Price Based on Country) la
+conteste con la moneda y los precios de una zona. **Sin Pro, cada una devuelve exactamente lo de siempre** y no consulta
+nada más.
+
+| Gancho | Firma | Qué hace |
+|---|---|---|
+| función `dox_pos_currency()` / filtro `dox_pos_currency` | `( string $currency )` | La moneda en que vende la caja (de fábrica `get_woocommerce_currency()`). Sustituye a las llamadas sueltas. |
+| función `dox_pos_money_format( $currency )` / filtro `dox_pos_money_format` | `( array $format, string $currency )` | `symbol, pos, thousand, decimal, decimals` de una moneda. `dox_pos_money()` y `cfg.money` salen de aquí. `dox_pos_decimals()` da los decimales. |
+| función `dox_pos_money( $amount, $currency )` | | Un importe en texto plano; con moneda, la de ese pedido (de fábrica, la de la caja). |
+| función `dox_pos_product_price( $product, $context )` / filtro `dox_pos_product_price` | `( float $price, WC_Product $product, string $context )` | El precio con que vende la caja. Contextos: `sell` (carrito, pedido, descuentos, envío), `list` (catálogo y listas) y `edit` (el precio normal del formulario). Si el de `sell` no es el de WooCommerce, la línea del pedido lleva ese precio. |
+| filtro `dox_pos_order_problem` | `( null\|WP_Error $problem, array $lines, array $data )` | Antes de crear el pedido: un `WP_Error` lo rechaza (el Pro: producto sin precio en la zona). |
+| acción `dox_pos_order_before_totals` | `( WC_Order $order, array $lines, array $data )` | Antes de `calculate_totals()`: el Pro pone `set_currency()` y la zona de wcpbc. Un abono a un apartado manda `$data['currency']` (la del apartado). |
+| función `dox_pos_report_currency()` / filtro `dox_pos_report_currency` | `( string $currency )` | La moneda que cuentan los informes (`dox_pos_history_orders()`, y con él Caja del día, Historial, Panel y Rendimiento). Vacío: todas, como siempre. |
+| filtro `dox_pos_history_response` | `( array $out, string $kind, WP_REST_Request $request )` | La respuesta de `history/sales` (`sales`) y `history/cash` (`cash`): el Pro suma `currency` y `currencies`. |
+| función `dox_pos_credit_currency( $order_id )` / filtro `dox_pos_credit_currency` | `( string $currency, int $order_id )` | La moneda del movimiento de saldo (vacío: la de siempre). La tabla de saldo tiene una columna `currency` (versión `2`); el saldo, el historial y la lista de clientas se separan por ella. |
+| filtro `dox_pos_shipping_rates` | `( array $rates, array $package )` | Las tarifas de envío de la caja (el Pro: las pasa a la moneda de la zona). |
+| filtro `dox_pos_order_profit_pre` | `( null\|array $profit, WC_Order $order )` | Un añadido decide la ganancia de un pedido (el Pro: sin costo si no es de la moneda de la tienda, donde está el costo). |
+| filtro `dox_pos_xlsx_money_format` | `( string $code, string $currency )` | El formato de los importes del Excel. |
+| filtro `dox_pos_product_validate` | `( null\|WP_Error $problem, array $data, int $id )` | Al crear (`$id = 0`) o guardar un producto: un `WP_Error` cancela el guardado con su mensaje. |
+| JS `productoPayload` / `productoAntesDeGuardar` | `x.cancelar = "texto"` | Cancela el guardado y enseña el texto. |
+| JS `historialConsulta` | `{ query }` | Se suma a `x.query` lo que lleva la consulta de Ventas, Caja del día y su Excel (`&moneda=COP`). |
+| JS `historialPintado` | `{ vista, datos, caja }` | La vista del historial ya está pintada: se le suma lo propio (el selector de moneda). `DoxPOS.historial.recargar()` la vuelve a cargar. |
+| JS `cfg.money_base`, `cfg.currencies` | | La moneda base (el precio normal y el costo del formulario van en ella: `numB`, `milesB`, `dineroB`) y las de otras zonas, para pintar pedidos viejos (`enMoneda( moneda, fn )`). |
+
+El cierre de turno del Mostrador (`dox_pos_counter_summary()`) solo suma los pedidos de la moneda de la caja
+(`other_currency` cuenta los de otra moneda sin sumarlos).
+
 ## Cómo se mueve el inventario
 
 Nunca lo toca el plugin directamente: registrar una venta pone el pedido en "procesando" y WooCommerce descuenta; apartar lo pone "en espera" y también descuenta; anular o liberar lo cancela y WooCommerce devuelve. Solo las entradas de mercancía suman stock a mano (`wc_update_product_stock`), y anular una entrada lo resta. Las bajas (`includes/writeoffs.php`) también lo restan a mano. Todo eso, y lo que se haga por fuera de la caja, queda en el kardex (abajo). Una entrada suma las unidades y guarda su fila en una sola transacción (`wc_transaction_query`): si la fila no se puede guardar, las unidades vuelven. No admite productos sin control de existencias ni fechas que no existen.
