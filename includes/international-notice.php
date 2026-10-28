@@ -49,13 +49,13 @@ function dox_pos_international_plugin() {
  * @return bool
  */
 function dox_pos_international_notice_due() {
-	if ( dox_pos_pro_active() || ! is_user_logged_in() || ! current_user_can( 'manage_woocommerce' ) ) {
+	if ( dox_pos_pro_active() || '' === dox_pos_international_plugin() ) { // Lo barato primero: sin ninguno de esos plugins no se pregunta nada a la base de datos.
 		return false;
 	}
-	if ( get_user_meta( get_current_user_id(), 'dox_pos_intl_notice_closed', true ) ) {
+	if ( ! is_user_logged_in() || ! current_user_can( 'manage_woocommerce' ) ) {
 		return false;
 	}
-	return '' !== dox_pos_international_plugin();
+	return ! get_user_meta( get_current_user_id(), 'dox_pos_intl_notice_closed', true );
 }
 
 /**
