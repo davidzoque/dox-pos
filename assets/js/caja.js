@@ -1903,7 +1903,7 @@
 			let msg = msgs[act];
 			const lo = r && r.order && r.order.layaway;
 			if (act === "paid" && p.status === "apartado") msg = __("Layaway paid. It is now ready to ship.", "dox-pos");
-			else if (act === "deposit") msg = lo && lo.open ? sprintf(__("Deposit recorded. Left to pay: %s.", "dox-pos"), dinero(lo.remaining)) : __("Deposit recorded: the layaway is paid in full.", "dox-pos");
+			else if (act === "deposit") msg = lo && lo.open ? sprintf(__("Deposit recorded. Left to pay: %s.", "dox-pos"), dinero(lo.remaining, (r.order.currency || ""))) : __("Deposit recorded: the layaway is paid in full.", "dox-pos");
 			else if (act === "deadline") msg = lo && lo.never ? __("Deadline changed: it has no deadline now.", "dox-pos") : sprintf(__("Deadline changed: it expires on %s.", "dox-pos"), lo ? lo.due : "");
 			else if (act === "release" && extra && extra.refund) msg = __("Layaway released. The deposits were given back to the customer.", "dox-pos");
 			else if (act === "release" && p.layaway && p.layaway.deposited > 0) msg = __("Layaway released. What was deposited is now the customer’s store credit.", "dox-pos");
