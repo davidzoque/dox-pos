@@ -357,6 +357,11 @@ function dox_pos_can_see_losses() {
  * @return array{cost: float|null, profit: float|null, revenue: float, loss: float, complete: bool, missing: int}
  */
 function dox_pos_order_profit( $order ) {
+	// Un añadido puede decidir la ganancia de un pedido por su cuenta (el Pro: sin costo conocido si el pedido no es de la moneda de la tienda, donde el costo está).
+	$early = apply_filters( 'dox_pos_order_profit_pre', null, $order );
+	if ( is_array( $early ) ) {
+		return $early;
+	}
 	// El pedido de un abono a un apartado no vende nada por sí mismo: la ganancia la lleva el apartado
 	// el día que se paga, con todo lo que vale (ver abajo). Aquí va en 0, sin contarlo como venta sin costo.
 	if ( $order->get_meta( '_dox_pos_layaway_of' ) ) {

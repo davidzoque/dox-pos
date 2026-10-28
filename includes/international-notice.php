@@ -49,7 +49,7 @@ function dox_pos_international_plugin() {
  * @return bool
  */
 function dox_pos_international_notice_due() {
-	if ( dox_pos_pro_active() || '' === dox_pos_international_plugin() ) { // Lo barato primero: sin ninguno de esos plugins no se pregunta nada a la base de datos.
+	if ( dox_pos_pro_has_international() || '' === dox_pos_international_plugin() ) { // Lo barato primero: sin ninguno de esos plugins no se pregunta nada a la base de datos.
 		return false;
 	}
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_woocommerce' ) ) {

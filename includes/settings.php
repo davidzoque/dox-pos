@@ -160,6 +160,16 @@ function dox_pos_site_url( $hash = '' ) {
 }
 
 /**
+ * ¿Tiene el Pro lo de las tiendas internacionales (idiomas y monedas, desde la 0.42.0)? Con uno más viejo el
+ * aviso de la caja sigue saliendo, porque ese Pro no hace nada de eso.
+ *
+ * @return bool
+ */
+function dox_pos_pro_has_international() {
+	return defined( 'DOX_POS_PRO_VERSION' ) && version_compare( (string) DOX_POS_PRO_VERSION, '0.42.0', '>=' );
+}
+
+/**
  * ¿Está instalado Dox POS Pro? Con él puesto, el plugin no ofrece nada: ya lo tiene.
  *
  * @return bool

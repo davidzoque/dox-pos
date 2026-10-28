@@ -6029,8 +6029,8 @@ msgid "One line under the price"
 msgstr "Una línea debajo del precio"
 
 #: includes/international-notice.php
-msgid "Your store sells in several languages or currencies. Dox POS sells with the base price in your store currency and edits only the main language. Dox POS Pro sells with each zone's currency and prices and keeps translations in sync."
-msgstr "Tu tienda vende en varios idiomas o monedas. Dox POS vende con el precio base en la moneda de tu tienda y edita solo el idioma principal. Dox POS Pro vende con la moneda y los precios de cada zona y mantiene las traducciones al día."
+msgid "Several languages or currencies? Dox POS Pro sells in each zone's currency and keeps translations in sync."
+msgstr "¿Varios idiomas o monedas? Dox POS Pro vende en la moneda de cada zona y mantiene las traducciones al día."
 
 #: includes/international-notice.php
 msgid "Dismiss"

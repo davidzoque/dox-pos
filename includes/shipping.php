@@ -113,7 +113,8 @@ function dox_pos_shipping_rates( $state, $city, $address, $lines, $postcode = ''
 			'cost'        => (float) $rate->get_cost(),
 		);
 	}
-	return $out;
+	// Un añadido puede cambiar las tarifas (el Pro: pasar el costo a la moneda de la zona de la caja).
+	return apply_filters( 'dox_pos_shipping_rates', $out, $package );
 }
 
 /**
