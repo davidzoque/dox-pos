@@ -35,7 +35,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * kind: deposit (abono), return (cambio o devolución), use (pagó con saldo), restore (volvió el saldo
  * de un pedido anulado o devuelto), reversal (se anuló un abono), adjust (ajuste a mano).
  */
-const DOX_POS_CREDIT_DB = '1';
+const DOX_POS_CREDIT_DB = '2';
 add_action( 'init', 'dox_pos_credit_maybe_install', 21 );
 function dox_pos_credit_maybe_install() {
 	if ( get_option( 'dox_pos_credit_db' ) === DOX_POS_CREDIT_DB ) {
@@ -50,6 +50,7 @@ function dox_pos_credit_maybe_install() {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			phone varchar(32) NOT NULL,
 			name varchar(190) NOT NULL DEFAULT '',
+			currency varchar(10) NOT NULL DEFAULT '',
 			amount decimal(19,4) NOT NULL DEFAULT 0,
 			kind varchar(16) NOT NULL DEFAULT '',
 			order_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -63,7 +64,27 @@ function dox_pos_credit_maybe_install() {
 			KEY created (created)
 		) {$charset};"
 	);
-	update_option( 'dox_pos_credit_db', DOX_POS_CREDIT_DB, false );
+	// La versión se apunta solo si la columna quedó (sin ella, las consultas siguen como antes).
+	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $table, 'currency' ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		update_option( 'dox_pos_credit_db', DOX_POS_CREDIT_DB, false );
+	}
+}
+
+/**
+ * La parte de una consulta que separa el saldo por moneda. El saldo de siempre no lleva moneda (vacía);
+ * un añadido (el Pro, con zonas de precios) apunta el de cada moneda aparte: un saldo en una moneda no
+ * se gasta en otra. Sin la columna (aún sin actualizar la tabla) no se añade nada.
+ *
+ * @param string|null $currency La moneda, o null para la de la caja (dox_pos_credit_currency).
+ * @return string Para poner tras un WHERE ... AND, ya preparada.
+ */
+function dox_pos_credit_scope( $currency = null ) {
+	global $wpdb;
+	if ( get_option( 'dox_pos_credit_db' ) !== DOX_POS_CREDIT_DB ) {
+		return '';
+	}
+	$cur = null === $currency ? dox_pos_credit_currency() : strtoupper( (string) $currency );
+	return $wpdb->prepare( ' AND currency = %s', $cur );
 }
 
 function dox_pos_credit_table() {
@@ -123,16 +144,17 @@ function dox_pos_credit_phone_label( $key ) {
 /**
  * El saldo de una clienta, redondeado a los decimales de la tienda.
  *
- * @param string $key La clave (dox_pos_credit_key).
+ * @param string      $key      La clave (dox_pos_credit_key).
+ * @param string|null $currency La moneda del saldo; null: la de la caja (de fábrica, un solo saldo por clienta).
  * @return float
  */
-function dox_pos_credit_balance( $key ) {
+function dox_pos_credit_balance( $key, $currency = null ) {
 	global $wpdb;
 	if ( '' === (string) $key ) {
 		return 0.0;
 	}
-	$sum = $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(amount) FROM %i WHERE phone = %s', dox_pos_credit_table(), $key ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-	return round( (float) $sum, wc_get_price_decimals() );
+	$sum = $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(amount) FROM %i WHERE phone = %s', dox_pos_credit_table(), $key ) . dox_pos_credit_scope( $currency ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+	return round( (float) $sum, dox_pos_decimals() );
 }
 
 /**
@@ -156,26 +178,29 @@ function dox_pos_credit_name( $key ) {
  */
 function dox_pos_credit_insert( $key, $name, $amount, $kind, $order_id = 0, $note = '' ) {
 	global $wpdb;
-	$amount = round( (float) $amount, wc_get_price_decimals() );
+	$amount = round( (float) $amount, dox_pos_decimals() );
 	if ( '' === (string) $key || 0.0 === $amount ) {
 		return 0;
 	}
 	$user = function_exists( 'dox_pos_counter_actor' ) ? dox_pos_counter_actor() : wp_get_current_user();
-	$ok   = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		dox_pos_credit_table(),
-		array(
-			'phone'     => (string) $key,
-			'name'      => mb_substr( sanitize_text_field( (string) $name ), 0, 190 ),
-			'amount'    => $amount,
-			'kind'      => (string) $kind,
-			'order_id'  => (int) $order_id,
-			'note'      => mb_substr( sanitize_text_field( (string) $note ), 0, 255 ),
-			'user_id'   => $user ? (int) $user->ID : 0,
-			'user_name' => $user ? mb_substr( (string) $user->display_name, 0, 190 ) : '',
-			'created'   => current_time( 'mysql', true ),
-		),
-		array( '%s', '%s', '%f', '%s', '%d', '%s', '%d', '%s', '%s' )
+	$row  = array(
+		'phone'     => (string) $key,
+		'name'      => mb_substr( sanitize_text_field( (string) $name ), 0, 190 ),
+		'amount'    => $amount,
+		'kind'      => (string) $kind,
+		'order_id'  => (int) $order_id,
+		'note'      => mb_substr( sanitize_text_field( (string) $note ), 0, 255 ),
+		'user_id'   => $user ? (int) $user->ID : 0,
+		'user_name' => $user ? mb_substr( (string) $user->display_name, 0, 190 ) : '',
+		'created'   => current_time( 'mysql', true ),
 	);
+	$fmt  = array( '%s', '%s', '%f', '%s', '%d', '%s', '%d', '%s', '%s' );
+	$cur  = dox_pos_credit_currency( $order_id );
+	if ( '' !== $cur && get_option( 'dox_pos_credit_db' ) === DOX_POS_CREDIT_DB ) {
+		$row['currency'] = $cur; // El saldo de una moneda que no es la de siempre.
+		$fmt[]           = '%s';
+	}
+	$ok = $wpdb->insert( dox_pos_credit_table(), $row, $fmt ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	if ( $ok ) {
 		do_action( 'dox_pos_credit_changed', (string) $key, $amount, (string) $kind, (int) $order_id );
 	}
@@ -238,10 +263,10 @@ function dox_pos_credit_lookup( $phone ) {
  */
 function dox_pos_credit_history( $key ) {
 	global $wpdb;
-	$rows = '' === (string) $key ? array() : $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE phone = %s ORDER BY id ASC', dox_pos_credit_table(), $key ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$rows = '' === (string) $key ? array() : $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE phone = %s', dox_pos_credit_table(), $key ) . dox_pos_credit_scope() . ' ORDER BY id ASC' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 	$out  = array();
 	$run  = 0.0;
-	$dec  = wc_get_price_decimals();
+	$dec  = dox_pos_decimals();
 	/* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
 	$fmt = _x( 'F j, Y G:i', 'date and time format with year', 'dox-pos' );
 	foreach ( (array) $rows as $r ) {
@@ -292,13 +317,17 @@ function dox_pos_credit_customers( $q = '', $page = 1 ) {
 		$args[] = $table;
 		$args[] = $like;
 	}
+	$scope  = dox_pos_credit_scope(); // El saldo de la moneda de la caja (de fábrica, sin separar).
+	if ( '' !== $scope ) {
+		$where = ( '' === $where ? ' WHERE 1=1' : $where ) . str_replace( '%', '%%', $scope );
+	}
 	$args[] = $per + 1;
 	$args[] = ( $page - 1 ) * $per;
 	$sql    = 'SELECT phone, SUM(amount) AS balance, MAX(id) AS last_id, MAX(created) AS last_at, COUNT(*) AS n FROM %i' . $where . ' GROUP BY phone ORDER BY ( SUM(amount) > 0 ) DESC, SUM(amount) DESC, MAX(id) DESC LIMIT %d OFFSET %d';
 	$rows   = $wpdb->get_results( $wpdb->prepare( $sql, ...$args ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 	$more   = count( (array) $rows ) > $per;
 	$rows   = array_slice( (array) $rows, 0, $per );
-	$dec    = wc_get_price_decimals();
+	$dec    = dox_pos_decimals();
 	$out    = array();
 	/* translators: PHP date format: https://wordpress.org/documentation/article/customize-date-and-time-format/ */
 	$fmt = _x( 'F j, Y', 'date format with year', 'dox-pos' );
@@ -312,7 +341,7 @@ function dox_pos_credit_customers( $q = '', $page = 1 ) {
 			'n'       => (int) $r->n,
 		);
 	}
-	$owed = $wpdb->get_row( $wpdb->prepare( 'SELECT SUM(b) AS total, COUNT(*) AS n FROM ( SELECT SUM(amount) AS b FROM %i GROUP BY phone HAVING SUM(amount) > 0.00001 ) t', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	$owed = $wpdb->get_row( $wpdb->prepare( 'SELECT SUM(b) AS total, COUNT(*) AS n FROM ( SELECT SUM(amount) AS b FROM %i WHERE 1=1', $table ) . dox_pos_credit_scope() . ' GROUP BY phone HAVING SUM(amount) > 0.00001 ) t' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
 	return array(
 		'items' => $out,
 		'more'  => $more,
@@ -343,7 +372,7 @@ function dox_pos_credit_adjust( $phone, $name, $amount, $note ) {
 	$raw    = trim( (string) $amount );
 	$neg    = 0 === strpos( $raw, '-' ) || 0 === strpos( $raw, '−' );
 	$amount = dox_pos_parse_money( ltrim( $raw, '-−' ) );
-	$amount = null === $amount ? 0.0 : round( abs( $amount ), wc_get_price_decimals() ) * ( $neg ? -1 : 1 );
+	$amount = null === $amount ? 0.0 : round( abs( $amount ), dox_pos_decimals() ) * ( $neg ? -1 : 1 );
 	if ( 0.0 === $amount ) {
 		return new WP_Error( 'dox_pos_importe', __( 'Write the amount.', 'dox-pos' ) );
 	}
@@ -550,13 +579,13 @@ function dox_pos_credit_give_back( $order, $amount, $note ) {
 	$fresh = wc_get_order( $order->get_id() );
 	$order = $fresh instanceof WC_Order ? $fresh : $order;
 	$key  = (string) $order->get_meta( '_dox_pos_credit_key' );
-	$left = round( dox_pos_order_credit_used( $order ) - (float) $order->get_meta( '_dox_pos_credit_restored' ), wc_get_price_decimals() );
-	$amount = round( min( (float) $amount, $left ), wc_get_price_decimals() );
+	$left = round( dox_pos_order_credit_used( $order ) - (float) $order->get_meta( '_dox_pos_credit_restored' ), dox_pos_decimals() );
+	$amount = round( min( (float) $amount, $left ), dox_pos_decimals() );
 	if ( '' === $key || $amount <= 0 || ! $order->get_meta( '_dox_pos_credit_posted' ) ) {
 		return 0.0;
 	}
 	dox_pos_credit_insert( $key, trim( $order->get_formatted_billing_full_name() ), $amount, 'restore', $order->get_id(), $note );
-	$order->update_meta_data( '_dox_pos_credit_restored', wc_format_decimal( (float) $order->get_meta( '_dox_pos_credit_restored' ) + $amount, wc_get_price_decimals() ) );
+	$order->update_meta_data( '_dox_pos_credit_restored', wc_format_decimal( (float) $order->get_meta( '_dox_pos_credit_restored' ) + $amount, dox_pos_decimals() ) );
 	$order->save_meta_data();
 	return $amount;
 }
@@ -597,10 +626,10 @@ function dox_pos_credit_can_cancel( $order ) {
 	if ( $dep <= 0 || ! $order->get_meta( '_dox_pos_credit_posted' ) || $order->get_meta( '_dox_pos_deposit_reversed' ) ) {
 		return true;
 	}
-	$balance = dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ) );
+	$balance = dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ), dox_pos_credit_currency( $order->get_id() ) );
 	if ( $balance + 0.00001 < $dep ) {
 		/* translators: 1: deposit, 2: balance */
-		return new WP_Error( 'dox_pos_saldo_usado', sprintf( __( 'This deposit (%1$s) was already used: the customer’s balance is %2$s. Cancelling it would leave the customer owing the difference.', 'dox-pos' ), dox_pos_money( $dep ), dox_pos_money( $balance ) ) );
+		return new WP_Error( 'dox_pos_saldo_usado', sprintf( __( 'This deposit (%1$s) was already used: the customer’s balance is %2$s. Cancelling it would leave the customer owing the difference.', 'dox-pos' ), dox_pos_money( $dep, $order->get_currency() ), dox_pos_money( $balance, $order->get_currency() ) ) );
 	}
 	return true;
 }
@@ -687,7 +716,7 @@ function dox_pos_credit_return_locked( $order_id, $lines, $args ) {
 			$want[ $item_id ] = ( $want[ $item_id ] ?? 0 ) + $qty;
 		}
 	}
-	$dec   = wc_get_price_decimals();
+	$dec   = dox_pos_decimals();
 	$items = array();
 	$value = 0.0;
 	$what  = array();
@@ -748,7 +777,7 @@ function dox_pos_credit_return_locked( $order_id, $lines, $args ) {
 	$detail = implode( ', ', $what );
 	if ( $fee > 0 ) {
 		/* translators: 1: what came back, 2: percent, 3: amount kept by the shop */
-		$detail = sprintf( __( '%1$s. Exchange fee %2$s%%: %3$s', 'dox-pos' ), $detail, wc_format_localized_decimal( $pct ), dox_pos_money( $fee ) );
+		$detail = sprintf( __( '%1$s. Exchange fee %2$s%%: %3$s', 'dox-pos' ), $detail, wc_format_localized_decimal( $pct ), dox_pos_money( $fee, $order->get_currency() ) );
 	}
 	/* translators: 1: order number, 2: detail */
 	$movement = sprintf( __( 'Order #%1$s: %2$s', 'dox-pos' ), $order->get_order_number(), $detail ) . ( '' !== $note ? '. ' . $note : '' );
@@ -758,12 +787,12 @@ function dox_pos_credit_return_locked( $order_id, $lines, $args ) {
 	}
 	try {
 		dox_pos_credit_insert( $key, $name, $credit, 'return', $order->get_id(), $movement );
-		$balance = dox_pos_credit_balance( $key );
+		$balance = dox_pos_credit_balance( $key, dox_pos_credit_currency( $order->get_id() ) );
 	} finally {
 		dox_pos_credit_unlock( $key );
 	}
 	/* translators: 1: amount, 2: user, 3: detail */
-	$order->add_order_note( sprintf( __( 'Returned to store credit: %1$s by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $credit ), $user->display_name, $detail ) );
+	$order->add_order_note( sprintf( __( 'Returned to store credit: %1$s by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $credit, $order->get_currency() ), $user->display_name, $detail ) );
 	return array(
 		'value'   => $value,
 		'fee'     => $fee,

@@ -250,7 +250,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		$lines[] = array( 'product' => $p, 'qty' => $qty, 'real' => (int) ( $l['real'] ?? 0 ) ); // real: la prenda que eligió la caja (0: la más cercana).
 	}
 	// Lo que se vende sin producto (un diseño por encargo, un arreglo): nombre, precio y cantidad. No mueve inventario.
-	$dec  = wc_get_price_decimals();
+	$dec  = dox_pos_decimals();
 	$free = array();
 	foreach ( (array) ( $data['free'] ?? array() ) as $f ) {
 		if ( ! is_array( $f ) ) {
@@ -291,7 +291,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	$discount = max( 0, (float) ( $data['discount'] ?? 0 ) );
 	$subtotal = 0.0;
 	foreach ( $lines as $l ) {
-		$subtotal += (float) $l['product']->get_price() * $l['qty'];
+		$subtotal += dox_pos_product_price( $l['product'] ) * $l['qty'];
 	}
 	foreach ( $free as $f ) {
 		$subtotal += $f['price'] * $f['qty'];
@@ -301,7 +301,7 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	}
 	// El tope de Ajustes para quien no administra la tienda.
 	$max = dox_pos_discount_max();
-	if ( null !== $max && $discount > 0 && $discount > round( $subtotal * $max / 100, wc_get_price_decimals() ) + 0.00001 ) {
+	if ( null !== $max && $discount > 0 && $discount > round( $subtotal * $max / 100, dox_pos_decimals() ) + 0.00001 ) {
 		return new WP_Error(
 			'dox_pos_descuento_tope',
 			0 === $max ? __( 'Your user cannot give discounts.', 'dox-pos' ) : sprintf( /* translators: %d: percent */ __( 'The discount can be at most %d%% of the sale.', 'dox-pos' ), $max )
@@ -353,12 +353,26 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		return new WP_Error( 'dox_pos_abono', __( 'A deposit is money that comes in now: record it as paid, with the payment method it came in.', 'dox-pos' ) );
 	}
 
+	// Un añadido puede negarse a vender (el Pro: un producto sin precio en la moneda de la caja, un saldo de otra moneda).
+	$problem = apply_filters( 'dox_pos_order_problem', null, $lines, $data );
+	if ( is_wp_error( $problem ) ) {
+		return $problem;
+	}
+
 	$order = wc_create_order( array( 'customer_id' => 0, 'created_via' => DOX_POS_VIA ) );
 	if ( is_wp_error( $order ) ) {
 		return $order;
 	}
 	foreach ( $lines as $l ) {
-		$item_id = $order->add_product( $l['product'], $l['qty'] );
+		// El precio de la caja (dox_pos_product_price). Si es otro que el del producto (el de una zona de precios),
+		// la línea lo lleva sin impuesto, como lo calcula WooCommerce; si es el mismo, add_product hace lo de siempre.
+		$args  = array();
+		$price = dox_pos_product_price( $l['product'] );
+		if ( abs( $price - (float) $l['product']->get_price() ) > 0.0000001 ) {
+			$net  = wc_get_price_excluding_tax( $l['product'], array( 'qty' => $l['qty'], 'price' => $price ) );
+			$args = array( 'subtotal' => $net, 'total' => $net );
+		}
+		$item_id = $order->add_product( $l['product'], $l['qty'], $args );
 		// El nombre de la línea lleva talla y color, que si no el pedido dice solo "Gafas de Sol".
 		$item = $order->get_item( $item_id, false );
 		if ( $item ) {
@@ -430,6 +444,8 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	if ( $counter ) {
 		$order->update_meta_data( '_dox_pos_counter', 1 ); // Antes de los totales: el impuesto sale de la dirección de la tienda.
 	}
+	// Los añadidos fijan lo suyo antes de los totales (el Pro: la moneda del pedido y la zona de precios).
+	do_action( 'dox_pos_order_before_totals', $order, $lines, $data );
 	$order->calculate_totals();
 	// El pago con saldo, ya con el total (impuestos incluidos): como mucho lo que la clienta tiene y lo
 	// que cuesta la venta (un abono no se paga con saldo). Si mientras tanto gastó parte en otra caja,
@@ -490,8 +506,8 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		$order->update_meta_data( '_dox_pos_payments', $split['parts'] );
 		$order->update_meta_data( '_dox_pos_shift', (int) $shift->id );
 		if ( null !== $split['tendered'] ) {
-			$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $split['tendered'], wc_get_price_decimals() ) );
-			$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $split['change'], wc_get_price_decimals() ) );
+			$order->update_meta_data( '_dox_pos_tendered', wc_format_decimal( $split['tendered'], dox_pos_decimals() ) );
+			$order->update_meta_data( '_dox_pos_change', wc_format_decimal( $split['change'], dox_pos_decimals() ) );
 		}
 	}
 	$order->save();
@@ -915,7 +931,7 @@ function dox_pos_order_action( $id, $action, $extra = array() ) {
 			if ( $amount > 0 ) {
 				$order->update_meta_data( '_dox_pos_loss', wc_format_decimal( $amount, 2 ) );
 				$order->update_meta_data( '_dox_pos_loss_note', $note );
-				$order->add_order_note( trim( sprintf( /* translators: 1: amount, 2: who noted it, 3: reason */ __( 'Loss of %1$s noted from the register by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $amount ), $who, $note ) ) );
+				$order->add_order_note( trim( sprintf( /* translators: 1: amount, 2: who noted it, 3: reason */ __( 'Loss of %1$s noted from the register by %2$s. %3$s', 'dox-pos' ), dox_pos_money( $amount, $order->get_currency() ), $who, $note ) ) );
 			} else {
 				$order->delete_meta_data( '_dox_pos_loss' );
 				$order->delete_meta_data( '_dox_pos_loss_note' );
@@ -1093,6 +1109,7 @@ function dox_pos_format_order( $order ) {
 		'change'       => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,     // Y el cambio.
 		'pay_url'      => $hold ? $order->get_checkout_payment_url() : '',
 		'whatsapp'     => $wa,
+		'currency'     => $order->get_currency() !== get_woocommerce_currency() ? $order->get_currency() : '', // Vacío: la de la tienda; si no, la de este pedido (el Pro: la de una zona).
 	);
 }
 
@@ -1107,7 +1124,7 @@ function dox_pos_order_response( $order, $hold ) {
 		$out['credit'] = array(
 			'used'     => dox_pos_order_credit_used( $order ),
 			'deposit'  => dox_pos_order_deposit( $order ),
-			'balance'  => dox_pos_credit_balance( $key ),
+			'balance'  => dox_pos_credit_balance( $key, dox_pos_credit_currency( $order->get_id() ) ),
 			'name'     => trim( $order->get_formatted_billing_full_name() ),
 			'whatsapp' => dox_pos_credit_message_url( $key ),
 		);
@@ -1139,11 +1156,11 @@ function dox_pos_hold_message( $order ) {
 		array(
 			'{name}'      => $order->get_billing_first_name(),
 			'{items}'     => implode( ' + ', $items ),
-			'{total}'     => dox_pos_money( $info ? $info['value'] : $order->get_total() ),
+			'{total}'     => dox_pos_money( $info ? $info['value'] : $order->get_total(), $order->get_currency() ),
 			'{hours}'     => $info && $info['until'] && ! $info['expired'] ? (string) $info['hours_left'] : $vacio, // Vencido: no se le dice una fecha que ya pasó.
 			'{due}'       => $info && $info['due'] && ! $info['expired'] ? $info['due'] : $vacio,
-			'{deposit}'   => $info && $info['deposited'] > 0 ? dox_pos_money( $info['deposited'] ) : $vacio,
-			'{remaining}' => $info && $info['deposited'] > 0 ? dox_pos_money( $info['remaining'] ) : $vacio,
+			'{deposit}'   => $info && $info['deposited'] > 0 ? dox_pos_money( $info['deposited'], $order->get_currency() ) : $vacio,
+			'{remaining}' => $info && $info['deposited'] > 0 ? dox_pos_money( $info['remaining'], $order->get_currency() ) : $vacio,
 			'{link}'      => $link,
 			'{store}'     => dox_pos_brand_name(),
 		)
@@ -1408,14 +1425,14 @@ function dox_pos_order_detail( $id ) {
 			'line'         => (int) $it->get_id(),                 // La línea del pedido (para devolverla).
 			'free'         => (bool) $it->get_meta( '_dox_pos_free' ), // Se vendió sin producto.
 			'refundable'   => max( 0, $qty - abs( (int) $order->get_qty_refunded_for_item( $it->get_id() ) ) ),
-			'unit_value'   => $qty > 0 ? round( dox_pos_unit_value( $order, $it ), wc_get_price_decimals() ) : 0, // Lo que vale una unidad devuelta.
+			'unit_value'   => $qty > 0 ? round( dox_pos_unit_value( $order, $it ), dox_pos_decimals() ) : 0, // Lo que vale una unidad devuelta.
 			'id'           => $vid ? $vid : $pid,
 			'product_id'   => $pid,
 			'variation_id' => $vid,
 			'name'         => dox_pos_order_line_name( $it ),
 			'sku'          => $sku,
 			'qty'          => $qty,
-			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, wc_get_price_decimals() ) : 0,
+			'price'        => $qty > 0 ? round( (float) $it->get_subtotal() / $qty, dox_pos_decimals() ) : 0,
 			'total'        => (float) $it->get_total(),
 			'image'        => $img ? (string) wp_get_attachment_image_url( $img, 'woocommerce_thumbnail' ) : '',
 			'url'          => $parent && 'publish' === $parent->get_status() ? get_permalink( $parent->get_id() ) : '',
@@ -1490,7 +1507,7 @@ function dox_pos_order_detail( $id ) {
 			'demo'            => (bool) $order->get_meta( '_dox_pos_demo' ),
 			// La clienta del saldo a favor y lo que le queda hoy (el detalle de un abono lo enseña arriba).
 			'credit_key'      => (string) $order->get_meta( '_dox_pos_credit_key' ),
-			'credit_balance'  => '' !== (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ) ) : null,
+			'credit_balance'  => '' !== (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ), dox_pos_credit_currency( $order->get_id() ) ) : null,
 		),
 		$see ? dox_pos_order_profit_fields( $order ) : array(),
 		// La pérdida anotada y su motivo, para quien administra (lleve costos o no).

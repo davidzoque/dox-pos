@@ -145,7 +145,7 @@ function dox_pos_counter_quote( $lines, $discount ) {
 		if ( ! $p || $qty < 1 ) {
 			continue;
 		}
-		$line = (float) $p->get_price() * $qty;
+		$line = dox_pos_product_price( $p ) * $qty;
 		$sub += $line;
 		if ( $on && $p->is_taxable() ) {
 			$rows[] = array( $line, WC_Tax::get_base_tax_rates( $p->get_tax_class() ) );
@@ -167,10 +167,10 @@ function dox_pos_counter_quote( $lines, $discount ) {
 	$tax  += wc_round_tax_total( $fee );
 	$total = $included ? $sub - $discount : $sub - $discount + $tax;
 	return array(
-		'subtotal' => wc_format_decimal( $sub, wc_get_price_decimals() ),
-		'discount' => wc_format_decimal( $discount, wc_get_price_decimals() ),
-		'tax'      => wc_format_decimal( $tax, wc_get_price_decimals() ),
-		'total'    => wc_format_decimal( max( 0, $total ), wc_get_price_decimals() ),
+		'subtotal' => wc_format_decimal( $sub, dox_pos_decimals() ),
+		'discount' => wc_format_decimal( $discount, dox_pos_decimals() ),
+		'tax'      => wc_format_decimal( $tax, dox_pos_decimals() ),
+		'total'    => wc_format_decimal( max( 0, $total ), dox_pos_decimals() ),
 		'included' => $included,
 	);
 }
@@ -243,7 +243,7 @@ function dox_pos_counter_bills() {
 		'PEN' => array( 10, 20, 50, 100, 200 ),
 		'ARS' => array( 1000, 2000, 10000, 20000 ),
 	);
-	$cur = get_woocommerce_currency();
+	$cur = dox_pos_currency();
 	return apply_filters( 'dox_pos_counter_bills', $bills[ $cur ] ?? array( 1, 5, 10, 20, 50, 100 ), $cur );
 }
 
@@ -453,9 +453,15 @@ function dox_pos_counter_summary( $shift ) {
 	$total  = 0.0;
 	$titles = wp_list_pluck( dox_pos_counter_payments(), 'title' );
 	$orders = wc_get_orders( array( 'type' => 'shop_order', 'limit' => -1, 'status' => array_keys( wc_get_order_statuses() ), 'meta_key' => '_dox_pos_shift', 'meta_value' => (int) $shift->id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+	$cur   = dox_pos_currency(); // El cajón es de una sola moneda: lo vendido en otra no se suma a su efectivo.
+	$other = array();
 	foreach ( $orders as $o ) {
 		if ( in_array( $o->get_status(), array( 'cancelled', 'failed', 'pending' ), true ) ) {
 			continue; // Anulada después: no entró dinero.
+		}
+		if ( $o->get_currency() !== $cur ) {
+			$other[ $o->get_currency() ] = ( $other[ $o->get_currency() ] ?? 0 ) + 1;
+			continue;
 		}
 		++$count;
 		$total += (float) $o->get_total();
@@ -470,6 +476,10 @@ function dox_pos_counter_summary( $shift ) {
 	$refund_other = 0.0;
 	$refunds      = wc_get_orders( array( 'type' => 'shop_order_refund', 'limit' => -1, 'meta_key' => '_dox_pos_shift', 'meta_value' => (int) $shift->id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 	foreach ( $refunds as $r ) {
+		$rparent = wc_get_order( $r->get_parent_id() );
+		if ( $rparent instanceof WC_Order && $rparent->get_currency() !== $cur ) {
+			continue; // Una devolución de otra moneda no sale de este cajón.
+		}
 		if ( 'efectivo' === $r->get_meta( '_dox_pos_refund_method' ) ) {
 			$refund_cash += abs( (float) $r->get_amount() );
 		} else {
@@ -477,7 +487,7 @@ function dox_pos_counter_summary( $shift ) {
 		}
 	}
 	$cash = isset( $by['efectivo'] ) ? $by['efectivo']['amount'] : 0.0;
-	$dec  = wc_get_price_decimals();
+	$dec  = dox_pos_decimals();
 	$sum = array(
 		'orders'       => $count,
 		'total'        => round( $total, $dec ),
@@ -489,6 +499,9 @@ function dox_pos_counter_summary( $shift ) {
 		'expected'     => round( (float) $shift->float_cash + $cash - $refund_cash, $dec ),
 		'extra_cash'   => array(), // Lo que mueve el efectivo además de ventas y devoluciones (el Pro: entradas y salidas), [{label, amount}].
 	);
+	if ( $other ) {
+		$sum['other_currency'] = $other; // [moneda => pedidos] vendidos en este turno en otra moneda: no suman aquí.
+	}
 	// El Pro añade sus movimientos de efectivo en extra_cash y los suma a expected.
 	return apply_filters( 'dox_pos_counter_summary', $sum, $shift );
 }
@@ -562,7 +575,7 @@ function dox_pos_counter_format_shift( $shift ) {
 		'closed_day'  => $day( $shift->closed_at ),
 		'closed_name' => $shift->closed_name,
 		'counted'     => null === $shift->counted ? null : (float) $shift->counted,
-		'difference'  => null === $shift->counted ? null : round( (float) $shift->counted - (float) $shift->expected, wc_get_price_decimals() ),
+		'difference'  => null === $shift->counted ? null : round( (float) $shift->counted - (float) $shift->expected, dox_pos_decimals() ),
 		'note'        => (string) $shift->note,
 		'summary'     => is_array( $sum ) ? $sum : array(),
 	);
@@ -595,7 +608,7 @@ function dox_pos_counter_order_payments( $order ) {
  */
 function dox_pos_counter_split( $parts, $pay_key, $total, $tendered ) {
 	$methods = dox_pos_counter_payments();
-	$dec     = wc_get_price_decimals();
+	$dec     = dox_pos_decimals();
 	$out     = array();
 	if ( ! $parts ) {
 		$parts = array( array( 'key' => $pay_key, 'amount' => 'efectivo' === $pay_key && null !== $tendered ? $tendered : $total ) );
@@ -676,7 +689,7 @@ function dox_pos_counter_receipt( $order ) {
 		'discount' => $discount,
 		'deposits' => dox_pos_order_deposit_lines( $order ), // Los abonos al saldo a favor.
 		'credit'   => dox_pos_order_credit_used( $order ),   // Lo que se pagó con saldo a favor.
-		'balance'  => (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ) ) : null, // El saldo que le queda, hoy.
+		'balance'  => (string) $order->get_meta( '_dox_pos_credit_key' ) ? dox_pos_credit_balance( (string) $order->get_meta( '_dox_pos_credit_key' ), dox_pos_credit_currency( $order->get_id() ) ) : null, // El saldo que le queda, hoy.
 		'phone'    => (string) $order->get_billing_phone(),
 		'taxes'    => $taxes,
 		'included' => wc_prices_include_tax(),
@@ -852,7 +865,7 @@ function dox_pos_counter_refund_locked( $order_id, $lines, $method, $reason = ''
 			$want[ $item_id ] = ( $want[ $item_id ] ?? 0 ) + $qty;
 		}
 	}
-	$dec    = wc_get_price_decimals();
+	$dec    = dox_pos_decimals();
 	$items  = array();
 	$amount = 0.0;
 	foreach ( $want as $item_id => $qty ) {
@@ -1042,7 +1055,7 @@ function dox_pos_rest_counter_refund( WP_REST_Request $request ) {
  */
 function dox_pos_counter_receipt_sample() {
 	$included = wc_prices_include_tax();
-	$dec      = wc_get_price_decimals();
+	$dec      = dox_pos_decimals();
 	$f        = 0 === $dec ? 1000 : 1; // Sin decimales (pesos), los precios de ejemplo van en miles: un vestido de 150.000, no de 150.
 	$lines    = array(
 		array( 'name' => __( 'Ella dress · M · Pink', 'dox-pos' ), 'sku' => 'ED83M', 'qty' => 1, 'unit' => 150 * $f, 'total' => 150 * $f ),
@@ -1057,13 +1070,7 @@ function dox_pos_counter_receipt_sample() {
 	return array(
 		'name'   => dox_pos_brand_name(),
 		'logo'   => dox_pos_logo_url(),
-		'money'  => array(
-			'symbol'   => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
-			'pos'      => get_option( 'woocommerce_currency_pos', 'left' ),
-			'thousand' => wc_get_price_thousand_separator(),
-			'decimal'  => wc_get_price_decimal_separator(),
-			'decimals' => $dec,
-		),
+		'money'  => dox_pos_money_format(),
 		'sample' => array(
 			'number'   => '2481',
 			'date'     => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),

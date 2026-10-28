@@ -802,8 +802,26 @@ function dox_pos_postcode_label() {
 /**
  * Un importe como texto plano ("$189.000"), con el formato de la tienda.
  */
-function dox_pos_money( $amount ) {
-	return html_entity_decode( wp_strip_all_tags( wc_price( (float) $amount ) ), ENT_QUOTES, 'UTF-8' );
+function dox_pos_money( $amount, $currency = '' ) {
+	$cur  = '' !== (string) $currency ? strtoupper( (string) $currency ) : dox_pos_currency();
+	$args = array();
+	if ( get_woocommerce_currency() !== $cur || has_filter( 'dox_pos_money_format' ) ) {
+		// Otra moneda (la de una zona, la de un pedido): su símbolo, separadores y decimales.
+		$f    = dox_pos_money_format( $cur );
+		$args = array(
+			'currency'           => $cur,
+			'decimal_separator'  => $f['decimal'],
+			'thousand_separator' => $f['thousand'],
+			'decimals'           => (int) $f['decimals'],
+			'price_format'       => array(
+				'left'        => '%1$s%2$s',
+				'right'       => '%2$s%1$s',
+				'left_space'  => '%1$s&nbsp;%2$s',
+				'right_space' => '%2$s&nbsp;%1$s',
+			)[ $f['pos'] ] ?? '%1$s%2$s',
+		);
+	}
+	return html_entity_decode( wp_strip_all_tags( wc_price( (float) $amount, $args ) ), ENT_QUOTES, 'UTF-8' );
 }
 
 /**
@@ -827,7 +845,7 @@ function dox_pos_sample_total( $raw = false ) {
 		'INR' => 3999,
 		'BRL' => 249,
 	);
-	$currency = get_woocommerce_currency();
+	$currency = dox_pos_currency();
 	$amount   = $amounts[ $currency ] ?? 49;
 	return $raw ? $amount : dox_pos_money( $amount );
 }
@@ -2356,7 +2374,7 @@ function dox_pos_settings_page() {
 						</div>
 						<dl class="dp-facts">
 							<div><dt><?php echo wp_kses( dox_pos_icon( 'pin' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Country', 'dox-pos' ); ?></dt><dd><?php echo esc_html( $cname ); ?> <i><?php echo esc_html( sprintf( /* translators: 1: label (State), 2: how many */ __( '%1$s: %2$d', 'dox-pos' ), dox_pos_state_label(), count( $states ) ) ); ?></i></dd></div>
-							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Currency', 'dox-pos' ); ?></dt><dd><?php echo esc_html( get_woocommerce_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: sample amount */ __( 'written as %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
+							<div><dt><?php echo wp_kses( dox_pos_icon( 'coins' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Currency', 'dox-pos' ); ?></dt><dd><?php echo esc_html( dox_pos_currency() ); ?> <i><?php echo esc_html( sprintf( /* translators: %s: sample amount */ __( 'written as %s', 'dox-pos' ), dox_pos_money( 12000 ) ) ); ?></i></dd></div>
 							<div><dt><?php echo wp_kses( dox_pos_icon( 'truck' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Zones', 'dox-pos' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: %d: number of shipping zones */ _n( '%d shipping zone', '%d shipping zones', $zones, 'dox-pos' ), $zones ) ); ?></dd></div>
 							<div><dt><?php echo wp_kses( dox_pos_icon( 'chat' ), dox_pos_svg_tags() ); ?><?php esc_html_e( 'Cities', 'dox-pos' ); ?></dt><dd><?php echo function_exists( 'colciu_get_ciudades' ) ? esc_html__( 'With a list to choose from (Colciudades)', 'dox-pos' ) : esc_html__( 'Typed by hand', 'dox-pos' ); ?></dd></div>
 						</dl>

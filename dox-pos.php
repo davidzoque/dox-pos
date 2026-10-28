@@ -31,6 +31,7 @@ define( 'DOX_POS_DEMO_REF', 'dox-demo-' ); // Marca las filas de demostración q
 
 require_once DOX_POS_PATH . 'includes/multilingual.php';
 require_once DOX_POS_PATH . 'includes/international-notice.php';
+require_once DOX_POS_PATH . 'includes/currency.php';
 require_once DOX_POS_PATH . 'includes/roles.php';
 require_once DOX_POS_PATH . 'includes/page.php';
 require_once DOX_POS_PATH . 'includes/catalog.php';

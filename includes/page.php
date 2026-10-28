@@ -433,13 +433,7 @@ function dox_pos_js_config() {
 		'postcode'        => dox_pos_postcode_label(),                     // El rótulo del código postal, o vacío en los países que no lo usan (Colombia): la venta solo lo pregunta si lo hay.
 		'states'          => function_exists( 'WC' ) ? WC()->countries->get_states( $country ) : array(),
 		'cities'          => dox_pos_cities(),
-		'money'           => array(
-			'symbol'   => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
-			'pos'      => get_option( 'woocommerce_currency_pos', 'left' ),
-			'thousand' => wc_get_price_thousand_separator(),
-			'decimal'  => wc_get_price_decimal_separator(),
-			'decimals' => wc_get_price_decimals(),
-		),
+		'money'           => dox_pos_money_format(),
 		'tax_extra'       => wc_tax_enabled() && ! wc_prices_include_tax(),     // Los precios van sin impuesto: el pedido lo suma al guardarse.
 		'low_stock'       => max( 0, (int) get_option( 'woocommerce_notify_low_stock_amount', 2 ) ), // Pocas unidades: el umbral de WooCommerce (Inventario).
 		'paper'           => in_array( $country, array( 'US', 'CA', 'MX', 'CO', 'CL', 'VE', 'CR', 'GT', 'SV', 'HN', 'NI', 'PA', 'DO', 'PR', 'PH' ), true ) ? 'letter' : 'a4', // Las hojas de etiquetas: carta en América (salvo Argentina, Perú...), A4 en el resto.

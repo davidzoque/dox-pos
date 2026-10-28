@@ -115,7 +115,7 @@ function dox_pos_layaway_info( $order ) {
 	if ( ! dox_pos_is_layaway( $order ) ) {
 		return null;
 	}
-	$dec   = wc_get_price_decimals();
+	$dec   = dox_pos_decimals();
 	$paid  = round( dox_pos_order_credit_used( $order ), $dec );
 	$total = (float) $order->get_total();
 	$open  = $order->has_status( array( 'on-hold', 'pending', 'failed' ) );
@@ -281,7 +281,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	if ( ! dox_pos_layaway_open( $order ) ) {
 		return new WP_Error( 'dox_pos_estado', __( 'That order is no longer on layaway.', 'dox-pos' ) );
 	}
-	$dec    = wc_get_price_decimals();
+	$dec    = dox_pos_decimals();
 	$amount = dox_pos_parse_money( $amount );
 	$amount = null === $amount ? 0.0 : round( $amount, $dec );
 	$left   = round( (float) $order->get_total(), $dec );
@@ -290,7 +290,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	}
 	if ( $amount > $left + 0.00001 ) {
 		/* translators: %s: amount left to pay */
-		return new WP_Error( 'dox_pos_abono_monto', sprintf( __( 'The deposit cannot be more than what is left to pay (%s).', 'dox-pos' ), dox_pos_money( $left ) ) );
+		return new WP_Error( 'dox_pos_abono_monto', sprintf( __( 'The deposit cannot be more than what is left to pay (%s).', 'dox-pos' ), dox_pos_money( $left, $order->get_currency() ) ) );
 	}
 	$methods = dox_pos_payment_methods();
 	$pay_key = sanitize_key( (string) $payment );
@@ -304,6 +304,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 		/* translators: %s: layaway order number */
 		'deposit'  => array( 'name' => sprintf( __( 'Deposit on layaway #%s', 'dox-pos' ), $num ), 'amount' => $amount ),
 		'channel'  => (string) $order->get_meta( '_dox_pos_channel' ),
+		'currency' => $order->get_currency(), // El abono se cobra en la moneda del apartado.
 		'payment'  => $pay_key,
 		'customer' => array(
 			'name'     => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
@@ -355,7 +356,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	dox_pos_credit_insert( $key, trim( $order->get_formatted_billing_full_name() ), -$amount, 'use', $order->get_id(), sprintf( __( 'Deposit on layaway #%s', 'dox-pos' ), $num ) );
 	$left = round( (float) $order->get_total(), $dec );
 	/* translators: 1: amount, 2: payment method, 3: who, 4: deposited so far, 5: left to pay */
-	$order->add_order_note( sprintf( __( 'Deposit of %1$s (%2$s) recorded by %3$s. Deposited so far: %4$s. Left to pay: %5$s.', 'dox-pos' ), dox_pos_money( $amount ), $methods[ $pay_key ]['title'], $who, dox_pos_money( dox_pos_order_credit_used( $order ) ), dox_pos_money( $left ) ) );
+	$order->add_order_note( sprintf( __( 'Deposit of %1$s (%2$s) recorded by %3$s. Deposited so far: %4$s. Left to pay: %5$s.', 'dox-pos' ), dox_pos_money( $amount, $order->get_currency() ), $methods[ $pay_key ]['title'], $who, dox_pos_money( dox_pos_order_credit_used( $order ), $order->get_currency() ), dox_pos_money( $left, $order->get_currency() ) ) );
 
 	// Con este abono quedó pagado entero: se da por pagado (pasa a por enviar).
 	if ( $left <= 0 ) {
@@ -375,7 +376,7 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
  * @return true|WP_Error
  */
 function dox_pos_layaway_complete( $order, $payment ) {
-	$left = round( (float) $order->get_total(), wc_get_price_decimals() );
+	$left = round( (float) $order->get_total(), dox_pos_decimals() );
 	if ( $left <= 0 ) {
 		$order->set_payment_method( 'dox_pos_credit' );
 		$order->set_payment_method_title( dox_pos_order_layaway_deposits( $order ) > 0 ? __( 'Deposits', 'dox-pos' ) : __( 'Store credit', 'dox-pos' ) );
@@ -401,7 +402,7 @@ function dox_pos_layaway_complete( $order, $payment ) {
 		$order->add_order_note( sprintf( __( 'Layaway paid in full with its deposits. Marked by %s.', 'dox-pos' ), $who ) );
 	} else {
 		/* translators: 1: amount, 2: payment method, 3: who */
-		$order->add_order_note( sprintf( __( 'Rest of the layaway paid: %1$s (%2$s). Confirmed by %3$s.', 'dox-pos' ), dox_pos_money( $left ), $order->get_payment_method_title(), $who ) );
+		$order->add_order_note( sprintf( __( 'Rest of the layaway paid: %1$s (%2$s). Confirmed by %3$s.', 'dox-pos' ), dox_pos_money( $left, $order->get_currency() ), $order->get_payment_method_title(), $who ) );
 	}
 	$order->payment_complete();
 	return true;
@@ -436,7 +437,7 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 		if ( ! $dep instanceof WC_Order || $dep->has_status( array( 'cancelled', 'refunded', 'failed' ) ) || $dep->get_meta( '_dox_pos_deposit_reversed' ) ) {
 			continue;
 		}
-		$amount = round( (float) $dep->get_total() - (float) $dep->get_total_refunded(), wc_get_price_decimals() );
+		$amount = round( (float) $dep->get_total() - (float) $dep->get_total_refunded(), dox_pos_decimals() );
 		if ( $amount <= 0 ) {
 			continue;
 		}
@@ -469,7 +470,7 @@ function dox_pos_layaway_refund_deposits( $order, $payment ) {
 	remove_filter( 'woocommerce_order_fully_refunded_status', '__return_false' );
 	if ( $back > 0 ) {
 		/* translators: 1: amount, 2: payment method */
-		$order->add_order_note( sprintf( __( 'Deposits given back to the customer: %1$s (%2$s).', 'dox-pos' ), dox_pos_money( $back ), '' !== $title ? $title : __( 'same payment method', 'dox-pos' ) ) );
+		$order->add_order_note( sprintf( __( 'Deposits given back to the customer: %1$s (%2$s).', 'dox-pos' ), dox_pos_money( $back, $order->get_currency() ), '' !== $title ? $title : __( 'same payment method', 'dox-pos' ) ) );
 	}
 	if ( $failed ) {
 		/* translators: %s: deposit order numbers */

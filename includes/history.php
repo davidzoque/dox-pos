@@ -97,6 +97,11 @@ function dox_pos_history_orders( $range, $seller = 0 ) {
 	if ( $seller ) {
 		$orders = array_values( array_filter( $orders, fn( $o ) => (int) $o->get_meta( '_dox_pos_seller' ) === (int) $seller ) );
 	}
+	// Una moneda a la vez: nunca se suman pedidos de monedas distintas (de fábrica, vacío: todos).
+	$currency = dox_pos_report_currency();
+	if ( '' !== $currency ) {
+		$orders = array_values( array_filter( $orders, fn( $o ) => $o->get_currency() === $currency ) );
+	}
 	return $orders;
 }
 
@@ -141,6 +146,9 @@ function dox_pos_history_refunds( $range ) {
 		}
 		$parent = wc_get_order( $r->get_parent_id() );
 		if ( ! $parent instanceof WC_Order || ( ! dox_pos_show_web_orders() && DOX_POS_VIA !== $parent->get_created_via() ) ) {
+			continue;
+		}
+		if ( '' !== dox_pos_report_currency() && $parent->get_currency() !== dox_pos_report_currency() ) {
 			continue;
 		}
 		$out[] = array(
@@ -765,14 +773,16 @@ function dox_pos_rest_history_permission() {
 function dox_pos_rest_history_sales( WP_REST_Request $request ) {
 	dox_pos_big_job();
 	if ( dox_pos_history_full() ) {
-		return rest_ensure_response( dox_pos_history_sales( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) ) );
+		$out = dox_pos_history_sales( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) );
+		return rest_ensure_response( apply_filters( 'dox_pos_history_response', $out, 'sales', $request ) );
 	}
 	return rest_ensure_response( dox_pos_history_sales( '', '', get_current_user_id() ) );
 }
 
 function dox_pos_rest_history_cash( WP_REST_Request $request ) {
 	dox_pos_big_job();
-	return rest_ensure_response( dox_pos_history_cash( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) ) );
+	$out = dox_pos_history_cash( (string) $request->get_param( 'from' ), (string) $request->get_param( 'to' ) );
+	return rest_ensure_response( apply_filters( 'dox_pos_history_response', $out, 'cash', $request ) );
 }
 
 function dox_pos_rest_history_stock( WP_REST_Request $request ) {

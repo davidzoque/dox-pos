@@ -33,39 +33,58 @@
 
 	// Un importe con el formato de la tienda ($189.000, 189.000 $, etc.).
 	const M = Object.assign({ symbol: "$", pos: "left", thousand: ".", decimal: ",", decimals: 0 }, cfg.money || {});
-	function dinero(n) {
+	// Otras monedas, para pedidos viejos o de otra zona (cfg.currencies: {COP: {symbol, pos...}}), y la base de la tienda
+	// (cfg.money_base): el formulario de producto edita el precio normal en ella. Sin añadidos, todo esto es M.
+	const MONEDAS = cfg.currencies || {};
+	const MB = Object.assign({}, M, cfg.money_base || {});
+	let _mon = ""; // La moneda con que se pinta ahora un pedido que no es de la caja (enMoneda).
+	const formatoDe = (cur) => (cur && MONEDAS[cur] ? Object.assign({}, M, MONEDAS[cur]) : M);
+	function dineroF(n, m) {
 		const v = Number(n) || 0;
-		const parts = Math.abs(v).toFixed(M.decimals).split(".");
-		let s = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand);
-		if (parts[1]) s += M.decimal + parts[1];
-		const con = { left: M.symbol + s, right: s + M.symbol, left_space: M.symbol + " " + s, right_space: s + " " + M.symbol };
-		return (v < 0 ? "−" : "") + (con[M.pos] || con.left);
+		const parts = Math.abs(v).toFixed(m.decimals).split(".");
+		let s = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, m.thousand);
+		if (parts[1]) s += m.decimal + parts[1];
+		const con = { left: m.symbol + s, right: s + m.symbol, left_space: m.symbol + " " + s, right_space: s + " " + m.symbol };
+		return (v < 0 ? "\u2212" : "") + (con[m.pos] || con.left);
+	}
+	const dinero = (n, cur) => dineroF(n, formatoDe(cur === undefined ? _mon : cur));
+	const dineroB = (n) => dineroF(n, MB);
+	// Pinta con la moneda de un pedido (el de otra zona o el de antes de elegir zona) lo que haga fn, y vuelve a la de la caja.
+	function enMoneda(cur, fn) {
+		const antes = _mon;
+		_mon = cur || "";
+		try { return fn(); } finally { _mon = antes; }
 	}
 	// Un importe tal como se escribe con el formato de la tienda ("189.000", "1.234,50", "12.50"): el separador de miles se quita,
 	// el decimal se respeta y se redondea a los decimales de la tienda (con cero decimales, "189.000" son ciento ochenta y nueve mil).
-	const num = (s) => {
+	const numF = (m) => (s) => {
 		let t = String(s == null ? "" : s).trim();
-		if (M.thousand) t = t.split(M.thousand).join("");
-		if (M.decimals > 0 && M.decimal && M.decimal !== ".") t = t.replace(M.decimal, ".");
-		else if (M.decimals === 0) t = t.replace(/[.,]/g, "");
+		if (m.thousand) t = t.split(m.thousand).join("");
+		if (m.decimals > 0 && m.decimal && m.decimal !== ".") t = t.replace(m.decimal, ".");
+		else if (m.decimals === 0) t = t.replace(/[.,]/g, "");
 		const v = parseFloat(t.replace(/[^\d.]/g, ""));
 		if (isNaN(v)) return 0;
-		const p = Math.pow(10, M.decimals);
+		const p = Math.pow(10, m.decimals);
 		return Math.round(v * p) / p;
 	};
+	const num = numF(M);
 	// Unidades: solo dígitos.
 	const uds = (s) => parseInt(String(s == null ? "" : s).replace(/\D/g, ""), 10) || 0;
 	// Un importe redondeado a los decimales de la tienda.
-	const redondear = (v) => { const p = Math.pow(10, M.decimals); return Math.round((Number(v) || 0) * p) / p; };
+	const redondearF = (m) => (v) => { const p = Math.pow(10, m.decimals); return Math.round((Number(v) || 0) * p) / p; };
+	const redondear = redondearF(M);
 	// Un número con el separador de miles de la tienda mientras se escribe, para que se vean los ceros; con decimales, los que haya.
-	const miles = (v) => {
+	const milesF = (m) => (v) => {
 		const n = Number(v) || 0;
 		if (!n) return "";
-		const parts = Math.abs(n).toFixed(M.decimals).split(".");
-		let s = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, M.thousand);
-		if (parts[1]) { const d = parts[1].replace(/0+$/, ""); if (d) s += M.decimal + d; }
+		const parts = Math.abs(n).toFixed(m.decimals).split(".");
+		let s = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, m.thousand);
+		if (parts[1]) { const d = parts[1].replace(/0+$/, ""); if (d) s += m.decimal + d; }
 		return (n < 0 ? "-" : "") + s;
 	};
+	const miles = milesF(M);
+	// Lo mismo en la moneda base: los campos de precio normal y de costo del formulario de producto.
+	const numB = numF(MB), redondearB = redondearF(MB), milesB = milesF(MB);
 	// El teclado de los importes en los campos que se pintan desde aquí: con decimales, el que trae la coma.
 	const IM = M.decimals > 0 ? "decimal" : "numeric";
 
@@ -1650,7 +1669,8 @@
 		const good = +cfg.margin_good || 40, low = +cfg.margin_low || 20;
 		return '<span class="tag ' + (margin >= good ? "c" : margin >= low ? "y" : "r") + '">' + esc(sprintf(__("%d %% margin", "dox-pos"), margin)) + "</span>";
 	}
-	function pintarDetalle(d) {
+	function pintarDetalle(d) { return enMoneda(d && d.currency, () => pintarDetalle0(d)); }
+	function pintarDetalle0(d) {
 		const cls = claseEstado(d.status);
 		const web = d.origin !== "caja";
 		const lw = d.layaway;
@@ -1835,6 +1855,7 @@
 			const canal = web
 				? '<span class="tag w">' + esc(p.origin_label) + "</span>" + (p.source ? '<br><span class="sub">' + esc(sprintf(__("from %s", "dox-pos"), p.source)) + "</span>" : "")
 				: canalIc(p.channel) + '<br><span class="sub">' + esc(__("POS", "dox-pos")) + (p.seller ? " · " + esc(p.seller) : "") + "</span>";
+			_mon = p.currency || ""; // Esta fila, en la moneda de su pedido.
 			tr.innerHTML =
 				'<td class="num">' + (p.id ? '<button type="button" class="lnk" data-ver="' + p.id + '">#' + esc(p.number) + "</button>" : "#" + esc(p.number)) + '<br><span class="sub">' + esc(p.date) + "</span></td>" +
 				'<td><div class="whoav">' + avatar(p.customer) + '<div><span class="who">' + esc(p.customer || __("No name", "dox-pos")) + '</span><br><span class="sub">' + [p.city, p.phone].filter(Boolean).map(esc).join(" · ") + "</span></div></div></td>" +
@@ -1852,6 +1873,7 @@
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
 					(p.status === "apartado" ? (p.layaway && p.layaway.expired ? '<br><span class="tag r">' + esc(__("Expired", "dox-pos")) + "</span>" : '<br><span class="sub">' + esc(p.layaway ? textoPlazo(p.layaway) : sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>") : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
+			_mon = "";
 			const td = document.createElement("td");
 			td.className = "acts";
 			botonesPedido(p, td, false);
@@ -2346,7 +2368,8 @@
 		$("#m-no").onclick = cerrarModal;
 	}
 	// Cobrar el resto: lo que falta y con qué entró.
-	function modalCobrarResto(p) {
+	function modalCobrarResto(p) { return enMoneda(p && p.currency, () => modalCobrarResto0(p)); }
+	function modalCobrarResto0(p) {
 		const l = p.layaway || {};
 		const falta = l.remaining !== undefined ? l.remaining : p.total;
 		if (!(falta > 0)) {
@@ -2363,7 +2386,8 @@
 		$("#m-no").onclick = cerrarModal;
 	}
 	// Otro abono al mismo apartado, cada uno en su día.
-	function modalAbono(p) {
+	function modalAbono(p) { return enMoneda(p && p.currency, () => modalAbono0(p)); }
+	function modalAbono0(p) {
 		const l = p.layaway || {};
 		if (!PAGOS_YA.length) return;
 		modal("<h3>" + esc(sprintf(__("Deposit on layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(sprintf(__("Left to pay: %s.", "dox-pos"), dinero(l.remaining))) + '</p><div id="ab-box"></div>' +
@@ -2394,7 +2418,8 @@
 		$("#m-no").onclick = cerrarModal;
 	}
 	// Liberar un apartado con abonos: lo abonado queda en su saldo a favor (de fábrica) o se le devuelve el dinero.
-	function modalLiberar(p) {
+	function modalLiberar(p) { return enMoneda(p && p.currency, () => modalLiberar0(p)); }
+	function modalLiberar0(p) {
 		const l = p.layaway || {};
 		let modo = "saldo", pago = pagoYa();
 		modal("<h3>" + esc(sprintf(__("Release layaway #%s", "dox-pos"), p.number)) + '</h3><p class="mp">' + esc(sprintf(__("The product goes back to stock. %1$s had deposited %2$s: what happens with that money?", "dox-pos"), p.customer || __("The customer", "dox-pos"), dinero(l.deposited))) + "</p>" +
@@ -2429,7 +2454,8 @@
 	}
 	// Un cambio o una devolución sin dinero: las prendas vuelven (al inventario, si se marca) y lo que
 	// valen, menos el cargo por cambio de la tienda, queda como saldo a favor de la clienta.
-	function modalDevolverSaldo(d) {
+	function modalDevolverSaldo(d) { return enMoneda(d && d.currency, () => modalDevolverSaldo0(d)); }
+	function modalDevolverSaldo0(d) {
 		const lineas = (d.items_list || []).filter((it) => it.refundable > 0);
 		const sel = {};
 		const sinTel = !d.phone;
@@ -3153,21 +3179,23 @@
 
 	// El importe con el separador de miles mientras se escribe (miles(), arriba).
 	// Con ceroVale un cero escrito se queda (el precio de un tramo de envío gratis); sin él se vacía, como siempre en el precio de un producto.
-	function formatearMiles(el, ceroVale) {
+	function formatearMiles(el, ceroVale, base) {
 		if (!el) return;
 		const raw = el.value;
+		// base: el precio normal y el costo del formulario van en la moneda base de la tienda.
+		const m = base ? MB : M, nm = base ? numB : num, ml = base ? milesB : miles;
 		// Con decimales, mientras se escribe la parte decimal ("12," o "12,5") se deja como está: si no, la coma se iría al teclearla.
-		if (M.decimals > 0 && M.decimal && raw.indexOf(M.decimal) >= 0) {
-			const i = raw.indexOf(M.decimal);
-			const dec = raw.slice(i + 1).replace(/\D/g, "").slice(0, M.decimals);
-			const s = (miles(num(raw.slice(0, i))) || "0") + M.decimal + dec;
+		if (m.decimals > 0 && m.decimal && raw.indexOf(m.decimal) >= 0) {
+			const i = raw.indexOf(m.decimal);
+			const dec = raw.slice(i + 1).replace(/\D/g, "").slice(0, m.decimals);
+			const s = (ml(nm(raw.slice(0, i))) || "0") + m.decimal + dec;
 			if (raw !== s) el.value = s;
 			return;
 		}
-		const s = miles(num(raw)) || (ceroVale && /\d/.test(raw) ? "0" : "");
+		const s = ml(nm(raw)) || (ceroVale && /\d/.test(raw) ? "0" : "");
 		if (raw !== s) el.value = s;
 	}
-	function formatearPrecio() { formatearMiles($("#p-precio")); formatearMiles($("#p-costo")); }
+	function formatearPrecio() { formatearMiles($("#p-precio"), false, true); formatearMiles($("#p-costo"), false, true); }
 	// El costo escrito en el formulario (0 si no hay campo o está vacío).
 	const costoForm = () => ($("#p-costo") ? num($("#p-costo").value) : 0);
 	// Qué costo se manda: al crear, el escrito; al editar, solo si cambió ('' = no tocar; 0 = quitarlo).
@@ -3176,26 +3204,26 @@
 		const v = costoForm();
 		if (!pr.edit) return v || "";
 		if (pr.edit.cost === "" && !v) return ""; // Las tallas cuestan distinto y no se escribió nada: se quedan como están.
-		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : redondear(pr.edit.cost);
+		const was = pr.edit.cost === null || pr.edit.cost === undefined || pr.edit.cost === "" ? 0 : redondearB(pr.edit.cost);
 		return v === was ? "" : v;
 	}
 	// Qué precio se manda: al editar un producto con precios distintos por talla, el campo vacío va como '' (no tocarlos), no como 0.
 	function precioPayload() {
-		const v = num($("#p-precio").value);
+		const v = numB($("#p-precio").value);
 		return pr.edit && pr.edit.price === "" && !v ? "" : v;
 	}
 	// Lo que deja cada unidad con el precio y el costo escritos.
 	function pintarMargen() {
 		const el = $("#p-margen");
 		if (!el) return;
-		const precio = num($("#p-precio").value), costo = costoForm();
+		const precio = numB($("#p-precio").value), costo = costoForm();
 		el.className = "margen";
-		if (!precio && pr.edit && pr.edit.price === "") { el.textContent = sprintf(__("The sizes have different prices: from %1$s to %2$s.", "dox-pos"), dinero(pr.edit.price_min), dinero(pr.edit.price_max)); return; } // Vacío es no tocarlos: no falta nada.
+		if (!precio && pr.edit && pr.edit.price === "") { el.textContent = sprintf(__("The sizes have different prices: from %1$s to %2$s.", "dox-pos"), dineroB(pr.edit.price_min), dineroB(pr.edit.price_max)); return; } // Vacío es no tocarlos: no falta nada.
 		if (!precio && !costo) { el.textContent = __("Enter a price and a cost.", "dox-pos"); return; }
-		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? sprintf(__("The sizes cost different amounts: from %1$s to %2$s.", "dox-pos"), dinero(pr.edit.cost_min), dinero(pr.edit.cost_max)) : __("No cost: its sales do not count towards the profit.", "dox-pos"); return; }
+		if (!costo) { el.textContent = pr.edit && pr.edit.cost === "" ? sprintf(__("The sizes cost different amounts: from %1$s to %2$s.", "dox-pos"), dineroB(pr.edit.cost_min), dineroB(pr.edit.cost_max)) : __("No cost: its sales do not count towards the profit.", "dox-pos"); return; }
 		if (!precio) { el.textContent = __("The price is missing.", "dox-pos"); return; }
 		const g = precio - costo;
-		el.textContent = sprintf(__("%1$s per unit (%2$d %%)", "dox-pos"), dinero(g), Math.round(g / precio * 100)) + (g < 0 ? __(": sold at a loss", "dox-pos") : "");
+		el.textContent = sprintf(__("%1$s per unit (%2$d %%)", "dox-pos"), dineroB(g), Math.round(g / precio * 100)) + (g < 0 ? __(": sold at a loss", "dox-pos") : "");
 		if (g < 0) el.className = "margen bad";
 	}
 
@@ -3985,7 +4013,7 @@
 	function problemaProducto() {
 		if (!$("#p-nom").value.trim()) return { msg: __("Give the product a name.", "dox-pos"), sel: "#p-nom" };
 		if (!pr.cats.length) return { msg: __("Choose a category.", "dox-pos"), sel: "#p-cats" };
-		if (num($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: __("Set a price.", "dox-pos"), sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
+		if (numB($("#p-precio").value) <= 0 && !(pr.edit && pr.edit.price === "")) return { msg: __("Set a price.", "dox-pos"), sel: "#p-precio" }; // Editando un producto con precios distintos por talla, vacío = no tocarlos.
 		if (!pr.edit && pr.form && pr.form.sku_format !== "none" && !$("#p-sku").value.trim()) return { msg: __("The SKU is missing.", "dox-pos"), sel: "#p-sku" };
 		if (!pr.edit && pr.skuOk === false) return { msg: __("That SKU is already taken.", "dox-pos"), sel: "#p-sku" };
 		// Las tres medidas o ninguna. Al editar solo se exige si se tocó alguna (un producto que llegó de WooCommerce con dos
@@ -4037,10 +4065,10 @@
 			? sprintf(_n("%d variation", "%d variations", vars, "dox-pos"), vars) + (nt && nc ? " (" + detalle + ")" : "")
 			: __("One-size product", "dox-pos");
 		if (pr.edit && pr.edit.type !== "variable") que = __("One-size product", "dox-pos");
-		const precio = num($("#p-precio").value);
-		const txtPrecio = precio > 0 ? dinero(precio) : (pr.edit && pr.edit.price === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dinero(pr.edit.price_min), dinero(pr.edit.price_max)) : dinero(0));
+		const precio = numB($("#p-precio").value);
+		const txtPrecio = precio > 0 ? dineroB(precio) : (pr.edit && pr.edit.price === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dineroB(pr.edit.price_min), dineroB(pr.edit.price_max)) : dineroB(0));
 		const costo = costoForm();
-		const txtCosto = costo > 0 ? dinero(costo) + (precio > 0 ? " · " + sprintf(__("leaves %1$s (%2$d %%)", "dox-pos"), dinero(precio - costo), Math.round((precio - costo) / precio * 100)) : "") : (pr.edit && pr.edit.cost === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dinero(pr.edit.cost_min), dinero(pr.edit.cost_max)) : "");
+		const txtCosto = costo > 0 ? dineroB(costo) + (precio > 0 ? " · " + sprintf(__("leaves %1$s (%2$d %%)", "dox-pos"), dineroB(precio - costo), Math.round((precio - costo) / precio * 100)) : "") : (pr.edit && pr.edit.cost === "" ? sprintf(__("from %1$s to %2$s", "dox-pos"), dineroB(pr.edit.cost_min), dineroB(pr.edit.cost_max)) : "");
 		$("#p-sum").innerHTML = "<div><span>" + esc(que) + "</span><span>" + esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + "</span></div>" +
 			(cfg.costs && txtCosto ? "<div><span>" + esc(__("Cost", "dox-pos")) + "</span><span>" + txtCosto + "</span></div>" : "") +
 			'<div class="tot"><span>' + esc(__("Price", "dox-pos")) + "</span><span>" + txtPrecio + "</span></div>";
@@ -4060,7 +4088,7 @@
 			const cats = (form.categories || []).filter((c) => pr.cats.includes(c.id)).map((c) => c.name);
 			const rows = filas(), cols = columnas();
 			const u = unidadesTotales();
-			const precio = num($("#p-precio").value);
+			const precio = numB($("#p-precio").value);
 			const fotosOk = pr.fotos.filter((f) => f.estado === "ok");
 			const avisos = [];
 			if (!fotosOk.length) avisos.push(__("No photo: it will show a gray box in the store.", "dox-pos"));
@@ -4089,7 +4117,7 @@
 				li(esc(__("Name", "dox-pos")), esc($("#p-nom").value.trim())) +
 				li(esc(__("SKU", "dox-pos")), esc($("#p-sku").value.trim() || __("no SKU", "dox-pos"))) +
 				li(esc(__("Price", "dox-pos")), dinero(precio)) +
-				(cfg.costs ? li(esc(__("Cost", "dox-pos")), costoForm() ? dinero(costoForm()) + " · " + esc(sprintf(__("leaves %s per unit", "dox-pos"), dinero(precio - costoForm()))) : esc(__("No cost", "dox-pos"))) : "") +
+				(cfg.costs ? li(esc(__("Cost", "dox-pos")), costoForm() ? dineroB(costoForm()) + " · " + esc(sprintf(__("leaves %s per unit", "dox-pos"), dineroB(precio - costoForm()))) : esc(__("No cost", "dox-pos"))) : "") +
 				li(esc(__("Category", "dox-pos")), esc(cats.join(", "))) +
 				(pr.colores.length ? li(esc(titCol()), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
 				li(esc(__("Units", "dox-pos")), esc(sprintf(_n("%d unit", "%d units", u, "dox-pos"), u)) + tabla) +
@@ -4152,12 +4180,15 @@
 			real_qty: Object.fromEntries(realesVivas().filter((k) => pr.realQty[k] !== undefined).map((k) => [k, pr.realQty[k]])), // Y cuántas prendas de cada una.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
-		emit("productoPayload", { payload, edicion: !!pr.edit }); // Los añadidos mandan lo suyo (el Pro: i18n, precios por zona).
+		const evp = { payload, edicion: !!pr.edit, cancelar: "" };
+		emit("productoPayload", evp); // Los añadidos mandan lo suyo (el Pro: i18n, precios por zona). Con evp.cancelar = "texto" no se guarda y se avisa.
+		if (evp.cancelar) { toast(evp.cancelar); pr.creando = false; soltar(); return; }
 		try {
 			const eid = pr.edit ? pr.edit.id : 0;
-			const espera = { promesas: [] }; // Los añadidos pueden pedir esperar a algo antes de guardar (el Pro: que "Crear ahora" termine).
+			const espera = { promesas: [], cancelar: "" }; // Los añadidos pueden pedir esperar a algo antes de guardar (el Pro: que "Crear ahora" termine), o cancelar con un aviso.
 			emit("productoAntesDeGuardar", espera);
 			if (espera.promesas.length) await Promise.all(espera.promesas);
+			if (espera.cancelar) { toast(espera.cancelar); pr.creando = false; soltar(); return; }
 			if ((pr.edit ? pr.edit.id : 0) !== eid) { soltar(); return; } // Mientras tanto se abrió otro producto: esto no es suyo.
 			const d = await post(eid ? "products/" + eid : "products", payload);
 			const rp = repartoPendiente(); // Se guarda igual; se avisa.
@@ -4426,8 +4457,8 @@
 		pr.masColores = true; pr.masTallas = true; pr.grupo = null; pr.dup = null;
 		$("#p-nom-dup").hidden = true;
 		$("#p-nom").value = d.name || "";
-		$("#p-precio").value = d.price === "" || d.price === null ? "" : miles(redondear(d.price));
-		if ($("#p-costo")) $("#p-costo").value = d.cost === "" || d.cost === null || d.cost === undefined ? "" : miles(redondear(d.cost));
+		$("#p-precio").value = d.price === "" || d.price === null ? "" : milesB(redondearB(d.price));
+		if ($("#p-costo")) $("#p-costo").value = d.cost === "" || d.cost === null || d.cost === undefined ? "" : milesB(redondearB(d.cost));
 		formatearPrecio();
 		$("#p-sku").value = d.sku || "";
 		$("#p-sku").disabled = true;
@@ -4442,7 +4473,7 @@
 		$("#p-pub-hint").textContent = __("Off: it stays hidden, not shown and not sold.", "dox-pos");
 		const que = d.type === "variable" ? sprintf(_n("%d variation", "%d variations", d.variations, "dox-pos"), d.variations) : __("one size", "dox-pos");
 		$("#p-edit-title").textContent = sprintf(__("Editing %1$s%2$s (%3$s)", "dox-pos"), d.sku ? d.sku + " · " : "", d.name, que);
-		$("#p-edit-hint").textContent = d.price === "" ? sprintf(__("The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them.", "dox-pos"), dinero(d.price_min), dinero(d.price_max)) : __("Changes are saved with the button below.", "dox-pos");
+		$("#p-edit-hint").textContent = d.price === "" ? sprintf(__("The sizes have different prices (from %1$s to %2$s): if you type a price, it goes to all of them.", "dox-pos"), dineroB(d.price_min), dineroB(d.price_max)) : __("Changes are saved with the button below.", "dox-pos");
 		$("#p-edit-view").href = d.url || "#";
 		$("#p-edit-view").title = d.status === "publish" ? __("It opens in another tab", "dox-pos") : __("It is hidden: you see it because you are signed in, the customer does not", "dox-pos");
 		$("#p-editbar").hidden = false;
@@ -4502,7 +4533,7 @@
 	}
 	function excelHistorial(que) {
 		const [a, b] = rangoHistorial();
-		let u = (cfg.url || "/caja/") + "?descargar=" + que + "&desde=" + a + "&hasta=" + b;
+		let u = (cfg.url || "/caja/") + "?descargar=" + que + "&desde=" + a + "&hasta=" + b + (que === "movimientos" ? "" : consultaHistorial());
 		if (que === "movimientos") {
 			if (hi.q) u += "&q=" + encodeURIComponent(hi.q);
 			if (hi.producto) u += "&producto=" + hi.producto;
@@ -4515,6 +4546,8 @@
 	// Cada una dice cómo se carga con el periodo (desde, hasta) y cómo se pinta; su panel es el div #h-<id> de la plantilla.
 	const vistasHist = {};
 	function vistaHistorial(def) { vistasHist[def.id] = def; }
+	// Lo que los añadidos suman a la consulta de ventas y caja (el Pro: la moneda que se está viendo), como "&moneda=COP".
+	function consultaHistorial() { const x = { query: "" }; emit("historialConsulta", x); return x.query; }
 	async function cargarHistorial() {
 		if (!hayHistorial()) return;
 		const def = vistasHist[hi.vista];
@@ -4533,6 +4566,7 @@
 			if (n !== hi.req) return;
 			box.dataset.listo = "1";
 			def.pintar(d);
+			emit("historialPintado", { vista: hi.vista, datos: d, caja: box }); // Los añadidos suman lo suyo (el Pro: el selector de moneda).
 		} catch (e) {
 			if (n === hi.req && e.message !== "sesion") box.innerHTML = '<p class="empty">' + esc(e.red ? __("No signal: the history is read from the store.", "dox-pos") : e.message) + "</p>";
 		}
@@ -4552,7 +4586,8 @@
 			"<li><span>" + (pago === "canal" ? canalIc(x.label || x.name) : pago ? '<span class="chan pago" data-k="' + clasePago(x.name) + '"><span class="ic">' + iconoChip(clasePago(x.name)) + "</span>" + esc(x.label || x.name) + "</span>" : esc(x.label || x.name)) + "</span><span>" + esc(sprintf(_n("%d sale", "%d sales", x.n, "dox-pos"), x.n)) + (conUnidades && x.units !== undefined ? " · " + esc(sprintf(_n("%d unit", "%d units", x.units, "dox-pos"), x.units)) : "") + " · <b>" + dinero(x.total) + "</b></span></li>"
 		).join("") + "</ul></div>";
 	}
-	function filaPedidoHist(p, conCosto) {
+	function filaPedidoHist(p, conCosto) { return enMoneda(p && p.currency, () => filaPedidoHist0(p, conCosto)); }
+	function filaPedidoHist0(p, conCosto) {
 		const vendido = ["por_enviar", "enviado", "entregado"].includes(p.status);
 		const cls = claseEstado(p.status);
 		const web = p.origin !== "caja";
@@ -4646,8 +4681,8 @@
 		if (nx) nx.onclick = () => { hi.page++; cargarHistorial(); $("#t-historial .scroll").scrollTop = 0; };
 	}
 
-	vistaHistorial({ id: "ventas", cargar: (a, b) => api("history/sales?from=" + a + "&to=" + b), pintar: pintarVentas });
-	vistaHistorial({ id: "caja", cargar: (a, b) => api("history/cash?from=" + a + "&to=" + b), pintar: pintarCaja });
+	vistaHistorial({ id: "ventas", cargar: (a, b) => api("history/sales?from=" + a + "&to=" + b + consultaHistorial()), pintar: pintarVentas });
+	vistaHistorial({ id: "caja", cargar: (a, b) => api("history/cash?from=" + a + "&to=" + b + consultaHistorial()), pintar: pintarCaja });
 	// ----- el saldo a favor: lo que la tienda debe y cada clienta con sus movimientos (no depende del periodo) -----
 	const sa = { q: "", page: 1, timer: 0 };
 	function pintarSaldos(d) {
@@ -5129,6 +5164,8 @@
 			borrador: programarBorrador,                    // Pedir que se guarde el borrador.
 		},
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,
+		historial: { recargar: cargarHistorial }, // Para que un añadido pida volver a cargar la vista abierta.
+		dineroB, numB, milesB, redondearB, enMoneda, // La moneda base y la de un pedido, para los añadidos.
 		pestaña, on, emit, pestañaActual: () => st.tab, arrancar: init,
 	};
 })();

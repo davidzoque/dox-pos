@@ -210,7 +210,7 @@ function dox_pos_format_product( $pid ) {
 		'name'       => $p->get_name(),
 		'sku'        => $p->get_sku( 'edit' ),
 		'type'       => $p->get_type(),
-		'price'      => (float) $p->get_price(),
+		'price'      => dox_pos_product_price( $p, 'list' ),
 		'image'      => $image ? $image : '',
 		'variations' => $variations,
 	);
@@ -261,7 +261,7 @@ function dox_pos_format_variation( $v, $simple = false ) {
 		'color'     => $color,
 		'fila'      => '' !== $talla ? $talla : (string) ( $others[0] ?? '' ), // La primera opción: la talla, o la capacidad de un termo.
 		'opciones'  => $others, // Lo demás por lo que varía, sin la talla ni el color.
-		'price'     => (float) $v->get_price(),
+		'price'     => dox_pos_product_price( $v, 'list' ),
 		'cost'      => dox_pos_can_see_costs() ? dox_pos_product_cost( $v ) : null, // Solo para quien administra: la entrada lo propone como costo de compra.
 		'stock'     => $stock,
 		'status'    => $v->get_stock_status(),

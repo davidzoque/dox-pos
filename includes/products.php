@@ -2015,6 +2015,11 @@ function dox_pos_create_product( $data ) {
 	if ( '' === $price || (float) $price <= 0 ) {
 		return new WP_Error( 'dox_pos_sin_precio', __( 'Set a price.', 'dox-pos' ) );
 	}
+	// Un añadido puede rechazar el guardado con un aviso (el Pro: un precio de zona que no vale) devolviendo un WP_Error.
+	$invalid = apply_filters( 'dox_pos_product_validate', null, $data, 0 );
+	if ( is_wp_error( $invalid ) ) {
+		return $invalid;
+	}
 	$cats = array();
 	foreach ( (array) ( $data['categories'] ?? array() ) as $cid ) {
 		if ( (int) $cid && term_exists( (int) $cid, 'product_cat' ) ) {
@@ -2819,7 +2824,7 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 			'sku'        => $p->get_sku( 'edit' ),
 			'status'     => $p->get_status(),
 			'type'       => $p->get_type(),
-			'price'      => (float) $p->get_price(),
+			'price'      => dox_pos_product_price( $p, 'list' ),
 			'image'      => $p->get_image_id() ? wp_get_attachment_image_url( $p->get_image_id(), 'woocommerce_thumbnail' ) : '',
 			'variations' => $p->is_type( 'variable' ) ? count( $p->get_children() ) : 0,
 		);
@@ -2911,7 +2916,7 @@ function dox_pos_product_model( $p, $size_tax = '', $color_tax = '' ) {
 			'stock'  => $own ? (int) $v->get_stock_quantity() : null,
 			'pool'   => $pool,
 			'group'  => $g,
-			'price'  => (float) $v->get_regular_price( 'edit' ),
+			'price'  => dox_pos_product_price( $v, 'edit' ),
 			'image'  => (int) $v->get_image_id( 'edit' ), // Sin 'edit' devolvería la del padre.
 			'status' => $v->get_status(),
 			'real'   => 'yes' === $v->get_meta( DOX_POS_REAL_SIZE_META, true, 'edit' ), // La talla de la pieza física de su grupo.
@@ -3020,7 +3025,7 @@ function dox_pos_product_edit_data( $id ) {
 			$units              += (int) $n;
 		}
 	} else {
-		$prices[] = (float) $p->get_regular_price( 'edit' );
+		$prices[] = dox_pos_product_price( $p, 'edit' );
 		if ( $p->managing_stock() ) {
 			$qty['']['0'] = (int) $p->get_stock_quantity();
 			$units        = (int) $p->get_stock_quantity();
@@ -3190,6 +3195,10 @@ function dox_pos_update_product( $id, $data ) {
 	$price = wc_format_decimal( (string) ( $data['price'] ?? '' ) );
 	if ( '' !== $price && (float) $price <= 0 ) {
 		return new WP_Error( 'dox_pos_sin_precio', __( 'The price has to be greater than zero.', 'dox-pos' ) );
+	}
+	$invalid = apply_filters( 'dox_pos_product_validate', null, $data, (int) $id ); // Igual que al crear.
+	if ( is_wp_error( $invalid ) ) {
+		return $invalid;
 	}
 	// El costo: '' o ausente = no tocar; 0 = quitarlo; más = ponerlo a todo el producto (a todas las tallas).
 	$cost = null;
