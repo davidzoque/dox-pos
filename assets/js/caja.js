@@ -37,7 +37,9 @@
 	// (cfg.money_base): el formulario de producto edita el precio normal en ella. Sin añadidos, todo esto es M.
 	const MONEDAS = cfg.currencies || {};
 	const MB = Object.assign({}, M, cfg.money_base || {});
-	let _mon = ""; // La moneda con que se pinta ahora un pedido que no es de la caja (enMoneda).
+	let _mon = null; // La moneda con que se pinta ahora un pedido (enMoneda): "" la de la caja; null, ninguna fijada.
+	let _monModal = ""; // La del pedido del modal abierto: lo que se escribe o se recalcula dentro sigue en ella (modal(), cerrarModal()).
+	const monActual = () => (_mon !== null ? _mon : _monModal);
 	const formatoDe = (cur) => (cur && MONEDAS[cur] ? Object.assign({}, M, MONEDAS[cur]) : M);
 	function dineroF(n, m) {
 		const v = Number(n) || 0;
@@ -47,7 +49,7 @@
 		const con = { left: m.symbol + s, right: s + m.symbol, left_space: m.symbol + " " + s, right_space: s + " " + m.symbol };
 		return (v < 0 ? "\u2212" : "") + (con[m.pos] || con.left);
 	}
-	const dinero = (n, cur) => dineroF(n, formatoDe(cur === undefined ? _mon : cur));
+	const dinero = (n, cur) => dineroF(n, formatoDe(cur === undefined ? monActual() : cur));
 	const dineroB = (n) => dineroF(n, MB);
 	// Pinta con la moneda de un pedido (el de otra zona o el de antes de elegir zona) lo que haga fn, y vuelve a la de la caja.
 	function enMoneda(cur, fn) {
@@ -67,12 +69,12 @@
 		const p = Math.pow(10, m.decimals);
 		return Math.round(v * p) / p;
 	};
-	const num = numF(M);
+	const num = (s) => numF(formatoDe(monActual()))(s); // En un modal de un pedido de otra moneda, la de ese pedido.
 	// Unidades: solo dígitos.
 	const uds = (s) => parseInt(String(s == null ? "" : s).replace(/\D/g, ""), 10) || 0;
 	// Un importe redondeado a los decimales de la tienda.
 	const redondearF = (m) => (v) => { const p = Math.pow(10, m.decimals); return Math.round((Number(v) || 0) * p) / p; };
-	const redondear = redondearF(M);
+	const redondear = (v) => redondearF(formatoDe(monActual()))(v);
 	// Un número con el separador de miles de la tienda mientras se escribe, para que se vean los ceros; con decimales, los que haya.
 	const milesF = (m) => (v) => {
 		const n = Number(v) || 0;
@@ -82,11 +84,12 @@
 		if (parts[1]) { const d = parts[1].replace(/0+$/, ""); if (d) s += m.decimal + d; }
 		return (n < 0 ? "-" : "") + s;
 	};
-	const miles = milesF(M);
+	const miles = (v) => milesF(formatoDe(monActual()))(v);
 	// Lo mismo en la moneda base: los campos de precio normal y de costo del formulario de producto.
 	const numB = numF(MB), redondearB = redondearF(MB), milesB = milesF(MB);
 	// El teclado de los importes en los campos que se pintan desde aquí: con decimales, el que trae la coma.
-	const IM = M.decimals > 0 ? "decimal" : "numeric";
+	const imDe = (m) => (m.decimals > 0 ? "decimal" : "numeric");
+	const IM = imDe(M);
 	const IMB = MB.decimals > 0 ? "decimal" : "numeric"; // El de los costos, que van en la moneda base.
 
 	const st = {
@@ -1874,7 +1877,7 @@
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
 					(p.status === "apartado" ? (p.layaway && p.layaway.expired ? '<br><span class="tag r">' + esc(__("Expired", "dox-pos")) + "</span>" : '<br><span class="sub">' + esc(p.layaway ? textoPlazo(p.layaway) : sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>") : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
-			_mon = "";
+			_mon = null;
 			const td = document.createElement("td");
 			td.className = "acts";
 			botonesPedido(p, td, false);
@@ -2238,6 +2241,7 @@
 		clearTimeout(modalTimer); // si uno se estaba cerrando, el nuevo no se lleva su escondida
 		responder(false); // si había una pregunta abierta, queda en "no"
 		card.className = "card" + (cls ? " " + cls : "");
+		_monModal = monActual(); // Abierto desde un pedido de otra moneda (enMoneda): sus importes siguen en ella.
 		card.innerHTML = html;
 		m.classList.remove("out");
 		focoAntes = document.activeElement;
@@ -2255,6 +2259,7 @@
 	function cerrarModal(ok) {
 		const m = $("#modal");
 		if (m.hidden || m.classList.contains("out")) return;
+		_monModal = "";
 		responder(ok);
 		m.classList.add("out");
 		modalTimer = setTimeout(() => {
@@ -2323,7 +2328,7 @@
 	// Un abono: cuánto y con qué entró (solo las formas de pago que entran ya). Devuelve con qué leerlo.
 	function campoAbono(box, rotulo) {
 		let pago = pagoYa();
-		box.innerHTML = '<div class="field"><label for="ab-v">' + esc(rotulo) + '</label><input id="ab-v" inputmode="' + IM + '" placeholder="0" autocomplete="off"></div><p class="lbl mt">' + esc(__("How it came in", "dox-pos")) + '</p><div class="chips" id="ab-pago"></div>';
+		box.innerHTML = '<div class="field"><label for="ab-v">' + esc(rotulo) + '</label><input id="ab-v" inputmode="' + imDe(formatoDe(monActual())) + '" placeholder="0" autocomplete="off"></div><p class="lbl mt">' + esc(__("How it came in", "dox-pos")) + '</p><div class="chips" id="ab-pago"></div>';
 		const pintar = () => chips($("#ab-pago"), PAGOS_YA, pago, (x) => { pago = x; pintar(); });
 		pintar();
 		const v = $("#ab-v");
@@ -2509,7 +2514,7 @@
 	}
 	// La pérdida de un pedido: se anota desde su detalle con el motivo, y se puede cambiar o quitar.
 	function modalPerdida(d) {
-		modal("<h3>" + esc(sprintf(__("Loss on order #%s", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale.", "dox-pos")) + '</p><div class="field"><label for="m-lamt">' + esc(__("How much", "dox-pos")) + '</label><input id="m-lamt" inputmode="' + IM + '" placeholder="0" value="' + (d.loss ? esc(miles(redondear(d.loss))) : "") + '"></div><div class="field mt"><label for="m-lnote">' + esc(__("Why", "dox-pos")) + '</label><input id="m-lnote" value="' + esc(d.loss_note || "") + '" placeholder="' + esc(__("The shipping cost more than what was charged", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + "</button>" + (d.loss ? '<button type="button" class="go alt" id="m-del">' + esc(__("Remove the loss", "dox-pos")) + "</button>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
+		modal("<h3>" + esc(sprintf(__("Loss on order #%s", "dox-pos"), d.number)) + '</h3><p class="mp">' + esc(__("What this order cost you beyond the goods: a shipment that cost more than what was charged, a freight you refunded, a repair. It comes off the profit of this sale.", "dox-pos")) + '</p><div class="field"><label for="m-lamt">' + esc(__("How much", "dox-pos")) + '</label><input id="m-lamt" inputmode="' + imDe(formatoDe(monActual())) + '" placeholder="0" value="' + (d.loss ? esc(miles(redondear(d.loss))) : "") + '"></div><div class="field mt"><label for="m-lnote">' + esc(__("Why", "dox-pos")) + '</label><input id="m-lnote" value="' + esc(d.loss_note || "") + '" placeholder="' + esc(__("The shipping cost more than what was charged", "dox-pos")) + '"></div><div class="mbtn"><button type="button" class="go" id="m-ok">' + esc(__("Save", "dox-pos")) + "</button>" + (d.loss ? '<button type="button" class="go alt" id="m-del">' + esc(__("Remove the loss", "dox-pos")) + "</button>" : "") + '<button type="button" class="go alt" id="m-no">' + esc(__("Cancel", "dox-pos")) + "</button></div>");
 		const amt = $("#m-lamt");
 		amt.addEventListener("input", () => formatearMiles(amt));
 		const guardar = async (amount, note) => {
