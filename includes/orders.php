@@ -226,7 +226,9 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	// Si la misma venta ya entró (la cola sin señal reintenta), se devuelve la que existe.
 	$ref = sanitize_text_field( $data['ref'] ?? '' );
 	if ( $ref ) {
-		$existing = wc_get_orders( array( 'type' => 'shop_order', 'meta_query' => array( array( 'key' => '_dox_pos_ref', 'value' => $ref ) ), 'limit' => 1 ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+		// meta_key/meta_value y no meta_query: con los pedidos guardados como entradas (sin HPOS) WooCommerce ignora
+		// meta_query y devolvería el primer pedido de la caja para cualquier referencia, sin crear la venta nueva.
+		$existing = wc_get_orders( array( 'type' => 'shop_order', 'meta_key' => '_dox_pos_ref', 'meta_value' => $ref, 'limit' => 1 ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 		if ( $existing ) {
 			return dox_pos_order_response( $existing[0], $hold );
 		}
