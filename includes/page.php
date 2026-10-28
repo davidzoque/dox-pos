@@ -434,6 +434,7 @@ function dox_pos_js_config() {
 		'states'          => function_exists( 'WC' ) ? WC()->countries->get_states( $country ) : array(),
 		'cities'          => dox_pos_cities(),
 		'money'           => dox_pos_money_format(),
+		'currency'        => strtoupper( dox_pos_currency() ),            // El código de la moneda de la caja: los importes de un pedido de otra moneda lo llevan al lado.
 		'tax_extra'       => wc_tax_enabled() && ! wc_prices_include_tax(),     // Los precios van sin impuesto: el pedido lo suma al guardarse.
 		'low_stock'       => max( 0, (int) get_option( 'woocommerce_notify_low_stock_amount', 2 ) ), // Pocas unidades: el umbral de WooCommerce (Inventario).
 		'paper'           => in_array( $country, array( 'US', 'CA', 'MX', 'CO', 'CL', 'VE', 'CR', 'GT', 'SV', 'HN', 'NI', 'PA', 'DO', 'PR', 'PH' ), true ) ? 'letter' : 'a4', // Las hojas de etiquetas: carta en América (salvo Argentina, Perú...), A4 en el resto.

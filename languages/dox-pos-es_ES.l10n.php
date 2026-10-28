@@ -1126,6 +1126,7 @@ return array(
 		'Stock up to date in the store and on the website' => 'El inventario al día en la tienda y en la web',
 		'Store' => 'Tienda',
 		'Store credit' => 'Saldo a favor',
+		'Store credit in another currency: %s' => 'Saldo a favor en otra moneda: %s',
 		'Store credit is kept by phone number: write the customer’s phone.' => 'El saldo a favor se lleva por teléfono: escribe el del cliente.',
 		'Store credit left' => 'Saldo a favor que queda',
 		'Store credit saved' => 'Saldo a favor guardado',

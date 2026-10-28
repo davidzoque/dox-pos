@@ -257,12 +257,14 @@ function dox_pos_credit_kind_label( $kind ) {
  */
 function dox_pos_credit_lookup( $phone ) {
 	$key = dox_pos_credit_key( $phone );
-	return array(
+	$out = array(
 		'key'     => $key,
 		'phone'   => dox_pos_credit_phone_label( $key ),
 		'name'    => '' !== $key ? dox_pos_credit_name( $key ) : '',
 		'balance' => dox_pos_credit_balance( $key ),
 	);
+	// Un añadido puede sumar 'others': el saldo en otras monedas, [ { currency, balance, label } ], solo para informar.
+	return (array) apply_filters( 'dox_pos_credit_lookup', $out, $key );
 }
 
 /**

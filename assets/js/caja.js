@@ -49,7 +49,14 @@
 		const con = { left: m.symbol + s, right: s + m.symbol, left_space: m.symbol + " " + s, right_space: s + " " + m.symbol };
 		return (v < 0 ? "\u2212" : "") + (con[m.pos] || con.left);
 	}
-	const dinero = (n, cur) => dineroF(n, formatoDe(cur === undefined ? monActual() : cur));
+	// Un importe de un pedido de otra moneda que la de la caja lleva su código al lado ("$39.00 USD"): con "$" en las dos, solo
+	// los decimales las distinguirían. Las tiendas de una sola moneda no tienen pedidos así: no cambia nada.
+	const CAJA = String(cfg.currency || "").toUpperCase();
+	const dinero = (n, cur) => {
+		const c = cur === undefined ? monActual() : cur;
+		const t = dineroF(n, formatoDe(c));
+		return c && String(c).toUpperCase() !== CAJA ? t + " " + String(c).toUpperCase() : t;
+	};
 	const dineroB = (n) => dineroF(n, MB);
 	// Pinta con la moneda de un pedido (el de otra zona o el de antes de elegir zona) lo que haga fn, y vuelve a la de la caja.
 	function enMoneda(cur, fn) {
@@ -100,6 +107,7 @@
 		lineas: [],                               // el pedido: [{vid, n}]
 		libres: [],                               // lo que se vende sin producto: [{name, price, n, image, url}] (image: la foto subida, si tiene)
 		abono: null,                              // un abono al saldo a favor: {name, amount}
+		otras: [],                                // el saldo de esa clienta en otras monedas (solo informa): [{currency, balance, label}]
 		saldo: null,                              // el saldo de la clienta del teléfono escrito: {key, name, balance}
 		usar: 0,                                  // cuánto de ese saldo paga esta venta
 		entrada: [],                              // lo que llegó: [{vid, n}]
@@ -700,7 +708,7 @@
 	async function buscarSaldo() {
 		const tel = $("#f-tel").value.trim();
 		const digitos = tel.replace(/\D/g, "");
-		if (digitos.length < 7) { st.saldo = null; st.usar = 0; pintarSum(); return; }
+		if (digitos.length < 7) { st.saldo = null; st.otras = []; st.usar = 0; pintarSum(); return; }
 		if (tel === saldoPedido) return;
 		if (saldoPedido) st.usar = 0; // Otro teléfono, otra clienta: su saldo se usa solo si lo piden.
 		saldoPedido = tel;
@@ -708,6 +716,7 @@
 			const d = await api("credit?phone=" + encodeURIComponent(tel));
 			if ($("#f-tel").value.trim() !== tel) return; // Ya escribieron otro.
 			st.saldo = d.balance > 0 ? d : null;
+			st.otras = Array.isArray(d.others) ? d.others : []; // Saldo en otras monedas (un añadido): solo se informa.
 			if (!st.saldo) st.usar = 0;
 			if (d.name && !$("#f-nom").value.trim()) $("#f-nom").value = d.name;
 			pintarSum();
@@ -716,15 +725,18 @@
 	function pintarSaldo(t) {
 		const box = $("#f-saldo");
 		if (!box) return;
-		if (!st.saldo) { box.hidden = true; box.innerHTML = ""; return; }
+		const otras = (st.otras || []).map((o) => o.label).join(" · ");
+		const otro = otras ? '<span class="sub" id="f-saldo-otro">' + esc(sprintf(__("Store credit in another currency: %s", "dox-pos"), otras)) + "</span>" : "";
+		if (!st.saldo && !otras) { box.hidden = true; box.innerHTML = ""; return; }
 		box.hidden = false;
+		if (!st.saldo) { box.innerHTML = otro; return; } // Solo en otra moneda: no se puede usar aquí, se informa.
 		const quien = st.saldo.name ? st.saldo.name.split(" ")[0] : "";
 		if (!st.usar) {
-			box.innerHTML = "<span>" + esc(quien ? sprintf(__("%s has store credit", "dox-pos"), quien) : __("This customer has store credit", "dox-pos")) + " · <b>" + dinero(st.saldo.balance) + '</b></span><button type="button" class="mini" id="f-saldo-usar">' + esc(__("Use it", "dox-pos")) + "</button>";
+			box.innerHTML = "<span>" + esc(quien ? sprintf(__("%s has store credit", "dox-pos"), quien) : __("This customer has store credit", "dox-pos")) + " · <b>" + dinero(st.saldo.balance) + "</b>" + (otro ? "<br>" + otro : "") + '</span><button type="button" class="mini" id="f-saldo-usar">' + esc(__("Use it", "dox-pos")) + "</button>";
 			$("#f-saldo-usar").onclick = () => { st.usar = Math.min(st.saldo.balance, t.base); if (!st.usar) { toast(__("Add something to the sale first.", "dox-pos")); return; } pintarSum(); };
 			return;
 		}
-		box.innerHTML = '<label for="f-saldo-v">' + esc(sprintf(__("Paid with store credit (has %s)", "dox-pos"), dinero(st.saldo.balance))) + '</label><input id="f-saldo-v" inputmode="' + IM + '" value="' + esc(miles(t.cred)) + '"><button type="button" class="mini sec" id="f-saldo-no">' + esc(__("Do not use", "dox-pos")) + "</button>";
+		box.innerHTML = '<label for="f-saldo-v">' + esc(sprintf(__("Paid with store credit (has %s)", "dox-pos"), dinero(st.saldo.balance))) + '</label><input id="f-saldo-v" inputmode="' + IM + '" value="' + esc(miles(t.cred)) + '"><button type="button" class="mini sec" id="f-saldo-no">' + esc(__("Do not use", "dox-pos")) + "</button>" + otro;
 		const inp = $("#f-saldo-v");
 		inp.addEventListener("input", () => { formatearMiles(inp); st.usar = num(inp.value); pintarSum(true); });
 		inp.addEventListener("change", () => pintarSum());
@@ -1553,6 +1565,7 @@
 		st.libres = [];
 		st.abono = null;
 		st.saldo = null;
+		st.otras = [];
 		st.usar = 0;
 		saldoPedido = "";
 		st.rate = null;
