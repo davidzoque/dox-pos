@@ -1538,3 +1538,4 @@ table.hsm td.num{white-space:nowrap}
 .dox-intl-caja{display:flex;gap:12px;align-items:center;justify-content:center;padding:7px 16px;background:var(--st-info-soft);color:var(--st-info);font-size:13px;line-height:1.35;flex:none}
 .dox-intl-caja a{color:inherit;font-weight:600}
 .dox-intl-close{appearance:none;border:0;background:none;color:inherit;font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;min-height:28px}
+textarea.corta{min-height:44px} /* La descripción corta: una línea bajo el precio. */
