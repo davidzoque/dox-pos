@@ -327,6 +327,13 @@ function dox_pos_layaway_add_deposit_locked( $order_id, $amount, $payment, $ref,
 	if ( ! $own ) {
 		return new WP_Error( 'dox_pos_abono', __( 'The deposit could not be recorded. Nothing was changed.', 'dox-pos' ) );
 	}
+	// El abono tiene que estar en la moneda del apartado: si no, la clienta quedaría con un saldo a favor en una
+	// moneda y su uso en otra. dox_pos_create_order_locked() ya rechaza y borra uno nuevo; esto cubre el reintento
+	// que devuelve un abono anterior (ese no se borra: ya está cobrado).
+	if ( $dep instanceof WC_Order && strtoupper( (string) $dep->get_currency() ) !== strtoupper( (string) $order->get_currency() ) ) {
+		/* translators: %s: currency code, like COP */
+		return new WP_Error( 'dox_pos_moneda', sprintf( __( 'This layaway is in %s and the register cannot charge in that currency now. Nothing was charged.', 'dox-pos' ), strtoupper( (string) $order->get_currency() ) ) );
+	}
 	$dep->update_meta_data( '_dox_pos_layaway_of', $order->get_id() );
 	$dep->save_meta_data();
 

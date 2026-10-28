@@ -1339,6 +1339,7 @@ return array(
 		'This device is the counter' => 'Este equipo es el mostrador',
 		'This is a demo order: no emails are sent.' => 'Es un pedido de demostración: no se mandan correos.',
 		'This is a deposit on layaway #%s. To give it back, release the layaway.' => 'Este es un abono del apartado #%s. Para devolverlo, libera el apartado.',
+		'This layaway is in %s and the register cannot charge in that currency now. Nothing was charged.' => 'Este apartado está en %s y la caja ya no puede cobrar en esa moneda. No se cobró nada.',
 		'This month' => 'Este mes',
 		'This order has no email address.' => 'Este pedido no tiene correo.',
 		'This order was not paid: there is nothing to return.' => 'Este pedido no se pagó: no hay nada que devolver.',

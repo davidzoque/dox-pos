@@ -451,6 +451,15 @@ function dox_pos_create_order_locked( $data, $hold ) {
 	}
 	// Los añadidos fijan lo suyo antes de los totales (el Pro: la moneda del pedido y la zona de precios).
 	do_action( 'dox_pos_order_before_totals', $order, $lines, $data );
+	// Quien pide una moneda (el abono a un apartado: la del apartado) la tiene que recibir. Si nadie puso el pedido en
+	// ella (el Pro desactivado, o sin forma de cobrar en esa moneda), no se cobra: el abono entraría en la moneda de la
+	// tienda y el apartado lo restaría como si fuera de la suya. Antes del inventario y del saldo, así no queda nada.
+	$want = strtoupper( sanitize_text_field( (string) ( $data['currency'] ?? '' ) ) );
+	if ( '' !== $want && strtoupper( (string) $order->get_currency() ) !== $want ) {
+		$order->delete( true );
+		/* translators: %s: currency code, like COP */
+		return new WP_Error( 'dox_pos_moneda', sprintf( __( 'This layaway is in %s and the register cannot charge in that currency now. Nothing was charged.', 'dox-pos' ), $want ) );
+	}
 	$order->calculate_totals();
 	// El pago con saldo, ya con el total (impuestos incluidos): como mucho lo que la clienta tiene y lo
 	// que cuesta la venta (un abono no se paga con saldo). Si mientras tanto gastó parte en otra caja,

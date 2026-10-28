@@ -5243,6 +5243,10 @@ msgstr "Plazo del apartado cambiado por %1$s. %2$s"
 msgid "The deposit could not be recorded. Nothing was changed."
 msgstr "El anticipo no se pudo registrar. No cambió nada."
 
+#. translators: %s: currency code, like COP
+msgid "This layaway is in %s and the register cannot charge in that currency now. Nothing was charged."
+msgstr "Este apartado está en %s y la caja ya no puede cobrar en esa moneda. No se cobró nada."
+
 msgid "Deposit (%s)"
 msgstr "Anticipo (%s)"
 
