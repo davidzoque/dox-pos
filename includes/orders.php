@@ -1116,7 +1116,7 @@ function dox_pos_format_order( $order ) {
 		'change'       => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,     // Y el cambio.
 		'pay_url'      => $hold ? $order->get_checkout_payment_url() : '',
 		'whatsapp'     => $wa,
-		'currency'     => $order->get_currency() !== get_woocommerce_currency() ? $order->get_currency() : '', // Vacío: la de la tienda; si no, la de este pedido (el Pro: la de una zona).
+		'currency'     => $order->get_currency() !== dox_pos_currency() ? $order->get_currency() : '', // Vacío: la de la caja; si no, la de este pedido (el Pro: un pedido en USD con la caja en COP, o al revés).
 	);
 }
 
