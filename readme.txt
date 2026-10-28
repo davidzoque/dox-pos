@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.59.1
+Stable tag: 0.60.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -86,7 +86,7 @@ Yes. The register reads the store country from WooCommerce. A Colombian store ge
 
 = Does it work with a store in several languages (Polylang, WPML)? =
 
-Yes. With Polylang or WPML each product exists once per language. Dox POS shows only the products in the store's default language (and the ones with no language), so each product appears once in Sell, Inventory, the Excel file and the counts. A web order placed in another language counts toward its main product in the best sellers and in Movements. With Polylang, a product created from the register is also created, linked, in the other languages, and the product form has a tab per language for the name and the descriptions; price, photos, units and sizes are shared. With WPML only the lists are filtered: the register does not create translations or show the language tabs, so the translations are made in WPML as usual. Dox POS changes stock only through WooCommerce, but it does not copy stock between translations: Polylang (free) does not do it either, so the store needs Polylang for WooCommerce, WooCommerce Multilingual (WPML) or a snippet that keeps the stock of the translations the same.
+Yes, for the lists. With Polylang or WPML each product exists once per language. Dox POS shows only the products in the store's default language (and the ones with no language), so each product appears once in Sell, Inventory, the Excel file and the counts. A web order placed in another language counts toward its main product in the best sellers and in Movements, and a product created from the register is created in the default language. Creating and editing the translations from the register (a tab per language, creating the product in every language, repairing a half-made translation) is part of Dox POS Pro; without it, editing a product changes only the main product. Dox POS changes stock only through WooCommerce, but it does not copy stock between translations: Polylang (free) does not do it either, so the store needs Polylang for WooCommerce, WooCommerce Multilingual (WPML) or a snippet that keeps the stock of the translations the same.
 
 = Does it work with the block checkout and with HPOS? =
 
@@ -105,6 +105,12 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 9. The receipt editor, with its live preview.
 
 == Changelog ==
+
+= 0.60.0 =
+* Draft. Stores in several languages (Polylang or WPML): the register still shows each product once in Sell, Inventory, search, counts and Excel files, writes the stock log once on the main product and creates new products in the default language. Creating and editing the translations from the register (the language tabs, "Also create in the other languages", "Missing in English" and Create now) is now part of Dox POS Pro. Without it, editing a product changes only the main product and the translations are left as they are.
+* New: if the store uses Polylang, WPML, Price Based on Country, CURCY, WOOCS or Aelia Currency Switcher and Dox POS Pro is not active, a notice on the Dox POS settings and in the register says what the free plugin does in that case. It can be dismissed, once per user, and it never shows in the WordPress dashboard or on the website.
+* Technical: new hooks for add-ons in the product form: the dox_pos_product_form_fields filter (slots name_before, name_after, price_after, short_before, short_after, description_after), the dox_pos_product_saved action, the dox_pos_product_response, dox_pos_product_edit_data and dox_pos_catalog_item filters, the dox_pos_products_settings and dox_pos_products_sanitize filters, the dox_pos_settings_products and dox_pos_rest_routes actions, and the productoListo, productoPayload, productoCargado... events of window.DoxPOS (see README.md).
+* Technical: includes/multilingual.php keeps dox_pos_lang_plugin(), dox_pos_lang_default(), dox_pos_lang_where(), dox_pos_lang_main_id(), dox_pos_lang_twin_variation(), dox_pos_lang_term_args(), dox_pos_lang_assign_term() and dox_pos_lang_assign(); the rest moved to the Pro.
 
 = 0.59.1 =
 * Fix: with Polylang, saving a product from the register no longer replaces the photos of its translations when the photos of the main product did not change. A translation can have its own photos (uploaded apart, with the alt text in its language); they are kept, and the translation only takes the main product's photos when they change in the register.
@@ -130,10 +136,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 = 0.58.1 =
 * Fix: in Orders, the lines of an order placed on the website now show the size and color the customer chose ("Ballet flats · 18-24 months"), like the orders made in the register. Before, they showed only the product name, so whoever packed did not know which size to take. When the piece shares units, its actual size still shows next to it.
 * Technical: new dox_pos_order_line_name() in includes/orders.php, used by the order list and the order detail; it adds the attribute values of the variation that are not already in the line name (compared by segment, not as a substring).
-
-= 0.58.0 =
-* New: write off stock. In Inventory, add what is damaged, lost or given away and tap Write these off instead: it asks why (damaged or defective, lost or stolen, gift or sample, other), takes the units out of the inventory and notes the loss at what each unit cost. It is for products that never went through a sale, so there is no order to note the loss in. Only administrators and shop managers see the button.
-* New: the written-off units show in Reports > Movements (filter Written off, with the reason and the cost per unit) and as a Written off figure in Reports > Daily cash, with the units and the loss.
-* Technical: new reason writeoff in the stock log (dox_pos_stock_context( 'writeoff' )) whose note carries the reason; the loss is read from those rows (-delta times unit_cost), no new table. includes/writeoffs.php: dox_pos_write_off() (needs dox_pos_can_see_losses(), refuses more units than the stock and products that do not track stock, subtracts from the real size when the line carries one), dox_pos_writeoff_reasons() (cfg.writeoff, empty for who cannot), dox_pos_writeoffs_by_day() (totals writeoff, writeoff_units and writeoff_unknown in dox_pos_history_cash()) and REST route POST /writeoffs. New kind bajas in dox_pos_stock_kinds(). Needs a connection: it is not queued like the entries.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

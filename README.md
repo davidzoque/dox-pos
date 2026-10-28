@@ -103,7 +103,7 @@ El Pro irá por el servidor de licencias; mientras, `subir.sh`.
 
 `./subir.sh milasros` empaqueta la carpeta, la deja en `wp-content/plugins/dox-pos` de esa cuenta y reinicia sus procesos PHP para que no quede código viejo en OPcache. La activación se hace una vez desde Plugins.
 
-## Tiendas en varios idiomas (0.59.0)
+## Tiendas en varios idiomas (0.59.0, partido en la 0.60.0)
 
 Con Polylang o WPML cada producto es un post por idioma, enlazados como traducciones. Todo lo que lista o cuenta
 productos (Inventario, el buscador de Vender, Editar producto, el Excel, las cuentas del Panel, las sugerencias de
@@ -114,38 +114,54 @@ por el nombre en inglés cuenta como su ficha en español), el lector de código
 el kardex, que apunta cada cambio una vez en la ficha principal aunque la sincronización de la tienda guarde también
 la otra traducción (solo si comparten existencias: la principal está en el antes o en el después; si no, el movimiento
 se queda en la traducción). Con Polylang gratis las variaciones no se traducen: la de la ficha principal es la que
-lleva los mismos atributos (`dox_pos_lang_twin_variation()`). Un producto creado desde la caja pasa por `dox_pos_lang_assign()`. Todo está en
-`includes/multilingual.php`.
+lleva los mismos atributos (`dox_pos_lang_twin_variation()`, que también mira `_dox_pos_lang_of`, la marca que pone el
+Pro). Un producto creado desde la caja pasa por `dox_pos_lang_assign()`. Todo está en `includes/multilingual.php`.
 
-Con Polylang, la caja además escribe en las traducciones (`dox_pos_lang_sync()`). Al crear, con el ajuste
-"Crear también en los otros idiomas" (`translations` en `dox_pos_products`, encendido de fábrica), cada idioma que falta
-se crea con `WC_Admin_Duplicate_Product` (sin `_dox_pos_ref`, para que un reintento no devuelva la copia), se enlaza con
-`pll_save_post_translations` y se publica como la principal. Al crear y al editar se copia lo compartido (precio salvo
-el filtro `dox_pos_lang_sync_price`, costo, fotos, peso y medidas, unidades, bolsas de color, atributos y variaciones,
-categorías por `pll_get_term`) dentro de `dox_pos_stock_quiet()`, así el kardex no apunta las copias. Las fotos solo pasan si cambiaron en la principal
-(`dox_pos_lang_copy_images()` y `_dox_pos_lang_imgs`): una traducción con fotos propias, como las de SOLZ, las conserva. Cada variación de la
-traducción lleva `_dox_pos_lang_of` con su variación principal. El código de la traducción es el principal con `-EN`
-(filtro `dox_pos_translation_sku`); solo se pone al crearla o si está vacío. El formulario manda `i18n` ({ en: { name,
-short, description } }) con el texto de cada pestaña; al editar, una traducción que no existe se crea si el ajuste está
-puesto o si se escribió algo en su pestaña.
-
-Crear una traducción se puede repetir sin miedo. `dox_pos_lang_duplicate()` marca la copia en el mismo guardado que la
-crea (gancho `woocommerce_product_duplicate_before_save`): la ficha lleva `_dox_pos_lang_of` (la principal),
-`_dox_pos_lang` (su idioma) y `_dox_pos_lang_pending` hasta que `dox_pos_lang_sync()` la termina; cada variación lleva
-`_dox_pos_lang_of` con la suya. Si la petición se corta, la siguiente vez `dox_pos_lang_sync()` adopta la copia suelta
-(`dox_pos_lang_orphan()`: Polylang le pone el idioma principal al guardarla, así que vale mientras no esté enlazada con
-otra) o termina la que quedó a medias, en vez de hacer otra. Se repara al reintentar el mismo envío (misma `ref`), al
-guardar desde Editar producto y con `POST /products/{id}/translations` ("Crear ahora"), que caja.js llama solo al abrir
-un producto si el ajuste está puesto. `dox_pos_lang_missing()` da `lang_missing` en los datos de edición y `nolang` en
-Inventario (`/catalog`) y en la lista de Editar producto (la marca "Falta en English"). Crear o terminar una traducción va con un candado por
-producto e idioma (`dox_pos_lang_lock()`, una fila de `wp_options` con `INSERT IGNORE`; caduca a los dos minutos): la
-petición que llega segunda no crea nada y lo dice en `failed`, y la que lo coge relee los enlaces de la base
-(`dox_pos_lang_links_db()`). Una traducción en la papelera se respeta: no cuenta como que falta y no se rehace. Las pestañas las pinta `dox_pos_lang_tabs_html()` y las mueve caja.js, que avisa con `idioma` para
-que el Pro ponga "Traducir" (`/assistant/translate`). Con WPML solo se filtran las listas: crear traducciones, las
-pestañas y la marca de lo que falta son solo de Polylang, porque no hay una tienda con WPML donde probarlo.
+**Desde la 0.60.0 la gratuita no escribe en las traducciones.** Crear y editar traducciones desde la caja (las
+pestañas por idioma, "Crear también en los otros idiomas", `dox_pos_lang_sync()` y sus ayudas, la marca "Falta en
+English" con Crear ahora, la reparación de traducciones a medias y el filtro `dox_pos_lang_sync_price`) es de Dox POS
+Pro (`includes/multilingual-pro.php`), que se cuelga de los ganchos de abajo. Sin el Pro, editar toca solo la ficha
+principal. Si la tienda tiene Polylang, WPML o un plugin de varias monedas, `includes/international-notice.php` avisa
+una vez (se cierra, por usuario) en Ajustes y en la caja, nunca en el escritorio ni en la web.
 
 Dox POS no iguala las existencias entre traducciones: las cambia siempre con las funciones de WooCommerce y deja que
 la tienda lo haga (Polylang for WooCommerce, WooCommerce Multilingual o un código propio, como el de SOLZ en su tema).
+
+## Ganchos del formulario de producto (0.60.0)
+
+Genéricos: los usa el Pro para los idiomas y los usará para los precios por zona. El Pro nunca toca archivos de aquí.
+
+**PHP**
+
+| Gancho | Firma | Qué hace |
+|---|---|---|
+| filtro `dox_pos_product_form_fields` | `( string $html, string $slot, array $cfg )` | HTML (ya escapado por quien lo arma) que se mete en un hueco del formulario. Huecos: `name_before`, `name_after` (dentro del campo del nombre), `price_after`, `short_before`, `short_after`, `description_after`. Los campos básicos (`#p-nom`, `#p-corta`, `#p-desc`) siguen siendo del núcleo. |
+| acción `dox_pos_product_saved` | `( int $pid, array $data, bool $created )` | Después de guardar un producto desde la caja, con lo que mandó el formulario. `$created` es true al crear (también al repetirse el mismo envío, `ref`, que devuelve el producto ya creado). |
+| filtro `dox_pos_product_response` | `( array $out, WC_Product $p )` | La respuesta de crear o guardar (`product`, y lo que sume el añadido: el Pro pone `langs`). |
+| filtro `dox_pos_product_edit_data` | `( array $out, WC_Product $p )` | Los datos al abrir un producto para editar (el Pro suma `i18n` y `lang_missing`). |
+| filtro `dox_pos_catalog_item` | `( array $item, int $id, string $context )` | Cada producto de `/catalog` (`catalog`) y de la lista de Editar producto (`products`); el Pro suma `nolang`. |
+| filtro `dox_pos_products_settings` | `( array $settings, array $raw )` | Los ajustes de Productos ya leídos; un añadido suma los suyos (`translations`). |
+| filtro `dox_pos_products_sanitize` | `( array $clean, array $in )` | Al guardar los ajustes de Productos. Lo que guardó un añadido que hoy no está se conserva. |
+| acción `dox_pos_settings_products` | `( array $products )` | Dentro de Ajustes > Productos, para tarjetas de un añadido (el Pro: Idiomas). |
+| acción `dox_pos_rest_routes` | `( string $ns, string $perm, string $pperm )` | Al final de registrar las rutas REST: `$perm` es el permiso de la caja, `$pperm` el de crear productos. |
+
+**JavaScript** (`window.DoxPOS.on( evento, fn )`; los de "muta" reciben un objeto que el oyente rellena)
+
+| Evento | Dato | Cuándo |
+|---|---|---|
+| `productoListo` | `{}` | El formulario ya está cableado (una vez): enganchar listeners y pintar lo inicial. |
+| `productoVaciado` | `{}` | Se limpió el formulario (producto nuevo o al salir de editar). |
+| `productoCargado` | `{ datos }` | Se abrió un producto para editar y se pusieron sus campos, antes de tomar la huella: poner aquí lo propio. |
+| `productoAbierto` | `{ datos }` | Lo mismo, ya con la huella tomada. |
+| `productoPayload` | `{ payload, edicion }` | Se arma lo que se manda al guardar: se le añaden campos a `payload`. |
+| `productoAntesDeGuardar` | `{ promesas }` | Se puede añadir una promesa que se espera antes de mandar. |
+| `productoGuardado` | `{ respuesta, creado, html }` | Se guardó: se suma HTML al aviso (`html`) y se lee `respuesta` (el Pro: `langs`). |
+| `productoHuella` | `{ extra }` | Se añade a `extra` lo que cuenta como "cambios sin guardar". |
+| `productoTocado` | `{ tocado }` | Se pone `tocado = true` si el formulario tiene algo propio escrito. |
+| `productoBorrador` / `productoBorradorRestaurado` | `{ borrador }` | Guardar y restaurar lo propio en el borrador local. |
+| `productoMarca` | `{ producto, html }` | Marcas HTML que se suman a una fila de producto en las listas (el Pro: "Falta en English"). |
+
+`DoxPOS.producto` da `editado()` (el producto abierto o null), `huella()`, `limpio()`, `fijarHuella()` y `borrador()`.
 
 ## Cómo se mueve el inventario
 
