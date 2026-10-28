@@ -439,7 +439,7 @@
 
 	// ---------- el pedido y la entrada ----------
 	// El costo que la tienda conoce de una talla (solo llega a quien administra): la entrada lo propone como costo de compra.
-	const costoConocido = (vid) => (cfg.costs && st.vars[vid] && st.vars[vid].v.cost > 0 ? redondear(st.vars[vid].v.cost) : 0);
+	const costoConocido = (vid) => (cfg.costs && st.vars[vid] && st.vars[vid].v.cost > 0 ? redondearB(st.vars[vid].v.cost) : 0);
 	function añadir(vid, modo) {
 		const arr = modo === "venta" ? st.lineas : st.entrada;
 		const ya = arr.find((l) => l.vid === vid);
@@ -502,13 +502,13 @@
 				'<span class="n">' + esc(d.p.name) + "<i>" + esc(d.v.label) + " · " + esc(d.v.sku) + (modo === "entrada" && d.v.shared ? " · " + esc(__("goes to the total shared by all sizes", "dox-pos")) : "") + "</i>" + pieza + "</span>" +
 				'<span class="qty"><button type="button" data-d="-1" aria-label="' + esc(__("One less", "dox-pos")) + '">−</button><span>' + l.n + '</span><button type="button" data-d="1" aria-label="' + esc(__("One more", "dox-pos")) + '">+</button></span>' +
 				(conCosto
-					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IM + '" placeholder="0" value="' + esc(miles(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dinero(l.n * l.c) : "") + "</span></span>"
+					? '<span class="cst"><label>' + esc(__("Cost per unit", "dox-pos")) + '</label><input inputmode="' + IM + '" placeholder="0" value="' + esc(milesB(l.c || 0)) + '" aria-label="' + esc(__("Cost per unit", "dox-pos")) + '"><span class="vt">' + (l.c ? dineroB(l.n * l.c) : "") + "</span></span>"
 					: '<span class="v">' + dinero(l.n * d.v.price) + "</span>");
 			if (conCosto) {
 				const inp = li.querySelector(".cst input");
 				inp.addEventListener("focus", () => inp.select());
 				inp.addEventListener("input", () => {
-					const v = num(inp.value), old = l.c || 0;
+					const v = numB(inp.value), old = l.c || 0;
 					l.c = v;
 					// Las otras tallas del mismo producto que iban con el mismo costo cambian con esta: una compra suele costar igual en todas.
 					arr.forEach((o) => { const od = st.vars[o.vid]; if (o !== l && od && od.p.id === d.p.id && (o.c || 0) === old) o.c = v; });
@@ -516,10 +516,10 @@
 						const o = arr.find((x) => String(x.vid) === row.dataset.vid);
 						if (!o) return;
 						const oi = row.querySelector(".cst input");
-						if (oi && oi !== inp && num(oi.value) !== (o.c || 0)) oi.value = miles(o.c || 0);
-						row.querySelector(".vt").textContent = o.c ? dinero(o.n * o.c) : "";
+						if (oi && oi !== inp && numB(oi.value) !== (o.c || 0)) oi.value = milesB(o.c || 0);
+						row.querySelector(".vt").textContent = o.c ? dineroB(o.n * o.c) : "";
 					});
-					formatearMiles(inp);
+					formatearMiles(inp, false, true); // El costo es de la moneda base.
 					pintarSum();
 				});
 			}
@@ -752,7 +752,7 @@
 		const uds = st.entrada.reduce((a, l) => a + l.n, 0);
 		const costo = cfg.costs ? st.entrada.reduce((a, l) => a + l.n * (l.c || 0), 0) : 0;
 		const sinCosto = cfg.costs ? st.entrada.filter((l) => !l.c).length : 0;
-		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>" + esc(__("Cost of the goods", "dox-pos")) + "</span><span>" + (costo ? dinero(costo) : __("no cost", "dox-pos")) + (sinCosto && costo ? " · " + esc(sprintf(_n("%d line with no cost", "%d lines with no cost", sinCosto, "dox-pos"), sinCosto)) : "") + "</span></div>" : "") +
+		$("#sum2").innerHTML = (cfg.costs && st.entrada.length ? "<div><span>" + esc(__("Cost of the goods", "dox-pos")) + "</span><span>" + (costo ? dineroB(costo) : __("no cost", "dox-pos")) + (sinCosto && costo ? " · " + esc(sprintf(_n("%d line with no cost", "%d lines with no cost", sinCosto, "dox-pos"), sinCosto)) : "") + "</span></div>" : "") +
 			'<div class="tot"><span>' + esc(__("Units coming in", "dox-pos")) + "</span><span>" + uds + "</span></div>";
 		$("#reg2").disabled = st.ocupado || !st.entrada.length;
 		if ($("#baja2")) $("#baja2").disabled = st.ocupado || !st.entrada.length;
@@ -4116,7 +4116,7 @@
 			modal("<h3>" + esc(__("Check before creating", "dox-pos")) + '</h3><dl class="rev">' +
 				li(esc(__("Name", "dox-pos")), esc($("#p-nom").value.trim())) +
 				li(esc(__("SKU", "dox-pos")), esc($("#p-sku").value.trim() || __("no SKU", "dox-pos"))) +
-				li(esc(__("Price", "dox-pos")), dinero(precio)) +
+				li(esc(__("Price", "dox-pos")), dineroB(precio)) +
 				(cfg.costs ? li(esc(__("Cost", "dox-pos")), costoForm() ? dineroB(costoForm()) + " · " + esc(sprintf(__("leaves %s per unit", "dox-pos"), dineroB(precio - costoForm()))) : esc(__("No cost", "dox-pos"))) : "") +
 				li(esc(__("Category", "dox-pos")), esc(cats.join(", "))) +
 				(pr.colores.length ? li(esc(titCol()), esc(pr.colores.map((c) => c.name).join(", "))) : "") +
