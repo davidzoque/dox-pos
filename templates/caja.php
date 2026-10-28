@@ -244,12 +244,8 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'The product', 'dox-pos' ); ?></h4>
-							<?php // Con Polylang: pestañas por idioma encima de lo que se escribe en cada uno (includes/multilingual.php). ?>
-							<?php dox_pos_lang_tabs_html( $cfg['langs'] ); ?>
-							<?php if ( $cfg['langs'] ) : // Lo pinta caja.js: "Falta la versión en English" y su botón Crear ahora. ?>
-								<div class="langmiss" id="p-langmiss" role="status" hidden></div>
-							<?php endif; ?>
-							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><?php dox_pos_lang_fields_html( $cfg['langs'], 'name', 'input', __( 'Name', 'dox-pos' ) ); ?><p class="fwarn" id="p-nom-dup" hidden></p></div>
+							<?php dox_pos_product_form_slot( 'name_before', $cfg ); // Los añadidos meten aquí lo suyo (el Pro: las pestañas de idioma). ?>
+							<div class="field"><label for="p-nom"><?php esc_html_e( 'Name', 'dox-pos' ); ?></label><input id="p-nom" autocomplete="off" placeholder="<?php esc_attr_e( 'Luna dress', 'dox-pos' ); ?>"><?php dox_pos_product_form_slot( 'name_after', $cfg ); ?><p class="fwarn" id="p-nom-dup" hidden></p></div>
 							<div class="field mt"><span class="lbl" id="p-cats-label"><?php esc_html_e( 'Category', 'dox-pos' ); ?></span><div class="catgroups" id="p-cats" role="group" aria-labelledby="p-cats-label"></div>
 								<div class="nuevacat" id="p-nuevacat" hidden><?php // Una categoría nueva: se crea al momento y queda elegida (la abre el botón "Nueva categoría…", que pinta el JS). ?>
 									<input id="p-cat-nom" placeholder="<?php esc_attr_e( 'Category name', 'dox-pos' ); ?>" autocomplete="off" aria-label="<?php esc_attr_e( 'Name of the new category', 'dox-pos' ); ?>">
@@ -263,6 +259,7 @@ dox_pos_enqueue_caja( $cfg );
 								<div class="field"><label for="p-precio"><?php esc_html_e( 'Price', 'dox-pos' ); ?></label><input id="p-precio" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
 								<div class="field"><label for="p-sku"><?php esc_html_e( 'SKU', 'dox-pos' ); ?></label><input id="p-sku" autocomplete="off" autocapitalize="characters" spellcheck="false"><span class="pstatus" id="p-sku-st" aria-live="polite"></span></div>
 							</div>
+							<?php dox_pos_product_form_slot( 'price_after', $cfg ); // Los añadidos meten aquí lo suyo (el Pro: un precio por zona). ?>
 							<?php if ( $cfg['costs'] ) : // El costo por unidad, solo para quien administra. ?>
 							<div class="g2 mt">
 								<div class="field"><label for="p-costo"><?php esc_html_e( 'Cost per unit', 'dox-pos' ); ?></label><input id="p-costo" inputmode="<?php echo esc_attr( $im ); ?>" autocomplete="off" placeholder="0"></div>
@@ -309,9 +306,9 @@ dox_pos_enqueue_caja( $cfg );
 						</div>
 						<div class="grp">
 							<h4><?php esc_html_e( 'Description', 'dox-pos' ); ?> <span class="cnt"><?php esc_html_e( 'optional', 'dox-pos' ); ?></span></h4>
-							<?php dox_pos_lang_tabs_html( $cfg['langs'] ); ?>
-							<div class="field"><label for="p-corta"><?php esc_html_e( 'Short description', 'dox-pos' ); ?></label><textarea id="p-corta" class="corta" placeholder="<?php esc_attr_e( 'One line under the price', 'dox-pos' ); ?>"></textarea><?php dox_pos_lang_fields_html( $cfg['langs'], 'short', 'textarea', __( 'Short description', 'dox-pos' ) ); ?></div>
-							<div class="field mt"><label for="p-desc"><?php esc_html_e( 'Description', 'dox-pos' ); ?></label><textarea id="p-desc" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea><?php dox_pos_lang_fields_html( $cfg['langs'], 'description', 'textarea', __( 'Description', 'dox-pos' ) ); ?></div>
+							<?php dox_pos_product_form_slot( 'short_before', $cfg ); ?>
+							<div class="field"><label for="p-corta"><?php esc_html_e( 'Short description', 'dox-pos' ); ?></label><textarea id="p-corta" class="corta" placeholder="<?php esc_attr_e( 'One line under the price', 'dox-pos' ); ?>"></textarea><?php dox_pos_product_form_slot( 'short_after', $cfg ); ?></div>
+							<div class="field mt"><label for="p-desc"><?php esc_html_e( 'Description', 'dox-pos' ); ?></label><textarea id="p-desc" placeholder="<?php esc_attr_e( 'Fabric, details, how to wash it…', 'dox-pos' ); ?>"></textarea><?php dox_pos_product_form_slot( 'description_after', $cfg ); ?></div>
 						</div>
 						<div class="grp">
 							<label class="switch"><input type="checkbox" id="p-pub" checked><span class="switch-ui" aria-hidden="true"></span><span><span id="p-pub-text"><?php esc_html_e( 'Publish in the store now', 'dox-pos' ); ?></span><i id="p-pub-hint"><?php esc_html_e( 'Off: it is saved but hidden; you publish it later from Products.', 'dox-pos' ); ?></i></span></label>

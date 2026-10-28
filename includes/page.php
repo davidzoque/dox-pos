@@ -461,8 +461,19 @@ function dox_pos_js_config() {
 		'max_upload'      => (int) wp_max_upload_size(),
 		'max_px'          => (int) dox_pos_products_settings()['max_px'], // El lado mayor con el que se guardan las fotos: el teléfono ya las manda a esa medida.
 		'version'         => DOX_POS_VERSION,
-		'langs'           => dox_pos_lang_languages(),                    // Con Polylang: los idiomas, el principal primero (pestañas del formulario de producto).
-		'lang_copies'     => dox_pos_lang_copies_on(),                    // ¿Un producto nuevo se crea también en los otros idiomas?
 	);
 	return apply_filters( 'dox_pos_cfg', $cfg ); // Los añadidos meten lo suyo (el Pro: assistant, ai_ready, demo).
+}
+
+/**
+ * Un hueco del formulario de producto de la caja para los añadidos (el Pro: pestañas de idioma, precios por zona).
+ * Los huecos: name_before, name_after (dentro del campo del nombre), price_after, short_before, short_after (dentro del
+ * campo de la descripción corta) y description_after (dentro del campo de la descripción). Lo que el filtro devuelve es
+ * HTML ya escapado por quien lo arma: solo lo registra código de otro plugin, nunca llega de un formulario.
+ *
+ * @param string $slot Nombre del hueco.
+ * @param array  $cfg  Lo mismo que lleva window.DoxPOS.cfg.
+ */
+function dox_pos_product_form_slot( $slot, $cfg ) {
+	echo apply_filters( 'dox_pos_product_form_fields', '', (string) $slot, (array) $cfg ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML de un añadido, escapado por él.
 }

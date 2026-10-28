@@ -729,4 +729,12 @@
 			if (s) { s.textContent = nt.message; s.className = "dp-status bad"; }
 		}
 	});
+	// Cerrar el aviso de varios idiomas o monedas sin el Pro (includes/international-notice.php): una marca en el usuario.
+	document.addEventListener("click", (e) => {
+		const b = e.target.closest && e.target.closest(".dox-intl-close");
+		if (!b) return;
+		const box = b.closest(".dox-intl-notice");
+		if (box) box.remove();
+		fetch(cfg.rest + "notices/international", { method: "POST", headers: { "X-WP-Nonce": cfg.nonce }, credentials: "same-origin" }).catch(() => {});
+	});
 })();

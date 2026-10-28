@@ -329,7 +329,8 @@
 	}
 	// Una fila de la lista: el producto y, si está desplegado, sus tallas.
 	// Con Polylang: la marca del producto al que le falta una traducción (Inventario y Editar producto).
-	const marcaIdioma = (p) => (p.nolang && p.nolang.length ? '<i class="nolang">' + esc(sprintf(__("Missing in %s", "dox-pos"), p.nolang.join(", "))) + "</i>" : "");
+	// Las marcas que los añadidos ponen en una fila de producto (el Pro: "Falta en English"); cada uno suma su HTML ya escapado.
+	const marcaIdioma = (p) => { const x = { producto: p, html: "" }; emit("productoMarca", x); return x.html; };
 	function filaProducto(p, modo) {
 		// Las tallas que comparten un total lo cuentan una sola vez: cinco unidades entre tres tallas no son quince.
 		const bolsas = {};
@@ -2510,7 +2511,6 @@
 	// antes de crear hay un repaso con lo que se va a crear; y lo escrito se guarda en el teléfono
 	// por si la página se recarga o se cae la sesión.
 	const pr = {
-		lang: "", // El idioma de las pestañas a la vista (tienda con Polylang).
 		cargado: false, abriendo: null, form: null,
 		grupos: {}, totales: {}, real: new Set(), realQty: {}, legacy: false, legacyTotal: 0, // Qué tallas comparten unidades (clave color|talla => grupo 1, 2...) y las unidades de cada bolsa.
 		fotos: [],          // [{uid, file, estado: cola|subiendo|ok|error, id, url, color, kb, error}]
@@ -4023,7 +4023,9 @@
 		document.querySelectorAll("#p-form .bad").forEach((x) => x.classList.remove("bad"));
 		document.querySelectorAll("#p-form .ferr").forEach((x) => x.remove());
 	}
-	const formularioTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || ($("#p-corta") && $("#p-corta").value.trim()) || huellaIdiomas().some((v) => v.trim()) || num($("#p-precio").value) || costoForm() || !paqueteVacio(paqueteForm()));
+	// Los añadidos dicen si el formulario tiene algo suyo escrito: productoTocado, con x.tocado en true.
+	const formularioTocado = () => { const x = { tocado: false }; emit("productoTocado", x); return x.tocado || formularioNucleoTocado(); };
+	const formularioNucleoTocado = () => !!($("#p-nom").value.trim() || pr.cats.length || pr.fotos.length || $("#p-desc").value.trim() || ($("#p-corta") && $("#p-corta").value.trim()) || num($("#p-precio").value) || costoForm() || !paqueteVacio(paqueteForm()));
 	function pintarResumenProducto() {
 		const nt = pr.tallas.length, nc = pr.colores.length, u = unidadesTotales();
 		const vars = (nt || 1) * (nc || 1);
@@ -4135,7 +4137,6 @@
 			categories: pr.cats.slice(),
 			description: $("#p-desc").value.trim(),
 			short: $("#p-corta") ? $("#p-corta").value.trim() : undefined,
-			i18n: idiomasPayload(), // Con Polylang: el texto de cada otro idioma (vacío al crear: el del principal).
 			publish: $("#p-pub").checked,
 			sizes: rows.map((t) => t.id),
 			size_attr: ejes().row,  // El atributo de las filas (pa_talla-calzado en un zapato, pa_capacidad en un termo)...
@@ -4151,16 +4152,19 @@
 			real_qty: Object.fromEntries(realesVivas().filter((k) => pr.realQty[k] !== undefined).map((k) => [k, pr.realQty[k]])), // Y cuántas prendas de cada una.
 			images: pr.fotos.filter((f) => f.id).map((f) => ({ id: f.id, color: f.color || "" })),
 		};
+		emit("productoPayload", { payload, edicion: !!pr.edit }); // Los añadidos mandan lo suyo (el Pro: i18n, precios por zona).
 		try {
 			const eid = pr.edit ? pr.edit.id : 0;
-			if (pr.sanando) await pr.sanando; // Que "Crear ahora" termine antes: si no, las dos peticiones crearían la traducción.
+			const espera = { promesas: [] }; // Los añadidos pueden pedir esperar a algo antes de guardar (el Pro: que "Crear ahora" termine).
+			emit("productoAntesDeGuardar", espera);
+			if (espera.promesas.length) await Promise.all(espera.promesas);
 			if ((pr.edit ? pr.edit.id : 0) !== eid) { soltar(); return; } // Mientras tanto se abrió otro producto: esto no es suyo.
 			const d = await post(eid ? "products/" + eid : "products", payload);
 			const rp = repartoPendiente(); // Se guarda igual; se avisa.
 			// Al editar, "Guardado" con "Listo"; al crear, el de "Crear otro". El aviso del reparto va aparte: antes se
 			// comía el else y al editar salían los dos modales (el segundo, con "Crear otro", tapaba al primero).
-			if (pr.edit) modalProductoGuardado(d.product, d.langs);
-			else { borrarBorrador(); modalProductoCreado(d.product, d.langs); }
+			if (pr.edit) modalProductoGuardado(d.product, d);
+			else { borrarBorrador(); modalProductoCreado(d.product, d); }
 			if (rp) toast(sprintf(_n("Saved. %d group of shared sizes is not split by actual size, or does not add up.", "Saved. %d groups of shared sizes are not split by actual size, or do not add up.", rp, "dox-pos"), rp));
 			volverDeFicha(false);
 			refrescarStock().catch(() => {}); // Inventario y Vender vuelven a pedir lo que enseñan: si no, la fila sigue como antes de guardar.
@@ -4173,20 +4177,24 @@
 		soltar();
 		pintarResumenProducto();
 	}
-	function modalProductoCreado(p, langs) {
+	// Lo que los añadidos quieren decir en el aviso de guardado (el Pro: en qué idiomas quedó): productoGuardado, con x.html.
+	function avisosGuardado(resp, creado) {
+		const x = { respuesta: resp || {}, creado, html: "" };
+		emit("productoGuardado", x);
+		return x.html;
+	}
+	function modalProductoCreado(p, resp) {
 		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
-		modal("<h3>" + esc(p.name) + '</h3><p class="mp">' + esc(p.status === "publish" ? __("It is already in the store", "dox-pos") : __("Saved hidden, not published", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + ".</p>" + avisoIdiomas(langs) + '<div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-fix">' + esc(__("Fix something", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Create another", "dox-pos")) + "</button></div>");
+		modal("<h3>" + esc(p.name) + '</h3><p class="mp">' + esc(p.status === "publish" ? __("It is already in the store", "dox-pos") : __("Saved hidden, not published", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + ".</p>" + avisosGuardado(resp, !pr.edit) + '<div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-fix">' + esc(__("Fix something", "dox-pos")) + '</button><button type="button" class="go alt" id="m-no">' + esc(__("Create another", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = () => { cerrarModal(); nuevoProducto(); };
 		$("#m-fix").onclick = () => { cerrarModal(); editarDesdeLista(p.id); };
 	}
 	function limpiarProducto() {
 		pr.fotos.forEach((f) => { if (f.local) { try { URL.revokeObjectURL(f.local); } catch (e) { /* nada */ } } });
 		pr.fotos = []; pr.cats = []; pr.colores = []; pr.tallas = []; pr.qty = {};
-		pr.faltan = {}; pintarFaltan();
 		pr.manual = false; pr.tallasTocadas = false; pr.skuOk = undefined; pr.grupos = {}; pr.totales = {}; pr.real = new Set(); pr.realQty = {}; pr.legacy = false; pr.legacyTotal = 0;
 		pr.grupo = null; pr.masColores = false; pr.masTallas = false; pr.dup = null; pr.sinTonos = false; // "Ahora no" vale para un producto.
 		["#p-nom", "#p-precio", "#p-costo", "#p-sku", "#p-desc", "#p-corta", "#p-color-nom", "#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
-		vaciarIdiomas();
 		pr.paquete0 = null;
 		$("#p-pub").checked = true;
 		$("#p-nuevocolor").hidden = true;
@@ -4198,11 +4206,11 @@
 		$("#p-nom-dup").hidden = true;
 		estadoSku("", "");
 		pr.edit = null;
-		pintarIdiomas(); // Sin "crear también en los otros idiomas", al crear no hay pestañas.
 		$("#p-sku").disabled = false;
 		$("#p-editbar").hidden = true;
 		$("#p-pub-text").textContent = __("Publish in the store now", "dox-pos");
 		$("#p-pub-hint").textContent = __("Off: it is saved but hidden; you publish it later from Products.", "dox-pos");
+		emit("productoVaciado", {}); // Los añadidos limpian lo suyo (el Pro: las pestañas de idioma, los precios por zona).
 		pintarProducto();
 		pintarModo();
 		if (pr.modo === "editar") buscarProductos(pr.ppage || 1);
@@ -4223,9 +4231,10 @@
 		const b = {
 			ts: Date.now(), nombre: $("#p-nom").value, precio: $("#p-precio").value, costo: $("#p-costo") ? $("#p-costo").value : "", sku: $("#p-sku").value, manual: pr.manual,
 			cats: pr.cats, colores: pr.colores, tallas: pr.tallas, tocadas: pr.tallasTocadas, qty: pr.qty,
-			desc: $("#p-desc").value, corta: $("#p-corta") ? $("#p-corta").value : "", i18n: idiomasPayload(), pub: $("#p-pub").checked, paquete: paqueteForm(),
+			desc: $("#p-desc").value, corta: $("#p-corta") ? $("#p-corta").value : "", pub: $("#p-pub").checked, paquete: paqueteForm(),
 			fotos: pr.fotos.filter((f) => f.estado === "ok" && f.id).map((f) => ({ id: f.id, url: f.url, color: f.color, kb: f.kb })),
 		};
+		emit("productoBorrador", { borrador: b }); // Los añadidos suman lo suyo al borrador.
 		try {
 			if (!formularioTocado()) { if (!pendiente) localStorage.removeItem(BORRADOR); return; }
 			localStorage.setItem(BORRADOR, JSON.stringify(b));
@@ -4253,7 +4262,7 @@
 		$("#p-sku").value = b.sku || "";
 		$("#p-desc").value = b.desc || "";
 		if ($("#p-corta")) $("#p-corta").value = b.corta || "";
-		ponerTextosIdiomas(b.i18n);
+		emit("productoBorradorRestaurado", { borrador: b });
 		$("#p-pub").checked = b.pub !== false;
 		ponerPaquete(b.paquete || null);
 		pr.manual = !!b.manual;
@@ -4312,8 +4321,10 @@
 		ofrecerBorrador();
 	}
 	// Cómo está la ficha ahora: si al salir no es igual que al abrirla, hay cambios sin guardar.
+	// Lo que los añadidos meten en la huella del formulario (el Pro: los textos de cada idioma), para saber si hay cambios sin guardar.
+	function huellaExtra() { const x = { extra: [] }; emit("productoHuella", x); return x.extra; }
 	function huellaProducto() {
-		return JSON.stringify([$("#p-nom").value, $("#p-precio").value, $("#p-costo") ? $("#p-costo").value : "", $("#p-desc").value, $("#p-corta") ? $("#p-corta").value : "", huellaIdiomas(), $("#p-pub").checked,
+		return JSON.stringify([$("#p-nom").value, $("#p-precio").value, $("#p-costo") ? $("#p-costo").value : "", $("#p-desc").value, $("#p-corta") ? $("#p-corta").value : "", huellaExtra(), $("#p-pub").checked,
 			pr.cats, pr.tallas, pr.colores, pr.qty, pr.grupos, pr.totales, [...pr.real].sort(), pr.realQty, paqueteForm(), pr.fotos.map((f) => [f.id, f.color, f.estado])]);
 	}
 	const fichaConCambios = () => (pr.edit ? huellaProducto() !== pr.huella : pr.modo === "nuevo" && formularioTocado());
@@ -4423,8 +4434,7 @@
 		estadoSku(d.sku ? __("The SKU is only changed in WooCommerce.", "dox-pos") : __("No SKU.", "dox-pos"), "");
 		$("#p-desc").value = d.description || "";
 		if ($("#p-corta")) $("#p-corta").value = d.short || "";
-		ponerTextosIdiomas(d.i18n);
-		pr.faltan = d.lang_missing || {};
+		emit("productoCargado", { datos: d }); // Los añadidos ponen lo suyo antes de tomar la huella (el Pro: i18n).
 		pr.paquete0 = d.package || null; // Lo que varía entre las tallas llega vacío (mixed_fields): si se deja así, no se manda y no se toca.
 		ponerPaquete(pr.paquete0);
 		$("#p-pub").checked = d.status === "publish";
@@ -4440,136 +4450,14 @@
 		pintarModo();
 		pr.huella = huellaProducto();
 		$("#t-producto .scroll").scrollTop = 0;
-		// Le falta una traducción (o se cortó a medias): con el ajuste puesto se crea ya; si no, se ofrece.
-		if (Object.keys(pr.faltan).length && cfg.lang_copies) crearTraducciones(true);
-		else pintarFaltan();
+		emit("productoAbierto", { datos: d }); // Ya con la huella tomada (el Pro: crea la traducción que falte o la ofrece).
 	}
-	function modalProductoGuardado(p, langs) {
+	function modalProductoGuardado(p, resp) {
 		const que = p.variations ? sprintf(_n("%d variation", "%d variations", p.variations, "dox-pos"), p.variations) : __("one size", "dox-pos");
-		if (pr.edit && langs && langs.missing) { pr.faltan = langs.missing; pintarFaltan(); }
-		modal("<h3>" + esc(__("Saved", "dox-pos")) + '</h3><p class="mp">' + esc(p.name) + " · " + esc(p.status === "publish" ? __("published", "dox-pos") : __("hidden", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + ".</p>" + avisoIdiomas(langs) + '<div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
+		modal("<h3>" + esc(__("Saved", "dox-pos")) + '</h3><p class="mp">' + esc(p.name) + " · " + esc(p.status === "publish" ? __("published", "dox-pos") : __("hidden", "dox-pos")) + " · " + esc(p.sku || __("no SKU", "dox-pos")) + " · " + esc(que) + " · " + esc(sprintf(_n("%d unit", "%d units", p.units, "dox-pos"), p.units)) + ".</p>" + avisosGuardado(resp, !pr.edit) + '<div class="mbtn"><a class="go" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(__("View in the store", "dox-pos")) + '</a><button type="button" class="go alt" id="m-no">' + esc(__("Done", "dox-pos")) + "</button></div>");
 		$("#m-no").onclick = cerrarModal;
 	}
 
-	// ---------- tienda en varios idiomas (Polylang) ----------
-	// Unas pestañas por idioma encima del nombre y de las dos descripciones: los campos de siempre (#p-nom,
-	// #p-corta, #p-desc) son los del idioma principal y cada otro idioma tiene los suyos (.p-ltx), escondidos
-	// hasta tocar su pestaña. Así todo lo que lee el nombre (el aviso de repetido, el borrador, el resumen)
-	// sigue leyendo el del idioma principal. Lo demás (precio, fotos, tallas...) es de todos los idiomas.
-	const LANGS = Array.isArray(cfg.langs) ? cfg.langs : [];
-	const LDEF = LANGS.length ? LANGS[0].slug : "";
-	const BASE = { name: "#p-nom", short: "#p-corta", description: "#p-desc" };
-	const conIdiomas = () => LANGS.length > 1 && (!!pr.edit || !!cfg.lang_copies);
-	const camposIdioma = (lang) => [...document.querySelectorAll('.p-ltx[data-lang="' + lang + '"]')];
-	function textosIdioma(lang) {
-		const t = { name: "", short: "", description: "" };
-		camposIdioma(lang).forEach((el) => { t[el.dataset.f] = el.value.trim(); });
-		return t;
-	}
-	// Sin traducir: vacío o igual que el idioma principal (al crear, vacío quiere decir "como el principal").
-	function sinTraducir(lang) {
-		const t = textosIdioma(lang);
-		return Object.keys(BASE).every((f) => !t[f] || t[f] === ($(BASE[f]) ? $(BASE[f]).value.trim() : ""));
-	}
-	function pintarIdiomas() {
-		const ver = conIdiomas();
-		document.querySelectorAll(".langtabs").forEach((el) => { el.hidden = !ver; });
-		if (!ver && pr.lang && pr.lang !== LDEF) { ponerIdioma(LDEF); return; }
-		document.querySelectorAll(".langtab").forEach((b) => {
-			b.setAttribute("aria-selected", b.dataset.lang === (pr.lang || LDEF) ? "true" : "false");
-			b.classList.toggle("untr", b.dataset.lang !== LDEF && sinTraducir(b.dataset.lang));
-		});
-	}
-	function ponerIdioma(lang) {
-		if (!LDEF) return;
-		pr.lang = lang;
-		Object.keys(BASE).forEach((f) => { const el = $(BASE[f]); if (el) el.hidden = lang !== LDEF; });
-		document.querySelectorAll(".p-ltx").forEach((el) => {
-			el.hidden = el.dataset.lang !== lang;
-			const base = $(BASE[el.dataset.f]);
-			el.placeholder = base ? base.value.trim() || base.placeholder : ""; // Lo que queda si no se escribe nada.
-		});
-		pintarIdiomas();
-		const l = LANGS.find((x) => x.slug === lang) || {};
-		const base = {}; Object.keys(BASE).forEach((f) => { base[f] = $(BASE[f]) ? $(BASE[f]).value.trim() : ""; });
-		// Los añadidos (el Pro: el botón Traducir) se enteran de qué idioma está a la vista.
-		const leerBase = () => { const b = {}; Object.keys(BASE).forEach((f) => { b[f] = $(BASE[f]) ? $(BASE[f]).value.trim() : ""; }); return b; };
-		emit("idioma", { lang, name: l.name || lang, principal: lang === LDEF, base, leerBase, defecto: LANGS[0], herramientas: [...document.querySelectorAll(".langtools")],
-			rellenar: (t) => { camposIdioma(lang).forEach((el) => { if (t && typeof t[el.dataset.f] === "string") el.value = t[el.dataset.f]; }); pintarIdiomas(); programarBorrador(); } });
-	}
-	function idiomasPayload() {
-		if (!conIdiomas()) return undefined;
-		const out = {};
-		LANGS.slice(1).forEach((l) => { out[l.slug] = textosIdioma(l.slug); });
-		return out;
-	}
-	function vaciarIdiomas() {
-		document.querySelectorAll(".p-ltx").forEach((el) => { el.value = ""; });
-		ponerIdioma(LDEF);
-	}
-	function ponerTextosIdiomas(i18n) {
-		LANGS.slice(1).forEach((l) => {
-			const t = (i18n || {})[l.slug] || {};
-			camposIdioma(l.slug).forEach((el) => { el.value = t[el.dataset.f] || ""; });
-		});
-		ponerIdioma(LDEF);
-	}
-	const huellaIdiomas = () => [...document.querySelectorAll(".p-ltx")].map((el) => el.value);
-	// El aviso de la traducción que falta, encima del nombre: "Falta la versión en English" y Crear ahora.
-	function pintarFaltan(hecho) {
-		const box = $("#p-langmiss");
-		if (!box) return;
-		const nombres = Object.values(pr.faltan || {});
-		if (!pr.edit || (!nombres.length && !hecho)) { box.hidden = true; box.innerHTML = ""; return; }
-		box.hidden = false;
-		if (!nombres.length) { box.className = "langmiss ok"; box.innerHTML = "<span>" + esc(sprintf(__("Also created in %s.", "dox-pos"), hecho)) + "</span>"; return; }
-		box.className = "langmiss";
-		box.innerHTML = "<span>" + esc(sprintf(__("The %s version is missing.", "dox-pos"), nombres.join(", "))) + '</span><button type="button" class="mini" id="p-langmiss-go">' + esc(__("Create now", "dox-pos")) + "</button>";
-		$("#p-langmiss-go").onclick = () => crearTraducciones(false);
-	}
-	// Crea las que faltan con lo que tiene la ficha guardada. Lo que ya se escribió en esas pestañas no se pisa.
-	function crearTraducciones(solo) {
-		const id = pr.edit && pr.edit.id;
-		if (!id || pr.sanando) return pr.sanando;
-		pr.sanando = pedirTraducciones(id, solo).finally(() => { pr.sanando = null; });
-		return pr.sanando;
-	}
-	async function pedirTraducciones(id, solo) {
-		const btn = $("#p-langmiss-go");
-		const soltar = btn ? ocupar(btn, __("Creating…", "dox-pos")) : () => {};
-		let d;
-		try { d = await api("products/" + id + "/translations", { method: "POST" }); } catch (e) {
-			soltar();
-			if (e.message === "sesion" || !pr.edit || pr.edit.id !== id) return;
-			if (!solo) toast(e.message);
-			pintarFaltan();
-			return;
-		}
-		soltar();
-		if (!pr.edit || pr.edit.id !== id) return; // Mientras tanto se abrió otro.
-		const limpia = huellaProducto() === pr.huella; // Se mira ahora: lo que se escribió mientras tanto sigue contando como cambio.
-		pr.edit.i18n = d.i18n || {};
-		LANGS.slice(1).forEach((l) => {
-			const t = (d.i18n || {})[l.slug] || {};
-			camposIdioma(l.slug).forEach((el) => { if (!el.value.trim()) el.value = t[el.dataset.f] || ""; });
-		});
-		pintarIdiomas();
-		if (limpia) pr.huella = huellaProducto();
-		pr.faltan = d.lang_missing || {};
-		const hechos = (d.langs && d.langs.made) || [];
-		pintarFaltan(hechos.join(", "));
-		if (!solo && Object.keys(pr.faltan).length) toast(sprintf(__("It could not be created in %s. Try again in a moment.", "dox-pos"), Object.values(pr.faltan).join(", ")));
-	}
-	// Lo que se dice al crear: en qué idiomas quedó, si el texto sigue en el principal y qué categoría no tiene traducción.
-	function avisoIdiomas(langs) {
-		if (!langs) return "";
-		const fallo = langs.failed && langs.failed.length ? " " + sprintf(__("It could not be created in %s. Try again in a moment.", "dox-pos"), langs.failed.join(", ")) : "";
-		if (!langs.made || !langs.made.length) return fallo ? '<p class="mp">' + esc(fallo.trim()) + "</p>" : "";
-		let t = sprintf(__("Also created in %s.", "dox-pos"), langs.made.join(", ")) + fallo;
-		if (langs.untranslated && langs.untranslated.length) t += " " + sprintf(__("The text is in %1$s until you translate it (%2$s).", "dox-pos"), (LANGS[0] || {}).name || LDEF, langs.untranslated.join(", "));
-		Object.keys(langs.nocat || {}).forEach((ln) => { t += " " + sprintf(__("In %1$s it has no category, because %2$s has no translation in that language.", "dox-pos"), ln, langs.nocat[ln].join(", ")); });
-		return '<p class="mp">' + esc(t) + "</p>";
-	}
 	// Desde la lista de Vender o de Entró mercancía: "Editar este producto".
 	async function editarDesdeLista(id) {
 		if (pr.edit && pr.edit.id === id && st.tab === "producto") return;
@@ -5046,6 +4934,14 @@
 		}, 0);
 	}
 	function init() {
+		// Cerrar el aviso de varios idiomas o monedas sin el Pro (includes/international-notice.php): una marca en el usuario.
+		document.addEventListener("click", (e) => {
+			const b = e.target.closest && e.target.closest(".dox-intl-close");
+			if (!b) return;
+			const box = b.closest(".dox-intl-notice");
+			if (box) box.remove();
+			api("notices/international", { method: "POST" }).catch(() => {});
+		});
 		document.querySelectorAll("#tabs button").forEach((b) => {
 			b.onclick = () => {
 				st.tab = b.dataset.t;
@@ -5064,20 +4960,18 @@
 			zona.addEventListener("dragover", (e) => { e.preventDefault(); zona.classList.add("over"); });
 			zona.addEventListener("dragleave", () => zona.classList.remove("over"));
 			zona.addEventListener("drop", (e) => { e.preventDefault(); zona.classList.remove("over"); if (e.dataTransfer) agregarArchivos(e.dataTransfer.files); });
-			$("#p-nom").addEventListener("input", () => { pintarResumenProducto(); programarNombre(); pintarIdiomas(); });
-			ponerIdioma(LDEF); // Las pestañas de idioma, si la tienda tiene varios (al crear, solo con "crear también en los otros idiomas").
+			$("#p-nom").addEventListener("input", () => { pintarResumenProducto(); programarNombre(); });
 			$("#p-precio").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
 			if ($("#p-costo")) $("#p-costo").addEventListener("input", () => { formatearPrecio(); pintarResumenProducto(); });
 			["#p-peso", "#p-largo", "#p-ancho", "#p-alto"].forEach((q) => { if ($(q)) $(q).addEventListener("input", () => { pintarPaquetes(); pintarResumenProducto(); }); });
-			$("#p-desc").addEventListener("input", () => { pintarIdiomas(); programarBorrador(); });
-			if ($("#p-corta")) $("#p-corta").addEventListener("input", () => { pintarIdiomas(); programarBorrador(); });
-			document.querySelectorAll(".p-ltx").forEach((el) => el.addEventListener("input", () => { pintarIdiomas(); programarBorrador(); }));
-			document.querySelectorAll(".langtab").forEach((b) => { b.onclick = () => ponerIdioma(b.dataset.lang); });
+			$("#p-desc").addEventListener("input", programarBorrador);
+			if ($("#p-corta")) $("#p-corta").addEventListener("input", programarBorrador);
 			$("#p-pub").addEventListener("change", programarBorrador);
 			$("#p-sku").addEventListener("input", comprobarCodigo);
 			$("#p-vaciar").onclick = vaciarProducto;
 			$("#p-color-add").onclick = añadirColorNuevo;
 			$("#p-cat-add").onclick = añadirCategoriaNueva;
+			emit("productoListo", {}); // El formulario ya está cableado: los añadidos enganchan los suyos (el Pro: pestañas de idioma, precios por zona).
 			$("#p-talla-add").onclick = añadirTallaNueva;
 			$("#p-talla-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirTallaNueva(); } });
 			$("#p-cat-nom").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); añadirCategoriaNueva(); } });
@@ -5227,6 +5121,13 @@
 		cfg, M, MSG, $, esc, num, uds, miles, redondear, dinero, iniciales, miniatura, kpi, ks, chip, chips, uuid, ocupar,
 		api, post, modal, cerrarModal, confirmar, preguntar, toast,
 		verPedido, verProducto, editarDesdeLista, cargarPedidos, accion, refrescarStock, fijarHash, hayProducto,
+		producto: { // El formulario de producto, para los añadidos que le suman campos.
+			editado: () => pr.edit,                         // El producto abierto para editar (null al crear).
+			huella: huellaProducto,                         // Cómo está la ficha ahora...
+			limpio: () => huellaProducto() === pr.huella,   // ...si no tiene cambios sin guardar...
+			fijarHuella: () => { pr.huella = huellaProducto(); }, // ...y tomar la de ahora como la guardada.
+			borrador: programarBorrador,                    // Pedir que se guarde el borrador.
+		},
 		vistaHistorial, rangoHistorial, textoPeriodo, excelLink, diaBonito, listaHist,
 		pestaña, on, emit, pestañaActual: () => st.tab, arrancar: init,
 	};

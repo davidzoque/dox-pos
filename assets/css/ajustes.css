@@ -438,3 +438,8 @@ select.dp-unit{border:0;border-left:1px solid var(--dp-line);border-radius:0;fon
 .dp-seg span{display:block;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:600;color:var(--dp-muted,#50575e);transition:background-color .2s,color .2s}
 .dp-seg input:checked+span{background:#fff;color:var(--dp-ink);box-shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.06)}
 .dp-seg input:focus-visible+span{outline:2px solid var(--dp-accent);outline-offset:1px}
+
+/* El aviso de varios idiomas o monedas sin el Pro (includes/international-notice.php). */
+.dox-intl-settings{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin:0 0 16px;padding:12px 16px;border-radius:12px;background:var(--dp-accent-soft);color:var(--dp-ink);font-size:13px}
+.dox-intl-settings a{font-weight:600}
+.dox-intl-settings .dox-intl-close{appearance:none;border:0;background:none;color:var(--dp-muted);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}

@@ -69,8 +69,8 @@ function dox_pos_products_settings( $reset = false ) {
 		'color_attr' => dox_pos_attribute_taxonomy( (string) ( $s['color_attr'] ?? '' ), dox_pos_attribute_names( 'color' ) ),
 		'costs'      => ! isset( $s['costs'] ) || ! empty( $s['costs'] ), // De fábrica se llevan costos; se apaga en Ajustes > Productos.
 		'real_near'  => max( 0, min( 9, (int) ( $s['real_near'] ?? 0 ) ) ), // 0: apagado. Si no, a cuántas tallas puede estar la prenda real (includes/real-sizes.php).
-		'translations' => ! isset( $s['translations'] ) || ! empty( $s['translations'] ), // Con Polylang, crear también en los otros idiomas (includes/multilingual.php).
 	);
+	$cache = apply_filters( 'dox_pos_products_settings', $cache, $s ); // Los añadidos (el Pro: crear en los otros idiomas) suman sus ajustes aquí.
 	return $cache;
 }
 
@@ -2001,18 +2001,9 @@ function dox_pos_create_product( $data ) {
 	if ( $ref ) {
 		$dup = dox_pos_product_by_ref( $ref ); // El mismo envío dos veces: se devuelve lo que ya existe.
 		if ( $dup ) {
-			// Si el primero se cortó después de guardar la ficha, aquí se terminan sus traducciones (sin repetir ninguna).
-			$langs = null;
-			if ( dox_pos_lang_copies_on() ) {
-				if ( ! pll_get_post_language( $dup->get_id() ) ) {
-					dox_pos_lang_assign( $dup->get_id() );
-				}
-				$langs = dox_pos_lang_sync( $dup->get_id(), dox_pos_lang_texts_from( $data ), true );
-			}
+			// Si el primero se cortó después de guardar la ficha, los añadidos (el Pro: sus traducciones) la terminan aquí.
+			do_action( 'dox_pos_product_saved', $dup->get_id(), $data, true );
 			$out = dox_pos_product_response( wc_get_product( $dup->get_id() ) );
-			if ( $langs ) {
-				$out['langs'] = $langs;
-			}
 			return $out;
 		}
 	}
@@ -2295,16 +2286,11 @@ function dox_pos_create_product( $data ) {
 		delete_post_meta( $im['id'], '_dox_pos_pending' );
 		wp_update_post( array( 'ID' => $im['id'], 'post_parent' => $pid ) );
 	}
-	// Con Polylang y el ajuste puesto, también en los otros idiomas (includes/multilingual.php).
-	$langs = dox_pos_lang_copies_on() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), true ) : null;
+	do_action( 'dox_pos_product_saved', $pid, $data, true ); // Los añadidos (el Pro: las traducciones, los precios por zona) guardan lo suyo.
 	delete_transient( 'dox_pos_product_form' );
 	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
-	$out = dox_pos_product_response( wc_get_product( $pid ), $units, $nvars );
-	if ( $langs ) {
-		$out['langs'] = $langs;
-	}
-	return $out;
+	return dox_pos_product_response( wc_get_product( $pid ), $units, $nvars );
 }
 
 /**
@@ -2753,7 +2739,7 @@ function dox_pos_product_response( $p, $units = null, $nvars = null ) {
 		dox_pos_pool_forget();
 		$units = (int) dox_pos_product_units( $p ); // Cada bolsa de color y el total del producto, una sola vez.
 	}
-	return array(
+	$out = array(
 		'product' => array(
 			'id'         => $p->get_id(),
 			'name'       => $p->get_name(),
@@ -2766,6 +2752,26 @@ function dox_pos_product_response( $p, $units = null, $nvars = null ) {
 			'image'      => $p->get_image_id() ? wp_get_attachment_image_url( $p->get_image_id(), 'woocommerce_thumbnail' ) : '',
 		),
 	);
+	return apply_filters( 'dox_pos_product_response', $out, $p ); // Los añadidos suman lo suyo (el Pro: langs).
+}
+
+/**
+ * Pone la descripción (o la corta) solo si cambió, comparada sin HTML: así no se pierde el HTML hecho en WooCommerce.
+ *
+ * @param WC_Product $p     Producto.
+ * @param string     $field 'short' o 'description'.
+ * @param string     $text  Lo escrito.
+ */
+function dox_pos_set_text_if_changed( $p, $field, $text ) {
+	$now = 'short' === $field ? $p->get_short_description( 'edit' ) : $p->get_description( 'edit' );
+	if ( trim( (string) $text ) === dox_pos_plain_text( $now ) ) {
+		return;
+	}
+	if ( 'short' === $field ) {
+		$p->set_short_description( wp_kses_post( (string) $text ) );
+	} else {
+		$p->set_description( wp_kses_post( (string) $text ) );
+	}
 }
 
 /* =====================================================================
@@ -2807,7 +2813,7 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 		if ( ! $p ) {
 			continue;
 		}
-		$items[] = array(
+		$item = array(
 			'id'         => (int) $pid,
 			'name'       => $p->get_name(),
 			'sku'        => $p->get_sku( 'edit' ),
@@ -2816,8 +2822,8 @@ function dox_pos_find_products( $q, $page = 1, $per = 20 ) {
 			'price'      => (float) $p->get_price(),
 			'image'      => $p->get_image_id() ? wp_get_attachment_image_url( $p->get_image_id(), 'woocommerce_thumbnail' ) : '',
 			'variations' => $p->is_type( 'variable' ) ? count( $p->get_children() ) : 0,
-			'nolang'     => array_values( dox_pos_lang_missing( $pid ) ), // Con Polylang: los idiomas en que le falta la traducción.
 		);
+		$items[] = apply_filters( 'dox_pos_catalog_item', $item, (int) $pid, 'products' ); // Los añadidos le ponen sus marcas (el Pro: nolang).
 	}
 	return array( 'items' => $items, 'total' => $total, 'page' => $page, 'pages' => max( 1, (int) ceil( $total / $per ) ) );
 }
@@ -3022,7 +3028,7 @@ function dox_pos_product_edit_data( $id ) {
 	}
 	$prices = array_values( array_unique( array_filter( $prices, fn( $x ) => $x > 0 ) ) );
 	$cs     = dox_pos_can_see_costs() ? dox_pos_product_cost_summary( $p ) : null;
-	return array(
+	$out = array(
 		'id'          => $p->get_id(),
 		'name'        => $p->get_name(),
 		'sku'         => $p->get_sku( 'edit' ),
@@ -3032,8 +3038,6 @@ function dox_pos_product_edit_data( $id ) {
 		'categories'  => array_map( 'intval', $p->get_category_ids() ),
 		'description' => dox_pos_plain_text( $p->get_description( 'edit' ) ),
 		'short'       => dox_pos_plain_text( $p->get_short_description( 'edit' ) ),
-		'i18n'        => dox_pos_lang_languages() ? dox_pos_lang_edit_texts( $p->get_id() ) : array(), // Con Polylang: los textos de cada traducción.
-		'lang_missing' => dox_pos_lang_missing( $p->get_id() ), // Los idiomas sin traducción (o con la suya a medias).
 		'price'       => 1 === count( $prices ) ? $prices[0] : '', // Vacío: las tallas tienen precios distintos.
 		'price_min'   => $prices ? min( $prices ) : 0,
 		'price_max'   => $prices ? max( $prices ) : 0,
@@ -3059,6 +3063,7 @@ function dox_pos_product_edit_data( $id ) {
 		'variations'  => count( $model['variations'] ),
 		'units'       => $units,
 	);
+	return apply_filters( 'dox_pos_product_edit_data', $out, $p ); // Los añadidos suman lo suyo al abrir un producto (el Pro: sus traducciones).
 }
 
 /**
@@ -3294,7 +3299,7 @@ function dox_pos_update_product( $id, $data ) {
 		$p->set_description( wp_kses_post( $desc ) ); // Solo si se tocó: así no se pierde el HTML de una descripción hecha en WooCommerce.
 	}
 	if ( array_key_exists( 'short', $data ) ) { // Una caja anterior a la 0.59 no la manda: no se toca.
-		dox_pos_lang_set_text( $p, 'short', trim( (string) $data['short'] ) );
+		dox_pos_set_text_if_changed( $p, 'short', trim( (string) $data['short'] ) );
 	}
 	// Fotos: la principal es la primera "para todas"; el resto va a la galería; las que se quitaron
 	// se sueltan del producto (el archivo sigue en la biblioteca de medios).
@@ -3623,43 +3628,11 @@ function dox_pos_update_product( $id, $data ) {
 		// Lo editado desde la caja se queda con las filas y columnas con las que se editó (dox_pos_product_axes()).
 		update_post_meta( $pid, '_dox_pos_axes', array( (string) $model['size_attr'], (string) $model['color_attr'] ) );
 	}
-	// Con Polylang, lo compartido pasa a sus traducciones y cada idioma guarda su texto (includes/multilingual.php).
-	// Con el ajuste puesto, la traducción que falte (o que se cortó a medias) se crea ahora.
-	$langs = dox_pos_lang_languages() ? dox_pos_lang_sync( $pid, dox_pos_lang_texts_from( $data ), dox_pos_lang_copies_on() ) : null;
-	if ( $langs ) {
-		$langs['missing'] = dox_pos_lang_missing( $pid ); // Para que el aviso de la caja quede al día.
-	}
+	do_action( 'dox_pos_product_saved', $pid, $data, false ); // Los añadidos (el Pro: las traducciones, los precios por zona) guardan lo suyo.
 	delete_transient( 'dox_pos_product_form' );
 	delete_transient( 'dox_pos_variation_taxes' ); // Puede usar un atributo que hasta ahora no usaba ninguna variación.
 	do_action( 'litespeed_purge_post', $pid );
-	$out = dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
-	if ( $langs ) {
-		$out['langs'] = $langs;
-	}
-	return $out;
-}
-
-/**
- * "Crear ahora": las traducciones que le faltan a un producto (o que se cortaron a medias), con lo que tiene
- * la ficha principal. Lo pide la caja al abrir el producto (con el ajuste puesto) o desde su aviso.
- *
- * @param int $id Producto.
- * @return array|WP_Error langs (lo de dox_pos_lang_sync()), i18n y lang_missing al día.
- */
-function dox_pos_product_translations( $id ) {
-	$p = wc_get_product( (int) $id );
-	if ( ! $p || $p->is_type( 'variation' ) ) {
-		return new WP_Error( 'dox_pos_no_existe', __( 'That product does not exist.', 'dox-pos' ), array( 'status' => 404 ) );
-	}
-	if ( ! dox_pos_lang_languages() || ! function_exists( 'pll_save_post_translations' ) ) {
-		return new WP_Error( 'dox_pos_sin_idiomas', __( 'The store is not in several languages.', 'dox-pos' ) );
-	}
-	$langs = dox_pos_lang_sync( $p->get_id(), array(), true );
-	return array(
-		'langs'        => $langs,
-		'i18n'         => dox_pos_lang_edit_texts( $p->get_id() ),
-		'lang_missing' => dox_pos_lang_missing( $p->get_id() ),
-	);
+	return dox_pos_product_response( wc_get_product( $pid ), null, $nvars );
 }
 
 /**
