@@ -127,7 +127,7 @@ function dox_pos_dashboard() {
  */
 function dox_pos_dashboard_past( $today, $back = 0 ) {
 	$back = max( 0, (int) $back );
-	$key  = 'dox_pos_dash_past_' . $back;
+	$key  = 'dox_pos_dash_past_' . $back . '_' . (int) get_option( 'dox_pos_dash_ver', 0 ); // La versión sube al registrar una venta de otro día (orders.php).
 	$c    = get_transient( $key );
 	if ( is_array( $c ) && ( $c['day'] ?? '' ) === $today && isset( $c['days'] ) ) {
 		return $c['days'];
@@ -277,7 +277,7 @@ function dox_pos_dashboard_stock() {
  */
 function dox_pos_top_products( $days = 30, $fresh = false ) {
 	$days = max( 1, (int) $days );
-	$key  = 'dox_pos_top_' . $days;
+	$key  = 'dox_pos_top_' . $days . '_' . (int) get_option( 'dox_pos_dash_ver', 0 );
 	$top  = $fresh ? false : get_transient( $key );
 	if ( is_array( $top ) ) {
 		return $top;

@@ -117,8 +117,20 @@ dox_pos_enqueue_caja( $cfg );
 							<div class="field mt"><label for="f-env"><?php esc_html_e( 'Shipping cost', 'dox-pos' ); ?></label><input id="f-env" value="0" inputmode="<?php echo esc_attr( $im ); ?>"></div>
 						</div>
 						<div class="grp">
-							<h4><?php esc_html_e( 'Note', 'dox-pos' ); ?></h4>
+							<h4>
+								<?php esc_html_e( 'Note', 'dox-pos' ); ?>
+								<?php if ( ! empty( $cfg['backdate'] ) ) : // Solo quien administra: una venta que se registra con la fecha de otro día. ?>
+								<button type="button" class="undo" id="f-otrodia" aria-expanded="false" aria-controls="f-otrodia-box"><?php esc_html_e( 'Sale from another day', 'dox-pos' ); ?></button>
+								<?php endif; ?>
+							</h4>
 							<textarea id="f-nota" aria-label="<?php esc_attr_e( 'Note', 'dox-pos' ); ?>"></textarea>
+							<?php if ( ! empty( $cfg['backdate'] ) ) : ?>
+							<div class="g2 mt" id="f-otrodia-box" hidden>
+								<div class="field"><label for="f-od-fecha"><?php esc_html_e( 'Sale date', 'dox-pos' ); ?></label><input id="f-od-fecha" type="date" min="<?php echo esc_attr( $cfg['backdate']['min'] ); ?>" max="<?php echo esc_attr( $cfg['backdate']['max'] ); ?>"></div>
+								<div class="field"><label for="f-od-motivo"><?php esc_html_e( 'Reason', 'dox-pos' ); ?></label><input id="f-od-motivo" maxlength="200" autocomplete="off" placeholder="<?php esc_attr_e( 'E.g. it was sold on the 31st and we did not get to record it', 'dox-pos' ); ?>"></div>
+								<p class="hint"><?php esc_html_e( 'It counts on that day in the reports. You can go back up to 7 days, and it has to be a sale already paid.', 'dox-pos' ); ?></p>
+							</div>
+							<?php endif; ?>
 						</div>
 					</div>
 					<div class="foot">

@@ -4,7 +4,7 @@ Tags: woocommerce, pos, point of sale, barcode scanner, inventory
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.60.1
+Stable tag: 0.61.0
 Requires Plugins: woocommerce
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -111,6 +111,10 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 
 == Changelog ==
 
+= 0.61.0 =
+* New: "Sale from another day" in Sell, for the store manager (administrators and shop managers only). A sale that was made a few days ago and was not recorded can be recorded now with the day it was sold, from yesterday back to 7 days ago, plus a short reason. It counts on that day in History, Cash of the day and the Panel, and the order shows a "Registered late" badge with the day it was really entered and the reason. It has to be a sale already paid: not a layaway, not cash on delivery, not a deposit to store credit and not from the Counter (the till shifts count their cash by shift). The server checks the user, the day and the reason; a seller cannot use it.
+* Technical: POST /orders accepts backdate {date: YYYY-MM-DD, reason}. The order gets date_created and date_paid at that day and the current local time, the meta _dox_pos_backdated {entered, user, reason} and an order note. The dates are set after payment_complete(), so WooCommerce does not overwrite them. The stock log keeps the real moment of the stock movement. New cfg.backdate {min, max} (null for users who cannot use it) and a "late" field in each order of /orders.
+
 = 0.60.1 =
 * Fix: in Orders, tapping anywhere on an order opens its detail, cancelled orders included. Before, only the order number and the products did, and on a phone it was easy to miss. The buttons on the order still do their own thing, and selecting text (to copy a phone number) does not open it.
 
@@ -144,9 +148,5 @@ Yes. Orders are created through the WooCommerce API, and the plugin declares com
 * WPML: the register shows each product once and counts it once, as above. Creating the translations, the language tabs and the Missing marker are Polylang only: with WPML the translations are still made in WPML.
 * Stock still changes only through WooCommerce, so whatever the store uses to copy stock between translations (Polylang for WooCommerce, WooCommerce Multilingual or a snippet) keeps working. Polylang (free) does not copy it.
 * Technical: new includes/multilingual.php with dox_pos_lang_plugin(), dox_pos_lang_where() (a NOT EXISTS on the language terms of Polylang or on icl_translations of WPML, for products and for variations through their parent), dox_pos_lang_main_id() (with Polylang, a variation of a translation maps to the variation of the main product: the one it was copied from, marked with _dox_pos_lang_of, or the one with the same attributes), dox_pos_lang_assign() and, for the translations, dox_pos_lang_sync() (WC_Admin_Duplicate_Product to create them, then the shared fields copied without writing to the kardex). Each copy is marked in the same save that creates it (_dox_pos_lang_of, _dox_pos_lang and _dox_pos_lang_pending until it is finished), so dox_pos_lang_sync() can adopt an unlinked copy (dox_pos_lang_orphan()) or finish a pending one instead of making another; dox_pos_lang_missing() feeds lang_missing in the edit data and nolang in the catalog and the edit list; POST /products/{id}/translations creates what is missing. Creating or finishing a translation takes a lock per product and language (dox_pos_lang_lock()), so two requests at once never make two; a translation in the trash is left alone. WPML only filters the lists. Without Polylang or WPML they make no queries and leave every query as it was.
-
-= 0.58.2 =
-* Fix: in History > Sales, the By channel, By payment method and By salesperson lists no longer overlap. A long name, like a payment method called "Daviplata o Bancolombia", pushed its total over the next column; it now wraps onto a second line and the total stays in its own column.
-* Technical: in assets/css/caja.css, .bl .chan can wrap and the first span of each .bl row takes min-width:0.
 
 Full changelog: https://help.doxstudio.com/dox-pos-changelog/

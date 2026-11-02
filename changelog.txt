@@ -2,6 +2,10 @@
 
 Every version, newest first. The readme on WordPress.org shows only the recent ones.
 
+= 0.61.0 =
+* New: "Sale from another day" in Sell, for the store manager (administrators and shop managers only). A sale that was made a few days ago and was not recorded can be recorded now with the day it was sold, from yesterday back to 7 days ago, plus a short reason. It counts on that day in History, Cash of the day and the Panel, and the order shows a "Registered late" badge with the day it was really entered and the reason. It has to be a sale already paid: not a layaway, not cash on delivery, not a deposit to store credit and not from the Counter (the till shifts count their cash by shift). The server checks the user, the day and the reason; a seller cannot use it.
+* Technical: POST /orders accepts backdate {date: YYYY-MM-DD, reason}. The order gets date_created and date_paid at that day and the current local time, the meta _dox_pos_backdated {entered, user, reason} and an order note. The dates are set after payment_complete(), so WooCommerce does not overwrite them. The stock log keeps the real moment of the stock movement. New cfg.backdate {min, max} (null for users who cannot use it) and a "late" field in each order of /orders.
+
 = 0.60.1 =
 * Fix: in Orders, tapping anywhere on an order opens its detail, cancelled orders included. Before, only the order number and the products did, and on a phone it was easy to miss. The buttons on the order still do their own thing, and selecting text (to copy a phone number) does not open it.
 

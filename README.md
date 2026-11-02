@@ -376,6 +376,14 @@ Plata de una clienta que la tienda guarda para que la use después: un **abono**
 - **Lo vendido sin producto** (Vender, Sin producto) es una línea de pedido sin producto con `_dox_pos_free`; no toca inventario, paga impuesto como un producto y al pagarse queda "por enviar".
 - **Los informes:** Ventas resta lo devuelto en dinero (antes solo lo restaba el cierre de caja) y dice cuánto entró como abono y cuánto se pagó con saldo; Caja del día resta las devoluciones en dinero el día que se devolvieron (`dox_pos_history_refunds`); las unidades devueltas no cuentan como vendidas ni su costo en la ganancia. Informes › Saldo a favor enseña lo que la tienda debe en saldo, cada clienta y su historial, y los ajustes (solo quien administra; "Cargar un saldo" sirve para pasar los que se llevaban en una hoja de cálculo). El cargo por cambio está en Ajustes › Ventas (`exchange_fee`, de fábrica 0).
 
+## Venta de otro día (0.61.0)
+
+Quien administra (`manage_woocommerce`) puede registrar en Vender una venta hecha un día anterior que no se anotó a tiempo, para que cuente en su mes. Un enlace "Venta de otro día" junto a la nota abre una fecha (de ayer hasta hace 7 días) y un motivo; la caja lo manda en `POST /orders` como `backdate {date, reason}` y `cfg.backdate {min, max}` solo existe para quien puede usarlo.
+
+- **El servidor manda** (`dox_pos_backdate_check()` en `orders.php`): permiso, formato `AAAA-MM-DD`, rango en la zona horaria de la tienda (`dox_pos_backdate_window()`) y motivo no vacío de hasta 200 caracteres. Se rechaza en un apartado, en el Mostrador, con abono al saldo o con una forma de pago sin cobrar (contra entrega): solo una venta pagada de Vender.
+- **Las fechas** (`dox_pos_apply_backdate()`): `date_created` y `date_paid` pasan al día elegido a la hora local de ahora. Se ponen al final, después de `payment_complete()`, que fija la fecha de pago en el momento. Se guarda `_dox_pos_backdated {entered, user, reason}` y una nota del pedido. `dox_pos_order_late()` lo expone como `late` en cada pedido (insignia "Registrada tarde" en la lista y el detalle).
+- **Informes**: el historial, la caja del día y el Panel cuentan por `date_created` (`dox_pos_order_sale_date()`), así que la venta cae en su día. El kardex conserva el momento real del movimiento de stock. Los turnos del Mostrador se leen por el meta `_dox_pos_shift`, no por fecha: una venta de otro día nunca lo lleva.
+
 ## El Mostrador (0.48.0)
 
 La caja de una tienda física, en `includes/counter.php`, `templates/counter.php` y `assets/js/mostrador.js`. Se enciende en Ajustes > Ventas (`dox_pos_sales[counter]`) y sale como pestaña de la caja.

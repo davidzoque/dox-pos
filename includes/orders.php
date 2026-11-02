@@ -164,13 +164,93 @@ function dox_pos_disable_admin_mail( $enabled, $order ) {
 }
 
 /**
+ * Los días que se pueden poner a una venta de otro día: desde hace 7 días hasta ayer, en la zona horaria de la tienda.
+ *
+ * @return array{min:string,max:string} AAAA-MM-DD.
+ */
+function dox_pos_backdate_window() {
+	$today = new DateTimeImmutable( 'today', wp_timezone() );
+	return array(
+		'min' => $today->modify( '-7 days' )->format( 'Y-m-d' ),
+		'max' => $today->modify( '-1 day' )->format( 'Y-m-d' ),
+	);
+}
+
+/**
+ * Revisa una "venta de otro día" que llega de la caja. Nada de lo que manda el navegador se da por bueno: quién
+ * puede pedirla, el formato y el rango de la fecha y el motivo se comprueban aquí.
+ *
+ * @param mixed $raw {date: AAAA-MM-DD, reason: texto} tal como llegó.
+ * @return array{date:string,reason:string}|WP_Error
+ */
+function dox_pos_backdate_check( $raw ) {
+	// Solo quien administra la tienda (el mismo permiso con que se devuelve al saldo): una vendedora no cambia fechas.
+	if ( ! current_user_can( 'manage_woocommerce' ) ) {
+		return new WP_Error( 'dox_pos_otro_dia_permiso', __( 'Only the store manager can record a sale from another day.', 'dox-pos' ) );
+	}
+	$raw  = is_array( $raw ) ? $raw : array();
+	$date = is_string( $raw['date'] ?? null ) ? trim( $raw['date'] ) : '';
+	if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $date, $m ) || ! checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ) {
+		return new WP_Error( 'dox_pos_otro_dia_fecha', __( 'Choose the day the sale was made.', 'dox-pos' ) );
+	}
+	$win = dox_pos_backdate_window();
+	if ( $date < $win['min'] || $date > $win['max'] ) {
+		return new WP_Error( 'dox_pos_otro_dia_rango', __( 'The day has to be from yesterday back to 7 days ago.', 'dox-pos' ) );
+	}
+	// Texto plano: se guarda tal cual (sin quitar etiquetas: "precio<5000" es un motivo válido) y se escapa al mostrarlo.
+	$reason = is_string( $raw['reason'] ?? null ) ? trim( (string) preg_replace( '/\s+/u', ' ', (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $raw['reason'] ) ) ) : '';
+	if ( '' === $reason ) {
+		return new WP_Error( 'dox_pos_otro_dia_motivo', __( 'Write why the sale is recorded late.', 'dox-pos' ) );
+	}
+	if ( mb_strlen( $reason ) > 200 ) {
+		return new WP_Error( 'dox_pos_otro_dia_motivo', __( 'The reason can have at most 200 characters.', 'dox-pos' ) );
+	}
+	return array( 'date' => $date, 'reason' => $reason );
+}
+
+/**
+ * Pone a la venta el día elegido, a la hora local de ahora, y apunta cuándo se registró de verdad. Va al final, ya
+ * pagada la venta: payment_complete() y los cambios de estado de WooCommerce ponen la fecha de pago en el momento.
+ *
+ * @param WC_Order $order    El pedido, ya pagado.
+ * @param array    $backdate Lo que devuelve dox_pos_backdate_check().
+ * @param WP_User  $user     Quien la registra.
+ */
+function dox_pos_apply_backdate( $order, $backdate, $user ) {
+	$tz    = wp_timezone();
+	$now   = new DateTimeImmutable( 'now', $tz );
+	$day   = new DateTimeImmutable( $backdate['date'] . ' ' . $now->format( 'H:i:s' ), $tz );
+	$order->set_date_created( $day->getTimestamp() );
+	$order->set_date_paid( $day->getTimestamp() );
+	$order->update_meta_data( '_dox_pos_backdated', array( 'entered' => $now->getTimestamp(), 'user' => (int) $user->ID, 'reason' => $backdate['reason'] ) );
+	$order->save();
+	// Las cifras de días pasados y lo más vendido se guardan una hora: esta venta cae en un día ya cerrado, así que se rehacen.
+	update_option( 'dox_pos_dash_ver', (int) get_option( 'dox_pos_dash_ver', 0 ) + 1, false );
+	// Y Pedidos la sigue enseñando aunque por su fecha ya no esté entre las más recientes (ver dox_pos_list_orders).
+	$recent = array_filter( (array) get_option( 'dox_pos_recent_backdated', array() ), fn( $t ) => (int) $t > $now->getTimestamp() - 7 * DAY_IN_SECONDS );
+	$recent[ $order->get_id() ] = $now->getTimestamp();
+	update_option( 'dox_pos_recent_backdated', $recent, false );
+	$fmt = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+	$order->add_order_note(
+		sprintf(
+			/* translators: 1: real date and time it was entered, 2: day chosen for the sale, 3: user, 4: reason */
+			__( 'Registered on %1$s with date %2$s by %3$s: %4$s', 'dox-pos' ),
+			wp_date( $fmt, $now->getTimestamp() ),
+			wp_date( get_option( 'date_format' ), $day->getTimestamp() ),
+			esc_html( $user->display_name ),
+			esc_html( $backdate['reason'] ) // La nota se pinta como HTML; la caja la lee con html_entity_decode.
+		)
+	);
+}
+
+/**
  * Crea el pedido. Si $hold, queda en espera (apartado) con su plazo; si no, es una venta.
  *
  * @param array $data lines, free [{name, price, qty}] (lo que se vende sin producto), deposit {name, amount} (un abono al saldo
  *                    a favor), credit (lo que se paga con saldo), channel, customer{name, phone, state, city, address, postcode},
  *                    payment, discount, shipping{label, method_id, instance_id, cost}, note, ref. En un apartado, además:
  *                    hold_hours (el plazo en horas, 0 = sin vencer; sin dato, el de Ajustes) y hold_deposit {amount, payment}
- *                    (lo que abona al apartar, includes/layaways.php).
+ *                    (lo que abona al apartar, includes/layaways.php). Una venta de otro día (solo quien administra): backdate {date, reason}.
  * @param bool  $hold Apartado en vez de venta.
  * @return array|WP_Error El pedido formateado, con el mensaje de WhatsApp.
  */
@@ -358,6 +438,20 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		return new WP_Error( 'dox_pos_abono', __( 'A deposit is money that comes in now: record it as paid, with the payment method it came in.', 'dox-pos' ) );
 	}
 
+	// Una venta de otro día (0.61.0): solo una venta ya pagada y de la caja de Vender. Un apartado o un cobro a la entrega
+	// no se pagaron ese día, un abono al saldo es plata que entra ahora, y el Mostrador cuenta su efectivo por turnos
+	// (_dox_pos_shift): plata de otro día no puede caer en el turno que está abierto hoy.
+	$backdate = null;
+	if ( ! empty( $data['backdate'] ) ) {
+		$backdate = dox_pos_backdate_check( $data['backdate'] );
+		if ( is_wp_error( $backdate ) ) {
+			return $backdate;
+		}
+		if ( $hold || $counter || $deposit ) {
+			return new WP_Error( 'dox_pos_otro_dia_tipo', __( 'A sale from another day has to be a sale already paid, from Sell, with no deposit to store credit.', 'dox-pos' ) );
+		}
+	}
+
 	// Un añadido puede negarse a vender (el Pro: un producto sin precio en la moneda de la caja, un saldo de otra moneda).
 	$problem = apply_filters( 'dox_pos_order_problem', null, $lines, $data );
 	if ( is_wp_error( $problem ) ) {
@@ -494,6 +588,11 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		$order->set_payment_method( $pay['id'] );
 		$order->set_payment_method_title( $pay['title'] );
 	}
+	// Una venta de otro día tiene que estar cobrada: con una forma de pago pagada, o entera con saldo (que se sabe recién ahora).
+	if ( $backdate && empty( $pay['paid'] ) ) {
+		$order->delete( true );
+		return new WP_Error( 'dox_pos_otro_dia_tipo', __( 'A sale from another day has to be a sale already paid, from Sell, with no deposit to store credit.', 'dox-pos' ) );
+	}
 	// Cómo se cobró: una forma de pago o varias, y en efectivo con cuánto pagó y el cambio, para el
 	// ticket y el cierre de caja. Si no alcanza (el total cambió entre que se cobró y se guardó), no
 	// se registra nada.
@@ -578,6 +677,10 @@ function dox_pos_create_order_locked( $data, $hold ) {
 		}
 	} else {
 		$order->update_status( 'processing', __( 'Cash on delivery. ', 'dox-pos' ) . $who );
+	}
+	// La fecha elegida va después del pago y del estado: WooCommerce pone la de pago en el momento al cobrar.
+	if ( $backdate ) {
+		dox_pos_apply_backdate( $order, $backdate, $user );
 	}
 	// El estado nuevo ya descontó el inventario: la reserva sobra. WooCommerce la suelta
 	// solo al cambiar el estado; se repite por si algún plugin cortó ese gancho.
@@ -1002,7 +1105,25 @@ function dox_pos_list_orders( $limit = 80 ) {
 		}
 		++$page;
 	} while ( $more && $count < $limit && $page <= 10 );
-	return array_map( 'dox_pos_format_order', array_slice( $out, 0, $limit ) );
+	$out = array_slice( $out, 0, $limit );
+	// Las ventas de otro día de la última semana: por su fecha caen más abajo, y sin esto quien la acaba de registrar no la vería.
+	$have = array_map( fn( $o ) => $o->get_id(), $out );
+	foreach ( (array) get_option( 'dox_pos_recent_backdated', array() ) as $rid => $at ) {
+		if ( (int) $at < time() - 7 * DAY_IN_SECONDS || in_array( (int) $rid, $have, true ) ) {
+			continue;
+		}
+		$o = wc_get_order( (int) $rid );
+		if ( $o instanceof WC_Order && DOX_POS_VIA === $o->get_created_via() && in_array( 'wc-' . $o->get_status(), $args['status'], true ) ) {
+			$out[] = $o;
+		}
+	}
+	// Una venta de otro día se ordena por cuándo se registró de verdad (arriba, recién hecha); en la lista sigue con la fecha de la venta.
+	$sort = function ( $o ) {
+		$m = $o->get_meta( '_dox_pos_backdated' );
+		return is_array( $m ) && ! empty( $m['entered'] ) ? (int) $m['entered'] : ( $o->get_date_created() ? $o->get_date_created()->getTimestamp() : 0 );
+	};
+	usort( $out, fn( $a, $b ) => $sort( $b ) <=> $sort( $a ) );
+	return array_map( 'dox_pos_format_order', $out );
 }
 
 /**
@@ -1137,11 +1258,29 @@ function dox_pos_format_order( $order ) {
 		'note'         => $order->get_customer_note(),
 		'seller'       => $order->get_meta( '_dox_pos_seller_name' ),
 		'counter'      => (bool) $order->get_meta( '_dox_pos_counter' ),                                // Vendido en el Mostrador.
+		'late'         => dox_pos_order_late( $order ),                                                  // Registrada tarde: cuándo entró de verdad y por qué (null si no).
 		'tendered'     => '' !== (string) $order->get_meta( '_dox_pos_tendered' ) ? (float) $order->get_meta( '_dox_pos_tendered' ) : null, // En efectivo: con cuánto pagó.
 		'change'       => '' !== (string) $order->get_meta( '_dox_pos_change' ) ? (float) $order->get_meta( '_dox_pos_change' ) : null,     // Y el cambio.
 		'pay_url'      => $hold ? $order->get_checkout_payment_url() : '',
 		'whatsapp'     => $wa,
 		'currency'     => $order->get_currency() !== dox_pos_currency() ? $order->get_currency() : '', // Vacío: la de la caja; si no, la de este pedido (el Pro: un pedido en USD con la caja en COP, o al revés).
+	);
+}
+
+/**
+ * Si el pedido es una venta de otro día: cuándo se registró de verdad y el motivo.
+ *
+ * @param WC_Order $order El pedido.
+ * @return array{entered:string,reason:string}|null
+ */
+function dox_pos_order_late( $order ) {
+	$m = $order->get_meta( '_dox_pos_backdated' );
+	if ( ! is_array( $m ) || empty( $m['entered'] ) ) {
+		return null;
+	}
+	return array(
+		'entered' => wp_date( 'd/m H:i', (int) $m['entered'] ),
+		'reason'  => (string) ( $m['reason'] ?? '' ),
 	);
 }
 

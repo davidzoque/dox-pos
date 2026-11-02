@@ -445,6 +445,7 @@ function dox_pos_js_config() {
 		'losses'          => dox_pos_can_see_losses(),                    // ¿Anota y ve las pérdidas de los pedidos? (administradores y gerentes)
 		'writeoff'        => dox_pos_can_see_losses() ? dox_pos_writeoff_reasons() : array(), // Los motivos para dar de baja lo dañado o perdido (vacío: no puede).
 		'credit'          => array( 'fee' => dox_pos_exchange_fee(), 'manage' => current_user_can( 'manage_woocommerce' ) ), // El saldo a favor: el cargo por cambio y si devuelve al saldo y ajusta (quien administra).
+		'backdate'        => current_user_can( 'manage_woocommerce' ) ? dox_pos_backdate_window() + array( 'offset' => wp_timezone()->getOffset( new DateTime( 'now' ) ) ) : null, // "Venta de otro día": los días que admite {min, max} y el desfase de la tienda en segundos (la caja recalcula la ventana al abrirla; solo quien administra, si no null).
 		'margin_good'     => 40,                                          // La ganancia sale en verde desde este margen; el Pro pone el de sus ajustes.
 		'margin_low'      => 20,                                          // Y en rojo por debajo de este.
 		'costs'           => dox_pos_can_see_costs(),                     // ¿Ve costos y ganancia? (administradores y gerentes, con los costos encendidos)

@@ -1474,8 +1474,36 @@
 	}
 
 	// ---------- registrar la venta o apartar ----------
+	// "Venta de otro día" (solo quien administra): una fecha de los últimos 7 días y el motivo. El servidor lo vuelve a revisar todo.
+	const otroDiaAbierto = () => !!$("#f-otrodia-box") && !$("#f-otrodia-box").hidden;
+	// Los días que admite, con el reloj de la tienda (el de la página pudo abrirse hace días); el servidor decide de todos modos.
+	function ventanaOtroDia() {
+		const b = cfg.backdate, f = (t) => new Date(t).toISOString().slice(0, 10);
+		const hoy = new Date(Date.now() + (+b.offset || 0) * 1000);
+		const dia = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
+		return { min: f(dia - 7 * 864e5), max: f(dia - 864e5) };
+	}
+	function ponerOtroDia(abrir) {
+		if (!$("#f-otrodia-box")) return;
+		if (abrir) {
+			const w = ventanaOtroDia();
+			$("#f-od-fecha").min = w.min;
+			$("#f-od-fecha").max = w.max;
+		}
+		$("#f-otrodia-box").hidden = !abrir;
+		$("#f-otrodia").setAttribute("aria-expanded", abrir ? "true" : "false");
+		if (!abrir) { $("#f-od-fecha").value = ""; $("#f-od-motivo").value = ""; }
+	}
 	async function cerrar(hold, op) {
 		if (st.ocupado || !hayVenta()) return;
+		let otroDia = null;
+		if (otroDiaAbierto()) {
+			otroDia = { date: $("#f-od-fecha").value, reason: $("#f-od-motivo").value.trim() };
+			if (hold) { toast(__("A layaway cannot be from another day. Close \u201cSale from another day\u201d first.", "dox-pos")); return; }
+			if (!otroDia.date) { toast(__("Choose the day the sale was made.", "dox-pos")); $("#f-od-fecha").focus(); return; }
+			if (!otroDia.reason) { toast(__("Write why the sale is recorded late.", "dox-pos")); $("#f-od-motivo").focus(); return; }
+			if (!navigator.onLine) { toast(__("A sale from another day needs a connection.", "dox-pos")); return; }
+		}
 		if (hold && !$("#f-tel").value.trim()) {
 			toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
 			$("#f-tel").focus();
@@ -1511,6 +1539,7 @@
 			note: $("#f-nota").value.trim(),
 			customer: { name: $("#f-nom").value.trim(), phone: $("#f-tel").value.trim(), state: $("#f-dep").value, city: fijarCiudad(), address: $("#f-dir").value.trim(), postcode: codigoPostal() },
 			shipping: conEnvio ? { label: st.rate ? st.rate.label : __("Shipping", "dox-pos"), method_id: st.rate ? st.rate.method_id : "dox_pos", instance_id: st.rate ? st.rate.instance_id : 0, cost: num($("#f-env").value) } : null,
+			backdate: otroDia,                                                     // Venta de otro día: {date: AAAA-MM-DD, reason}, o null.
 		};
 		// Reintentar la misma venta (la respuesta no llegó: un 504, un corte) manda la misma referencia, y la
 		// tienda devuelve el pedido que ya creó en vez de hacer otro. Si algo de la venta cambia, es otra.
@@ -1534,7 +1563,11 @@
 				else if (data.credit) modalSaldoVenta(data);
 				else toast(sprintf(__("Sale recorded: order #%s. The stock has already gone down.", "dox-pos"), data.order.number));
 			} catch (e) {
-				if (e.red) {
+				if (e.red && payload.backdate) {
+					// Una venta de otro día no se encola: al reenviarla más tarde el día puede haber salido del rango. Se queda en pantalla
+					// con la misma referencia, así que si el corte llegó después de crearse, la tienda devuelve el mismo pedido.
+					toast(__("The connection failed and the sale from another day was not sent. It stays on screen: check the connection and try again.", "dox-pos"));
+				} else if (e.red) {
 					encolar(tipo, "orders", payload, resumen);
 					limpiarPedido();
 				} else if (e.message !== "sesion") {
@@ -1572,6 +1605,7 @@
 		st.rates = [];
 		st.sinTarifa = false;
 		["#f-nom", "#f-tel", "#f-dir", "#f-nota", "#f-ciu", "#f-cp"].forEach((s) => { if ($(s)) $(s).value = ""; });
+		ponerOtroDia(false);
 		$("#f-desc").value = "0";
 		$("#f-env").value = "0";
 		pintarTodo();
@@ -1707,7 +1741,8 @@
 
 		// ----- la cabecera -----
 		let h = '<div class="pd-cab"><div class="pd-top"><h3>' + esc(sprintf(abono ? __("Deposit #%s", "dox-pos") : __("Order #%s", "dox-pos"), d.number)) + '</h3><span class="tag ' + cls + '">' + esc(d.label) + '</span><button type="button" class="pd-x" id="m-no" aria-label="' + esc(__("Close", "dox-pos")) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
-		h += '<p class="pd-meta"><span>' + esc(d.created) + "</span>" + (web ? '<span class="tag w">' + esc(d.origin_label) + "</span>" + (d.source ? "<span>" + esc(sprintf(__("from %s", "dox-pos"), d.source)) + "</span>" : "") : canalIc(d.channel) + "<span>" + esc(__("POS", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "") + "</span>") + (d.demo ? "<span>" + esc(__("demo", "dox-pos")) + "</span>" : "") + "</p></div>";
+		h += '<p class="pd-meta"><span>' + esc(d.created) + "</span>" + (web ? '<span class="tag w">' + esc(d.origin_label) + "</span>" + (d.source ? "<span>" + esc(sprintf(__("from %s", "dox-pos"), d.source)) + "</span>" : "") : canalIc(d.channel) + "<span>" + esc(__("POS", "dox-pos")) + (d.seller ? " · " + esc(d.seller) : "") + "</span>") + (d.demo ? "<span>" + esc(__("demo", "dox-pos")) + "</span>" : "") + (d.late ? '<span class="tag y">' + esc(__("Registered late", "dox-pos")) + "</span>" : "") + "</p>" +
+			(d.late ? '<p class="pd-late">' + esc(sprintf(__("Recorded on %1$s. Reason: %2$s", "dox-pos"), d.late.entered, d.late.reason)) + "</p>" : "") + "</div>";
 
 		// ----- las tres cifras -----
 		h += '<div class="pd-res">';
@@ -1890,6 +1925,7 @@
 					: '<td class="num">' + dinero(p.total) + (p.credit_used ? '<br><span class="sub">' + esc(sprintf(__("+ %s store credit", "dox-pos"), dinero(p.credit_used))) + "</span>" : "") + "</td>") +
 				'<td><span class="tag ' + cls + '">' + esc(p.label) + "</span>" +
 					(p.loss ? '<br><span class="tag r">' + esc(__("Loss", "dox-pos")) + " −" + dinero(p.loss) + "</span>" : "") +
+					(p.late ? '<br><span class="tag y" title="' + esc(sprintf(__("Recorded on %1$s. Reason: %2$s", "dox-pos"), p.late.entered, p.late.reason)) + '">' + esc(__("Registered late", "dox-pos")) + "</span>" : "") +
 					(p.status === "apartado" ? (p.layaway && p.layaway.expired ? '<br><span class="tag r">' + esc(__("Expired", "dox-pos")) + "</span>" : '<br><span class="sub">' + esc(p.layaway ? textoPlazo(p.layaway) : sprintf(__("expires in %d h", "dox-pos"), p.hours_left)) + "</span>") : "") +
 					(p.tracking ? '<br><span class="sub">' + (p.tracking_url ? '<a href="' + esc(p.tracking_url) + '" target="_blank" rel="noopener">' + esc(p.tracking) + "</a>" : esc(p.tracking)) + "</span>" : "") + "</td>";
 			_mon = null;
@@ -5119,7 +5155,16 @@
 		if ($("#f-envio-cfg")) $("#f-envio-cfg").onclick = abrirCostos;
 		document.addEventListener("keydown", (e) => { if (e.key === "Escape" && hojaAbierta() && $("#modal").hidden && (!$("#gearmenu") || $("#gearmenu").hidden)) volver(); });
 		$("#reg").onclick = () => cerrar(false);
+		if ($("#f-otrodia")) $("#f-otrodia").onclick = () => {
+			const abierto = $("#f-otrodia-box").hidden;
+			ponerOtroDia(abierto);
+			if (abierto) $("#f-od-fecha").focus();
+		};
 		$("#apartar").onclick = () => {
+			if (otroDiaAbierto()) {
+				toast(__("A layaway cannot be from another day. Close \u201cSale from another day\u201d first.", "dox-pos"));
+				return;
+			}
 			if (!$("#f-tel").value.trim()) {
 				toast(__("A layaway needs the customer\u2019s phone number.", "dox-pos"));
 				$("#f-tel").focus();

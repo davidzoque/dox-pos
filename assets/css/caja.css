@@ -446,6 +446,8 @@ tr.off,li.off{opacity:.5}
 .switch input:focus-visible+.switch-ui{box-shadow:0 0 0 3px var(--ring)}
 .switch span i{display:block;font-style:normal;font-size:12px;color:var(--muted);font-weight:400;margin-top:2px}
 .grp h4 .undo{padding:4px 0 4px 8px;text-transform:none;letter-spacing:0;font-size:12px}
+#f-otrodia-box .hint{grid-column:1/-1;margin:0}
+.pd-late{margin:6px 0 0;font-size:12px;color:var(--muted)}
 @container (max-width:760px){
   .fotos{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}
   .qcell input[inputmode]{width:56px}
